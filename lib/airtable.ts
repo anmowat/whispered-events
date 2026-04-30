@@ -2,8 +2,8 @@ import Airtable, { FieldSet, Base } from 'airtable'
 import { EventRecord, UserProfile } from './types'
 import stringSimilarity from 'string-similarity'
 
-const EVENTS_TABLE = process.env.AIRTABLE_EVENTS_TABLE || 'Events'
-const PROFILES_TABLE = process.env.AIRTABLE_PROFILES_TABLE || 'Users'
+const EVENTS_TABLE = 'Events'
+const PROFILES_TABLE = 'Users'
 
 function getBase(): Base {
   if (!process.env.AIRTABLE_API_KEY) {
@@ -121,7 +121,6 @@ export async function createProfile(profile: UserProfile): Promise<string> {
     Expertise: profile.expertise,
     Affiliation: profile.affiliation,
     Email: profile.email,
-    Approved: false,
   } as Partial<FieldSet>)
   return record.id
 }

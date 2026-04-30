@@ -183,7 +183,8 @@ export default function ViewEventsTab({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ profile }),
       })
-      if (!res.ok) throw new Error('Failed')
+      const data = await res.json() as { status?: string; error?: string }
+      if (!res.ok) throw new Error(data.error || 'Submission failed')
       setStep('submitted')
       addMessage(
         'assistant',

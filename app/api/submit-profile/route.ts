@@ -17,9 +17,10 @@ export async function POST(req: NextRequest) {
     const id = await createProfile(profile)
     return NextResponse.json({ status: 'created', id })
   } catch (err) {
-    console.error('submit-profile error:', err)
+    const message = err instanceof Error ? err.message : String(err)
+    console.error('submit-profile error:', message)
     return NextResponse.json(
-      { error: 'Failed to submit profile' },
+      { error: message },
       { status: 500 }
     )
   }
