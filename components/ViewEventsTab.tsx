@@ -47,8 +47,14 @@ const EMPTY_PROFILE: UserProfile = {
   email: '',
 }
 
-export default function ViewEventsTab({ eventCount }: { eventCount: number }) {
-  const [step, setStep] = useState<Step>('welcome')
+export default function ViewEventsTab({
+  eventCount = 0,
+  startAtForm,
+}: {
+  eventCount?: number
+  startAtForm?: boolean
+}) {
+  const [step, setStep] = useState<Step>(startAtForm ? 'form' : 'welcome')
   const [profile, setProfile] = useState<UserProfile>(EMPTY_PROFILE)
   const [errors, setErrors] = useState<Partial<Record<keyof UserProfile, string>>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
