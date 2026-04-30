@@ -1,0 +1,58 @@
+import Anthropic from '@anthropic-ai/sdk'
+import { ParsedEvent, EventType } from './types'
+
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY,
+})
+
+const EVENT_TYPES: EventType[] = ['Conference', 'Dinner', 'Virtual', 'Other']
+
+export async function parseEventContent(
+  content: string,
+  sourceUrl?: string
+): Promise<ParsedEvent> {
+  const prompt = `You are an event information extractor. Extract structured event data from the following content.
+
+${sourceUrl ? `Source URL: ${sourceUrl}` : ''}
+
+Content:
+${content}
+
+Extract and return a JSON object with these fields (omit fields you cannot determine):
+- name: Short event name, maximum 6 words
+- type: One of exactly: "Conference", "Dinner", "Virtual", "Other" — pick the best fit based on context
+- date: ISO date string (YYYY-MM-DD) of the event start date
+- description: A 2-sentence description of the event and the intended audience that would be shared with potential attendees
+- link: The canonical URL for the event (use the source URL if appropriate)
+- audience: Array of professional role/title strings who this event targets (e.g. ["CROs", "CMOs", "Revenue Leaders"])
+
+Return ONLY valid JSON, no markdown, no explanation. Example:
+{"name":"GTM Summit 2025","type":"Conference","date":"2025-09-15","description":"...","link":"https://...","audience":["CROs","CMOs"]}`
+
+  const message = await anthropic.messages.create({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 1024,
+    messages: [{ role: 'user', content: prompt }],
+  })
+
+  const text =
+    message.content[0].type === 'text' ? message.content[0].text : ''
+
+  try {
+    const parsed = JSON.parse(text.trim()) as ParsedEvent
+
+    // Validate type
+    if (parsed.type && !EVENT_TYPES.includes(parsed.type)) {
+      parsed.type = 'Other'
+    }
+
+    // Ensure link is set
+    if (!parsed.link && sourceUrl) {
+      parsed.link = sourceUrl
+    }
+
+    return parsed
+  } catch {
+    return { link: sourceUrl }
+  }
+}
