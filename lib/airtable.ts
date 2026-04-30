@@ -3,7 +3,7 @@ import { EventRecord, UserProfile } from './types'
 import stringSimilarity from 'string-similarity'
 
 const EVENTS_TABLE = process.env.AIRTABLE_EVENTS_TABLE || 'Events'
-const PROFILES_TABLE = process.env.AIRTABLE_PROFILES_TABLE || 'Profiles'
+const PROFILES_TABLE = process.env.AIRTABLE_PROFILES_TABLE || 'Users'
 
 function getBase(): Base {
   if (!process.env.AIRTABLE_API_KEY) {
