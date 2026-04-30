@@ -183,7 +183,7 @@ function ContributeCard({ onCTA }: { onCTA: () => void }) {
             'Share a link to the event or paste in the details.',
             'Our AI pulls out the key information automatically.',
             'Review, fill in anything missing, and confirm.',
-            'The event is added to our database for executives to discover.',
+            'The event is added to our database where executives with the appropriate profiles can view it.',
           ].map((text, i) => (
             <li key={i} className="flex items-start gap-3">
               <span className="w-5 h-5 rounded-full bg-gold-700/20 border border-gold-600/30 text-gold-400 text-xs flex items-center justify-center flex-shrink-0 mt-0.5 font-medium">
