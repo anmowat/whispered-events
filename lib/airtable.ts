@@ -9,9 +9,7 @@ function getBase(): Base {
   if (!process.env.AIRTABLE_API_KEY) {
     throw new Error('AIRTABLE_API_KEY is not set')
   }
-  return new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base(
-    process.env.AIRTABLE_BASE_ID || ''
-  )
+  return new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base('appK8AqOvtEgIquRT')
 }
 
 export async function getEventsCount(): Promise<number> {
