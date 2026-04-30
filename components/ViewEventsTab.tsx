@@ -52,6 +52,23 @@ function profileField(step: Step): keyof UserProfile | null {
   return map[step] ?? null
 }
 
+function MessageContent({ content }: { content: string }) {
+  return (
+    <div className="space-y-1 whitespace-pre-line">
+      {content.split('\n').map((line, i) => {
+        const parts = line.split(/\*\*(.+?)\*\*/)
+        return (
+          <p key={i}>
+            {parts.map((part, j) =>
+              j % 2 === 1 ? <strong key={j} className="text-white font-semibold">{part}</strong> : part
+            )}
+          </p>
+        )
+      })}
+    </div>
+  )
+}
+
 export default function ViewEventsTab({
   eventCount = 0,
   startAtForm,
@@ -194,13 +211,13 @@ export default function ViewEventsTab({
               </div>
             )}
             <div
-              className={`max-w-[85%] px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-line ${
+              className={`max-w-[85%] px-4 py-3 rounded-2xl text-sm leading-relaxed ${
                 msg.role === 'assistant'
                   ? 'bg-charcoal-800 text-gray-200 rounded-tl-sm'
                   : 'bg-gold-700/20 border border-gold-600/30 text-gold-100 rounded-tr-sm'
               }`}
             >
-              {msg.content}
+              <MessageContent content={msg.content} />
             </div>
           </div>
         ))}
