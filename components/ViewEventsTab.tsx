@@ -27,7 +27,7 @@ const STEPS: Step[] = [
 
 const QUESTIONS: Record<Step, string> = {
   name: "Let's start with your full name.",
-  linkedin: "What's your LinkedIn profile URL? (Type 'skip' if you'd prefer not to share)",
+  linkedin: "What's your LinkedIn profile URL?",
   function: "What do you do professionally? For example: Sales, Marketing, RevOps, Customer Success, Finance...",
   seniority: "How would you describe your seniority level? For example: C-Level, VP, Director, Manager, Founder...",
   companySize: "What's the approximate revenue of your current company? Many events are run by vendors who focus on specific company sizes — so this helps us match you accurately.",
@@ -127,6 +127,13 @@ export default function ViewEventsTab({
     if (!value) return
     setInput('')
     addMessage('user', value)
+
+    if (step === 'linkedin') {
+      if (!value.includes('linkedin.com')) {
+        addMessage('assistant', "Please share your LinkedIn profile URL (e.g. https://linkedin.com/in/yourname).")
+        return
+      }
+    }
 
     if (step === 'email') {
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
