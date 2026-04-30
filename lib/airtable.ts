@@ -71,7 +71,7 @@ export async function checkDuplicate(
           date: String(record.get('Date') || ''),
           description: String(record.get('Description') || ''),
           type: (record.get('Type') as EventRecord['type']) || 'Other',
-          audience: (record.get('Audience') as string[]) || [],
+          audience: String(record.get('Audience') || '').split(',').map(s => s.trim()).filter(Boolean),
         },
         missingFields,
       }
@@ -89,7 +89,7 @@ export async function createEvent(event: EventRecord): Promise<string> {
     Date: event.date,
     Description: event.description,
     Link: event.link,
-    Audience: event.audience,
+    Audience: event.audience.join(', '),
     Host: event.host,
     Submitter: event.submitter,
   } as Partial<FieldSet>)
@@ -103,7 +103,7 @@ export async function updateEvent(
   const base = getBase()
   const updateData: Partial<FieldSet> = {}
   if (fields.description) updateData['Description'] = fields.description
-  if (fields.audience?.length) updateData['Audience'] = fields.audience
+  if (fields.audience?.length) updateData['Audience'] = fields.audience.join(', ')
   if (fields.type) updateData['Type'] = fields.type
   if (fields.date) updateData['Date'] = fields.date
   if (fields.host !== undefined) updateData['Host'] = fields.host
