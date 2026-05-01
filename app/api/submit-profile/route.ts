@@ -7,9 +7,9 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const { profile } = body as { profile: UserProfile }
 
-    if (!profile.email || !profile.name) {
+    if (!profile.email) {
       return NextResponse.json(
-        { error: 'Name and email are required' },
+        { error: 'Email is required' },
         { status: 400 }
       )
     }
