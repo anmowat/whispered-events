@@ -127,10 +127,8 @@ export interface FeaturedEvent {
 
 export async function getFeaturedEvents(): Promise<FeaturedEvent[]> {
   const base = getBase()
-  const today = new Date().toISOString().split('T')[0]
   const records = await base('tbltqCrPbZbETbQRl')
     .select({
-      filterByFormula: `AND({Date} >= '${today}', {Date} != '')`,
       fields: ['Name', 'Description', 'Link', 'Date'],
       maxRecords: 10,
     })
