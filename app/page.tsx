@@ -89,10 +89,10 @@ function Landing({
       {/* Hero */}
       <div className="text-center max-w-xl space-y-4 mb-10">
         <div className="space-y-1">
-          <p className="text-gray-900 text-2xl leading-snug font-semibold">
+          <p className="text-gray-900 text-xl leading-snug font-semibold">
             In-person events are the best way to build real relationships but..
           </p>
-          <p className="text-gray-900 text-2xl leading-snug font-semibold">
+          <p className="text-gray-900 text-xl leading-snug font-semibold">
             ... the best events aren&apos;t posted, they are whispered.
           </p>
         </div>
