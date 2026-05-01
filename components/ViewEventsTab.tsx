@@ -10,15 +10,15 @@ interface Message {
   content: string
 }
 
-const STEPS: Step[] = ['email', 'function', 'seniority', 'companySize', 'expertise', 'affiliation', 'linkedin', 'confirm']
+const STEPS: Step[] = ['email', 'affiliation', 'function', 'seniority', 'companySize', 'expertise', 'linkedin', 'confirm']
 
 const QUESTIONS: Record<Step, string> = {
-  email: "**What's your email address?** We only use this to notify you when events that match your profile are added — nothing else.",
-  function: "**What do you do professionally?** Many events are curated for specific roles, so knowing your function helps us make sure we're only surfacing events that are genuinely relevant to you. (e.g. Sales, Marketing, RevOps, Customer Success, Finance...)",
-  seniority: "**What's your seniority level?** Most events on Whispered are targeted at specific levels — so being accurate here means you'll only hear about events you'd actually get into. (e.g. C-Level, VP, Director, Manager, Founder...)",
-  companySize: "**What's the approximate revenue of your current company?** Many events are hosted by vendors who specifically invite people from companies of a certain size. This helps us match you to the right ones.",
-  expertise: "**What expertise do you have, and what industries do you know well?** The more specific you can be, the better we can match you to niche events where your background is exactly what the host is looking for.",
-  affiliation: "**Are you part of any professional communities or organizations?** We have automatic approval for members of partner communities, so this could fast-track your access. Type 'none' if not applicable.",
+  email: "**What's your email address?** We use this only to send you events that match your profile — nothing else.",
+  affiliation: "**Are you affiliated with any of our partner communities?** Partner members are automatically approved and get immediate access. If not, we'll review your application and notify you if accepted — though note that non-partner members are asked to contribute one event before receiving access. Type 'none' if not applicable.",
+  function: "**What do you do professionally?** (e.g. Sales, Marketing, RevOps, Customer Success, Finance...)",
+  seniority: "**How senior are you?** (e.g. C-Level, VP, Director, Manager, Founder...)",
+  companySize: "**What is the approximate revenue of your current company?** Many events are run by vendors who want to focus on specific company sizes — this helps us make sure you're only seeing events you'd actually qualify for.",
+  expertise: "**What expertise do you have, and what industries do you know well?** The more specific you are, the better we can match you to niche events where your background is exactly what the host is looking for.",
   linkedin: "**What's your LinkedIn profile URL?** Our team uses this to verify your profile before granting access.",
   name: '',
   confirm: '',
