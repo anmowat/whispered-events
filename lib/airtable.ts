@@ -122,7 +122,7 @@ export async function getPartners(): Promise<Partner[]> {
   const records = await base('Partner')
     .select({
       filterByFormula: "{Status} = 'Live'",
-      fields: ['Name', 'Logo', 'Website'],
+      fields: ['Name', 'Logo', 'Site'],
     })
     .all()
 
@@ -133,7 +133,7 @@ export async function getPartners(): Promise<Partner[]> {
         id: record.id,
         name: String(record.get('Name') || ''),
         logoUrl: logo?.[0]?.url || '',
-        website: String(record.get('Website') || ''),
+        website: String(record.get('Site') || ''),
       }
     })
     .filter((p) => p.logoUrl)
