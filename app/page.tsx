@@ -40,22 +40,16 @@ export default function Home() {
     <div className="min-h-screen flex flex-col bg-[#F5EFE6]">
       {/* Header */}
       <header className="border-b border-[#E8DDD0] bg-[#F5EFE6]/90 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
+          <button onClick={handleBack} className="flex items-center gap-2 flex-shrink-0">
             <span className="text-lg" aria-hidden="true">🤫</span>
-            <span className="font-serif text-gray-900 tracking-wide text-sm">Whispered Events</span>
+            <span className="font-serif text-gray-900 tracking-wide text-sm hidden sm:inline">Whispered Events</span>
+          </button>
+          <div className="flex gap-1 bg-white border border-[#E8DDD0] rounded-xl p-1 shadow-sm">
+            <TabPill active={tab === 'view'} onClick={() => { setTab('view'); setMode('active') }}>Find Events</TabPill>
+            <TabPill active={tab === 'contribute'} onClick={() => { setTab('contribute'); setMode('active') }}>Contribute Event</TabPill>
+            <TabPill active={tab === 'partner'} onClick={() => { setTab('partner'); setMode('active') }}>Partner</TabPill>
           </div>
-          {mode === 'active' && (
-            <button
-              onClick={handleBack}
-              className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-              </svg>
-              Back
-            </button>
-          )}
         </div>
       </header>
 
@@ -64,7 +58,9 @@ export default function Home() {
           <Landing tab={tab} setTab={setTab} eventCount={eventCount} partners={partners} onCTA={handleCTA} />
         ) : (
           <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
-            {tab === 'view' ? <ViewEventsTab startAtForm partners={partners} onContribute={() => setTab('contribute')} /> : <ShareEventTab />}
+            {tab === 'view' && <ViewEventsTab startAtForm partners={partners} onContribute={() => setTab('contribute')} />}
+            {tab === 'contribute' && <ShareEventTab />}
+            {tab === 'partner' && <PartnerCard />}
           </div>
         )}
       </main>
@@ -98,13 +94,6 @@ function Landing({
         <p className="text-gray-500 text-sm leading-relaxed">
           Whispered Events is a free platform that allows executives to contribute and see exclusive events.
         </p>
-      </div>
-
-      {/* Tab switcher */}
-      <div className="flex gap-1.5 bg-white border border-[#E8DDD0] rounded-xl p-1.5 mb-8 shadow-sm">
-        <TabPill active={tab === 'view'} onClick={() => setTab('view')}>Find Events</TabPill>
-        <TabPill active={tab === 'contribute'} onClick={() => setTab('contribute')}>Contribute Event</TabPill>
-        <TabPill active={tab === 'partner'} onClick={() => setTab('partner')}>Partner</TabPill>
       </div>
 
       {/* Info card */}
@@ -150,9 +139,9 @@ function ViewCard({ onCTA }: { onCTA: () => void }) {
         <h3 className="text-xs uppercase tracking-widest text-gray-400 font-medium">How it works</h3>
         <ol className="space-y-3">
           {[
-            'Apply — members of partner communities are automatically approved.',
+            'Apply — execs from partner organizations are automatically approved.',
             'Share your profile so we can match you to the right events.',
-            'Get notified when events matching your profile are added.',
+            'Get notified of new events matching your profile.',
           ].map((text, i) => (
             <li key={i} className="flex items-start gap-3">
               <span className="w-5 h-5 rounded-full bg-gold-50 border border-gold-200 text-gold-700 text-xs flex items-center justify-center flex-shrink-0 mt-0.5 font-medium">{i + 1}</span>
