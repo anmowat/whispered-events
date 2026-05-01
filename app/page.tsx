@@ -66,7 +66,7 @@ export default function Home() {
         ) : (
           <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
             {tab === 'view' && <ViewEventsTab startAtForm partners={partners} onContribute={() => setTab('contribute')} />}
-            {tab === 'contribute' && <ShareEventTab />}
+            {tab === 'contribute' && <ShareEventTab onDone={handleBack} />}
             {tab === 'partner' && <PartnerCard featuredEvents={featuredEvents} />}
           </div>
         )}

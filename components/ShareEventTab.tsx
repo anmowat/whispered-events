@@ -16,7 +16,7 @@ function isValidUrl(str: string) {
   try { new URL(str); return true } catch { return false }
 }
 
-export default function ShareEventTab() {
+export default function ShareEventTab({ onDone }: { onDone?: () => void }) {
   const [step, setStep] = useState<Step>('input')
   const [messages, setMessages] = useState<Message[]>([
     { role: 'assistant', content: "Welcome to Whispered Events. To share an event, paste a link to the event page — or type out the event details directly." },
@@ -81,11 +81,7 @@ export default function ShareEventTab() {
 
   async function handleSubmitterContinue() {
     if (!submitterEmail.trim()) return
-    setStep('preview')
-    addMessage('assistant', "Here's a preview of how this event will be saved. Confirm to add it to our database.")
-  }
-
-  async function handleConfirmSubmit() {
+    addMessage('user', submitterEmail)
     setIsLoading(true)
     const fullEvent: EventRecord = {
       name: parsed.name || '', type: parsed.type || 'Other', date: parsed.date || '',
@@ -105,7 +101,8 @@ export default function ShareEventTab() {
         addMessage('assistant', "This event is already in our database. If you had any new details, we've added them to the existing record.")
       } else {
         setStep('submitted')
-        addMessage('assistant', `Thank you${submitterName ? ', ' + submitterName : ''}! The event has been added to our database. We appreciate you helping the community discover exclusive events.`)
+        addMessage('assistant', "Thank you! The event has been added to our database. We appreciate you helping the community discover exclusive events.")
+        setTimeout(() => onDone?.(), 2500)
       }
     } catch {
       setStep('error')
@@ -171,11 +168,7 @@ export default function ShareEventTab() {
           </div>
         )}
 
-        {step === 'preview' && !isLoading && (
-          <div className="animate-slide-up">
-            <EventPreview event={{ ...parsed, submitter: submitterEmail } as EventRecord} onConfirm={handleConfirmSubmit} onEdit={() => setStep('review')} />
-          </div>
-        )}
+
 
         {(step === 'submitted' || step === 'duplicate') && (
           <div className="animate-slide-up ml-10">
