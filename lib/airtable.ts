@@ -107,6 +107,7 @@ export async function updateEvent(
   if (fields.type) updateData['Type'] = fields.type
   if (fields.date) updateData['Date'] = fields.date
   if (fields.host !== undefined) updateData['Host'] = fields.host
+  if (fields.submitter) updateData['Submitter'] = fields.submitter
   await base(EVENTS_TABLE).update(id, updateData)
 }
 

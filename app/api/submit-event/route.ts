@@ -17,18 +17,16 @@ export async function POST(req: NextRequest) {
     const dupCheck = await checkDuplicate(event.name, event.link, event.date)
 
     if (dupCheck.isDuplicate && !force) {
-      // Update missing fields on the existing record
-      if (dupCheck.existingId && dupCheck.missingFields?.length) {
-        const updates: Partial<EventRecord> = {}
-        for (const field of dupCheck.missingFields) {
+      // Update missing fields and always update Submitter to latest email
+      if (dupCheck.existingId) {
+        const updates: Partial<EventRecord> = { submitter: event.submitter }
+        for (const field of dupCheck.missingFields || []) {
           const key = field as keyof EventRecord
           if (event[key] !== undefined) {
             ;(updates as Record<string, unknown>)[key] = event[key]
           }
         }
-        if (Object.keys(updates).length > 0) {
-          await updateEvent(dupCheck.existingId, updates)
-        }
+        await updateEvent(dupCheck.existingId, updates)
       }
 
       return NextResponse.json({
