@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { UserProfile } from '@/lib/types'
+import { Partner } from '@/lib/airtable'
 
 type Step = 'name' | 'linkedin' | 'function' | 'seniority' | 'companySize' | 'expertise' | 'affiliation' | 'email' | 'confirm' | 'submitted'
 
@@ -14,7 +15,7 @@ const STEPS: Step[] = ['email', 'affiliation', 'function', 'seniority', 'company
 
 const QUESTIONS: Record<Step, string> = {
   email: "**What's your email address?** We use this only to send you events that match your profile — nothing else.",
-  affiliation: "**Are you affiliated with any of our partner communities?** Partner members are automatically approved and get immediate access. If not, we'll review your application and notify you if accepted — though note that non-partner members are asked to contribute one event before receiving access. Type 'none' if not applicable.",
+  affiliation: "**Are you affiliated with any of our partners?** Partner members are automatically approved and get immediate access. If not, we'll review your application and notify you if accepted — though note that non-partner members are asked to contribute one event before receiving access. Type 'none' if not applicable.",
   function: "**What do you do professionally?** (e.g. Sales, Marketing, RevOps, Customer Success, Finance...)",
   seniority: "**How senior are you?** (e.g. C-Level, VP, Director, Manager, Founder...)",
   companySize: "**What is the approximate revenue of your current company?** Many events are run by vendors who want to focus on specific company sizes — this helps us make sure you're only seeing events you'd actually qualify for.",
@@ -144,7 +145,7 @@ function ProfileSummary({ profile, onUpdate, onSubmit, isSubmitting }: {
   )
 }
 
-export default function ViewEventsTab({ eventCount = 0, startAtForm }: { eventCount?: number; startAtForm?: boolean }) {
+export default function ViewEventsTab({ eventCount = 0, startAtForm, partners = [], onContribute }: { eventCount?: number; startAtForm?: boolean; partners?: Partner[]; onContribute?: () => void }) {
   const [step, setStep] = useState<Step>('email')
   const [messages, setMessages] = useState<Message[]>([{
     role: 'assistant',
@@ -153,6 +154,7 @@ export default function ViewEventsTab({ eventCount = 0, startAtForm }: { eventCo
   const [input, setInput] = useState('')
   const [profile, setProfile] = useState<UserProfile>(EMPTY_PROFILE)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isPartner, setIsPartner] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -207,8 +209,19 @@ export default function ViewEventsTab({ eventCount = 0, startAtForm }: { eventCo
       })
       const data = await res.json() as { status?: string; error?: string }
       if (!res.ok) throw new Error(data.error || 'Submission failed')
+
+      const affiliation = profile.affiliation.toLowerCase()
+      const matchedPartner = partners.find((p) =>
+        affiliation.includes(p.name.toLowerCase()) || p.name.toLowerCase().includes(affiliation)
+      )
+      setIsPartner(!!matchedPartner)
       setStep('submitted')
-      addMessage('assistant', `You're all set! Our team will review your profile and email you at ${profile.email} if you're approved. Given the volume of applications, we aren't able to reply to everyone — but we review each one carefully.`)
+
+      if (matchedPartner) {
+        addMessage('assistant', `You're all set! We'll confirm your affiliation with ${matchedPartner.name} and approve your account — we'll email you at ${profile.email} once that's done.\n\nIn the meantime, feel free to contribute any events you're aware of below.`)
+      } else {
+        addMessage('assistant', `Thanks for applying! We'll review your profile and, if approved, send a conditional approval to ${profile.email}. You'll get full access once you contribute your first event — so you can get started right now.`)
+      }
     } catch (err) {
       addMessage('assistant', `Something went wrong: ${err instanceof Error ? err.message : 'Please try again.'}`)
     } finally {
@@ -243,6 +256,17 @@ export default function ViewEventsTab({ eventCount = 0, startAtForm }: { eventCo
             onSubmit={handleSubmit}
             isSubmitting={isSubmitting}
           />
+        )}
+
+        {step === 'submitted' && onContribute && (
+          <div className="ml-10 animate-slide-up">
+            <button
+              onClick={onContribute}
+              className="w-full py-3 rounded-xl bg-gold-600 hover:bg-gold-500 text-white text-sm font-medium transition-colors"
+            >
+              Contribute an Event
+            </button>
+          </div>
         )}
 
         <div ref={messagesEndRef} />
