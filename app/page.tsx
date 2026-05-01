@@ -99,14 +99,14 @@ function Landing({
 
       {/* Tab switcher */}
       <div className="flex gap-0 bg-white border border-[#E8DDD0] rounded-xl p-1 mb-8 shadow-sm">
-        <TabPill active={tab === 'view'} onClick={() => setTab('view')}>View Events</TabPill>
+        <TabPill active={tab === 'view'} onClick={() => setTab('view')}>Find Events</TabPill>
         <TabPill active={tab === 'contribute'} onClick={() => setTab('contribute')}>Contribute Event</TabPill>
         <TabPill active={tab === 'partner'} onClick={() => setTab('partner')}>Partner</TabPill>
       </div>
 
       {/* Info card */}
       <div className="w-full max-w-md animate-slide-up" key={tab}>
-        {tab === 'view' && <ViewCard eventCount={eventCount} onCTA={onCTA} />}
+        {tab === 'view' && <ViewCard onCTA={onCTA} />}
         {tab === 'contribute' && <ContributeCard onCTA={onCTA} />}
         {tab === 'partner' && <PartnerCard />}
       </div>
@@ -140,25 +140,16 @@ function Landing({
   )
 }
 
-function ViewCard({ eventCount, onCTA }: { eventCount: number; onCTA: () => void }) {
+function ViewCard({ onCTA }: { onCTA: () => void }) {
   return (
     <div className="bg-white rounded-2xl border border-[#E8DDD0] p-7 space-y-6 shadow-sm">
-      {eventCount > 0 && (
-        <div className="flex items-center gap-2">
-          <span className="w-1.5 h-1.5 rounded-full bg-gold-500 animate-pulse-slow" />
-          <span className="text-gold-600 text-xs tracking-widest uppercase font-medium">
-            {eventCount} upcoming event{eventCount === 1 ? '' : 's'}
-          </span>
-        </div>
-      )}
       <div className="space-y-3">
         <h3 className="text-xs uppercase tracking-widest text-gray-400 font-medium">How it works</h3>
         <ol className="space-y-3">
           {[
-            'Share your professional profile with us.',
-            'Our team reviews your application.',
-            "You'll receive an email if you're approved.",
-            'Get notified when new matching events are added.',
+            'Apply — members of partner communities are automatically approved.',
+            'Share your profile so we can match you to the right events.',
+            'Get notified when events matching your profile are added.',
           ].map((text, i) => (
             <li key={i} className="flex items-start gap-3">
               <span className="w-5 h-5 rounded-full bg-gold-50 border border-gold-200 text-gold-700 text-xs flex items-center justify-center flex-shrink-0 mt-0.5 font-medium">{i + 1}</span>
