@@ -175,10 +175,9 @@ function ContributeCard({ onCTA }: { onCTA: () => void }) {
         <h3 className="text-xs uppercase tracking-widest text-gray-400 font-medium">How it works</h3>
         <ol className="space-y-3">
           {[
-            'Share a link to the event or paste in the details.',
-            'Our AI pulls out the key information automatically.',
-            'Review, fill in anything missing, and confirm.',
-            'The event is added to our database where executives with the appropriate profiles can view it.',
+            'Share an event link or paste in details.',
+            'Our AI extracts the information for you to confirm.',
+            'Event shared just with executives whose profiles fit.',
           ].map((text, i) => (
             <li key={i} className="flex items-start gap-3">
               <span className="w-5 h-5 rounded-full bg-gold-50 border border-gold-200 text-gold-700 text-xs flex items-center justify-center flex-shrink-0 mt-0.5 font-medium">{i + 1}</span>
@@ -190,6 +189,10 @@ function ContributeCard({ onCTA }: { onCTA: () => void }) {
       <button onClick={onCTA} className="w-full py-3 rounded-xl bg-gold-600 hover:bg-gold-500 text-white font-medium transition-colors">
         Start contributing
       </button>
+      <p className="text-center text-xs text-gray-400 leading-relaxed">
+        You can share an event you are running or just one you are aware of.{' '}
+        Partners get more control of how their events are shared.
+      </p>
     </div>
   )
 }
