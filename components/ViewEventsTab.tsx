@@ -18,7 +18,7 @@ const QUESTIONS: Record<Step, string> = {
   function: "**What do you do professionally?** (e.g. Sales, Marketing, RevOps, Customer Success, Finance...)",
   seniority: "**How senior are you?** (e.g. C-Level, VP, Director, Manager, Founder...)",
   companySize: "**What is the approximate revenue of your current company?** Many events are run by vendors who want to focus on specific company sizes — this helps us make sure you're only seeing events you'd actually qualify for.",
-  expertise: "**What expertise do you have, and what industries do you know well?** The more specific you are, the better we can match you to niche events where your background is exactly what the host is looking for.",
+  expertise: "**What types of events are you interested in?** The more you share here, the more accurate your matches will be — and you'll be able to update this any time.",
   linkedin: "**What's your LinkedIn profile URL?** Our team uses this to verify your profile before granting access.",
   name: '',
   confirm: '',
@@ -68,7 +68,7 @@ function ProfileSummary({ profile, onUpdate, onSubmit, isSubmitting }: {
     { key: 'function', label: 'Function' },
     { key: 'seniority', label: 'Seniority' },
     { key: 'companySize', label: 'Company size' },
-    { key: 'expertise', label: 'Expertise' },
+    { key: 'expertise', label: 'Interests' },
     { key: 'linkedin', label: 'LinkedIn' },
   ]
 
