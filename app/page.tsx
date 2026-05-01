@@ -169,7 +169,7 @@ function ViewCard({ onCTA, featuredEvents }: { onCTA: () => void; featuredEvents
         Apply for access
       </button>
       <p className="text-center text-xs text-gray-400">
-        Given the volume of requests, we may not reply to everyone who applies.
+        Given the volume of requests, we can't reply to everyone who applies.
       </p>
       <FeaturedEventsCarousel events={featuredEvents} />
     </div>
