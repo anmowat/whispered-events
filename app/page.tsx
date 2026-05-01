@@ -149,8 +149,8 @@ function ViewCard({ onCTA }: { onCTA: () => void }) {
         <h3 className="text-xs uppercase tracking-widest text-gray-400 font-medium">How it works</h3>
         <ol className="space-y-3">
           {[
-            'Apply — execs from partner organizations are automatically approved.',
-            'Share your profile so we can match you to the right events.',
+            'Apply (execs from partners automatically approved).',
+            'Share your profile.',
             'Get notified of new events matching your profile.',
           ].map((text, i) => (
             <li key={i} className="flex items-start gap-3">
