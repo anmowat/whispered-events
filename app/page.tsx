@@ -72,7 +72,7 @@ export default function Home() {
       <footer className="border-t border-[#E8DDD0] py-4">
         <p className="text-center text-xs text-gray-400">Whispered Events &mdash; For executives only</p>
         <p className="text-center text-xs text-gray-400 mt-1">
-          Released {new Date(process.env.NEXT_PUBLIC_BUILD_TIME!).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}
+          Updated {new Date(process.env.NEXT_PUBLIC_BUILD_TIME!).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}
         </p>
       </footer>
     </div>
