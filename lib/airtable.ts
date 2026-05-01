@@ -87,6 +87,7 @@ export async function createEvent(event: EventRecord): Promise<string> {
     Name: event.name,
     Type: event.type,
     Date: event.date,
+    Location: event.location,
     Description: event.description,
     Link: event.link,
     Audience: event.audience.join(', '),
@@ -102,6 +103,7 @@ export async function updateEvent(
 ): Promise<void> {
   const base = getBase()
   const updateData: Partial<FieldSet> = {}
+  if (fields.location) updateData['Location'] = fields.location
   if (fields.description) updateData['Description'] = fields.description
   if (fields.audience?.length) updateData['Audience'] = fields.audience.join(', ')
   if (fields.type) updateData['Type'] = fields.type

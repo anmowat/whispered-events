@@ -22,7 +22,7 @@ export default function ShareEventTab({ onDone }: { onDone?: () => void }) {
     { role: 'assistant', content: "Welcome to Whispered Events. To share an event, paste a link to the event page — or type out the event details directly." },
   ])
   const [input, setInput] = useState('')
-  const [parsed, setParsed] = useState<Partial<EventRecord>>({ type: 'Other', host: false, audience: [] })
+  const [parsed, setParsed] = useState<Partial<EventRecord>>({ type: 'Other', host: false, audience: [], location: '' })
   const [submitterName, setSubmitterName] = useState('')
   const [submitterEmail, setSubmitterEmail] = useState('')
   const [duplicateInfo, setDuplicateInfo] = useState<Partial<EventRecord> | null>(null)
@@ -57,6 +57,7 @@ export default function ShareEventTab({ onDone }: { onDone?: () => void }) {
       const event = data.event
       setParsed({
         name: event.name || '', type: event.type || 'Other', date: event.date || '',
+        location: event.location || '',
         description: event.description || '', link: event.link || (isUrl ? userInput : ''),
         audience: event.audience || [], host: false,
       })
@@ -85,7 +86,7 @@ export default function ShareEventTab({ onDone }: { onDone?: () => void }) {
     setIsLoading(true)
     const fullEvent: EventRecord = {
       name: parsed.name || '', type: parsed.type || 'Other', date: parsed.date || '',
-      description: parsed.description || '', link: parsed.link || '',
+      location: parsed.location || '', description: parsed.description || '', link: parsed.link || '',
       audience: parsed.audience || [], host: parsed.host || false, submitter: submitterEmail,
     }
     try {
@@ -236,6 +237,9 @@ function EventReviewForm({ event, onChange, audienceInput, onContinue }: {
       </Field>
       <Field label="Date">
         <input type="date" value={event.date || ''} onChange={(e) => update('date', e.target.value)} className={inputCls} />
+      </Field>
+      <Field label="Location">
+        <input value={event.location || ''} onChange={(e) => update('location', e.target.value)} placeholder="e.g. New York, NY or Virtual" className={inputCls} />
       </Field>
       <Field label="Description">
         <textarea value={event.description || ''} onChange={(e) => update('description', e.target.value)} placeholder="A 2-sentence description of the event and audience..." rows={3} className={`${inputCls} resize-none`} />

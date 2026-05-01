@@ -22,12 +22,13 @@ Extract and return a JSON object with these fields (omit fields you cannot deter
 - name: Short event name, maximum 6 words
 - type: One of exactly: "Conference", "Dinner", "Virtual", "Other" — pick the best fit based on context
 - date: ISO date string (YYYY-MM-DD) of the event start date
+- location: City, state/country or "Virtual" (e.g. "New York, NY" or "San Francisco, CA")
 - description: A 2-sentence description of the event and the intended audience that would be shared with potential attendees
 - link: The canonical URL for the event (use the source URL if appropriate)
 - audience: Array of professional role/title strings who this event targets (e.g. ["CROs", "CMOs", "Revenue Leaders"])
 
 Return ONLY valid JSON, no markdown, no explanation. Example:
-{"name":"GTM Summit 2025","type":"Conference","date":"2025-09-15","description":"...","link":"https://...","audience":["CROs","CMOs"]}`
+{"name":"GTM Summit 2025","type":"Conference","date":"2025-09-15","location":"New York, NY","description":"...","link":"https://...","audience":["CROs","CMOs"]}`
 
   const message = await anthropic.messages.create({
     model: 'claude-sonnet-4-6',

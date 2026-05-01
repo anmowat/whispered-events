@@ -5,6 +5,7 @@ export interface EventRecord {
   name: string
   type: EventType
   date: string
+  location: string
   description: string
   link: string
   audience: string[]
@@ -17,6 +18,7 @@ export interface ParsedEvent {
   name?: string
   type?: EventType
   date?: string
+  location?: string
   description?: string
   link?: string
   audience?: string[]
