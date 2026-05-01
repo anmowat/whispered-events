@@ -110,6 +110,35 @@ export async function updateEvent(
   await base(EVENTS_TABLE).update(id, updateData)
 }
 
+export interface Partner {
+  id: string
+  name: string
+  logoUrl: string
+  website: string
+}
+
+export async function getPartners(): Promise<Partner[]> {
+  const base = getBase()
+  const records = await base('Partner')
+    .select({
+      filterByFormula: "{Status} = 'Live'",
+      fields: ['Name', 'Logo', 'Website'],
+    })
+    .all()
+
+  return records
+    .map((record) => {
+      const logo = record.get('Logo') as Array<{ url: string }> | undefined
+      return {
+        id: record.id,
+        name: String(record.get('Name') || ''),
+        logoUrl: logo?.[0]?.url || '',
+        website: String(record.get('Website') || ''),
+      }
+    })
+    .filter((p) => p.logoUrl)
+}
+
 export async function createProfile(profile: UserProfile): Promise<string> {
   const base = getBase()
   const record = await base(PROFILES_TABLE).create({
