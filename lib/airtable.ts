@@ -117,6 +117,35 @@ export interface Partner {
   website: string
 }
 
+export interface FeaturedEvent {
+  id: string
+  name: string
+  description: string
+  link: string
+  date: string
+}
+
+export async function getFeaturedEvents(): Promise<FeaturedEvent[]> {
+  const base = getBase()
+  const today = new Date().toISOString().split('T')[0]
+  const records = await base('tbltqCrPbZbETbQRl')
+    .select({
+      filterByFormula: `AND({Date} >= '${today}', {Date} != '')`,
+      fields: ['Name', 'Description', 'Link', 'Date'],
+      maxRecords: 10,
+    })
+    .all()
+  return records
+    .map((r) => ({
+      id: r.id,
+      name: String(r.get('Name') || ''),
+      description: String(r.get('Description') || ''),
+      link: String(r.get('Link') || ''),
+      date: String(r.get('Date') || ''),
+    }))
+    .filter((e) => e.name)
+}
+
 export async function getPartners(): Promise<Partner[]> {
   const base = getBase()
   const records = await base('Partners')

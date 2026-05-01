@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react'
 import ShareEventTab from '@/components/ShareEventTab'
 import ViewEventsTab from '@/components/ViewEventsTab'
-import { Partner } from '@/lib/airtable'
+import FeaturedEventsCarousel from '@/components/FeaturedEventsCarousel'
+import { Partner, FeaturedEvent } from '@/lib/airtable'
 
 type Tab = 'view' | 'contribute' | 'partner'
 type Mode = 'landing' | 'active'
@@ -13,6 +14,7 @@ export default function Home() {
   const [mode, setMode] = useState<Mode>('landing')
   const [eventCount, setEventCount] = useState(0)
   const [partners, setPartners] = useState<Partner[]>([])
+  const [featuredEvents, setFeaturedEvents] = useState<FeaturedEvent[]>([])
 
   useEffect(() => {
     fetch('/api/events-count')
@@ -23,6 +25,11 @@ export default function Home() {
     fetch('/api/partners')
       .then((r) => r.json())
       .then((d: { partners: Partner[] }) => setPartners(d.partners ?? []))
+      .catch(() => {})
+
+    fetch('/api/featured-events')
+      .then((r) => r.json())
+      .then((d: { events: FeaturedEvent[] }) => setFeaturedEvents(d.events ?? []))
       .catch(() => {})
   }, [])
 
@@ -55,12 +62,12 @@ export default function Home() {
 
       <main className="flex-1 w-full">
         {mode === 'landing' ? (
-          <Landing tab={tab} setTab={setTab} eventCount={eventCount} partners={partners} onCTA={handleCTA} />
+          <Landing tab={tab} setTab={setTab} eventCount={eventCount} partners={partners} featuredEvents={featuredEvents} onCTA={handleCTA} />
         ) : (
           <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
             {tab === 'view' && <ViewEventsTab startAtForm partners={partners} onContribute={() => setTab('contribute')} />}
             {tab === 'contribute' && <ShareEventTab />}
-            {tab === 'partner' && <PartnerCard />}
+            {tab === 'partner' && <PartnerCard featuredEvents={featuredEvents} />}
           </div>
         )}
       </main>
@@ -76,12 +83,13 @@ export default function Home() {
 }
 
 function Landing({
-  tab, setTab, eventCount, partners, onCTA,
+  tab, setTab, eventCount, partners, featuredEvents, onCTA,
 }: {
   tab: Tab
   setTab: (t: Tab) => void
   eventCount: number
   partners: Partner[]
+  featuredEvents: FeaturedEvent[]
   onCTA: () => void
 }) {
   return (
@@ -105,9 +113,9 @@ function Landing({
 
       {/* Info card */}
       <div className="w-full max-w-md animate-slide-up" key={tab}>
-        {tab === 'view' && <ViewCard onCTA={onCTA} />}
-        {tab === 'contribute' && <ContributeCard onCTA={onCTA} />}
-        {tab === 'partner' && <PartnerCard />}
+        {tab === 'view' && <ViewCard onCTA={onCTA} featuredEvents={featuredEvents} />}
+        {tab === 'contribute' && <ContributeCard onCTA={onCTA} featuredEvents={featuredEvents} />}
+        {tab === 'partner' && <PartnerCard featuredEvents={featuredEvents} />}
       </div>
 
       {/* Partner logos carousel — only shown if partners loaded */}
@@ -139,7 +147,7 @@ function Landing({
   )
 }
 
-function ViewCard({ onCTA }: { onCTA: () => void }) {
+function ViewCard({ onCTA, featuredEvents }: { onCTA: () => void; featuredEvents: FeaturedEvent[] }) {
   return (
     <div className="bg-white rounded-2xl border border-[#E8DDD0] p-7 space-y-6 shadow-sm">
       <div className="space-y-3">
@@ -163,11 +171,12 @@ function ViewCard({ onCTA }: { onCTA: () => void }) {
       <p className="text-center text-xs text-gray-400">
         Given the volume of requests, we may not reply to everyone who applies.
       </p>
+      <FeaturedEventsCarousel events={featuredEvents} />
     </div>
   )
 }
 
-function ContributeCard({ onCTA }: { onCTA: () => void }) {
+function ContributeCard({ onCTA, featuredEvents }: { onCTA: () => void; featuredEvents: FeaturedEvent[] }) {
   return (
     <div className="bg-white rounded-2xl border border-[#E8DDD0] p-7 space-y-6 shadow-sm">
       <div className="space-y-3">
@@ -192,11 +201,12 @@ function ContributeCard({ onCTA }: { onCTA: () => void }) {
         You can share an event you are running or just one you are aware of.{' '}
         Partners get more control of how their events are shared.
       </p>
+      <FeaturedEventsCarousel events={featuredEvents} />
     </div>
   )
 }
 
-function PartnerCard() {
+function PartnerCard({ featuredEvents }: { featuredEvents: FeaturedEvent[] }) {
   return (
     <div className="bg-white rounded-2xl border border-[#E8DDD0] p-7 space-y-6 shadow-sm">
       <div className="space-y-4">
@@ -228,6 +238,7 @@ function PartnerCard() {
       >
         Email team@whispered.com
       </a>
+      <FeaturedEventsCarousel events={featuredEvents} />
     </div>
   )
 }
