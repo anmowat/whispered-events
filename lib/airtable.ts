@@ -147,7 +147,7 @@ export async function createProfile(profile: UserProfile): Promise<string> {
     Function: profile.function,
     Seniority: profile.seniority,
     'Size': profile.companySize,
-    Expertise: profile.expertise,
+    Interest: profile.expertise,
     Affiliation: profile.affiliation,
     Email: profile.email,
   } as Partial<FieldSet>)
