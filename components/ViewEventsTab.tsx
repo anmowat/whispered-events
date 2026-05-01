@@ -18,7 +18,7 @@ const QUESTIONS: Record<Step, string> = {
   seniority: "How senior are you? For example: C-Level, VP, Director, Manager, Founder...",
   companySize: "What's the revenue of your current company? Many events are run by vendors who want to focus on specific company sizes.",
   expertise: "What expertise do you have? What industries do you know well?",
-  affiliation: "Are you affiliated with any professional communities or organizations? We have automatic approval for partner communities like GTM Council. Type 'none' if not applicable.",
+  affiliation: "Are you affiliated with any professional communities or organizations? We have automatic approval for partner communities. Type 'none' if not applicable.",
   linkedin: "Last one — what's your LinkedIn profile URL?",
   name: '',
   confirm: '',
