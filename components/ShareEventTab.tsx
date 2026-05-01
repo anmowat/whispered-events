@@ -94,7 +94,8 @@ export default function ShareEventTab({ onDone }: { onDone?: () => void }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ event: fullEvent }),
       })
-      const data = await res.json() as { status: string; existingRecord?: Partial<EventRecord> }
+      const data = await res.json() as { status: string; existingRecord?: Partial<EventRecord>; error?: string }
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
       if (data.status === 'duplicate') {
         setDuplicateInfo(data.existingRecord || null)
         setStep('duplicate')
@@ -104,9 +105,9 @@ export default function ShareEventTab({ onDone }: { onDone?: () => void }) {
         addMessage('assistant', "Thank you! The event has been added to our database. We appreciate you helping the community discover exclusive events.")
         setTimeout(() => onDone?.(), 2500)
       }
-    } catch {
+    } catch (err) {
       setStep('error')
-      addMessage('assistant', 'Something went wrong while submitting. Please try again.')
+      addMessage('assistant', `Something went wrong: ${err instanceof Error ? err.message : 'Please try again.'}`)
     } finally {
       setIsLoading(false)
     }
@@ -262,7 +263,7 @@ function SubmitterForm({ email, onEmailChange, onContinue }: {
         <input type="email" value={email} onChange={(e) => onEmailChange(e.target.value)} placeholder="jane@company.com" className={inputCls} />
       </Field>
       <button onClick={onContinue} disabled={!email.trim()} className="w-full py-2.5 rounded-lg bg-gold-600 hover:bg-gold-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors">
-        Preview submission
+        Submit event
       </button>
     </div>
   )
