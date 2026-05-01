@@ -129,6 +129,7 @@ export async function getFeaturedEvents(): Promise<FeaturedEvent[]> {
   const base = getBase()
   const records = await base('tbltqCrPbZbETbQRl')
     .select({
+      view: 'viwz4UVrptnDATP19',
       fields: ['Name', 'Description', 'Link', 'Date'],
       maxRecords: 10,
     })
