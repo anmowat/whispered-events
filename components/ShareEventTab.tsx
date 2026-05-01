@@ -76,7 +76,7 @@ export default function ShareEventTab() {
       return
     }
     setStep('submitter')
-    addMessage('assistant', "Looks good. What's your name and email?")
+    addMessage('assistant', "Thank you for contributing. We will only share this event with executives whose profiles match. Please share your email (we won't share your contact details with anyone).")
   }
 
   async function handleSubmitterContinue() {
@@ -167,7 +167,7 @@ export default function ShareEventTab() {
 
         {step === 'submitter' && !isLoading && (
           <div className="animate-slide-up ml-10">
-            <SubmitterForm name={submitterName} email={submitterEmail} onNameChange={setSubmitterName} onEmailChange={setSubmitterEmail} onContinue={handleSubmitterContinue} />
+            <SubmitterForm email={submitterEmail} onEmailChange={setSubmitterEmail} onContinue={handleSubmitterContinue} />
           </div>
         )}
 
@@ -260,15 +260,12 @@ function EventReviewForm({ event, onChange, audienceInput, onContinue }: {
   )
 }
 
-function SubmitterForm({ name, email, onNameChange, onEmailChange, onContinue }: {
-  name: string; email: string; onNameChange: (v: string) => void; onEmailChange: (v: string) => void; onContinue: () => void
+function SubmitterForm({ email, onEmailChange, onContinue }: {
+  email: string; onEmailChange: (v: string) => void; onContinue: () => void
 }) {
   return (
     <div className="bg-white rounded-2xl border border-[#E8DDD0] p-5 space-y-3 shadow-sm">
-      <Field label="Your name">
-        <input value={name} onChange={(e) => onNameChange(e.target.value)} placeholder="Jane Smith" className={inputCls} />
-      </Field>
-      <Field label="Your email *">
+      <Field label="Your email">
         <input type="email" value={email} onChange={(e) => onEmailChange(e.target.value)} placeholder="jane@company.com" className={inputCls} />
       </Field>
       <button onClick={onContinue} disabled={!email.trim()} className="w-full py-2.5 rounded-lg bg-gold-600 hover:bg-gold-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors">
