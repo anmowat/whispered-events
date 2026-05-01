@@ -209,9 +209,21 @@ function PartnerCard() {
           <span className="text-gray-900 font-medium">Vendors</span> and{' '}
           <span className="text-gray-900 font-medium">Investors</span> to bring exclusive events to the right executives.
         </p>
-        <p className="text-sm text-gray-500 leading-relaxed">
-          A chatbot to explore partnerships is coming soon. In the meantime, reach out directly.
-        </p>
+      </div>
+      <div className="space-y-3">
+        <h3 className="text-xs uppercase tracking-widest text-gray-400 font-medium">How it works</h3>
+        <ol className="space-y-3">
+          {[
+            'Share events you are running or aware of.',
+            'Customize targeting for your events.',
+            'Guaranteed access for affiliated execs.',
+          ].map((text, i) => (
+            <li key={i} className="flex items-start gap-3">
+              <span className="w-5 h-5 rounded-full bg-gold-50 border border-gold-200 text-gold-700 text-xs flex items-center justify-center flex-shrink-0 mt-0.5 font-medium">{i + 1}</span>
+              <span className="text-sm text-gray-600">{text}</span>
+            </li>
+          ))}
+        </ol>
       </div>
       <a
         href="mailto:team@whispered.com"
