@@ -95,7 +95,7 @@ function Landing({
   onCTA: () => void
 }) {
   return (
-    <div className="flex flex-col items-center px-4 sm:px-6 pt-14 pb-20 animate-fade-in">
+    <div className="flex flex-col items-center px-4 sm:px-6 pt-4 pb-20 animate-fade-in">
       {/* Hero text */}
       <div className="text-center max-w-xl space-y-3 mb-10">
         <p className="text-gray-300 text-base leading-relaxed">
@@ -124,9 +124,33 @@ function Landing({
           <ContributeCard onCTA={onCTA} />
         )}
       </div>
+
+      {/* Partner logos carousel */}
+      <div className="w-full max-w-2xl mt-12">
+        <p className="text-center text-xs uppercase tracking-widest text-gray-600 mb-6">
+          We partner with the following communities and companies
+        </p>
+        <div className="relative overflow-hidden">
+          {/* Fade edges */}
+          <div className="absolute left-0 top-0 bottom-0 w-16 bg-gradient-to-r from-[#0a0a14] to-transparent z-10 pointer-events-none" />
+          <div className="absolute right-0 top-0 bottom-0 w-16 bg-gradient-to-l from-[#0a0a14] to-transparent z-10 pointer-events-none" />
+          <div className="flex gap-12 animate-marquee whitespace-nowrap">
+            {[...PARTNERS, ...PARTNERS].map((p, i) => (
+              <div key={i} className="flex-shrink-0 flex items-center justify-center h-10 opacity-50 hover:opacity-80 transition-opacity">
+                <img src={p.src} alt={p.name} className="h-full w-auto object-contain max-w-[140px]" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
+
+const PARTNERS = [
+  { name: 'GTM Council', src: '/logos/gtmcouncil.png' },
+  { name: 'GTMfund',     src: '/logos/gtmfund.svg'    },
+]
 
 function ViewCard({ eventCount, onCTA }: { eventCount: number; onCTA: () => void }) {
   return (
