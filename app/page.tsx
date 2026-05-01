@@ -46,9 +46,9 @@ export default function Home() {
             <span className="font-serif text-gray-900 tracking-wide text-sm hidden sm:inline">Whispered Events</span>
           </button>
           <div className="flex gap-1 bg-white border border-[#E8DDD0] rounded-xl p-1 shadow-sm">
-            <TabPill active={tab === 'view'} onClick={() => { setTab('view'); setMode('active') }}>Find Events</TabPill>
-            <TabPill active={tab === 'contribute'} onClick={() => { setTab('contribute'); setMode('active') }}>Contribute Event</TabPill>
-            <TabPill active={tab === 'partner'} onClick={() => { setTab('partner'); setMode('active') }}>Partner</TabPill>
+            <TabPill active={tab === 'view'} onClick={() => setTab('view')}>Find Events</TabPill>
+            <TabPill active={tab === 'contribute'} onClick={() => setTab('contribute')}>Contribute Event</TabPill>
+            <TabPill active={tab === 'partner'} onClick={() => setTab('partner')}>Partner</TabPill>
           </div>
         </div>
       </header>
