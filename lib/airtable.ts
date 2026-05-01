@@ -119,7 +119,7 @@ export interface Partner {
 
 export async function getPartners(): Promise<Partner[]> {
   const base = getBase()
-  const records = await base('Partner')
+  const records = await base('Partners')
     .select({
       filterByFormula: "{Status} = 'Live'",
       fields: ['Name', 'Logo', 'Site'],
