@@ -30,21 +30,20 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
-      {/* Header — brand only */}
-      <header className="border-b border-white/5 bg-[#0a0a14]/80 backdrop-blur-sm sticky top-0 z-10">
+    <div className="min-h-screen flex flex-col bg-[#F5EFE6]">
+      {/* Header */}
+      <header className="border-b border-[#E8DDD0] bg-[#F5EFE6]/90 backdrop-blur-sm sticky top-0 z-10">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-lg" aria-hidden="true">🤫</span>
-            <span className="font-serif text-white tracking-wide text-sm">
+            <span className="font-serif text-gray-900 tracking-wide text-sm">
               Whispered Events
             </span>
           </div>
-
           {mode === 'active' && (
             <button
               onClick={handleBack}
-              className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-200 transition-colors"
+              className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
@@ -57,25 +56,16 @@ export default function Home() {
 
       <main className="flex-1 w-full">
         {mode === 'landing' ? (
-          <Landing
-            tab={tab}
-            setTab={setTab}
-            eventCount={eventCount}
-            onCTA={handleCTA}
-          />
+          <Landing tab={tab} setTab={setTab} eventCount={eventCount} onCTA={handleCTA} />
         ) : (
           <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
-            {tab === 'view' ? (
-              <ViewEventsTab startAtForm />
-            ) : (
-              <ShareEventTab />
-            )}
+            {tab === 'view' ? <ViewEventsTab startAtForm /> : <ShareEventTab />}
           </div>
         )}
       </main>
 
-      <footer className="border-t border-white/5 py-4">
-        <p className="text-center text-xs text-gray-700">
+      <footer className="border-t border-[#E8DDD0] py-4">
+        <p className="text-center text-xs text-gray-400">
           Whispered Events &mdash; For executives only
         </p>
       </footer>
@@ -84,10 +74,7 @@ export default function Home() {
 }
 
 function Landing({
-  tab,
-  setTab,
-  eventCount,
-  onCTA,
+  tab, setTab, eventCount, onCTA,
 }: {
   tab: Tab
   setTab: (t: Tab) => void
@@ -96,18 +83,18 @@ function Landing({
 }) {
   return (
     <div className="flex flex-col items-center px-4 sm:px-6 pt-4 pb-20 animate-fade-in">
-      {/* Hero text */}
+      {/* Hero */}
       <div className="text-center max-w-xl space-y-3 mb-10">
-        <p className="text-gray-300 text-base leading-relaxed">
-          In-person events are one of the best places to build real relationships.
+        <p className="text-gray-900 text-lg leading-relaxed font-medium">
+          In-person events are the best way to build real relationships.
         </p>
         <p className="text-gray-500 text-sm leading-relaxed">
           Whispered Events is a free platform that allows executives to contribute and see exclusive events.
         </p>
       </div>
 
-      {/* Centered tab switcher */}
-      <div className="flex gap-0 bg-charcoal-800 border border-white/10 rounded-xl p-1 mb-8">
+      {/* Tab switcher */}
+      <div className="flex gap-0 bg-white border border-[#E8DDD0] rounded-xl p-1 mb-8 shadow-sm">
         <TabPill active={tab === 'view'} onClick={() => setTab('view')}>
           View Events
         </TabPill>
@@ -116,7 +103,7 @@ function Landing({
         </TabPill>
       </div>
 
-      {/* Info card — changes per tab */}
+      {/* Info card */}
       <div className="w-full max-w-md animate-slide-up" key={tab}>
         {tab === 'view' ? (
           <ViewCard eventCount={eventCount} onCTA={onCTA} />
@@ -126,18 +113,17 @@ function Landing({
       </div>
 
       {/* Partner logos carousel */}
-      <div className="w-full max-w-2xl mt-12">
-        <p className="text-center text-xs uppercase tracking-widest text-gray-600 mb-6">
+      <div className="w-full max-w-2xl mt-14">
+        <p className="text-center text-xs uppercase tracking-widest text-gray-400 mb-6">
           We partner with the following communities and companies
         </p>
         <div className="relative overflow-hidden">
-          {/* Fade edges */}
-          <div className="absolute left-0 top-0 bottom-0 w-16 bg-gradient-to-r from-[#0a0a14] to-transparent z-10 pointer-events-none" />
-          <div className="absolute right-0 top-0 bottom-0 w-16 bg-gradient-to-l from-[#0a0a14] to-transparent z-10 pointer-events-none" />
-          <div className="flex gap-12 animate-marquee whitespace-nowrap">
+          <div className="absolute left-0 top-0 bottom-0 w-16 bg-gradient-to-r from-[#F5EFE6] to-transparent z-10 pointer-events-none" />
+          <div className="absolute right-0 top-0 bottom-0 w-16 bg-gradient-to-l from-[#F5EFE6] to-transparent z-10 pointer-events-none" />
+          <div className="flex gap-16 animate-marquee whitespace-nowrap">
             {[...PARTNERS, ...PARTNERS].map((p, i) => (
-              <div key={i} className="flex-shrink-0 flex items-center justify-center h-10 opacity-50 hover:opacity-80 transition-opacity">
-                <img src={p.src} alt={p.name} className="h-full w-auto object-contain max-w-[140px]" />
+              <div key={i} className="flex-shrink-0 flex items-center justify-center h-10">
+                <img src={p.src} alt={p.name} className="h-full w-auto object-contain max-w-[140px] opacity-75 hover:opacity-100 transition-opacity" />
               </div>
             ))}
           </div>
@@ -154,18 +140,17 @@ const PARTNERS = [
 
 function ViewCard({ eventCount, onCTA }: { eventCount: number; onCTA: () => void }) {
   return (
-    <div className="bg-charcoal-800 rounded-2xl border border-white/10 p-7 space-y-6">
+    <div className="bg-white rounded-2xl border border-[#E8DDD0] p-7 space-y-6 shadow-sm">
       {eventCount > 0 && (
         <div className="flex items-center gap-2">
           <span className="w-1.5 h-1.5 rounded-full bg-gold-500 animate-pulse-slow" />
-          <span className="text-gold-400 text-xs tracking-widest uppercase">
+          <span className="text-gold-600 text-xs tracking-widest uppercase font-medium">
             {eventCount} upcoming event{eventCount === 1 ? '' : 's'}
           </span>
         </div>
       )}
-
       <div className="space-y-3">
-        <h3 className="text-xs uppercase tracking-widest text-gray-500 font-medium">How it works</h3>
+        <h3 className="text-xs uppercase tracking-widest text-gray-400 font-medium">How it works</h3>
         <ol className="space-y-3">
           {[
             'Share your professional profile with us.',
@@ -174,23 +159,18 @@ function ViewCard({ eventCount, onCTA }: { eventCount: number; onCTA: () => void
             'Get notified when new matching events are added.',
           ].map((text, i) => (
             <li key={i} className="flex items-start gap-3">
-              <span className="w-5 h-5 rounded-full bg-gold-700/20 border border-gold-600/30 text-gold-400 text-xs flex items-center justify-center flex-shrink-0 mt-0.5 font-medium">
+              <span className="w-5 h-5 rounded-full bg-gold-50 border border-gold-200 text-gold-700 text-xs flex items-center justify-center flex-shrink-0 mt-0.5 font-medium">
                 {i + 1}
               </span>
-              <span className="text-sm text-gray-400">{text}</span>
+              <span className="text-sm text-gray-600">{text}</span>
             </li>
           ))}
         </ol>
       </div>
-
-      <button
-        onClick={onCTA}
-        className="w-full py-3 rounded-xl bg-gold-700 hover:bg-gold-600 text-white font-medium transition-colors"
-      >
+      <button onClick={onCTA} className="w-full py-3 rounded-xl bg-gold-600 hover:bg-gold-500 text-white font-medium transition-colors">
         Apply for access
       </button>
-
-      <p className="text-center text-xs text-gray-600">
+      <p className="text-center text-xs text-gray-400">
         Given the volume of requests, we may not reply to everyone who applies.
       </p>
     </div>
@@ -199,9 +179,9 @@ function ViewCard({ eventCount, onCTA }: { eventCount: number; onCTA: () => void
 
 function ContributeCard({ onCTA }: { onCTA: () => void }) {
   return (
-    <div className="bg-charcoal-800 rounded-2xl border border-white/10 p-7 space-y-6">
+    <div className="bg-white rounded-2xl border border-[#E8DDD0] p-7 space-y-6 shadow-sm">
       <div className="space-y-3">
-        <h3 className="text-xs uppercase tracking-widest text-gray-500 font-medium">How it works</h3>
+        <h3 className="text-xs uppercase tracking-widest text-gray-400 font-medium">How it works</h3>
         <ol className="space-y-3">
           {[
             'Share a link to the event or paste in the details.',
@@ -210,41 +190,27 @@ function ContributeCard({ onCTA }: { onCTA: () => void }) {
             'The event is added to our database where executives with the appropriate profiles can view it.',
           ].map((text, i) => (
             <li key={i} className="flex items-start gap-3">
-              <span className="w-5 h-5 rounded-full bg-gold-700/20 border border-gold-600/30 text-gold-400 text-xs flex items-center justify-center flex-shrink-0 mt-0.5 font-medium">
+              <span className="w-5 h-5 rounded-full bg-gold-50 border border-gold-200 text-gold-700 text-xs flex items-center justify-center flex-shrink-0 mt-0.5 font-medium">
                 {i + 1}
               </span>
-              <span className="text-sm text-gray-400">{text}</span>
+              <span className="text-sm text-gray-600">{text}</span>
             </li>
           ))}
         </ol>
       </div>
-
-      <button
-        onClick={onCTA}
-        className="w-full py-3 rounded-xl bg-gold-700 hover:bg-gold-600 text-white font-medium transition-colors"
-      >
+      <button onClick={onCTA} className="w-full py-3 rounded-xl bg-gold-600 hover:bg-gold-500 text-white font-medium transition-colors">
         Start contributing
       </button>
     </div>
   )
 }
 
-function TabPill({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean
-  onClick: () => void
-  children: React.ReactNode
-}) {
+function TabPill({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
     <button
       onClick={onClick}
       className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-all ${
-        active
-          ? 'bg-gold-700 text-white shadow-sm'
-          : 'text-gray-400 hover:text-gray-200'
+        active ? 'bg-gold-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-800'
       }`}
     >
       {children}
