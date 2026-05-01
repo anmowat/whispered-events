@@ -10,17 +10,17 @@ interface Message {
   content: string
 }
 
-const STEPS: Step[] = ['name', 'linkedin', 'function', 'seniority', 'companySize', 'expertise', 'affiliation', 'email', 'confirm']
+const STEPS: Step[] = ['email', 'function', 'seniority', 'companySize', 'expertise', 'affiliation', 'linkedin', 'confirm']
 
 const QUESTIONS: Record<Step, string> = {
-  name: "Let's start with your full name.",
-  linkedin: "What's your LinkedIn profile URL?",
+  email: "What's your email address? We only use this to send you events that match your profile.",
   function: "What do you do professionally? For example: Sales, Marketing, RevOps, Customer Success, Finance...",
-  seniority: "How would you describe your seniority level? For example: C-Level, VP, Director, Manager, Founder...",
-  companySize: "What's the approximate revenue of your current company? Many events are run by vendors who focus on specific company sizes — so this helps us match you accurately.",
-  expertise: "What expertise or industries do you know well? The more specific, the better.",
-  affiliation: "Are you affiliated with any professional communities or organizations? (e.g. GTM Council, Pavilion, RevGenius) — we have automatic approval for some partner communities. Type 'none' if not applicable.",
-  email: "Last one — what's your email address? We only use this to send you events that match your profile.",
+  seniority: "How senior are you? For example: C-Level, VP, Director, Manager, Founder...",
+  companySize: "What's the revenue of your current company? Many events are run by vendors who want to focus on specific company sizes.",
+  expertise: "What expertise do you have? What industries do you know well?",
+  affiliation: "Are you affiliated with any professional communities or organizations? We have automatic approval for partner communities like GTM Council. Type 'none' if not applicable.",
+  linkedin: "Last one — what's your LinkedIn profile URL?",
+  name: '',
   confirm: '',
   submitted: '',
 }
@@ -29,8 +29,8 @@ const EMPTY_PROFILE: UserProfile = { name: '', linkedin: '', function: '', senio
 
 function profileField(step: Step): keyof UserProfile | null {
   const map: Partial<Record<Step, keyof UserProfile>> = {
-    name: 'name', linkedin: 'linkedin', function: 'function', seniority: 'seniority',
-    companySize: 'companySize', expertise: 'expertise', affiliation: 'affiliation', email: 'email',
+    email: 'email', function: 'function', seniority: 'seniority',
+    companySize: 'companySize', expertise: 'expertise', affiliation: 'affiliation', linkedin: 'linkedin',
   }
   return map[step] ?? null
 }
@@ -56,7 +56,7 @@ export default function ViewEventsTab({ eventCount = 0, startAtForm }: { eventCo
   const [step, setStep] = useState<Step>('name')
   const [messages, setMessages] = useState<Message[]>([{
     role: 'assistant',
-    content: `Welcome! I'll ask you a few quick questions to build your profile${eventCount > 0 ? ` — we have ${eventCount} upcoming events waiting` : ''}. ${QUESTIONS['name']}`,
+    content: `Welcome! I'll ask you a few quick questions to build your profile${eventCount > 0 ? ` — we have ${eventCount} upcoming events waiting` : ''}. ${QUESTIONS['email']}`,
   }])
   const [input, setInput] = useState('')
   const [profile, setProfile] = useState<UserProfile>(EMPTY_PROFILE)
@@ -92,14 +92,13 @@ export default function ViewEventsTab({ eventCount = 0, startAtForm }: { eventCo
     return [
       `Here's your profile — does everything look right?`,
       '',
-      `**Name:** ${p.name}`,
-      p.linkedin ? `**LinkedIn:** ${p.linkedin}` : null,
+      `**Email:** ${p.email}`,
       `**Function:** ${p.function}`,
       `**Seniority:** ${p.seniority}`,
       p.companySize ? `**Company size:** ${p.companySize}` : null,
       p.expertise ? `**Expertise:** ${p.expertise}` : null,
       p.affiliation ? `**Community:** ${p.affiliation}` : null,
-      `**Email:** ${p.email}`,
+      `**LinkedIn:** ${p.linkedin}`,
     ].filter(Boolean).join('\n')
   }
 
@@ -122,9 +121,9 @@ export default function ViewEventsTab({ eventCount = 0, startAtForm }: { eventCo
   async function handleConfirm(confirmed: boolean) {
     if (!confirmed) {
       addMessage('user', 'No, let me make changes')
-      setStep('name')
+      setStep('email')
       setProfile(EMPTY_PROFILE)
-      setMessages((prev) => [...prev, { role: 'assistant', content: "No problem — let's start over. " + QUESTIONS['name'] }])
+      setMessages((prev) => [...prev, { role: 'assistant', content: "No problem — let's start over. " + QUESTIONS['email'] }])
       return
     }
     addMessage('user', 'Yes, submit my application')
@@ -138,7 +137,7 @@ export default function ViewEventsTab({ eventCount = 0, startAtForm }: { eventCo
       const data = await res.json() as { status?: string; error?: string }
       if (!res.ok) throw new Error(data.error || 'Submission failed')
       setStep('submitted')
-      addMessage('assistant', `You're all set, ${profile.name}! Our team will review your profile and email you at ${profile.email} if you're approved. Given the volume of applications, we aren't able to reply to everyone — but we review each one carefully.`)
+      addMessage('assistant', `You're all set! Our team will review your profile and email you at ${profile.email} if you're approved. Given the volume of applications, we aren't able to reply to everyone — but we review each one carefully.`)
     } catch (err) {
       addMessage('assistant', `Something went wrong: ${err instanceof Error ? err.message : 'Please try again.'}`)
     } finally {
