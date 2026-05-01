@@ -9,7 +9,7 @@ type Tab = 'view' | 'contribute' | 'partner'
 type Mode = 'landing' | 'active'
 
 export default function Home() {
-  const [tab, setTab] = useState<Tab>('view')
+  const [tab, setTab] = useState<Tab>('contribute')
   const [mode, setMode] = useState<Mode>('landing')
   const [eventCount, setEventCount] = useState(0)
   const [partners, setPartners] = useState<Partner[]>([])
@@ -98,7 +98,7 @@ function Landing({
       </div>
 
       {/* Tab switcher */}
-      <div className="flex gap-0 bg-white border border-[#E8DDD0] rounded-xl p-1 mb-8 shadow-sm">
+      <div className="flex gap-1.5 bg-white border border-[#E8DDD0] rounded-xl p-1.5 mb-8 shadow-sm">
         <TabPill active={tab === 'view'} onClick={() => setTab('view')}>Find Events</TabPill>
         <TabPill active={tab === 'contribute'} onClick={() => setTab('contribute')}>Contribute Event</TabPill>
         <TabPill active={tab === 'partner'} onClick={() => setTab('partner')}>Partner</TabPill>
@@ -226,7 +226,9 @@ function TabPill({ active, onClick, children }: { active: boolean; onClick: () =
     <button
       onClick={onClick}
       className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
-        active ? 'bg-gold-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-800'
+        active
+          ? 'bg-gold-600 text-white shadow-sm'
+          : 'bg-gold-50 text-gold-700 border border-gold-200 hover:bg-gold-100'
       }`}
     >
       {children}
