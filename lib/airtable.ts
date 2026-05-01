@@ -117,7 +117,7 @@ export async function createProfile(profile: UserProfile): Promise<string> {
     LinkedIn: profile.linkedin,
     Function: profile.function,
     Seniority: profile.seniority,
-    'Company Size': profile.companySize,
+    'Size': profile.companySize,
     Expertise: profile.expertise,
     Affiliation: profile.affiliation,
     Email: profile.email,
