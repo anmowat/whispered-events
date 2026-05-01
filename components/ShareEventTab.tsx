@@ -76,7 +76,7 @@ export default function ShareEventTab() {
       return
     }
     setStep('submitter')
-    addMessage('assistant', "Looks good. What's your name / email and are you the host of the event?")
+    addMessage('assistant', "Looks good. What's your name and email?")
   }
 
   async function handleSubmitterContinue() {
