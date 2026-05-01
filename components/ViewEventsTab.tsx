@@ -52,6 +52,98 @@ function MessageContent({ content }: { content: string }) {
   )
 }
 
+function ProfileSummary({ profile, onUpdate, onSubmit, isSubmitting }: {
+  profile: UserProfile
+  onUpdate: (field: keyof UserProfile, value: string) => void
+  onSubmit: () => void
+  isSubmitting: boolean
+}) {
+  const [editingField, setEditingField] = useState<keyof UserProfile | null>(null)
+  const [editValue, setEditValue] = useState('')
+  const [editError, setEditError] = useState('')
+
+  const fields: { key: keyof UserProfile; label: string }[] = [
+    { key: 'email', label: 'Email' },
+    { key: 'affiliation', label: 'Community' },
+    { key: 'function', label: 'Function' },
+    { key: 'seniority', label: 'Seniority' },
+    { key: 'companySize', label: 'Company size' },
+    { key: 'expertise', label: 'Expertise' },
+    { key: 'linkedin', label: 'LinkedIn' },
+  ]
+
+  function startEdit(field: keyof UserProfile) {
+    setEditingField(field)
+    setEditValue(profile[field])
+    setEditError('')
+  }
+
+  function saveEdit() {
+    if (!editingField) return
+    const val = editValue.trim()
+    if (editingField === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
+      setEditError('Please enter a valid email address.')
+      return
+    }
+    if (editingField === 'linkedin' && val && !val.includes('linkedin.com')) {
+      setEditError('Please enter a valid LinkedIn URL.')
+      return
+    }
+    onUpdate(editingField, val)
+    setEditingField(null)
+    setEditError('')
+  }
+
+  return (
+    <div className="ml-10 animate-slide-up">
+      <div className="bg-white border border-[#E8DDD0] rounded-2xl shadow-sm overflow-hidden">
+        {fields.map(({ key, label }) => {
+          const value = profile[key]
+          const isEditing = editingField === key
+          return (
+            <div key={key} className="px-4 py-3 border-b border-[#F0E8DC] last:border-b-0">
+              {isEditing ? (
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-gold-700 uppercase tracking-wide">{label}</p>
+                  <input
+                    autoFocus
+                    value={editValue}
+                    onChange={(e) => setEditValue(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') { setEditingField(null); setEditError('') } }}
+                    className="w-full bg-[#FDFAF6] border border-gold-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:border-gold-500 transition-colors"
+                  />
+                  {editError && <p className="text-xs text-red-500">{editError}</p>}
+                  <div className="flex gap-2">
+                    <button onClick={saveEdit} className="px-3 py-1.5 rounded-lg bg-gold-600 hover:bg-gold-500 text-white text-xs font-medium transition-colors">Save</button>
+                    <button onClick={() => { setEditingField(null); setEditError('') }} className="px-3 py-1.5 rounded-lg border border-[#E8DDD0] text-gray-500 hover:text-gray-700 text-xs transition-colors">Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium text-gold-700 uppercase tracking-wide">{label}</p>
+                    <p className="text-sm text-gray-700 truncate">{value || <span className="text-gray-400 italic">not provided</span>}</p>
+                  </div>
+                  <button onClick={() => startEdit(key)} className="text-xs text-gray-400 hover:text-gold-600 transition-colors flex-shrink-0 underline underline-offset-2">
+                    Edit
+                  </button>
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+      <button
+        onClick={onSubmit}
+        disabled={isSubmitting}
+        className="mt-4 w-full py-3 rounded-xl bg-gold-600 hover:bg-gold-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors"
+      >
+        {isSubmitting ? 'Submitting…' : 'Submit application'}
+      </button>
+    </div>
+  )
+}
+
 export default function ViewEventsTab({ eventCount = 0, startAtForm }: { eventCount?: number; startAtForm?: boolean }) {
   const [step, setStep] = useState<Step>('email')
   const [messages, setMessages] = useState<Message[]>([{
@@ -81,25 +173,11 @@ export default function ViewEventsTab({ eventCount = 0, startAtForm }: { eventCo
     const nextStep = STEPS[STEPS.indexOf(currentStep) + 1] as Step
     if (nextStep === 'confirm') {
       setStep('confirm')
-      addMessage('assistant', buildSummary(updatedProfile))
+      addMessage('assistant', "Here's your profile — review each field and edit anything before submitting.")
     } else {
       setStep(nextStep)
       addMessage('assistant', QUESTIONS[nextStep])
     }
-  }
-
-  function buildSummary(p: UserProfile): string {
-    return [
-      `Here's your profile — does everything look right?`,
-      '',
-      `**Email:** ${p.email}`,
-      `**Function:** ${p.function}`,
-      `**Seniority:** ${p.seniority}`,
-      p.companySize ? `**Company size:** ${p.companySize}` : null,
-      p.expertise ? `**Expertise:** ${p.expertise}` : null,
-      p.affiliation ? `**Community:** ${p.affiliation}` : null,
-      `**LinkedIn:** ${p.linkedin}`,
-    ].filter(Boolean).join('\n')
   }
 
   function handleSend() {
@@ -118,15 +196,8 @@ export default function ViewEventsTab({ eventCount = 0, startAtForm }: { eventCo
     advance(step, value)
   }
 
-  async function handleConfirm(confirmed: boolean) {
-    if (!confirmed) {
-      addMessage('user', 'No, let me make changes')
-      setStep('email')
-      setProfile(EMPTY_PROFILE)
-      setMessages((prev) => [...prev, { role: 'assistant', content: "No problem — let's start over. " + QUESTIONS['email'] }])
-      return
-    }
-    addMessage('user', 'Yes, submit my application')
+  async function handleSubmit() {
+    addMessage('user', 'Submit my application')
     setIsSubmitting(true)
     try {
       const res = await fetch('/api/submit-profile', {
@@ -165,15 +236,13 @@ export default function ViewEventsTab({ eventCount = 0, startAtForm }: { eventCo
           </div>
         ))}
 
-        {step === 'confirm' && !isSubmitting && (
-          <div className="flex gap-2 ml-10 animate-slide-up">
-            <button onClick={() => handleConfirm(true)} className="px-4 py-2 rounded-lg bg-gold-600 hover:bg-gold-500 text-white text-sm font-medium transition-colors">
-              Submit application
-            </button>
-            <button onClick={() => handleConfirm(false)} className="px-4 py-2 rounded-lg border border-[#E8DDD0] text-gray-500 hover:text-gray-700 hover:border-gray-300 text-sm transition-colors">
-              Make changes
-            </button>
-          </div>
+        {step === 'confirm' && (
+          <ProfileSummary
+            profile={profile}
+            onUpdate={(field, value) => setProfile((p) => ({ ...p, [field]: value }))}
+            onSubmit={handleSubmit}
+            isSubmitting={isSubmitting}
+          />
         )}
 
         <div ref={messagesEndRef} />
