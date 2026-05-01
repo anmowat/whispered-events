@@ -13,13 +13,13 @@ interface Message {
 const STEPS: Step[] = ['email', 'function', 'seniority', 'companySize', 'expertise', 'affiliation', 'linkedin', 'confirm']
 
 const QUESTIONS: Record<Step, string> = {
-  email: "What's your email address? We only use this to send you events that match your profile.",
-  function: "What do you do professionally? For example: Sales, Marketing, RevOps, Customer Success, Finance...",
-  seniority: "How senior are you? For example: C-Level, VP, Director, Manager, Founder...",
-  companySize: "What's the revenue of your current company? Many events are run by vendors who want to focus on specific company sizes.",
-  expertise: "What expertise do you have? What industries do you know well?",
-  affiliation: "Are you affiliated with any professional communities or organizations? We have automatic approval for partner communities. Type 'none' if not applicable.",
-  linkedin: "Last one — what's your LinkedIn profile URL?",
+  email: "**What's your email address?** We only use this to send you events that match your profile.",
+  function: "**What do you do professionally?** For example: Sales, Marketing, RevOps, Customer Success, Finance...",
+  seniority: "**How senior are you?** For example: C-Level, VP, Director, Manager, Founder...",
+  companySize: "**What's the revenue of your current company?** Many events are run by vendors who want to focus on specific company sizes.",
+  expertise: "**What expertise do you have? What industries do you know well?**",
+  affiliation: "**Are you affiliated with any professional communities or organizations?** We have automatic approval for partner communities. Type 'none' if not applicable.",
+  linkedin: "**What's your LinkedIn profile URL?**",
   name: '',
   confirm: '',
   submitted: '',
@@ -43,7 +43,7 @@ function MessageContent({ content }: { content: string }) {
         return (
           <p key={i}>
             {parts.map((part, j) =>
-              j % 2 === 1 ? <strong key={j} className="text-gray-900 font-semibold">{part}</strong> : part
+              j % 2 === 1 ? <strong key={j} className="text-gold-700 font-semibold">{part}</strong> : part
             )}
           </p>
         )
@@ -53,7 +53,7 @@ function MessageContent({ content }: { content: string }) {
 }
 
 export default function ViewEventsTab({ eventCount = 0, startAtForm }: { eventCount?: number; startAtForm?: boolean }) {
-  const [step, setStep] = useState<Step>('name')
+  const [step, setStep] = useState<Step>('email')
   const [messages, setMessages] = useState<Message[]>([{
     role: 'assistant',
     content: `Welcome! I'll ask you a few quick questions to build your profile${eventCount > 0 ? ` — we have ${eventCount} upcoming events waiting` : ''}. ${QUESTIONS['email']}`,

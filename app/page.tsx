@@ -136,6 +136,7 @@ function Landing({
 const PARTNERS = [
   { name: 'GTM Council', src: '/logos/gtmcouncil.png' },
   { name: 'GTMfund',     src: '/logos/gtmfund.svg'    },
+  { name: 'Upside',      src: '/logos/upside.svg'     },
 ]
 
 function ViewCard({ eventCount, onCTA }: { eventCount: number; onCTA: () => void }) {

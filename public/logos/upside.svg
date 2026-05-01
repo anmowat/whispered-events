@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 120" width="420" height="120">
+  <!-- Network/graph icon -->
+  <g transform="translate(20, 10)" fill="none" stroke="#4a9e7f" stroke-width="3">
+    <!-- Edges -->
+    <line x1="50" y1="10" x2="88" y2="30"/>
+    <line x1="50" y1="10" x2="20" y2="38"/>
+    <line x1="50" y1="10" x2="50" y2="50"/>
+    <line x1="88" y1="30" x2="80" y2="70"/>
+    <line x1="88" y1="30" x2="50" y2="50"/>
+    <line x1="20" y1="38" x2="50" y2="50"/>
+    <line x1="20" y1="38" x2="18" y2="75"/>
+    <line x1="50" y1="50" x2="80" y2="70"/>
+    <line x1="50" y1="50" x2="18" y2="75"/>
+    <line x1="50" y1="50" x2="50" y2="90"/>
+    <line x1="80" y1="70" x2="50" y2="90"/>
+    <line x1="18" y1="75" x2="50" y2="90"/>
+  </g>
+  <!-- Nodes -->
+  <g fill="#4a9e7f">
+    <circle cx="70"  cy="20"  r="5.5"/>
+    <circle cx="108" cy="40"  r="5.5"/>
+    <circle cx="40"  cy="48"  r="5.5"/>
+    <circle cx="70"  cy="60"  r="5.5"/>
+    <circle cx="100" cy="80"  r="5.5"/>
+    <circle cx="38"  cy="85"  r="5.5"/>
+    <circle cx="70"  cy="100" r="5.5"/>
+  </g>
+  <!-- Upside text -->
+  <text x="145" y="78" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-weight="600" font-size="58" fill="#4a9e7f" letter-spacing="-1">Upside</text>
+</svg>
