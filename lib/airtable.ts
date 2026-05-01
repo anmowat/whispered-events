@@ -142,7 +142,7 @@ export async function getPartners(): Promise<Partner[]> {
 export async function createProfile(profile: UserProfile): Promise<string> {
   const base = getBase()
   const record = await base(PROFILES_TABLE).create({
-    Name: profile.name,
+    Name: profile.name || 'DEFAULT',
     LinkedIn: profile.linkedin,
     Function: profile.function,
     Seniority: profile.seniority,
