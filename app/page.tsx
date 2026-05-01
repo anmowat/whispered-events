@@ -22,7 +22,7 @@ export default function Home() {
 
     fetch('/api/partners')
       .then((r) => r.json())
-      .then((d: { partners: Partner[] }) => setPartners(d.partners))
+      .then((d: { partners: Partner[] }) => setPartners(d.partners ?? []))
       .catch(() => {})
   }, [])
 

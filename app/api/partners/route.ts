@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getPartners } from '@/lib/airtable'
 
-export const revalidate = 3600 // refresh hourly
+export const dynamic = 'force-dynamic'
 
 export async function GET() {
   try {
@@ -9,6 +9,6 @@ export async function GET() {
     return NextResponse.json({ partners })
   } catch (err) {
     console.error('partners error:', err)
-    return NextResponse.json({ partners: [] })
+    return NextResponse.json({ partners: [], error: String(err) })
   }
 }
