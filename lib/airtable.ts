@@ -176,8 +176,122 @@ export async function getPartners(): Promise<Partner[]> {
     .filter((p) => p.logoUrl)
 }
 
+export interface AirtableUser {
+  id: string
+  email: string
+  name: string
+  function: string
+  seniority: string
+  companySize: string
+  interest: string
+  affiliation: string
+}
+
+export interface AirtableEvent {
+  id: string
+  name: string
+  type: string
+  date: string
+  location: string
+  description: string
+  link: string
+  audience: string[]
+}
+
+export async function getActiveUsers(): Promise<AirtableUser[]> {
+  const base = getBase()
+  const sixMonthsAgo = new Date()
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
+  const cutoff = sixMonthsAgo.toISOString().split('T')[0]
+
+  const records = await base(PROFILES_TABLE)
+    .select({
+      filterByFormula: `AND({Approved} = 1, IS_AFTER({LastContribution}, '${cutoff}'))`,
+      fields: ['Email', 'Name', 'Function', 'Seniority', 'Size', 'Interest', 'Affiliation'],
+    })
+    .all()
+
+  return records
+    .map((r) => ({
+      id: r.id,
+      email: String(r.get('Email') || ''),
+      name: String(r.get('Name') || ''),
+      function: String(r.get('Function') || ''),
+      seniority: String(r.get('Seniority') || ''),
+      companySize: String(r.get('Size') || ''),
+      interest: String(r.get('Interest') || ''),
+      affiliation: String(r.get('Affiliation') || ''),
+    }))
+    .filter((u) => u.email)
+}
+
+export async function getFutureEvents(): Promise<AirtableEvent[]> {
+  const base = getBase()
+  const today = new Date().toISOString().split('T')[0]
+
+  const records = await base(EVENTS_TABLE)
+    .select({
+      filterByFormula: `AND({Date} >= '${today}', {Date} != '')`,
+      fields: ['Name', 'Type', 'Date', 'Location', 'Description', 'Link', 'Audience'],
+    })
+    .all()
+
+  return records
+    .map((r) => ({
+      id: r.id,
+      name: String(r.get('Name') || ''),
+      type: String(r.get('Type') || ''),
+      date: String(r.get('Date') || ''),
+      location: String(r.get('Location') || ''),
+      description: String(r.get('Description') || ''),
+      link: String(r.get('Link') || ''),
+      audience: String(r.get('Audience') || '').split(',').map((s) => s.trim()).filter(Boolean),
+    }))
+    .filter((e) => e.name)
+}
+
+export async function getUserByEmail(email: string): Promise<AirtableUser | null> {
+  const base = getBase()
+  const records = await base(PROFILES_TABLE)
+    .select({
+      filterByFormula: `{Email} = '${email.replace(/'/g, "\\'")}'`,
+      fields: ['Email', 'Name', 'Function', 'Seniority', 'Size', 'Interest', 'Affiliation'],
+      maxRecords: 1,
+    })
+    .all()
+
+  if (!records.length) return null
+  const r = records[0]
+  return {
+    id: r.id,
+    email: String(r.get('Email') || ''),
+    name: String(r.get('Name') || ''),
+    function: String(r.get('Function') || ''),
+    seniority: String(r.get('Seniority') || ''),
+    companySize: String(r.get('Size') || ''),
+    interest: String(r.get('Interest') || ''),
+    affiliation: String(r.get('Affiliation') || ''),
+  }
+}
+
+export async function updateLastContribution(email: string): Promise<void> {
+  const base = getBase()
+  const records = await base(PROFILES_TABLE)
+    .select({
+      filterByFormula: `{Email} = '${email.replace(/'/g, "\\'")}'`,
+      fields: ['Email'],
+      maxRecords: 1,
+    })
+    .all()
+
+  if (!records.length) return
+  const today = new Date().toISOString().split('T')[0]
+  await base(PROFILES_TABLE).update(records[0].id, { LastContribution: today } as Partial<FieldSet>)
+}
+
 export async function createProfile(profile: UserProfile): Promise<string> {
   const base = getBase()
+  const today = new Date().toISOString().split('T')[0]
   const record = await base(PROFILES_TABLE).create({
     Name: profile.name || 'DEFAULT',
     LinkedIn: profile.linkedin,
@@ -187,6 +301,7 @@ export async function createProfile(profile: UserProfile): Promise<string> {
     Interest: profile.expertise,
     Affiliation: profile.affiliation,
     Email: profile.email,
+    LastContribution: today,
   } as Partial<FieldSet>)
   return record.id
 }

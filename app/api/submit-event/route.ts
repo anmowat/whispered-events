@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { checkDuplicate, createEvent, updateEvent } from '@/lib/airtable'
+import { checkDuplicate, createEvent, updateEvent, updateLastContribution } from '@/lib/airtable'
 import { EventRecord } from '@/lib/types'
 
 export async function POST(req: NextRequest) {
@@ -37,6 +37,18 @@ export async function POST(req: NextRequest) {
     }
 
     const id = await createEvent(event)
+
+    // Fire-and-forget: update contributor record and trigger matching
+    if (event.submitter) {
+      updateLastContribution(event.submitter).catch((e) =>
+        console.error('updateLastContribution error:', e)
+      )
+    }
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    fetch(`${appUrl}/api/process-matches?trigger=event&id=${id}`).catch((e) =>
+      console.error('process-matches fire-and-forget error:', e)
+    )
+
     return NextResponse.json({ status: 'created', id })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
