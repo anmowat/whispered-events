@@ -10,9 +10,21 @@ const TYPE_STYLES: Record<string, string> = {
   Investor:  'text-emerald-700 bg-emerald-50 border-emerald-200',
 }
 
+const FILTER_ACTIVE: Record<string, string> = {
+  All:       'bg-gold-600 text-white border-gold-600',
+  Community: 'bg-blue-600 text-white border-blue-600',
+  Vendor:    'bg-purple-600 text-white border-purple-600',
+  Investor:  'bg-emerald-600 text-white border-emerald-600',
+}
+
+const FILTER_INACTIVE: Record<string, string> = {
+  All:       'bg-white text-gold-700 border-gold-200 hover:bg-gold-50',
+  Community: 'bg-white text-blue-700 border-blue-200 hover:bg-blue-50',
+  Vendor:    'bg-white text-purple-700 border-purple-200 hover:bg-purple-50',
+  Investor:  'bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50',
+}
+
 const TYPES = ['All', 'Community', 'Vendor', 'Investor']
-
-
 
 export default function PartnersPage() {
   const [partners, setPartners] = useState<Partner[]>([])
@@ -57,9 +69,7 @@ export default function PartnersPage() {
               key={t}
               onClick={() => setFilter(t)}
               className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all border ${
-                filter === t
-                  ? 'bg-gold-600 text-white border-gold-600'
-                  : 'bg-white text-gold-700 border-gold-200 hover:bg-gold-50'
+                filter === t ? FILTER_ACTIVE[t] : FILTER_INACTIVE[t]
               }`}
             >
               {t}
@@ -78,23 +88,25 @@ export default function PartnersPage() {
                   <img src={partner.logoUrl} alt={partner.name} className="h-full w-auto object-contain max-w-[140px]" />
                 </div>
                 <div className="flex-1 space-y-2">
-                  {partner.website ? (
-                    <a
-                      href={partner.website}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="font-medium text-gray-900 hover:text-gold-600 transition-colors underline underline-offset-2 block"
-                    >
-                      {partner.name}
-                    </a>
-                  ) : (
-                    <p className="font-medium text-gray-900">{partner.name}</p>
-                  )}
-                  {partner.type && (
-                    <span className={`inline-block text-xs rounded-full px-2 py-0.5 border font-medium ${TYPE_STYLES[partner.type] || 'text-gold-700 bg-gold-50 border-gold-200'}`}>
-                      {partner.type}
-                    </span>
-                  )}
+                  <div className="flex items-start justify-between gap-2">
+                    {partner.website ? (
+                      <a
+                        href={partner.website}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium text-gray-900 hover:text-gold-600 transition-colors underline underline-offset-2"
+                      >
+                        {partner.name}
+                      </a>
+                    ) : (
+                      <p className="font-medium text-gray-900">{partner.name}</p>
+                    )}
+                    {partner.type && (
+                      <span className={`flex-shrink-0 text-xs rounded-full px-2 py-0.5 border font-medium ${TYPE_STYLES[partner.type] || 'text-gold-700 bg-gold-50 border-gold-200'}`}>
+                        {partner.type}
+                      </span>
+                    )}
+                  </div>
                   {partner.description && (
                     <p className="text-sm text-gray-500 leading-relaxed pt-1">{partner.description}</p>
                   )}
