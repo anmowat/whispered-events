@@ -10,6 +10,8 @@ const TYPE_STYLES: Record<string, string> = {
   Investor:  'text-emerald-700 bg-emerald-50 border-emerald-200',
 }
 
+const TYPES = ['All', 'Community', 'Vendor', 'Investor']
+
 
 
 export default function PartnersPage() {
