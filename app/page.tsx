@@ -122,7 +122,7 @@ function Landing({
       {partners.length > 0 && (
         <div className="w-full max-w-2xl mt-14">
           <p className="text-center text-xs uppercase tracking-widest text-gray-400 mb-6">
-            We partner with the following communities and companies
+            We partner with top communities and companies
           </p>
           <div className="relative overflow-hidden">
             <div className="absolute left-0 top-0 bottom-0 w-16 bg-gradient-to-r from-[#F5EFE6] to-transparent z-10 pointer-events-none" />
@@ -140,6 +140,14 @@ function Landing({
                 </a>
               ))}
             </div>
+          </div>
+          <div className="flex justify-center mt-6">
+            <a
+              href="/partners"
+              className="text-xs text-gold-700 border border-gold-300 hover:bg-gold-50 px-4 py-2 rounded-lg transition-colors"
+            >
+              See all partners
+            </a>
           </div>
         </div>
       )}

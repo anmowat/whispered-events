@@ -116,8 +116,10 @@ export async function updateEvent(
 export interface Partner {
   id: string
   name: string
+  type: string
   logoUrl: string
   website: string
+  description: string
 }
 
 export interface FeaturedEvent {
@@ -153,7 +155,7 @@ export async function getPartners(): Promise<Partner[]> {
   const records = await base('Partners')
     .select({
       filterByFormula: "{Status} = 'Live'",
-      fields: ['Name', 'Logo', 'Site'],
+      fields: ['Name', 'Logo', 'Site', 'Type', 'Description'],
     })
     .all()
 
@@ -163,8 +165,10 @@ export async function getPartners(): Promise<Partner[]> {
       return {
         id: record.id,
         name: String(record.get('Name') || ''),
+        type: String(record.get('Type') || ''),
         logoUrl: logo?.[0]?.url || '',
         website: String(record.get('Site') || ''),
+        description: String(record.get('Description') || ''),
       }
     })
     .filter((p) => p.logoUrl)
