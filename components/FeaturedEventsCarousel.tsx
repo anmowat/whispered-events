@@ -50,6 +50,14 @@ export default function FeaturedEventsCarousel({ events }: { events: FeaturedEve
         {event.description && (
           <p className="text-xs text-gray-500 leading-relaxed line-clamp-2">{event.description}</p>
         )}
+        {(event.location || event.date) && (
+          <div className="flex justify-between items-center pt-1">
+            <span className="text-xs text-gray-400">{event.location}</span>
+            <span className="text-xs text-gray-400">
+              {event.date ? new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}
+            </span>
+          </div>
+        )}
       </div>
       {events.length > 1 && (
         <div className="flex gap-1.5 items-center">

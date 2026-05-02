@@ -129,6 +129,7 @@ export interface FeaturedEvent {
   description: string
   link: string
   date: string
+  location: string
 }
 
 export async function getFeaturedEvents(): Promise<FeaturedEvent[]> {
@@ -136,7 +137,7 @@ export async function getFeaturedEvents(): Promise<FeaturedEvent[]> {
   const records = await base('tbltqCrPbZbETbQRl')
     .select({
       view: 'viwz4UVrptnDATP19',
-      fields: ['Name', 'Description', 'Link', 'Date'],
+      fields: ['Name', 'Description', 'Link', 'Date', 'Location'],
       maxRecords: 10,
     })
     .all()
@@ -147,6 +148,7 @@ export async function getFeaturedEvents(): Promise<FeaturedEvent[]> {
       description: String(r.get('Description') || ''),
       link: String(r.get('Link') || ''),
       date: String(r.get('Date') || ''),
+      location: String(r.get('Location') || ''),
     }))
     .filter((e) => e.name)
 }
