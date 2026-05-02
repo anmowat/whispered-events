@@ -229,9 +229,9 @@ function PartnerCard({ featuredEvents }: { featuredEvents: FeaturedEvent[] }) {
         <h3 className="text-xs uppercase tracking-widest text-gray-400 font-medium">How it works</h3>
         <ol className="space-y-3">
           {[
-            'Share events you are running or aware of',
+            'Share events you are running',
             'Customize targeting for your events',
-            'Feature Events (premium)',
+            'Feature Events',
           ].map((text, i) => (
             <li key={i} className="flex items-start gap-3">
               <span className="w-5 h-5 rounded-full bg-gold-50 border border-gold-200 text-gold-700 text-xs flex items-center justify-center flex-shrink-0 mt-0.5 font-medium">{i + 1}</span>
