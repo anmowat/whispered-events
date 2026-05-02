@@ -4,7 +4,13 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Partner } from '@/lib/airtable'
 
-const TYPES = ['All', 'Community', 'Vendor', 'Investor']
+const TYPE_STYLES: Record<string, string> = {
+  Community: 'text-blue-700 bg-blue-50 border-blue-200',
+  Vendor:    'text-purple-700 bg-purple-50 border-purple-200',
+  Investor:  'text-emerald-700 bg-emerald-50 border-emerald-200',
+}
+
+
 
 export default function PartnersPage() {
   const [partners, setPartners] = useState<Partner[]>([])
@@ -69,13 +75,13 @@ export default function PartnersPage() {
                 <div className="h-10 flex items-center">
                   <img src={partner.logoUrl} alt={partner.name} className="h-full w-auto object-contain max-w-[140px]" />
                 </div>
-                <div className="flex-1 space-y-1">
+                <div className="flex-1 space-y-2">
                   {partner.website ? (
                     <a
                       href={partner.website}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="font-medium text-gray-900 hover:text-gold-600 transition-colors underline underline-offset-2"
+                      className="font-medium text-gray-900 hover:text-gold-600 transition-colors underline underline-offset-2 block"
                     >
                       {partner.name}
                     </a>
@@ -83,7 +89,7 @@ export default function PartnersPage() {
                     <p className="font-medium text-gray-900">{partner.name}</p>
                   )}
                   {partner.type && (
-                    <span className="inline-block text-xs text-gold-700 bg-gold-50 border border-gold-200 rounded-full px-2 py-0.5">
+                    <span className={`inline-block text-xs rounded-full px-2 py-0.5 border font-medium ${TYPE_STYLES[partner.type] || 'text-gold-700 bg-gold-50 border-gold-200'}`}>
                       {partner.type}
                     </span>
                   )}
