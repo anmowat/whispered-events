@@ -15,7 +15,7 @@ const STEPS: Step[] = ['email', 'affiliation', 'function', 'seniority', 'company
 
 const QUESTIONS: Record<Step, string> = {
   email: "**What's your email address?** We use this only to send you events that match your profile — nothing else.",
-  affiliation: "**Are you affiliated with any of our partners?** Partner members are automatically approved and get immediate access. If not, we'll review your application and notify you if accepted — though note that non-partner members are asked to contribute one event before receiving access. Type 'none' if not applicable.",
+  affiliation: "**Are you with any of [our partners](/partners)?** Partner members are automatically approved and get immediate access. If not, we'll review your application and notify you if accepted — though note that non-partner members are asked to contribute one event before receiving access. Type 'none' if not applicable.",
   function: "**What do you do professionally?** (e.g. Sales, Marketing, RevOps, Customer Success, Finance...)",
   seniority: "**How senior are you?** (e.g. C-Level, VP, Director, Manager, Founder...)",
   companySize: "**What is the approximate revenue of your current company?** Many events are run by vendors who want to focus on specific company sizes — this helps us make sure you're only seeing events you'd actually qualify for.",
@@ -36,19 +36,26 @@ function profileField(step: Step): keyof UserProfile | null {
   return map[step] ?? null
 }
 
+function parseInline(text: string): React.ReactNode[] {
+  const tokens = text.split(/(\*\*.+?\*\*|\[.+?\]\(.+?\))/)
+  return tokens.map((token, i) => {
+    if (/^\*\*.+\*\*$/.test(token)) {
+      return <strong key={i} className="text-gold-700 font-semibold">{token.slice(2, -2)}</strong>
+    }
+    const linkMatch = token.match(/^\[(.+?)\]\((.+?)\)$/)
+    if (linkMatch) {
+      return <a key={i} href={linkMatch[2]} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 text-gold-700 hover:text-gold-600">{linkMatch[1]}</a>
+    }
+    return token
+  })
+}
+
 function MessageContent({ content }: { content: string }) {
   return (
     <div className="space-y-1 whitespace-pre-line">
-      {content.split('\n').map((line, i) => {
-        const parts = line.split(/\*\*(.+?)\*\*/)
-        return (
-          <p key={i}>
-            {parts.map((part, j) =>
-              j % 2 === 1 ? <strong key={j} className="text-gold-700 font-semibold">{part}</strong> : part
-            )}
-          </p>
-        )
-      })}
+      {content.split('\n').map((line, i) => (
+        <p key={i}>{parseInline(line)}</p>
+      ))}
     </div>
   )
 }
