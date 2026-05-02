@@ -119,7 +119,7 @@ function Landing({
       </div>
 
       {/* Partner logos carousel — only shown if partners loaded */}
-      {partners.length > 0 && (
+      {partners.some((p) => p.featured) && (
         <div className="w-full max-w-2xl mt-14">
           <p className="text-center text-xs uppercase tracking-widest text-gray-400 mb-6">
             We partner with top communities and companies
@@ -128,7 +128,7 @@ function Landing({
             <div className="absolute left-0 top-0 bottom-0 w-16 bg-gradient-to-r from-[#F5EFE6] to-transparent z-10 pointer-events-none" />
             <div className="absolute right-0 top-0 bottom-0 w-16 bg-gradient-to-l from-[#F5EFE6] to-transparent z-10 pointer-events-none" />
             <div className="flex gap-16 animate-marquee whitespace-nowrap">
-              {[...partners, ...partners].map((p, i) => (
+              {[...partners.filter((p) => p.featured), ...partners.filter((p) => p.featured)].map((p, i) => (
                 <a
                   key={i}
                   href={p.website || '#'}

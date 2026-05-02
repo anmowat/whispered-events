@@ -120,6 +120,7 @@ export interface Partner {
   logoUrl: string
   website: string
   description: string
+  featured: boolean
 }
 
 export interface FeaturedEvent {
@@ -155,7 +156,7 @@ export async function getPartners(): Promise<Partner[]> {
   const records = await base('Partners')
     .select({
       filterByFormula: "{Status} = 'Live'",
-      fields: ['Name', 'Logo', 'Site', 'Type', 'Description'],
+      fields: ['Name', 'Logo', 'Site', 'Type', 'Description', 'Featured'],
     })
     .all()
 
@@ -169,6 +170,7 @@ export async function getPartners(): Promise<Partner[]> {
         logoUrl: logo?.[0]?.url || '',
         website: String(record.get('Site') || ''),
         description: String(record.get('Description') || ''),
+        featured: record.get('Featured') === true,
       }
     })
     .filter((p) => p.logoUrl)
