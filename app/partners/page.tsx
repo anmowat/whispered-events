@@ -5,23 +5,23 @@ import Link from 'next/link'
 import { Partner } from '@/lib/airtable'
 
 const TYPE_STYLES: Record<string, string> = {
-  Community: 'text-blue-700 bg-blue-50 border-blue-200',
-  Vendor:    'text-purple-700 bg-purple-50 border-purple-200',
-  Investor:  'text-emerald-700 bg-emerald-50 border-emerald-200',
+  Community: 'text-white bg-blue-600 border-blue-600',
+  Vendor:    'text-white bg-purple-600 border-purple-600',
+  Investor:  'text-white bg-emerald-600 border-emerald-600',
 }
 
 const FILTER_ACTIVE: Record<string, string> = {
-  All:       'bg-gold-600 text-white border-gold-600',
-  Community: 'bg-blue-600 text-white border-blue-600',
-  Vendor:    'bg-purple-600 text-white border-purple-600',
-  Investor:  'bg-emerald-600 text-white border-emerald-600',
+  All:       'bg-gold-700 text-white border-gold-700',
+  Community: 'bg-blue-700 text-white border-blue-700',
+  Vendor:    'bg-purple-700 text-white border-purple-700',
+  Investor:  'bg-emerald-700 text-white border-emerald-700',
 }
 
 const FILTER_INACTIVE: Record<string, string> = {
-  All:       'bg-white text-gold-700 border-gold-200 hover:bg-gold-50',
-  Community: 'bg-white text-blue-700 border-blue-200 hover:bg-blue-50',
-  Vendor:    'bg-white text-purple-700 border-purple-200 hover:bg-purple-50',
-  Investor:  'bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50',
+  All:       'bg-gold-500 text-white border-gold-500 hover:bg-gold-600',
+  Community: 'bg-blue-500 text-white border-blue-500 hover:bg-blue-600',
+  Vendor:    'bg-purple-500 text-white border-purple-500 hover:bg-purple-600',
+  Investor:  'bg-emerald-500 text-white border-emerald-500 hover:bg-emerald-600',
 }
 
 const TYPES = ['All', 'Community', 'Vendor', 'Investor']
