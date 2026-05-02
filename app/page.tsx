@@ -164,7 +164,7 @@ function ViewCard({ onCTA, featuredEvents }: { onCTA: () => void; featuredEvents
           {[
             'Share your profile and event interests',
             'Get notified of new matching events',
-            'Contribute (at least every 6 months) to stay active',
+            'Contribute (every 3 or 6 months) to stay active',
           ].map((text, i) => (
             <li key={i} className="flex items-start gap-3">
               <span className="w-5 h-5 rounded-full bg-gold-50 border border-gold-200 text-gold-700 text-xs flex items-center justify-center flex-shrink-0 mt-0.5 font-medium">{i + 1}</span>
@@ -177,7 +177,7 @@ function ViewCard({ onCTA, featuredEvents }: { onCTA: () => void; featuredEvents
         Apply for access
       </button>
       <p className="text-center text-xs text-gray-400">
-        Approved as long as your LinkedIn matches — active as long as you contribute every 6 months.
+        Tag Whispered Events on a LinkedIn post and we'll upgrade you to 6 months!
       </p>
       <FeaturedEventsCarousel events={featuredEvents} />
     </div>
