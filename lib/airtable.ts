@@ -184,6 +184,7 @@ export interface AirtableUser {
   seniority: string
   companySize: string
   interest: string
+  active: boolean
 }
 
 export interface AirtableEvent {
@@ -199,14 +200,11 @@ export interface AirtableEvent {
 
 export async function getActiveUsers(): Promise<AirtableUser[]> {
   const base = getBase()
-  const sixMonthsAgo = new Date()
-  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
-  const cutoff = sixMonthsAgo.toISOString().split('T')[0]
 
   const records = await base(PROFILES_TABLE)
     .select({
-      filterByFormula: `AND({Approved} = 1, IS_AFTER({LastContribution}, '${cutoff}'))`,
-      fields: ['Email', 'Name', 'Function', 'Seniority', 'Size', 'Interest'],
+      filterByFormula: `{Active} = 1`,
+      fields: ['Email', 'Name', 'Function', 'Seniority', 'Size', 'Interest', 'Active'],
     })
     .all()
 
@@ -219,6 +217,7 @@ export async function getActiveUsers(): Promise<AirtableUser[]> {
       seniority: String(r.get('Seniority') || ''),
       companySize: String(r.get('Size') || ''),
       interest: String(r.get('Interest') || ''),
+      active: Boolean(r.get('Active')),
     }))
     .filter((u) => u.email)
 }
@@ -253,7 +252,7 @@ export async function getUserByEmail(email: string): Promise<AirtableUser | null
   const records = await base(PROFILES_TABLE)
     .select({
       filterByFormula: `{Email} = '${email.replace(/'/g, "\\'")}'`,
-      fields: ['Email', 'Name', 'Function', 'Seniority', 'Size', 'Interest'],
+      fields: ['Email', 'Name', 'Function', 'Seniority', 'Size', 'Interest', 'Active'],
       maxRecords: 1,
     })
     .all()
@@ -268,6 +267,7 @@ export async function getUserByEmail(email: string): Promise<AirtableUser | null
     seniority: String(r.get('Seniority') || ''),
     companySize: String(r.get('Size') || ''),
     interest: String(r.get('Interest') || ''),
+    active: Boolean(r.get('Active')),
   }
 }
 

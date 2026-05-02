@@ -34,13 +34,9 @@ async function processEventTrigger(eventId: string) {
 
 async function processUserTrigger(userId: string) {
   const users = await getActiveUsers()
-  const user = users.find((u) => u.id === userId)
-
-  // New users may not be Approved yet; fall back to fetching by ID
-  let targetUser: AirtableUser | null = user ?? null
+  const targetUser = users.find((u) => u.id === userId) ?? null
   if (!targetUser) {
-    // User just signed up — not yet approved, fetch raw record
-    console.log(`process-matches: user ${userId} not in active list, skipping digest`)
+    console.log(`process-matches: user ${userId} is not active, skipping digest`)
     return
   }
 
