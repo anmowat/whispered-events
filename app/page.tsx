@@ -162,9 +162,9 @@ function ViewCard({ onCTA, featuredEvents }: { onCTA: () => void; featuredEvents
         <h3 className="text-xs uppercase tracking-widest text-gray-400 font-medium">How it works</h3>
         <ol className="space-y-3">
           {[
-            'Apply (execs from partners automatically approved).',
-            'Share your profile.',
-            'Get notified of new events matching your profile.',
+            'Apply (execs from partners automatically approved)',
+            'Share your profile',
+            'Get notified of new events matching your profile',
           ].map((text, i) => (
             <li key={i} className="flex items-start gap-3">
               <span className="w-5 h-5 rounded-full bg-gold-50 border border-gold-200 text-gold-700 text-xs flex items-center justify-center flex-shrink-0 mt-0.5 font-medium">{i + 1}</span>
@@ -191,9 +191,9 @@ function ContributeCard({ onCTA, featuredEvents }: { onCTA: () => void; featured
         <h3 className="text-xs uppercase tracking-widest text-gray-400 font-medium">How it works</h3>
         <ol className="space-y-3">
           {[
-            'Share an event link or paste in details.',
-            'Our AI extracts the information for you to confirm.',
-            'Event shared just with executives whose profiles fit.',
+            'Share an event link or paste in details',
+            'Our AI extracts the information for you to confirm',
+            'Event shared just with executives whose profiles fit',
           ].map((text, i) => (
             <li key={i} className="flex items-start gap-3">
               <span className="w-5 h-5 rounded-full bg-gold-50 border border-gold-200 text-gold-700 text-xs flex items-center justify-center flex-shrink-0 mt-0.5 font-medium">{i + 1}</span>
