@@ -184,7 +184,6 @@ export interface AirtableUser {
   seniority: string
   companySize: string
   interest: string
-  affiliation: string
 }
 
 export interface AirtableEvent {
@@ -207,7 +206,7 @@ export async function getActiveUsers(): Promise<AirtableUser[]> {
   const records = await base(PROFILES_TABLE)
     .select({
       filterByFormula: `AND({Approved} = 1, IS_AFTER({LastContribution}, '${cutoff}'))`,
-      fields: ['Email', 'Name', 'Function', 'Seniority', 'Size', 'Interest', 'Affiliation'],
+      fields: ['Email', 'Name', 'Function', 'Seniority', 'Size', 'Interest'],
     })
     .all()
 
@@ -220,7 +219,6 @@ export async function getActiveUsers(): Promise<AirtableUser[]> {
       seniority: String(r.get('Seniority') || ''),
       companySize: String(r.get('Size') || ''),
       interest: String(r.get('Interest') || ''),
-      affiliation: String(r.get('Affiliation') || ''),
     }))
     .filter((u) => u.email)
 }
@@ -255,7 +253,7 @@ export async function getUserByEmail(email: string): Promise<AirtableUser | null
   const records = await base(PROFILES_TABLE)
     .select({
       filterByFormula: `{Email} = '${email.replace(/'/g, "\\'")}'`,
-      fields: ['Email', 'Name', 'Function', 'Seniority', 'Size', 'Interest', 'Affiliation'],
+      fields: ['Email', 'Name', 'Function', 'Seniority', 'Size', 'Interest'],
       maxRecords: 1,
     })
     .all()
@@ -270,7 +268,6 @@ export async function getUserByEmail(email: string): Promise<AirtableUser | null
     seniority: String(r.get('Seniority') || ''),
     companySize: String(r.get('Size') || ''),
     interest: String(r.get('Interest') || ''),
-    affiliation: String(r.get('Affiliation') || ''),
   }
 }
 
@@ -299,7 +296,6 @@ export async function createProfile(profile: UserProfile): Promise<string> {
     Seniority: profile.seniority,
     'Size': profile.companySize,
     Interest: profile.expertise,
-    Affiliation: profile.affiliation,
     Email: profile.email,
     LastContribution: today,
   } as Partial<FieldSet>)

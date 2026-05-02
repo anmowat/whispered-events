@@ -20,7 +20,6 @@ Attendee profile:
 - Seniority: ${user.seniority}
 - Company size: ${user.companySize}
 - Event interests: ${user.interest}
-- Affiliation: ${user.affiliation}
 
 Return ONLY valid JSON with no markdown: {"score": 0.0-1.0, "reason": "one sentence"}`
 

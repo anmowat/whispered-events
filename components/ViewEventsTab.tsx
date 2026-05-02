@@ -2,36 +2,34 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { UserProfile } from '@/lib/types'
-import { Partner } from '@/lib/airtable'
 
-type Step = 'name' | 'linkedin' | 'function' | 'seniority' | 'companySize' | 'expertise' | 'affiliation' | 'email' | 'confirm' | 'submitted'
+type Step = 'name' | 'linkedin' | 'function' | 'seniority' | 'companySize' | 'expertise' | 'email' | 'confirm' | 'submitted'
 
 interface Message {
   role: 'assistant' | 'user'
   content: string
 }
 
-const STEPS: Step[] = ['email', 'affiliation', 'function', 'seniority', 'companySize', 'expertise', 'linkedin', 'confirm']
+const STEPS: Step[] = ['email', 'function', 'seniority', 'companySize', 'expertise', 'linkedin', 'confirm']
 
 const QUESTIONS: Record<Step, string> = {
   email: "**What's your email address?** We use this only to send you events that match your profile — nothing else.",
-  affiliation: "**Are you with any of [our partners](/partners)?** Partner members are automatically approved and get immediate access. If not, we'll review your application and notify you if accepted — though note that non-partner members are asked to contribute one event before receiving access. Type 'none' if not applicable.",
   function: "**What do you do professionally?** (e.g. Sales, Marketing, RevOps, Customer Success, Finance...)",
   seniority: "**How senior are you?** (e.g. C-Level, VP, Director, Manager, Founder...)",
   companySize: "**What is the approximate revenue of your current company?** Many events are run by vendors who want to focus on specific company sizes — this helps us make sure you're only seeing events you'd actually qualify for.",
   expertise: "**What types of events are you interested in?** The more you share here, the more accurate your matches will be — and you'll be able to update this any time.",
-  linkedin: "**What's your LinkedIn profile URL?** Our team uses this to verify your profile before granting access.",
+  linkedin: "**What's your LinkedIn profile URL?** We use this to verify that your profile matches what you've shared — as long as it does, you're approved.",
   name: '',
   confirm: '',
   submitted: '',
 }
 
-const EMPTY_PROFILE: UserProfile = { name: '', linkedin: '', function: '', seniority: '', companySize: '', expertise: '', affiliation: '', email: '' }
+const EMPTY_PROFILE: UserProfile = { name: '', linkedin: '', function: '', seniority: '', companySize: '', expertise: '', email: '' }
 
 function profileField(step: Step): keyof UserProfile | null {
   const map: Partial<Record<Step, keyof UserProfile>> = {
     email: 'email', function: 'function', seniority: 'seniority',
-    companySize: 'companySize', expertise: 'expertise', affiliation: 'affiliation', linkedin: 'linkedin',
+    companySize: 'companySize', expertise: 'expertise', linkedin: 'linkedin',
   }
   return map[step] ?? null
 }
@@ -72,7 +70,6 @@ function ProfileSummary({ profile, onUpdate, onSubmit, isSubmitting }: {
 
   const fields: { key: keyof UserProfile; label: string }[] = [
     { key: 'email', label: 'Email' },
-    { key: 'affiliation', label: 'Community' },
     { key: 'function', label: 'Function' },
     { key: 'seniority', label: 'Seniority' },
     { key: 'companySize', label: 'Company size' },
@@ -152,16 +149,15 @@ function ProfileSummary({ profile, onUpdate, onSubmit, isSubmitting }: {
   )
 }
 
-export default function ViewEventsTab({ eventCount = 0, startAtForm, partners = [], onContribute }: { eventCount?: number; startAtForm?: boolean; partners?: Partner[]; onContribute?: () => void }) {
+export default function ViewEventsTab({ eventCount = 0, startAtForm, onContribute }: { eventCount?: number; startAtForm?: boolean; onContribute?: () => void }) {
   const [step, setStep] = useState<Step>('email')
   const [messages, setMessages] = useState<Message[]>([{
     role: 'assistant',
-    content: `Welcome! I'll ask you a few quick questions to build your profile${eventCount > 0 ? ` — we have ${eventCount} upcoming events waiting` : ''}. ${QUESTIONS['email']}`,
+    content: `Welcome! Whispered Events is a free platform where executives discover and share exclusive, invitation-only events${eventCount > 0 ? ` — we have ${eventCount} upcoming events waiting` : ''}.\n\nI'll ask you a few questions to build your profile. As long as your LinkedIn matches what you share, you're approved. Your account stays active as long as you contribute at least one event every 6 months.\n\n${QUESTIONS['email']}`,
   }])
   const [input, setInput] = useState('')
   const [profile, setProfile] = useState<UserProfile>(EMPTY_PROFILE)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isPartner, setIsPartner] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -217,18 +213,8 @@ export default function ViewEventsTab({ eventCount = 0, startAtForm, partners = 
       const data = await res.json() as { status?: string; error?: string }
       if (!res.ok) throw new Error(data.error || 'Submission failed')
 
-      const affiliation = profile.affiliation.toLowerCase()
-      const matchedPartner = partners.find((p) =>
-        affiliation.includes(p.name.toLowerCase()) || p.name.toLowerCase().includes(affiliation)
-      )
-      setIsPartner(!!matchedPartner)
       setStep('submitted')
-
-      if (matchedPartner) {
-        addMessage('assistant', `You're all set! We'll confirm your affiliation with ${matchedPartner.name} and approve your account — we'll email you at ${profile.email} once that's done.\n\nIn the meantime, feel free to contribute any events you're aware of below.`)
-      } else {
-        addMessage('assistant', `Thanks for applying! We'll review your profile and, if approved, send a conditional approval to ${profile.email}. You'll get full access once you contribute your first event — so you can get started right now.`)
-      }
+      addMessage('assistant', `You're all set! As long as your LinkedIn checks out, you're approved — we'll send matching events to ${profile.email}.\n\nYour account stays active as long as you contribute at least one event every 6 months. You can get started right now.`)
     } catch (err) {
       addMessage('assistant', `Something went wrong: ${err instanceof Error ? err.message : 'Please try again.'}`)
     } finally {

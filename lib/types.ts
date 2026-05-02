@@ -31,7 +31,6 @@ export interface UserProfile {
   seniority: string
   companySize: string
   expertise: string
-  affiliation: string
   email: string
 }
 
