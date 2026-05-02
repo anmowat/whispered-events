@@ -36,6 +36,24 @@ export async function sendEventNotification(
   })
 }
 
+export async function sendMagicLink(email: string, token: string, baseUrl: string): Promise<void> {
+  const resend = getResend()
+  const link = `${baseUrl}/api/auth/verify?token=${token}`
+  await resend.emails.send({
+    from: FROM,
+    to: email,
+    subject: 'Your Whispered Events login link',
+    html: `
+      <div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#111">
+        <p>Click below to log in to Whispered Events. This link expires in 15 minutes.</p>
+        <a href="${link}" style="display:inline-block;margin-top:16px;padding:10px 20px;background:#8B6914;color:#fff;text-decoration:none;border-radius:8px">Log in to Whispered Events</a>
+        <hr style="margin:32px 0;border:none;border-top:1px solid #eee">
+        <p style="color:#888;font-size:12px">If you didn't request this, you can safely ignore it.</p>
+      </div>
+    `,
+  })
+}
+
 export async function sendUserDigest(
   user: AirtableUser,
   events: AirtableEvent[]

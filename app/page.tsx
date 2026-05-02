@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import ShareEventTab from '@/components/ShareEventTab'
 import ViewEventsTab from '@/components/ViewEventsTab'
 import FeaturedEventsCarousel from '@/components/FeaturedEventsCarousel'
+import LoginModal from '@/components/LoginModal'
 import { Partner, FeaturedEvent } from '@/lib/airtable'
 
 type Tab = 'view' | 'contribute' | 'partner'
@@ -12,6 +13,7 @@ type Mode = 'landing' | 'active'
 export default function Home() {
   const [tab, setTab] = useState<Tab>('contribute')
   const [mode, setMode] = useState<Mode>('landing')
+  const [showLogin, setShowLogin] = useState(false)
   const [eventCount, setEventCount] = useState(0)
   const [partners, setPartners] = useState<Partner[]>([])
   const [featuredEvents, setFeaturedEvents] = useState<FeaturedEvent[]>([])
@@ -46,9 +48,10 @@ export default function Home() {
   return (
     <div className="min-h-screen flex flex-col bg-[#F5EFE6]">
       {/* Header */}
+      {showLogin && <LoginModal onClose={() => setShowLogin(false)} />}
       <header className="border-b border-[#E8DDD0] bg-[#F5EFE6]/90 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
-          <button onClick={handleBack} className="flex items-center gap-2 flex-shrink-0">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 h-14 grid grid-cols-[1fr_auto_1fr] items-center gap-4">
+          <button onClick={handleBack} className="flex items-center gap-2">
             <span className="text-lg" aria-hidden="true">🤫</span>
             <span className="font-serif text-gray-900 tracking-wide text-sm hidden sm:inline">Whispered Events</span>
           </button>
@@ -56,6 +59,14 @@ export default function Home() {
             <TabPill active={tab === 'view'} onClick={() => setTab('view')}>Find Events</TabPill>
             <TabPill active={tab === 'contribute'} onClick={() => setTab('contribute')}>Contribute Event</TabPill>
             <TabPill active={tab === 'partner'} onClick={() => setTab('partner')}>Partner</TabPill>
+          </div>
+          <div className="flex justify-end">
+            <button
+              onClick={() => setShowLogin(true)}
+              className="text-sm text-gray-500 hover:text-gray-800 transition-colors"
+            >
+              Log in
+            </button>
           </div>
         </div>
       </header>
