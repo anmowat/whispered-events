@@ -231,7 +231,6 @@ function PartnerCard({ featuredEvents }: { featuredEvents: FeaturedEvent[] }) {
           {[
             'Share events you are running or aware of',
             'Customize targeting for your events',
-            'Guaranteed access for affiliated execs',
             'Feature Events (premium)',
           ].map((text, i) => (
             <li key={i} className="flex items-start gap-3">
