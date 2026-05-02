@@ -37,7 +37,8 @@ export default function PartnersPage() {
       .catch(() => {})
   }, [])
 
-  const filtered = filter === 'All' ? partners : partners.filter((p) => p.type === filter)
+  const filtered = (filter === 'All' ? partners : partners.filter((p) => p.type === filter))
+    .slice().sort((a, b) => a.name.localeCompare(b.name))
 
   return (
     <div className="min-h-screen bg-[#F5EFE6]">
