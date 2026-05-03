@@ -6,9 +6,10 @@ import { FeaturedEvent } from '@/lib/airtable'
 export default function FeaturedEventsCarousel({ events }: { events: FeaturedEvent[] }) {
   const [index, setIndex] = useState(0)
   const [fade, setFade] = useState(true)
+  const [paused, setPaused] = useState(false)
 
   useEffect(() => {
-    if (events.length <= 1) return
+    if (events.length <= 1 || paused) return
     const interval = setInterval(() => {
       setFade(false)
       setTimeout(() => {
@@ -17,7 +18,7 @@ export default function FeaturedEventsCarousel({ events }: { events: FeaturedEve
       }, 200)
     }, 4000)
     return () => clearInterval(interval)
-  }, [events.length])
+  }, [events.length, paused])
 
   function goTo(i: number) {
     setFade(false)
@@ -29,7 +30,7 @@ export default function FeaturedEventsCarousel({ events }: { events: FeaturedEve
   const event = events[index]
 
   return (
-    <div className="mt-4 border-t border-[#F0E8DC] pt-4 space-y-3">
+    <div className="mt-4 border-t border-[#F0E8DC] pt-4 space-y-3" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
       <p className="text-xs uppercase tracking-widest text-gray-400 font-medium">Featured Events</p>
       <div
         className="space-y-1 transition-opacity duration-200"

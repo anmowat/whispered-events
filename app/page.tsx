@@ -51,9 +51,8 @@ export default function Home() {
       {showLogin && <LoginModal onClose={() => setShowLogin(false)} />}
       <header className="border-b border-[#E8DDD0] bg-[#F5EFE6]/90 backdrop-blur-sm sticky top-0 z-10">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 h-14 grid grid-cols-[1fr_auto_1fr] items-center gap-4">
-          <button onClick={handleBack} className="flex items-center gap-2">
-            <span className="text-lg" aria-hidden="true">🤫</span>
-            <span className="font-serif text-gray-900 tracking-wide text-sm hidden sm:inline">Whispered Events</span>
+          <button onClick={handleBack}>
+            <img src="/logo.svg" alt="Whispered Events" className="h-7 w-auto" />
           </button>
           <div className="flex gap-1 bg-white border border-[#E8DDD0] rounded-xl p-1 shadow-sm">
             <TabPill active={tab === 'view'} onClick={() => setTab('view')}>Find Events</TabPill>

@@ -67,9 +67,8 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-[#F5EFE6]">
       <header className="border-b border-[#E8DDD0] bg-[#F5EFE6]/90 backdrop-blur-sm sticky top-0 z-10">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-          <a href="/" className="flex items-center gap-2">
-            <span className="text-lg" aria-hidden="true">🤫</span>
-            <span className="font-serif text-gray-900 tracking-wide text-sm hidden sm:inline">Whispered Events</span>
+          <a href="/">
+            <img src="/logo.svg" alt="Whispered Events" className="h-7 w-auto" />
           </a>
           <button
             onClick={handleLogout}
