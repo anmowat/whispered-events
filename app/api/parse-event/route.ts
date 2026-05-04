@@ -22,13 +22,16 @@ export async function POST(req: NextRequest) {
     if (url) {
       try {
         content = await scrapeUrl(url)
-      } catch {
-        // Fall back to just the URL itself as context
+        console.log('scrape ok, content length:', content.length)
+        console.log('scrape preview:', content.substring(0, 300))
+      } catch (scrapeErr) {
+        console.error('scrape failed:', scrapeErr instanceof Error ? scrapeErr.message : String(scrapeErr))
         content = `Event URL: ${url}`
       }
     }
 
     const parsed = await parseEventContent(content, sourceUrl)
+    console.log('parsed result:', JSON.stringify(parsed))
     return NextResponse.json({ event: parsed })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
