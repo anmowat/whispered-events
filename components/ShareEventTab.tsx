@@ -53,7 +53,8 @@ export default function ShareEventTab({ onDone }: { onDone?: () => void }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(isUrl ? { url: userInput } : { text: userInput }),
       })
-      const data = await res.json() as { event: ParsedEvent }
+      const data = await res.json() as { event: ParsedEvent; error?: string }
+      if (!res.ok) throw new Error(data.error || 'Failed to parse event')
       const event = data.event
       setParsed({
         name: event.name || '', type: event.type || 'Other', date: event.date || '',
@@ -63,9 +64,10 @@ export default function ShareEventTab({ onDone }: { onDone?: () => void }) {
       })
       setStep('review')
       addMessage('assistant', "Here's what I found. Review the details below and fill in anything that's missing, then we'll get this submitted.")
-    } catch {
+    } catch (err) {
       setStep('error')
-      addMessage('assistant', 'Something went wrong while parsing. Please try again.')
+      const msg = err instanceof Error ? err.message : 'Unknown error'
+      addMessage('assistant', `Something went wrong: ${msg}. Please try again.`)
     } finally {
       setIsLoading(false)
     }

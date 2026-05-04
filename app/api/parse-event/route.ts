@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { scrapeUrl } from '@/lib/scraper'
 import { parseEventContent } from '@/lib/claude'
 
+export const maxDuration = 30
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
@@ -29,9 +31,10 @@ export async function POST(req: NextRequest) {
     const parsed = await parseEventContent(content, sourceUrl)
     return NextResponse.json({ event: parsed })
   } catch (err) {
-    console.error('parse-event error:', err)
+    const message = err instanceof Error ? err.message : String(err)
+    console.error('parse-event error:', message)
     return NextResponse.json(
-      { error: 'Failed to parse event' },
+      { error: message },
       { status: 500 }
     )
   }
