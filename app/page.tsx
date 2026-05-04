@@ -238,7 +238,7 @@ function PartnerCard({ featuredEvents }: { featuredEvents: FeaturedEvent[] }) {
         <h3 className="text-xs uppercase tracking-widest text-gray-400 font-medium">How it works</h3>
         <ol className="space-y-3">
           {[
-            'Share events you are running',
+            'Share (and update) events you are running',
             'Customize targeting for your events',
             'Feature Events',
           ].map((text, i) => (
