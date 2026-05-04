@@ -186,7 +186,7 @@ function ViewCard({ onCTA, featuredEvents }: { onCTA: () => void; featuredEvents
         Apply for access
       </button>
       <p className="text-center text-xs text-gray-400">
-        Tag Whispered Events on a LinkedIn post and we'll upgrade you to 6 months!
+        Tag <a href="https://www.linkedin.com/company/whispered-events/about/?viewAsMember=true" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">Whispered Events</a> on a LinkedIn post and we&apos;ll upgrade you to 6 months!
       </p>
       <FeaturedEventsCarousel events={featuredEvents} />
     </div>
