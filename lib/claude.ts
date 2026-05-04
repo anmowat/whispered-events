@@ -40,7 +40,9 @@ Return ONLY valid JSON, no markdown, no explanation. Example:
     message.content[0].type === 'text' ? message.content[0].text : ''
 
   try {
-    const parsed = JSON.parse(text.trim()) as ParsedEvent
+    // Strip markdown code fences if present
+    const cleaned = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '')
+    const parsed = JSON.parse(cleaned) as ParsedEvent
 
     // Validate type
     if (parsed.type && !EVENT_TYPES.includes(parsed.type)) {
@@ -53,7 +55,9 @@ Return ONLY valid JSON, no markdown, no explanation. Example:
     }
 
     return parsed
-  } catch {
+  } catch (e) {
+    console.error('claude parse error:', e instanceof Error ? e.message : String(e))
+    console.error('claude raw response:', text)
     return { link: sourceUrl }
   }
 }
