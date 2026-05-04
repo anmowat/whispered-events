@@ -22,7 +22,7 @@ function extractTextFromHtml(html: string): string {
   const parts: string[] = []
 
   // 1. Extract JSON-LD structured data (best source for event sites like lu.ma, Eventbrite)
-  const jsonLdMatches = html.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)
+  const jsonLdMatches = Array.from(html.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi))
   for (const match of jsonLdMatches) {
     try {
       const data = JSON.parse(match[1].trim())
