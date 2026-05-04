@@ -18,6 +18,17 @@ export async function scrapeUrl(url: string): Promise<string> {
   return extractTextFromHtml(html)
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function extractRichText(node: any): string {
+  if (!node) return ''
+  if (node.type === 'text') return node.text || ''
+  if (node.type === 'hard_break') return '\n'
+  if (Array.isArray(node.content)) {
+    return node.content.map(extractRichText).join('')
+  }
+  return ''
+}
+
 function extractTextFromHtml(html: string): string {
   const parts: string[] = []
 
@@ -39,9 +50,31 @@ function extractTextFromHtml(html: string): string {
   if (nextDataMatch) {
     try {
       const nextData = JSON.parse(nextDataMatch[1].trim())
-      const pageProps = nextData?.props?.pageProps || nextData?.props?.initialProps
+      const pageProps = nextData?.props?.pageProps
       if (pageProps) {
-        parts.push(`Page Data: ${JSON.stringify(pageProps).substring(0, 3000)}`)
+        // lu.ma structure: pageProps.initialData.data.event + description_mirror
+        const lumaData = pageProps?.initialData?.data
+        if (lumaData?.event) {
+          const ev = lumaData.event
+          const geo = ev.geo_address_info
+          const location = geo?.city_state || geo?.city || (ev.location_type === 'online' ? 'Virtual' : '')
+          const extracted: Record<string, string> = {}
+          if (ev.name) extracted['Event Name'] = ev.name
+          if (ev.start_at) extracted['Start Date'] = ev.start_at
+          if (ev.end_at) extracted['End Date'] = ev.end_at
+          if (ev.timezone) extracted['Timezone'] = ev.timezone
+          if (location) extracted['Location'] = location
+          if (ev.location_type === 'online') extracted['Location'] = 'Virtual'
+          // Extract plain text from description_mirror (ProseMirror/TipTap rich text)
+          if (lumaData.description_mirror?.content) {
+            const plainText = extractRichText(lumaData.description_mirror)
+            if (plainText) extracted['Description'] = plainText.substring(0, 500)
+          }
+          parts.push(`Event Data:\n${Object.entries(extracted).map(([k, v]) => `${k}: ${v}`).join('\n')}`)
+        } else {
+          // Generic Next.js page — pass first 3000 chars of pageProps
+          parts.push(`Page Data: ${JSON.stringify(pageProps).substring(0, 3000)}`)
+        }
       }
     } catch {
       // not valid JSON, skip
