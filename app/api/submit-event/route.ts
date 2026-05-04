@@ -1,5 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { checkDuplicate, createEvent, updateEvent, updateLastContribution } from '@/lib/airtable'
+import {
+  checkDuplicate,
+  createEvent,
+  updateEvent,
+  updateLastContribution,
+  getEventHostEmail,
+  getPartnerUserByEmail,
+} from '@/lib/airtable'
 import { EventRecord } from '@/lib/types'
 
 export async function POST(req: NextRequest) {
@@ -16,6 +23,39 @@ export async function POST(req: NextRequest) {
 
     const dupCheck = await checkDuplicate(event.name, event.link, event.date)
 
+    // Resolve host linkage and enforce host protection
+    let hostUserId: string | undefined
+    if (dupCheck.isDuplicate && dupCheck.existingId) {
+      const existingHostEmail = await getEventHostEmail(dupCheck.existingId)
+      if (existingHostEmail) {
+        const submitterEmail = (event.submitter || '').toLowerCase()
+        if (submitterEmail !== existingHostEmail) {
+          return NextResponse.json(
+            { message: 'The event you shared already has a host. If you are actually the host, contact us at team@whisperedevents.com' },
+            { status: 403 }
+          )
+        }
+      } else if (event.host) {
+        const partnerUser = await getPartnerUserByEmail(event.submitter || '')
+        if (!partnerUser) {
+          return NextResponse.json(
+            { message: 'Only partners can claim events as host. If you want to partner with us visit the partner tab' },
+            { status: 403 }
+          )
+        }
+        hostUserId = partnerUser.id
+      }
+    } else if (event.host) {
+      const partnerUser = await getPartnerUserByEmail(event.submitter || '')
+      if (!partnerUser) {
+        return NextResponse.json(
+          { message: 'Only partners can claim events as host. If you want to partner with us visit the partner tab' },
+          { status: 403 }
+        )
+      }
+      hostUserId = partnerUser.id
+    }
+
     if (dupCheck.isDuplicate && !force) {
       // Update missing fields and always update Submitter to latest email
       if (dupCheck.existingId) {
@@ -26,7 +66,7 @@ export async function POST(req: NextRequest) {
             ;(updates as Record<string, unknown>)[key] = event[key]
           }
         }
-        await updateEvent(dupCheck.existingId, updates)
+        await updateEvent(dupCheck.existingId, updates, hostUserId)
       }
 
       return NextResponse.json({
@@ -36,7 +76,7 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    const id = await createEvent(event)
+    const id = await createEvent(event, hostUserId)
 
     // Fire-and-forget: update contributor record and trigger matching
     if (event.submitter) {
