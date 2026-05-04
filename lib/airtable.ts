@@ -81,9 +81,44 @@ export async function checkDuplicate(
   return { isDuplicate: false }
 }
 
-export async function createEvent(event: EventRecord): Promise<string> {
+export async function getEventHostEmail(eventId: string): Promise<string | null> {
   const base = getBase()
-  const record = await base(EVENTS_TABLE).create({
+  const record = await base(EVENTS_TABLE).find(eventId)
+  const hostIds = record.get('Host') as string[] | undefined
+  if (!hostIds?.length) return null
+  const hostRecord = await base(PROFILES_TABLE).find(hostIds[0])
+  const email = String(hostRecord.get('Email') || '')
+  return email.toLowerCase() || null
+}
+
+export async function getPartnerUserByEmail(email: string): Promise<AirtableUser | null> {
+  const base = getBase()
+  const sanitized = email.replace(/'/g, "\\'")
+  const records = await base(PROFILES_TABLE)
+    .select({
+      filterByFormula: `AND({Email} = '${sanitized}', {Status} = 'Partner')`,
+      fields: ['Email', 'Name', 'Function', 'Seniority', 'Size', 'Interest', 'Active'],
+      maxRecords: 1,
+    })
+    .all()
+
+  if (!records.length) return null
+  const r = records[0]
+  return {
+    id: r.id,
+    email: String(r.get('Email') || ''),
+    name: String(r.get('Name') || ''),
+    function: String(r.get('Function') || ''),
+    seniority: String(r.get('Seniority') || ''),
+    companySize: String(r.get('Size') || ''),
+    interest: String(r.get('Interest') || ''),
+    active: Boolean(r.get('Active')),
+  }
+}
+
+export async function createEvent(event: EventRecord, hostUserId?: string): Promise<string> {
+  const base = getBase()
+  const fields: Partial<FieldSet> = {
     Name: event.name,
     Type: event.type,
     Date: event.date,
@@ -91,15 +126,17 @@ export async function createEvent(event: EventRecord): Promise<string> {
     Description: event.description,
     Link: event.link,
     Audience: event.audience.join(', '),
-    Host: event.host,
     Submitter: event.submitter,
-  } as Partial<FieldSet>)
+  }
+  if (hostUserId) fields['Host'] = [hostUserId]
+  const record = await base(EVENTS_TABLE).create(fields)
   return record.id
 }
 
 export async function updateEvent(
   id: string,
-  fields: Partial<EventRecord>
+  fields: Partial<EventRecord>,
+  hostUserId?: string
 ): Promise<void> {
   const base = getBase()
   const updateData: Partial<FieldSet> = {}
@@ -108,8 +145,8 @@ export async function updateEvent(
   if (fields.audience?.length) updateData['Audience'] = fields.audience.join(', ')
   if (fields.type) updateData['Type'] = fields.type
   if (fields.date) updateData['Date'] = fields.date
-  if (fields.host !== undefined) updateData['Host'] = fields.host
   if (fields.submitter) updateData['Submitter'] = fields.submitter
+  if (hostUserId) updateData['Host'] = [hostUserId]
   await base(EVENTS_TABLE).update(id, updateData)
 }
 
