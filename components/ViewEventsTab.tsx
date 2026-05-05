@@ -162,7 +162,7 @@ export default function ViewEventsTab({ eventCount = 0, startAtForm, onReturnHom
   const [step, setStep] = useState<Step>('email')
   const [messages, setMessages] = useState<Message[]>([{
     role: 'assistant',
-    content: `Welcome! Whispered Events is a free platform where executives discover and share exclusive, invitation-only events${eventCount > 0 ? ` — we have ${eventCount} upcoming events waiting` : ''}.\n\nI'll ask you a few questions to complete your profile. As long as your LinkedIn matches what you share, you're approved. Your account stays active as long as you contribute at least one event every 6 months.\n\n${QUESTIONS['email']}`,
+    content: `Welcome! Whispered Events is a free platform where executives discover and share exclusive, invitation-only events${eventCount > 0 ? ` — we have ${eventCount} upcoming events waiting` : ''}.\n\nI'll ask you a few questions to complete your profile. As long as your LinkedIn matches what you share, you're approved. Your account stays active as long as you contribute (or update) events.\n\n${QUESTIONS['email']}`,
   }])
   const [input, setInput] = useState('')
   const [profile, setProfile] = useState<UserProfile>(EMPTY_PROFILE)
