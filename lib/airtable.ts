@@ -38,7 +38,7 @@ export async function checkDuplicate(
 ): Promise<DuplicateCheckResult> {
   const base = getBase()
   const allRecords = await base(EVENTS_TABLE)
-    .select({ fields: ['Name', 'Link', 'Date', 'Description', 'Audience', 'Type'] })
+    .select({ fields: ['Name', 'Link', 'Date', 'Location', 'Description', 'Audience', 'Type'] })
     .all()
 
   for (const record of allRecords) {
@@ -61,6 +61,7 @@ export async function checkDuplicate(
       if (!record.get('Audience')) missingFields.push('audience')
       if (!record.get('Type')) missingFields.push('type')
       if (!record.get('Date')) missingFields.push('date')
+      if (!record.get('Location')) missingFields.push('location')
 
       return {
         isDuplicate: true,
@@ -69,6 +70,7 @@ export async function checkDuplicate(
           name: existingName,
           link: existingLink,
           date: String(record.get('Date') || ''),
+          location: String(record.get('Location') || ''),
           description: String(record.get('Description') || ''),
           type: (record.get('Type') as EventRecord['type']) || 'Other',
           audience: String(record.get('Audience') || '').split(',').map(s => s.trim()).filter(Boolean),
@@ -140,6 +142,7 @@ export async function updateEvent(
 ): Promise<void> {
   const base = getBase()
   const updateData: Partial<FieldSet> = {}
+  if (fields.name) updateData['Name'] = fields.name
   if (fields.location) updateData['Location'] = fields.location
   if (fields.description) updateData['Description'] = fields.description
   if (fields.audience?.length) updateData['Audience'] = fields.audience.join(', ')
@@ -148,6 +151,24 @@ export async function updateEvent(
   if (fields.submitter) updateData['Submitter'] = fields.submitter
   if (hostUserId) updateData['Host'] = [hostUserId]
   await base(EVENTS_TABLE).update(id, updateData)
+}
+
+export async function getEventById(id: string): Promise<Partial<EventRecord> | null> {
+  const base = getBase()
+  try {
+    const r = await base(EVENTS_TABLE).find(id)
+    return {
+      name: String(r.get('Name') || ''),
+      type: (r.get('Type') as EventRecord['type']) || 'Other',
+      date: String(r.get('Date') || ''),
+      location: String(r.get('Location') || ''),
+      description: String(r.get('Description') || ''),
+      link: String(r.get('Link') || ''),
+      audience: String(r.get('Audience') || '').split(',').map(s => s.trim()).filter(Boolean),
+    }
+  } catch {
+    return null
+  }
 }
 
 export interface Partner {

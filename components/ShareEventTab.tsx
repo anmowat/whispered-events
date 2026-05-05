@@ -1,9 +1,19 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { EventRecord, ParsedEvent, EventType } from '@/lib/types'
+import { EventRecord, EventType } from '@/lib/types'
 
-type Step = 'input' | 'parsing' | 'review' | 'submitter' | 'preview' | 'submitted' | 'duplicate' | 'error'
+type Step =
+  | 'input'
+  | 'submitter'
+  | 'parsing'
+  | 'review'
+  | 'submitting'
+  | 'submitted'
+  | 'duplicate-not-host'
+  | 'error'
+
+type Mode = 'create' | 'duplicate-host' | 'duplicate-no-host'
 
 interface Message {
   role: 'assistant' | 'user'
@@ -16,16 +26,20 @@ function isValidUrl(str: string) {
   try { new URL(str); return true } catch { return false }
 }
 
+const WELCOME_MESSAGE: Message = {
+  role: 'assistant',
+  content: "Welcome to Whispered Events. To share an event, paste a link to the event page — or type out the event details directly.",
+}
+
 export default function ShareEventTab({ onDone }: { onDone?: () => void }) {
   const [step, setStep] = useState<Step>('input')
-  const [messages, setMessages] = useState<Message[]>([
-    { role: 'assistant', content: "Welcome to Whispered Events. To share an event, paste a link to the event page — or type out the event details directly." },
-  ])
+  const [messages, setMessages] = useState<Message[]>([WELCOME_MESSAGE])
   const [input, setInput] = useState('')
-  const [parsed, setParsed] = useState<Partial<EventRecord>>({ type: 'Other', host: false, audience: [], location: '' })
-  const [submitterName, setSubmitterName] = useState('')
+  const [pendingInput, setPendingInput] = useState('')
   const [submitterEmail, setSubmitterEmail] = useState('')
-  const [duplicateInfo, setDuplicateInfo] = useState<Partial<EventRecord> | null>(null)
+  const [mode, setMode] = useState<Mode>('create')
+  const [existingId, setExistingId] = useState<string | undefined>(undefined)
+  const [parsed, setParsed] = useState<Partial<EventRecord>>({ type: 'Other', host: false, audience: [], location: '' })
   const [isLoading, setIsLoading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null)
@@ -38,36 +52,84 @@ export default function ShareEventTab({ onDone }: { onDone?: () => void }) {
     setMessages((prev) => [...prev, { role, content }])
   }
 
-  async function handleInputSubmit() {
+  function handleInputSubmit() {
     if (!input.trim()) return
     const userInput = input.trim()
     setInput('')
+    setPendingInput(userInput)
     addMessage('user', userInput)
-    const isUrl = isValidUrl(userInput)
+    addMessage('assistant', "Got it. What's your email? We'll check whether this event is already in our database.")
+    setStep('submitter')
+  }
+
+  async function handleSubmitterContinue() {
+    const email = submitterEmail.trim()
+    if (!email) return
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      addMessage('assistant', "That doesn't look like a valid email — please try again.")
+      return
+    }
+    addMessage('user', email)
     setStep('parsing')
-    addMessage('assistant', isUrl ? 'Let me pull the details from that link...' : 'Got it — let me extract the event details...')
+    addMessage('assistant', "Thanks. Let me look this up...")
     setIsLoading(true)
     try {
-      const res = await fetch('/api/parse-event', {
+      const res = await fetch('/api/check-event', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(isUrl ? { url: userInput } : { text: userInput }),
+        body: JSON.stringify({ input: pendingInput, email }),
       })
-      const data = await res.json() as { event: ParsedEvent; error?: string }
-      if (!res.ok) throw new Error(data.error || 'Failed to parse event')
-      const event = data.event
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to look up event')
+
+      if (data.status === 'duplicate-not-host') {
+        setStep('duplicate-not-host')
+        return
+      }
+
+      if (data.status === 'new') {
+        const p = data.parsed
+        setParsed({
+          name: p.name || '',
+          type: p.type || 'Other',
+          date: p.date || '',
+          location: p.location || '',
+          description: p.description || '',
+          link: p.link || '',
+          audience: p.audience || [],
+          host: false,
+        })
+        setMode('create')
+        setExistingId(undefined)
+        addMessage('assistant', "Here's what I found. Review the details below and fill in anything that's missing, then we'll get this submitted.")
+        setStep('review')
+        return
+      }
+
+      // duplicate-host or duplicate-no-host
+      const m = data.merged || {}
       setParsed({
-        name: event.name || '', type: event.type || 'Other', date: event.date || '',
-        location: event.location || '',
-        description: event.description || '', link: event.link || (isUrl ? userInput : ''),
-        audience: event.audience || [], host: false,
+        name: m.name || '',
+        type: m.type || 'Other',
+        date: m.date || '',
+        location: m.location || '',
+        description: m.description || '',
+        link: m.link || '',
+        audience: m.audience || [],
+        host: data.status === 'duplicate-host',
       })
+      setMode(data.status)
+      setExistingId(data.existingId)
+      addMessage(
+        'assistant',
+        data.status === 'duplicate-host'
+          ? "We already have this event in our database. Here's everything we have on file — review and edit anything that needs updating, then save your changes."
+          : "We already have this event in our database. Here's what we have so far — feel free to fill in anything that's missing."
+      )
       setStep('review')
-      addMessage('assistant', "Here's what I found. Review the details below and fill in anything that's missing, then we'll get this submitted.")
     } catch (err) {
       setStep('error')
-      const msg = err instanceof Error ? err.message : 'Unknown error'
-      addMessage('assistant', `Something went wrong: ${msg}. Please try again.`)
+      addMessage('assistant', `Something went wrong: ${err instanceof Error ? err.message : 'Please try again.'}`)
     } finally {
       setIsLoading(false)
     }
@@ -78,36 +140,36 @@ export default function ShareEventTab({ onDone }: { onDone?: () => void }) {
       addMessage('assistant', 'Please add at least a name and link before continuing.')
       return
     }
-    setStep('submitter')
-    addMessage('assistant', "Thank you for contributing. We will only share this event with executives whose profiles match. Please share your email (we won't share your contact details with anyone).")
-  }
-
-  async function handleSubmitterContinue() {
-    if (!submitterEmail.trim()) return
-    addMessage('user', submitterEmail)
+    setStep('submitting')
     setIsLoading(true)
     const fullEvent: EventRecord = {
-      name: parsed.name || '', type: parsed.type || 'Other', date: parsed.date || '',
-      location: parsed.location || '', description: parsed.description || '', link: parsed.link || '',
-      audience: parsed.audience || [], host: parsed.host || false, submitter: submitterEmail,
+      name: parsed.name || '',
+      type: parsed.type || 'Other',
+      date: parsed.date || '',
+      location: parsed.location || '',
+      description: parsed.description || '',
+      link: parsed.link || '',
+      audience: parsed.audience || [],
+      host: parsed.host || false,
+      submitter: submitterEmail,
     }
     try {
       const res = await fetch('/api/submit-event', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ event: fullEvent }),
+        body: JSON.stringify({ event: fullEvent, existingId }),
       })
-      const data = await res.json() as { status: string; existingRecord?: Partial<EventRecord>; error?: string }
-      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
-      if (data.status === 'duplicate') {
-        setDuplicateInfo(data.existingRecord || null)
-        setStep('duplicate')
-        addMessage('assistant', "This event is already in our database. If you had any new details, we've added them to the existing record.")
-      } else {
-        setStep('submitted')
-        addMessage('assistant', "Thank you! The event has been added to our database. We appreciate you helping the community discover exclusive events.")
-        setTimeout(() => onDone?.(), 2500)
-      }
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || data.message || `HTTP ${res.status}`)
+      setStep('submitted')
+      const msg =
+        mode === 'duplicate-host'
+          ? "Got it — we've updated this event with your changes. Thank you."
+          : mode === 'duplicate-no-host'
+            ? "Thanks! We added the missing details to this event."
+            : "Thank you! The event has been added to our database. We appreciate you helping the community discover exclusive events."
+      addMessage('assistant', msg)
+      setTimeout(() => onDone?.(), 2500)
     } catch (err) {
       setStep('error')
       addMessage('assistant', `Something went wrong: ${err instanceof Error ? err.message : 'Please try again.'}`)
@@ -118,12 +180,17 @@ export default function ShareEventTab({ onDone }: { onDone?: () => void }) {
 
   function handleReset() {
     setStep('input')
-    setMessages([{ role: 'assistant', content: "Welcome to Whispered Events. To share an event, paste a link to the event page — or type out the event details directly." }])
-    setParsed({ type: 'Other', host: false, audience: [] })
-    setSubmitterName(''); setSubmitterEmail(''); setDuplicateInfo(null); setInput('')
+    setMessages([WELCOME_MESSAGE])
+    setParsed({ type: 'Other', host: false, audience: [], location: '' })
+    setSubmitterEmail('')
+    setPendingInput('')
+    setMode('create')
+    setExistingId(undefined)
+    setInput('')
   }
 
   const audienceInput = parsed.audience?.join(', ') || ''
+  const showHostCheckbox = mode === 'create'
 
   return (
     <div className="flex flex-col h-full max-w-2xl mx-auto">
@@ -160,21 +227,42 @@ export default function ShareEventTab({ onDone }: { onDone?: () => void }) {
           </div>
         )}
 
-        {step === 'review' && !isLoading && (
-          <div className="animate-slide-up">
-            <EventReviewForm event={parsed} onChange={setParsed} audienceInput={audienceInput} onContinue={handleReviewContinue} />
-          </div>
-        )}
-
         {step === 'submitter' && !isLoading && (
           <div className="animate-slide-up ml-10">
             <SubmitterForm email={submitterEmail} onEmailChange={setSubmitterEmail} onContinue={handleSubmitterContinue} />
           </div>
         )}
 
+        {step === 'review' && !isLoading && (
+          <div className="animate-slide-up">
+            <EventReviewForm
+              event={parsed}
+              onChange={setParsed}
+              audienceInput={audienceInput}
+              onContinue={handleReviewContinue}
+              showHostCheckbox={showHostCheckbox}
+              submitLabel={mode === 'create' ? 'Submit event' : 'Save changes'}
+            />
+          </div>
+        )}
 
+        {step === 'duplicate-not-host' && (
+          <div className="animate-slide-up ml-10 space-y-3">
+            <div className="bg-white rounded-2xl border border-[#E8DDD0] p-5 text-sm text-gray-700 leading-relaxed shadow-sm">
+              Thank you for submitting an event and helping us connect great executives and events. We already have this event in our database.
+              <br /><br />
+              If you are the host and would like to claim it, email us at <a href="mailto:team@whispered.com" className="text-gold-700 hover:underline">team@whispered.com</a>.
+            </div>
+            <button
+              onClick={() => onDone?.()}
+              className="w-full py-2.5 rounded-lg bg-gold-600 hover:bg-gold-500 text-white text-sm font-medium transition-colors"
+            >
+              Return Home
+            </button>
+          </div>
+        )}
 
-        {(step === 'submitted' || step === 'duplicate') && (
+        {(step === 'submitted' || step === 'error') && (
           <div className="animate-slide-up ml-10">
             <button onClick={handleReset} className="mt-2 px-4 py-2 rounded-lg bg-white border border-[#E8DDD0] text-gray-600 text-sm hover:border-gold-300 hover:text-gold-700 transition-colors shadow-sm">
               Share another event
@@ -212,9 +300,13 @@ export default function ShareEventTab({ onDone }: { onDone?: () => void }) {
   )
 }
 
-function EventReviewForm({ event, onChange, audienceInput, onContinue }: {
-  event: Partial<EventRecord>; onChange: (e: Partial<EventRecord>) => void
-  audienceInput: string; onContinue: () => void
+function EventReviewForm({ event, onChange, audienceInput, onContinue, showHostCheckbox, submitLabel }: {
+  event: Partial<EventRecord>
+  onChange: (e: Partial<EventRecord>) => void
+  audienceInput: string
+  onContinue: () => void
+  showHostCheckbox: boolean
+  submitLabel: string
 }) {
   const [localAudience, setLocalAudience] = useState(audienceInput)
   function update(field: keyof EventRecord, value: unknown) { onChange({ ...event, [field]: value }) }
@@ -249,12 +341,14 @@ function EventReviewForm({ event, onChange, audienceInput, onContinue }: {
       <Field label="Audience (comma-separated)">
         <input value={localAudience} onChange={(e) => setLocalAudience(e.target.value)} onBlur={handleAudienceBlur} placeholder="e.g. CROs, CMOs, Revenue Leaders" className={inputCls} />
       </Field>
-      <div className="flex items-center gap-2">
-        <input id="host-check" type="checkbox" checked={event.host || false} onChange={(e) => update('host', e.target.checked)} className="w-4 h-4 rounded border-gray-300 text-gold-600" />
-        <label htmlFor="host-check" className="text-sm text-gray-600">I am hosting this event</label>
-      </div>
+      {showHostCheckbox && (
+        <div className="flex items-center gap-2">
+          <input id="host-check" type="checkbox" checked={event.host || false} onChange={(e) => update('host', e.target.checked)} className="w-4 h-4 rounded border-gray-300 text-gold-600" />
+          <label htmlFor="host-check" className="text-sm text-gray-600">I am hosting this event</label>
+        </div>
+      )}
       <button onClick={onContinue} disabled={!event.name || !event.link} className="w-full py-2.5 rounded-lg bg-gold-600 hover:bg-gold-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors">
-        Continue
+        {submitLabel}
       </button>
     </div>
   )
@@ -266,49 +360,18 @@ function SubmitterForm({ email, onEmailChange, onContinue }: {
   return (
     <div className="bg-white rounded-2xl border border-[#E8DDD0] p-5 space-y-3 shadow-sm">
       <Field label="Your email">
-        <input type="email" value={email} onChange={(e) => onEmailChange(e.target.value)} placeholder="jane@company.com" className={inputCls} />
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => onEmailChange(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') onContinue() }}
+          placeholder="jane@company.com"
+          className={inputCls}
+        />
       </Field>
       <button onClick={onContinue} disabled={!email.trim()} className="w-full py-2.5 rounded-lg bg-gold-600 hover:bg-gold-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors">
-        Submit event
+        Continue
       </button>
-    </div>
-  )
-}
-
-function EventPreview({ event, onConfirm, onEdit }: { event: EventRecord; onConfirm: () => void; onEdit: () => void }) {
-  return (
-    <div className="bg-white rounded-2xl border border-gold-200 p-5 ml-10 space-y-3 shadow-sm">
-      <h3 className="text-xs uppercase tracking-widest text-gold-600 font-medium">Preview</h3>
-      <dl className="space-y-2 text-sm">
-        <Row label="Name" value={event.name} />
-        <Row label="Type" value={event.type} />
-        <Row label="Date" value={event.date} />
-        <Row label="Link" value={event.link} isLink />
-        <Row label="Description" value={event.description} />
-        <Row label="Audience" value={event.audience?.join(', ')} />
-        <Row label="Host" value={event.host ? 'Yes' : 'No'} />
-        <Row label="Submitter" value={event.submitter} />
-      </dl>
-      <div className="flex gap-2 pt-1">
-        <button onClick={onEdit} className="flex-1 py-2 rounded-lg border border-[#E8DDD0] text-gray-500 text-sm hover:border-gray-300 hover:text-gray-700 transition-colors">
-          Edit
-        </button>
-        <button onClick={onConfirm} className="flex-1 py-2 rounded-lg bg-gold-600 hover:bg-gold-500 text-white text-sm font-medium transition-colors">
-          Confirm &amp; Submit
-        </button>
-      </div>
-    </div>
-  )
-}
-
-function Row({ label, value, isLink }: { label: string; value?: string; isLink?: boolean }) {
-  if (!value) return null
-  return (
-    <div className="flex gap-3">
-      <dt className="text-gray-400 w-24 flex-shrink-0">{label}</dt>
-      <dd className="text-gray-800 break-all">
-        {isLink ? <a href={value} target="_blank" rel="noopener noreferrer" className="text-gold-600 hover:underline">{value}</a> : value}
-      </dd>
     </div>
   )
 }
