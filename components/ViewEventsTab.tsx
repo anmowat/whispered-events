@@ -158,7 +158,7 @@ function ProfileSummary({ profile, onUpdate, onSubmit, isSubmitting }: {
   )
 }
 
-export default function ViewEventsTab({ eventCount = 0, startAtForm, onContribute }: { eventCount?: number; startAtForm?: boolean; onContribute?: () => void }) {
+export default function ViewEventsTab({ eventCount = 0, startAtForm, onReturnHome }: { eventCount?: number; startAtForm?: boolean; onReturnHome?: () => void }) {
   const [step, setStep] = useState<Step>('email')
   const [messages, setMessages] = useState<Message[]>([{
     role: 'assistant',
@@ -223,7 +223,7 @@ export default function ViewEventsTab({ eventCount = 0, startAtForm, onContribut
       if (!res.ok) throw new Error(data.error || 'Submission failed')
 
       setStep('submitted')
-      addMessage('assistant', `You're all set! As long as your LinkedIn checks out, you're approved — we'll send matching events to ${profile.email}.\n\nYour account stays active as long as you contribute at least one event every 6 months. You can get started right now.`)
+      addMessage('assistant', `You're all set! As long as your LinkedIn checks out, you're approved — we'll send matching events to ${profile.email}.\n\nYour account stays active as long as you contribute at least one event every 3 months (tag [Whispered Events](https://www.linkedin.com/company/whispered-events/about/?viewAsMember=true) on a post on LinkedIn and we'll increase that to 6 months).`)
     } catch (err) {
       addMessage('assistant', `Something went wrong: ${err instanceof Error ? err.message : 'Please try again.'}`)
     } finally {
@@ -274,13 +274,13 @@ export default function ViewEventsTab({ eventCount = 0, startAtForm, onContribut
           />
         )}
 
-        {step === 'submitted' && onContribute && (
+        {step === 'submitted' && onReturnHome && (
           <div className="ml-10 animate-slide-up">
             <button
-              onClick={onContribute}
+              onClick={onReturnHome}
               className="w-full py-3 rounded-xl bg-gold-600 hover:bg-gold-500 text-white text-sm font-medium transition-colors"
             >
-              Contribute an Event
+              Return Home
             </button>
           </div>
         )}

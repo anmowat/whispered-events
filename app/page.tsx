@@ -75,7 +75,7 @@ export default function Home() {
           <Landing tab={tab} setTab={setTab} eventCount={eventCount} partners={partners} featuredEvents={featuredEvents} onCTA={handleCTA} />
         ) : (
           <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
-            {tab === 'view' && <ViewEventsTab startAtForm onContribute={() => setTab('contribute')} />}
+            {tab === 'view' && <ViewEventsTab startAtForm onReturnHome={handleBack} />}
             {tab === 'contribute' && <ShareEventTab onDone={handleBack} />}
             {tab === 'partner' && <PartnerCard featuredEvents={featuredEvents} />}
           </div>
