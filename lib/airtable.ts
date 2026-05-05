@@ -329,12 +329,10 @@ export async function createProfile(profile: UserProfile): Promise<string> {
   const base = getBase()
   const today = new Date().toISOString().split('T')[0]
   const record = await base(PROFILES_TABLE).create({
-    Name: profile.name || 'DEFAULT',
     LinkedIn: profile.linkedin,
-    Function: profile.function,
-    Seniority: profile.seniority,
+    Interest: profile.interest,
+    Employment: profile.employment,
     'Size': profile.companySize,
-    Interest: profile.expertise,
     Email: profile.email,
     LastContribution: today,
   } as Partial<FieldSet>)

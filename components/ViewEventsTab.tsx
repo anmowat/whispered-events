@@ -3,35 +3,45 @@
 import { useState, useRef, useEffect } from 'react'
 import { UserProfile } from '@/lib/types'
 
-type Step = 'name' | 'linkedin' | 'function' | 'seniority' | 'companySize' | 'expertise' | 'email' | 'confirm' | 'submitted'
+type Step = 'email' | 'interest' | 'employment' | 'size' | 'linkedin' | 'confirm' | 'submitted'
 
 interface Message {
   role: 'assistant' | 'user'
   content: string
 }
 
-const STEPS: Step[] = ['email', 'function', 'seniority', 'companySize', 'expertise', 'linkedin', 'confirm']
+const EMPLOYMENT_OPTIONS = ['Employed', 'Fractional', 'Searching', 'Other']
 
 const QUESTIONS: Record<Step, string> = {
-  email: "**What's your email address?** We use this only to send you events that match your profile — nothing else.",
-  function: "**What do you do professionally?** (e.g. Sales, Marketing, RevOps, Customer Success, Finance...)",
-  seniority: "**How senior are you?** (e.g. C-Level, VP, Director, Manager, Founder...)",
-  companySize: "**What is the approximate revenue of your current company?** Many events are run by vendors who want to focus on specific company sizes — this helps us make sure you're only seeing events you'd actually qualify for.",
-  expertise: "**What types of events are you interested in?** The more you share here, the more accurate your matches will be — and you'll be able to update this any time.",
-  linkedin: "**What's your LinkedIn profile URL?** We use this to verify that your profile matches what you've shared — as long as it does, you're approved.",
-  name: '',
+  email: "**What's your email address?** We use this only to send you events — nothing else.",
+  interest: "**What types of events are you interested in?**\n\nWe'll pull your function, seniority and location from your LinkedIn, so focus here on anything additional that would help us tailor events to you — industry focus, specific topics, preferred formats, etc.\n\nYou can update this any time.",
+  employment: "**What is your current work situation?**\n\nWe ask because some events focus on people in specific roles while others are open to anyone.",
+  size: "**What is the approximate revenue of your current company?**\n\nMany events are run by vendors who want to focus on specific company sizes — this helps us make sure you're only seeing events you'd actually qualify for.",
+  linkedin: "**What's your LinkedIn profile URL?**",
   confirm: '',
   submitted: '',
 }
 
-const EMPTY_PROFILE: UserProfile = { name: '', linkedin: '', function: '', seniority: '', companySize: '', expertise: '', email: '' }
+const EMPTY_PROFILE: UserProfile = { linkedin: '', interest: '', employment: '', companySize: '', email: '' }
 
 function profileField(step: Step): keyof UserProfile | null {
   const map: Partial<Record<Step, keyof UserProfile>> = {
-    email: 'email', function: 'function', seniority: 'seniority',
-    companySize: 'companySize', expertise: 'expertise', linkedin: 'linkedin',
+    email: 'email',
+    interest: 'interest',
+    employment: 'employment',
+    size: 'companySize',
+    linkedin: 'linkedin',
   }
   return map[step] ?? null
+}
+
+function nextStep(current: Step, value: string): Step {
+  const order: Step[] = ['email', 'interest', 'employment', 'size', 'linkedin', 'confirm']
+  if (current === 'employment' && value.toLowerCase() !== 'employed') {
+    return 'linkedin'
+  }
+  const idx = order.indexOf(current)
+  return idx >= 0 && idx < order.length - 1 ? order[idx + 1] : 'confirm'
 }
 
 function parseInline(text: string): React.ReactNode[] {
@@ -70,10 +80,9 @@ function ProfileSummary({ profile, onUpdate, onSubmit, isSubmitting }: {
 
   const fields: { key: keyof UserProfile; label: string }[] = [
     { key: 'email', label: 'Email' },
-    { key: 'function', label: 'Function' },
-    { key: 'seniority', label: 'Seniority' },
-    { key: 'companySize', label: 'Company size' },
-    { key: 'expertise', label: 'Interests' },
+    { key: 'interest', label: 'Interests' },
+    { key: 'employment', label: 'Employment' },
+    ...(profile.employment.toLowerCase() === 'employed' ? [{ key: 'companySize' as keyof UserProfile, label: 'Company size' }] : []),
     { key: 'linkedin', label: 'LinkedIn' },
   ]
 
@@ -153,7 +162,7 @@ export default function ViewEventsTab({ eventCount = 0, startAtForm, onContribut
   const [step, setStep] = useState<Step>('email')
   const [messages, setMessages] = useState<Message[]>([{
     role: 'assistant',
-    content: `Welcome! Whispered Events is a free platform where executives discover and share exclusive, invitation-only events${eventCount > 0 ? ` — we have ${eventCount} upcoming events waiting` : ''}.\n\nI'll ask you a few questions to build your profile. As long as your LinkedIn matches what you share, you're approved. Your account stays active as long as you contribute at least one event every 6 months.\n\n${QUESTIONS['email']}`,
+    content: `Welcome! Whispered Events is a free platform where executives discover and share exclusive, invitation-only events${eventCount > 0 ? ` — we have ${eventCount} upcoming events waiting` : ''}.\n\nI'll ask you a few questions to complete your profile. As long as your LinkedIn matches what you share, you're approved. Your account stays active as long as you contribute at least one event every 6 months.\n\n${QUESTIONS['email']}`,
   }])
   const [input, setInput] = useState('')
   const [profile, setProfile] = useState<UserProfile>(EMPTY_PROFILE)
@@ -175,30 +184,30 @@ export default function ViewEventsTab({ eventCount = 0, startAtForm, onContribut
     const normalized = ['skip', 'none'].includes(value.toLowerCase().trim()) ? '' : value.trim()
     const updatedProfile = field ? { ...profile, [field]: normalized } : profile
     setProfile(updatedProfile)
-    const nextStep = STEPS[STEPS.indexOf(currentStep) + 1] as Step
-    if (nextStep === 'confirm') {
+    const next = nextStep(currentStep, normalized)
+    if (next === 'confirm') {
       setStep('confirm')
       addMessage('assistant', "Here's your profile — review each field and edit anything before submitting.")
     } else {
-      setStep(nextStep)
-      addMessage('assistant', QUESTIONS[nextStep])
+      setStep(next)
+      addMessage('assistant', QUESTIONS[next])
     }
   }
 
-  function handleSend() {
-    const value = input.trim()
-    if (!value) return
+  function handleSend(value?: string) {
+    const val = (value ?? input).trim()
+    if (!val) return
     setInput('')
-    addMessage('user', value)
-    if (step === 'linkedin' && !value.includes('linkedin.com')) {
+    addMessage('user', val)
+    if (step === 'linkedin' && !val.includes('linkedin.com')) {
       addMessage('assistant', "Please share your LinkedIn profile URL (e.g. https://linkedin.com/in/yourname).")
       return
     }
-    if (step === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+    if (step === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
       addMessage('assistant', "That doesn't look like a valid email. Please try again.")
       return
     }
-    advance(step, value)
+    advance(step, val)
   }
 
   async function handleSubmit() {
@@ -242,6 +251,20 @@ export default function ViewEventsTab({ eventCount = 0, startAtForm, onContribut
           </div>
         ))}
 
+        {step === 'employment' && (
+          <div className="ml-10 flex flex-wrap gap-2 animate-slide-up">
+            {EMPLOYMENT_OPTIONS.map((opt) => (
+              <button
+                key={opt}
+                onClick={() => handleSend(opt)}
+                className="px-4 py-2 rounded-xl border border-[#E8DDD0] bg-white text-sm text-gray-700 hover:bg-[#F5EFE6] hover:border-gold-400 transition-colors shadow-sm"
+              >
+                {opt}
+              </button>
+            ))}
+          </div>
+        )}
+
         {step === 'confirm' && (
           <ProfileSummary
             profile={profile}
@@ -273,10 +296,10 @@ export default function ViewEventsTab({ eventCount = 0, startAtForm, onContribut
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') handleSend() }}
-              placeholder="Type your answer..."
+              placeholder={step === 'employment' ? 'Or type your answer…' : 'Type your answer...'}
               className="flex-1 bg-white border border-[#E8DDD0] rounded-xl px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-gold-400 transition-colors shadow-sm"
             />
-            <button onClick={handleSend} disabled={!input.trim()} className="px-4 py-2 rounded-xl bg-gold-600 hover:bg-gold-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors">
+            <button onClick={() => handleSend()} disabled={!input.trim()} className="px-4 py-2 rounded-xl bg-gold-600 hover:bg-gold-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors">
               Send
             </button>
           </div>

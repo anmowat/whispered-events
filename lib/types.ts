@@ -25,12 +25,10 @@ export interface ParsedEvent {
 }
 
 export interface UserProfile {
-  name: string
   linkedin: string
-  function: string
-  seniority: string
+  interest: string
+  employment: string
   companySize: string
-  expertise: string
   email: string
 }
 
