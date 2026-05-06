@@ -26,6 +26,9 @@ export async function GET(req: NextRequest) {
       email: user.email,
       name: user.name,
       interest: user.interest,
+      location: user.location,
+      employment: user.employment,
+      companySize: user.companySize,
     },
   })
 }

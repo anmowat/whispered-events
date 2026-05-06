@@ -99,7 +99,7 @@ export async function getPartnerUserByEmail(email: string): Promise<AirtableUser
   const records = await base(PROFILES_TABLE)
     .select({
       filterByFormula: `AND({Email} = '${sanitized}', {Status} = 'Partner')`,
-      fields: ['Email', 'Name', 'Function', 'Seniority', 'Size', 'Interest', 'Active'],
+      fields: ['Email', 'Name', 'Function', 'Seniority', 'Size', 'Interest', 'Employment', 'Location', 'Active'],
       maxRecords: 1,
     })
     .all()
@@ -114,6 +114,8 @@ export async function getPartnerUserByEmail(email: string): Promise<AirtableUser
     seniority: String(r.get('Seniority') || ''),
     companySize: String(r.get('Size') || ''),
     interest: String(r.get('Interest') || ''),
+    employment: String(r.get('Employment') || ''),
+    location: String(r.get('Location') || ''),
     active: Boolean(r.get('Active')),
   }
 }
@@ -226,6 +228,8 @@ export interface AirtableUser {
   seniority: string
   companySize: string
   interest: string
+  employment: string
+  location: string
   active: boolean
 }
 
@@ -246,7 +250,7 @@ export async function getActiveUsers(): Promise<AirtableUser[]> {
   const records = await base(PROFILES_TABLE)
     .select({
       filterByFormula: `{Active} = "active"`,
-      fields: ['Email', 'Name', 'Function', 'Seniority', 'Size', 'Interest', 'Active'],
+      fields: ['Email', 'Name', 'Function', 'Seniority', 'Size', 'Interest', 'Employment', 'Location', 'Active'],
     })
     .all()
 
@@ -259,6 +263,8 @@ export async function getActiveUsers(): Promise<AirtableUser[]> {
       seniority: String(r.get('Seniority') || ''),
       companySize: String(r.get('Size') || ''),
       interest: String(r.get('Interest') || ''),
+      employment: String(r.get('Employment') || ''),
+      location: String(r.get('Location') || ''),
       active: r.get('Active') === 'active',
     }))
     .filter((u) => u.email)
@@ -294,7 +300,7 @@ export async function getUserByEmail(email: string): Promise<AirtableUser | null
   const records = await base(PROFILES_TABLE)
     .select({
       filterByFormula: `{Email} = '${email.replace(/'/g, "\\'")}'`,
-      fields: ['Email', 'Name', 'Function', 'Seniority', 'Size', 'Interest', 'Active'],
+      fields: ['Email', 'Name', 'Function', 'Seniority', 'Size', 'Interest', 'Employment', 'Location', 'Active'],
       maxRecords: 1,
     })
     .all()
@@ -309,8 +315,39 @@ export async function getUserByEmail(email: string): Promise<AirtableUser | null
     seniority: String(r.get('Seniority') || ''),
     companySize: String(r.get('Size') || ''),
     interest: String(r.get('Interest') || ''),
+    employment: String(r.get('Employment') || ''),
+    location: String(r.get('Location') || ''),
     active: Boolean(r.get('Active')),
   }
+}
+
+export interface UserProfileUpdate {
+  location?: string
+  interest?: string
+  employment?: string
+  companySize?: string
+}
+
+export async function updateUserProfile(email: string, update: UserProfileUpdate): Promise<void> {
+  const base = getBase()
+  const records = await base(PROFILES_TABLE)
+    .select({
+      filterByFormula: `{Email} = '${email.replace(/'/g, "\\'")}'`,
+      fields: ['Email'],
+      maxRecords: 1,
+    })
+    .all()
+
+  if (!records.length) return
+
+  const fields: Partial<FieldSet> = {}
+  if (update.location !== undefined) fields['Location'] = update.location
+  if (update.interest !== undefined) fields['Interest'] = update.interest
+  if (update.employment !== undefined) fields['Employment'] = update.employment
+  if (update.companySize !== undefined) fields['Size'] = update.companySize
+
+  if (Object.keys(fields).length === 0) return
+  await base(PROFILES_TABLE).update(records[0].id, fields)
 }
 
 export async function updateLastContribution(email: string): Promise<void> {
