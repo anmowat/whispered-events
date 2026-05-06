@@ -12,25 +12,31 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'valid_email_required' }, { status: 400 })
   }
 
-  const user = await getUserByEmail(email.toLowerCase().trim())
+  try {
+    const user = await getUserByEmail(email.toLowerCase().trim())
 
-  if (!user) {
-    return NextResponse.json({ error: 'not_found' }, { status: 404 })
+    if (!user) {
+      return NextResponse.json({ error: 'not_found' }, { status: 404 })
+    }
+
+    if (!user.active) {
+      return NextResponse.json({ error: 'inactive' }, { status: 403 })
+    }
+
+    const sessionToken = await createSession(user.email)
+
+    const response = NextResponse.json({ ok: true })
+    response.cookies.set('session', sessionToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 30 * 24 * 60 * 60,
+      path: '/',
+    })
+    return response
+  } catch (err) {
+    console.error('[dev-login] failed', err)
+    const message = err instanceof Error ? err.message : 'unknown_error'
+    return NextResponse.json({ error: 'server_error', message }, { status: 500 })
   }
-
-  if (!user.active) {
-    return NextResponse.json({ error: 'inactive' }, { status: 403 })
-  }
-
-  const sessionToken = await createSession(user.email)
-
-  const response = NextResponse.json({ ok: true })
-  response.cookies.set('session', sessionToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: 30 * 24 * 60 * 60,
-    path: '/',
-  })
-  return response
 }
