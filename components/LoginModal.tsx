@@ -72,14 +72,14 @@ export default function LoginModal({ onClose }: { onClose: () => void }) {
           </div>
         ) : state === 'not_found' ? (
           <div className="space-y-3">
-            <p className="text-sm text-gray-800">That email isn&apos;t in our system.</p>
-            <p className="text-sm text-gray-500">Switch to the <strong>Find Events</strong> tab to share your profile and apply for access.</p>
+            <p className="text-sm text-gray-800">Hi — this email doesn&apos;t exist yet.</p>
+            <p className="text-sm text-gray-500">Head over to the <strong>Find Events</strong> tab to share your profile and apply for access.</p>
             <button onClick={onClose} className="w-full py-3 rounded-xl bg-gold-600 hover:bg-gold-500 text-white text-sm font-medium transition-colors">Got it</button>
           </div>
         ) : state === 'inactive' ? (
           <div className="space-y-3">
-            <p className="text-sm text-gray-800">Your account is inactive.</p>
-            <p className="text-sm text-gray-500">Contribute an event to reactivate your account — we ask members to contribute at least every 6 months to stay active.</p>
+            <p className="text-sm text-gray-800">Your account isn&apos;t active yet.</p>
+            <p className="text-sm text-gray-500">New profiles are reviewed manually — if you&apos;ve just applied, you&apos;ll hear from us soon. If your access has lapsed, contribute an event from the <strong>Partner</strong> tab to reactivate.</p>
             <button onClick={onClose} className="w-full py-3 rounded-xl bg-gold-600 hover:bg-gold-500 text-white text-sm font-medium transition-colors">Got it</button>
           </div>
         ) : (

@@ -35,8 +35,15 @@ export async function POST(req: NextRequest) {
     })
     return response
   } catch (err) {
-    console.error('[dev-login] failed', err)
-    const message = err instanceof Error ? err.message : 'unknown_error'
+    let message = 'unknown_error'
+    if (err instanceof Error) {
+      message = err.message
+    } else if (typeof err === 'string') {
+      message = err
+    } else if (err && typeof err === 'object') {
+      try { message = JSON.stringify(err) } catch { message = String(err) }
+    }
+    console.error('[dev-login] failed', { message, err })
     return NextResponse.json({ error: 'server_error', message }, { status: 500 })
   }
 }
