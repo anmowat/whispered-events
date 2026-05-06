@@ -162,7 +162,6 @@ export default function ShareEventTab({ onDone }: { onDone?: () => void }) {
           ? "Got it — we've updated this event with your changes. Thank you."
           : "Thank you! The event has been added to our database. We appreciate you helping the community discover exclusive events."
       addMessage('assistant', msg)
-      setTimeout(() => onDone?.(), 2500)
     } catch (err) {
       setStep('error')
       addMessage('assistant', `Something went wrong: ${err instanceof Error ? err.message : 'Please try again.'}`)
@@ -256,8 +255,17 @@ export default function ShareEventTab({ onDone }: { onDone?: () => void }) {
         )}
 
         {(step === 'submitted' || step === 'error') && (
-          <div className="animate-slide-up ml-10">
-            <button onClick={handleReset} className="mt-2 px-4 py-2 rounded-lg bg-white border border-[#E8DDD0] text-gray-600 text-sm hover:border-gold-300 hover:text-gold-700 transition-colors shadow-sm">
+          <div className="animate-slide-up ml-10 flex gap-2 mt-2">
+            <button
+              onClick={() => onDone?.()}
+              className="flex-1 py-2.5 rounded-lg bg-gold-600 hover:bg-gold-500 text-white text-sm font-medium transition-colors"
+            >
+              Return Home
+            </button>
+            <button
+              onClick={handleReset}
+              className="flex-1 py-2.5 rounded-lg bg-white border border-[#E8DDD0] text-gray-600 text-sm hover:border-gold-300 hover:text-gold-700 transition-colors shadow-sm"
+            >
               Share another event
             </button>
           </div>

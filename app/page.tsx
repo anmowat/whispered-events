@@ -45,6 +45,12 @@ export default function Home() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
+  function selectTab(t: Tab) {
+    setTab(t)
+    setMode('landing')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-[#F5EFE6]">
       {/* Header */}
@@ -55,9 +61,9 @@ export default function Home() {
             <img src="/logo.svg" alt="Whispered Events" className="h-7 w-auto" />
           </button>
           <div className="flex gap-1 bg-white border border-[#E8DDD0] rounded-xl p-1 shadow-sm">
-            <TabPill active={tab === 'view'} onClick={() => setTab('view')}>Find Events</TabPill>
-            <TabPill active={tab === 'contribute'} onClick={() => setTab('contribute')}>Contribute Event</TabPill>
-            <TabPill active={tab === 'partner'} onClick={() => setTab('partner')}>Partner</TabPill>
+            <TabPill active={tab === 'view'} onClick={() => selectTab('view')}>Find Events</TabPill>
+            <TabPill active={tab === 'contribute'} onClick={() => selectTab('contribute')}>Contribute Event</TabPill>
+            <TabPill active={tab === 'partner'} onClick={() => selectTab('partner')}>Partner</TabPill>
           </div>
           <div className="flex justify-end">
             <button
