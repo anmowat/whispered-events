@@ -8,6 +8,13 @@ export async function POST(req: NextRequest) {
   const secret = req.headers.get('x-webhook-secret')
   const expected = process.env.AIRTABLE_WEBHOOK_SECRET
   if (!expected || secret !== expected) {
+    console.log('airtable-rematch auth check:', {
+      expectedDefined: !!expected,
+      expectedLen: expected?.length ?? 0,
+      receivedDefined: !!secret,
+      receivedLen: secret?.length ?? 0,
+      match: secret === expected,
+    })
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 
