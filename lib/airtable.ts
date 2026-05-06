@@ -104,7 +104,6 @@ const USER_FIELDS = [
   'Location',
   'Active',
   'LastContribution',
-  'TotalContributions',
 ] as const
 
 function toAirtableUser(r: { id: string; get: (f: string) => unknown }): AirtableUser {
