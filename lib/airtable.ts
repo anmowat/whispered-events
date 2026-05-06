@@ -1,6 +1,7 @@
 import Airtable, { FieldSet, Base } from 'airtable'
 import { EventRecord, UserProfile } from './types'
 import stringSimilarity from 'string-similarity'
+import { geocodeLocation } from './geocode'
 
 const EVENTS_TABLE = 'Events'
 const PROFILES_TABLE = 'Users'
@@ -98,10 +99,14 @@ const USER_FIELDS = [
   'Name',
   'Function',
   'Seniority',
+  'FullExp',
+  'Grade',
   'Size',
   'Interest',
   'Employment',
   'Location',
+  'Lat',
+  'Lng',
   'Active',
   'LastContribution',
   'Contributions',
@@ -109,16 +114,26 @@ const USER_FIELDS = [
 
 function toAirtableUser(r: { id: string; get: (f: string) => unknown }): AirtableUser {
   const activeRaw = String(r.get('Active') || '')
+  const gradeRaw = String(r.get('Grade') || '').trim()
+  const grade = gradeRaw === 'A' || gradeRaw === 'Polish' || gradeRaw === 'B' || gradeRaw === 'C'
+    ? (gradeRaw as 'A' | 'Polish' | 'B' | 'C')
+    : undefined
+  const lat = Number(r.get('Lat'))
+  const lng = Number(r.get('Lng'))
   return {
     id: r.id,
     email: String(r.get('Email') || ''),
     name: String(r.get('Name') || ''),
     function: String(r.get('Function') || ''),
     seniority: String(r.get('Seniority') || ''),
+    fullExp: String(r.get('FullExp') || ''),
+    grade,
     companySize: String(r.get('Size') || ''),
     interest: String(r.get('Interest') || ''),
     employment: String(r.get('Employment') || ''),
     location: String(r.get('Location') || ''),
+    lat: Number.isFinite(lat) && lat !== 0 ? lat : undefined,
+    lng: Number.isFinite(lng) && lng !== 0 ? lng : undefined,
     active: activeRaw.toLowerCase() === 'active',
     status: activeRaw,
     lastContribution: String(r.get('LastContribution') || ''),
@@ -153,6 +168,13 @@ export async function createEvent(event: EventRecord, hostUserId?: string): Prom
     Audience: event.audience.join(', '),
     Submitter: event.submitter,
   }
+  const geo = geocodeLocation(event.location)
+  if (geo) {
+    fields['Lat'] = geo.lat
+    fields['Lng'] = geo.lng
+  } else if (event.location) {
+    console.warn(`createEvent: could not geocode "${event.location}"`)
+  }
   if (hostUserId) fields['Host'] = [hostUserId]
   const record = await base(EVENTS_TABLE).create(fields)
   return record.id
@@ -166,7 +188,20 @@ export async function updateEvent(
   const base = getBase()
   const updateData: Partial<FieldSet> = {}
   if (fields.name) updateData['Name'] = fields.name
-  if (fields.location) updateData['Location'] = fields.location
+  if (fields.location) {
+    updateData['Location'] = fields.location
+    const geo = geocodeLocation(fields.location)
+    if (geo) {
+      updateData['Lat'] = geo.lat
+      updateData['Lng'] = geo.lng
+    } else {
+      // Clear stale coords. The Airtable SDK accepts null to clear, but the type
+      // doesn't reflect that — cast to satisfy TS.
+      ;(updateData as Record<string, unknown>)['Lat'] = null
+      ;(updateData as Record<string, unknown>)['Lng'] = null
+      console.warn(`updateEvent: could not geocode "${fields.location}"`)
+    }
+  }
   if (fields.description) updateData['Description'] = fields.description
   if (fields.audience?.length) updateData['Audience'] = fields.audience.join(', ')
   if (fields.type) updateData['Type'] = fields.type
@@ -247,10 +282,14 @@ export interface AirtableUser {
   name: string
   function: string
   seniority: string
+  fullExp: string
+  grade?: 'A' | 'Polish' | 'B' | 'C'
   companySize: string
   interest: string
   employment: string
   location: string
+  lat?: number
+  lng?: number
   active: boolean
   status: string
   lastContribution: string
@@ -266,6 +305,8 @@ export interface AirtableEvent {
   description: string
   link: string
   audience: string[]
+  lat?: number
+  lng?: number
 }
 
 export async function getActiveUsers(): Promise<AirtableUser[]> {
@@ -288,21 +329,27 @@ export async function getFutureEvents(): Promise<AirtableEvent[]> {
   const records = await base(EVENTS_TABLE)
     .select({
       filterByFormula: `AND({Date} >= '${today}', {Date} != '')`,
-      fields: ['Name', 'Type', 'Date', 'Location', 'Description', 'Link', 'Audience'],
+      fields: ['Name', 'Type', 'Date', 'Location', 'Description', 'Link', 'Audience', 'Lat', 'Lng'],
     })
     .all()
 
   return records
-    .map((r) => ({
-      id: r.id,
-      name: String(r.get('Name') || ''),
-      type: String(r.get('Type') || ''),
-      date: String(r.get('Date') || ''),
-      location: String(r.get('Location') || ''),
-      description: String(r.get('Description') || ''),
-      link: String(r.get('Link') || ''),
-      audience: String(r.get('Audience') || '').split(',').map((s) => s.trim()).filter(Boolean),
-    }))
+    .map((r) => {
+      const lat = Number(r.get('Lat'))
+      const lng = Number(r.get('Lng'))
+      return {
+        id: r.id,
+        name: String(r.get('Name') || ''),
+        type: String(r.get('Type') || ''),
+        date: String(r.get('Date') || ''),
+        location: String(r.get('Location') || ''),
+        description: String(r.get('Description') || ''),
+        link: String(r.get('Link') || ''),
+        audience: String(r.get('Audience') || '').split(',').map((s) => s.trim()).filter(Boolean),
+        lat: Number.isFinite(lat) && lat !== 0 ? lat : undefined,
+        lng: Number.isFinite(lng) && lng !== 0 ? lng : undefined,
+      }
+    })
     .filter((e) => e.name)
 }
 
@@ -327,7 +374,10 @@ export interface UserProfileUpdate {
   companySize?: string
 }
 
-export async function updateUserProfile(email: string, update: UserProfileUpdate): Promise<void> {
+export async function updateUserProfile(
+  email: string,
+  update: UserProfileUpdate,
+): Promise<{ id: string } | null> {
   const base = getBase()
   const records = await base(PROFILES_TABLE)
     .select({
@@ -337,16 +387,45 @@ export async function updateUserProfile(email: string, update: UserProfileUpdate
     })
     .all()
 
-  if (!records.length) return
+  if (!records.length) return null
 
   const fields: Partial<FieldSet> = {}
-  if (update.location !== undefined) fields['Location'] = update.location
+  if (update.location !== undefined) {
+    fields['Location'] = update.location
+    const geo = geocodeLocation(update.location)
+    if (geo) {
+      fields['Lat'] = geo.lat
+      fields['Lng'] = geo.lng
+    } else {
+      ;(fields as Record<string, unknown>)['Lat'] = null
+      ;(fields as Record<string, unknown>)['Lng'] = null
+      if (update.location) {
+        console.warn(`updateUserProfile: could not geocode "${update.location}"`)
+      }
+    }
+  }
   if (update.interest !== undefined) fields['Interest'] = update.interest
   if (update.employment !== undefined) fields['Employment'] = update.employment
   if (update.companySize !== undefined) fields['Size'] = update.companySize
 
-  if (Object.keys(fields).length === 0) return
+  if (Object.keys(fields).length === 0) return { id: records[0].id }
   await base(PROFILES_TABLE).update(records[0].id, fields)
+  return { id: records[0].id }
+}
+
+export async function clearUserMatchCheckbox(userId: string): Promise<void> {
+  const base = getBase()
+  await base(PROFILES_TABLE).update(userId, { Match: false } as Partial<FieldSet>)
+}
+
+export async function getUserById(userId: string): Promise<AirtableUser | null> {
+  const base = getBase()
+  try {
+    const record = await base(PROFILES_TABLE).find(userId)
+    return toAirtableUser(record)
+  } catch {
+    return null
+  }
 }
 
 export async function updateLastContribution(email: string): Promise<void> {

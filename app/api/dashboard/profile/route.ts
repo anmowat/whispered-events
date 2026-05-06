@@ -26,7 +26,13 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    await updateUserProfile(email, update)
+    const updated = await updateUserProfile(email, update)
+    if (updated) {
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+      fetch(`${appUrl}/api/process-matches?trigger=user&id=${updated.id}`).catch((e) =>
+        console.error('process-matches fire-and-forget error:', e),
+      )
+    }
     return NextResponse.json({ ok: true })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)

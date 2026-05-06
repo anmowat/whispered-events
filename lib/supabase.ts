@@ -33,18 +33,61 @@ export async function hasBeenNotified(eventId: string, userId: string): Promise<
   return !!data
 }
 
-export async function logMatch(
+export interface MatchRow {
+  score: number
+  inputs_hash: string | null
+  match_percent: number | null
+}
+
+export async function getExistingMatch(
   eventId: string,
   userId: string,
-  userEmail: string,
+): Promise<MatchRow | null> {
+  const supabase = getClient()
+  const { data } = await supabase
+    .from('matches')
+    .select('score, inputs_hash, match_percent')
+    .eq('event_id', eventId)
+    .eq('user_id', userId)
+    .maybeSingle()
+  return (data as MatchRow | null) ?? null
+}
+
+export interface MatchLog {
+  eventId: string
+  userId: string
+  userEmail: string
   score: number
-): Promise<void> {
+  matchPercent: number
+  locationScore: number | null
+  audienceScore: number | null
+  qualityScore: number | null
+  preferenceScore: number | null
+  inputsHash: string
+  skippedReason?: 'grade_c' | 'location_zero' | null
+}
+
+export async function logMatch(entry: MatchLog): Promise<void> {
   const supabase = getClient()
   await supabase.from('matches').upsert(
-    { event_id: eventId, user_id: userId, user_email: userEmail, score },
-    { onConflict: 'event_id,user_id', ignoreDuplicates: true }
+    {
+      event_id: entry.eventId,
+      user_id: entry.userId,
+      user_email: entry.userEmail,
+      score: entry.score,
+      match_percent: entry.matchPercent,
+      location_score: entry.locationScore,
+      audience_score: entry.audienceScore,
+      quality_score: entry.qualityScore,
+      preference_score: entry.preferenceScore,
+      inputs_hash: entry.inputsHash,
+      skipped_reason: entry.skippedReason ?? null,
+    },
+    { onConflict: 'event_id,user_id' },
   )
 }
+
+const NOTIFY_THRESHOLD = 1.0
 
 export async function getMatchedEventIds(userEmail: string): Promise<Set<string>> {
   const supabase = getClient()
@@ -52,21 +95,28 @@ export async function getMatchedEventIds(userEmail: string): Promise<Set<string>
     .from('matches')
     .select('event_id')
     .eq('user_email', userEmail)
-    .gte('score', 0.75)
+    .gte('score', NOTIFY_THRESHOLD)
   return new Set((data ?? []).map((m: { event_id: string }) => m.event_id))
 }
 
-export async function getMatchScoresForUser(userEmail: string): Promise<Map<string, number>> {
+export async function getMatchScoresForUser(
+  userEmail: string,
+): Promise<Map<string, { score: number; matchPercent: number }>> {
   const supabase = getClient()
   const { data } = await supabase
     .from('matches')
-    .select('event_id, score')
+    .select('event_id, score, match_percent')
     .eq('user_email', userEmail)
-  const scores = new Map<string, number>()
+  const scores = new Map<string, { score: number; matchPercent: number }>()
   for (const row of data ?? []) {
-    const r = row as { event_id: string; score: number }
-    const prev = scores.get(r.event_id) ?? -1
-    if (r.score > prev) scores.set(r.event_id, r.score)
+    const r = row as { event_id: string; score: number; match_percent: number | null }
+    const prev = scores.get(r.event_id)?.score ?? -1
+    if (r.score > prev) {
+      scores.set(r.event_id, {
+        score: r.score,
+        matchPercent: r.match_percent ?? Math.round((r.score / 3.0) * 100),
+      })
+    }
   }
   return scores
 }

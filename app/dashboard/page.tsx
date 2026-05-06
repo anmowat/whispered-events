@@ -16,7 +16,10 @@ interface DashboardUser {
   totalContributions: number
 }
 
-type DashboardEvent = AirtableEvent & { matchScore: number | null }
+type DashboardEvent = AirtableEvent & {
+  matchScore: number | null
+  matchPercent: number | null
+}
 
 const EMPLOYMENT_OPTIONS = ['Employed', 'Fractional', 'Searching', 'Other']
 
@@ -432,8 +435,8 @@ function EventCard({ event }: { event: DashboardEvent }) {
   )
 
   const matchPct =
-    event.matchScore !== null && event.matchScore !== undefined
-      ? `${Math.round(event.matchScore * 100)}%`
+    event.matchPercent !== null && event.matchPercent !== undefined
+      ? `${event.matchPercent}%`
       : null
 
   return (

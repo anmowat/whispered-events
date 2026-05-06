@@ -16,12 +16,8 @@ export async function POST(req: NextRequest) {
 
     const id = await createProfile(profile)
 
-    // Fire-and-forget: trigger matching for the new user
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-    fetch(`${appUrl}/api/process-matches?trigger=user&id=${id}`).catch((e) =>
-      console.error('process-matches fire-and-forget error:', e)
-    )
-
+    // Match runs are kicked off by the team via the Airtable `Match` checkbox
+    // after the user is enriched (Grade, Function, Seniority, FullExp).
     return NextResponse.json({ status: 'created', id })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)

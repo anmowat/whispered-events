@@ -7,7 +7,7 @@ import {
   getEventHostEmail,
   getPartnerUserByEmail,
 } from '@/lib/airtable'
-import { EventRecord } from '@/lib/types'
+import { EventRecord, VIRTUAL_LOCATION_RE } from '@/lib/types'
 
 export const maxDuration = 30
 
@@ -25,6 +25,16 @@ export async function POST(req: NextRequest) {
     if (!event.submitter) {
       return NextResponse.json(
         { error: 'Submitter email is required' },
+        { status: 400 }
+      )
+    }
+
+    if (event.type === 'Virtual' || VIRTUAL_LOCATION_RE.test(event.location || '')) {
+      return NextResponse.json(
+        {
+          error:
+            'We no longer accept virtual events. Please submit only in-person events with a specific city.',
+        },
         { status: 400 }
       )
     }

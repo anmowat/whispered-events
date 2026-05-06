@@ -1,5 +1,8 @@
 export type EventType = 'Conference' | 'Dinner' | 'Virtual' | 'Other'
 
+// Used to reject virtual events at submit time. We no longer accept virtuals.
+export const VIRTUAL_LOCATION_RE = /\b(virtual|online|remote|webinar|zoom)\b/i
+
 export interface EventRecord {
   id?: string
   name: string
