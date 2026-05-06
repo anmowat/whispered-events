@@ -93,19 +93,22 @@ export async function getEventHostEmail(eventId: string): Promise<string | null>
   return email.toLowerCase() || null
 }
 
-export async function getPartnerUserByEmail(email: string): Promise<AirtableUser | null> {
-  const base = getBase()
-  const sanitized = email.replace(/'/g, "\\'")
-  const records = await base(PROFILES_TABLE)
-    .select({
-      filterByFormula: `AND({Email} = '${sanitized}', {Status} = 'Partner')`,
-      fields: ['Email', 'Name', 'Function', 'Seniority', 'Size', 'Interest', 'Employment', 'Location', 'Active'],
-      maxRecords: 1,
-    })
-    .all()
+const USER_FIELDS = [
+  'Email',
+  'Name',
+  'Function',
+  'Seniority',
+  'Size',
+  'Interest',
+  'Employment',
+  'Location',
+  'Active',
+  'LastContribution',
+  'TotalContributions',
+] as const
 
-  if (!records.length) return null
-  const r = records[0]
+function toAirtableUser(r: { id: string; get: (f: string) => unknown }): AirtableUser {
+  const activeRaw = String(r.get('Active') || '')
   return {
     id: r.id,
     email: String(r.get('Email') || ''),
@@ -116,8 +119,26 @@ export async function getPartnerUserByEmail(email: string): Promise<AirtableUser
     interest: String(r.get('Interest') || ''),
     employment: String(r.get('Employment') || ''),
     location: String(r.get('Location') || ''),
-    active: Boolean(r.get('Active')),
+    active: activeRaw.toLowerCase() === 'active',
+    status: activeRaw,
+    lastContribution: String(r.get('LastContribution') || ''),
+    totalContributions: Number(r.get('TotalContributions') || 0),
   }
+}
+
+export async function getPartnerUserByEmail(email: string): Promise<AirtableUser | null> {
+  const base = getBase()
+  const sanitized = email.replace(/'/g, "\\'")
+  const records = await base(PROFILES_TABLE)
+    .select({
+      filterByFormula: `AND({Email} = '${sanitized}', {Status} = 'Partner')`,
+      fields: [...USER_FIELDS],
+      maxRecords: 1,
+    })
+    .all()
+
+  if (!records.length) return null
+  return toAirtableUser(records[0])
 }
 
 export async function createEvent(event: EventRecord, hostUserId?: string): Promise<string> {
@@ -231,6 +252,9 @@ export interface AirtableUser {
   employment: string
   location: string
   active: boolean
+  status: string
+  lastContribution: string
+  totalContributions: number
 }
 
 export interface AirtableEvent {
@@ -250,24 +274,11 @@ export async function getActiveUsers(): Promise<AirtableUser[]> {
   const records = await base(PROFILES_TABLE)
     .select({
       filterByFormula: `{Active} = "active"`,
-      fields: ['Email', 'Name', 'Function', 'Seniority', 'Size', 'Interest', 'Employment', 'Location', 'Active'],
+      fields: [...USER_FIELDS],
     })
     .all()
 
-  return records
-    .map((r) => ({
-      id: r.id,
-      email: String(r.get('Email') || ''),
-      name: String(r.get('Name') || ''),
-      function: String(r.get('Function') || ''),
-      seniority: String(r.get('Seniority') || ''),
-      companySize: String(r.get('Size') || ''),
-      interest: String(r.get('Interest') || ''),
-      employment: String(r.get('Employment') || ''),
-      location: String(r.get('Location') || ''),
-      active: r.get('Active') === 'active',
-    }))
-    .filter((u) => u.email)
+  return records.map(toAirtableUser).filter((u) => u.email)
 }
 
 export async function getFutureEvents(): Promise<AirtableEvent[]> {
@@ -300,25 +311,13 @@ export async function getUserByEmail(email: string): Promise<AirtableUser | null
   const records = await base(PROFILES_TABLE)
     .select({
       filterByFormula: `{Email} = '${email.replace(/'/g, "\\'")}'`,
-      fields: ['Email', 'Name', 'Function', 'Seniority', 'Size', 'Interest', 'Employment', 'Location', 'Active'],
+      fields: [...USER_FIELDS],
       maxRecords: 1,
     })
     .all()
 
   if (!records.length) return null
-  const r = records[0]
-  return {
-    id: r.id,
-    email: String(r.get('Email') || ''),
-    name: String(r.get('Name') || ''),
-    function: String(r.get('Function') || ''),
-    seniority: String(r.get('Seniority') || ''),
-    companySize: String(r.get('Size') || ''),
-    interest: String(r.get('Interest') || ''),
-    employment: String(r.get('Employment') || ''),
-    location: String(r.get('Location') || ''),
-    active: Boolean(r.get('Active')),
-  }
+  return toAirtableUser(records[0])
 }
 
 export interface UserProfileUpdate {

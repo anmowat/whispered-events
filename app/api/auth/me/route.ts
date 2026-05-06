@@ -29,6 +29,10 @@ export async function GET(req: NextRequest) {
       location: user.location,
       employment: user.employment,
       companySize: user.companySize,
+      status: user.status,
+      active: user.active,
+      lastContribution: user.lastContribution,
+      totalContributions: user.totalContributions,
     },
   })
 }

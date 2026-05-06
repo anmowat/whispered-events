@@ -10,13 +10,19 @@ interface DashboardUser {
   location: string
   employment: string
   companySize: string
+  status: string
+  active: boolean
+  lastContribution: string
+  totalContributions: number
 }
+
+type DashboardEvent = AirtableEvent & { matchScore: number | null }
 
 const EMPLOYMENT_OPTIONS = ['Employed', 'Fractional', 'Searching', 'Other']
 
 export default function DashboardPage() {
   const [user, setUser] = useState<DashboardUser | null>(null)
-  const [events, setEvents] = useState<AirtableEvent[]>([])
+  const [events, setEvents] = useState<DashboardEvent[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -32,7 +38,7 @@ export default function DashboardPage() {
 
       const eventsRes = await fetch('/api/dashboard/events')
       if (eventsRes.ok) {
-        const eventsData = (await eventsRes.json()) as { events: AirtableEvent[] }
+        const eventsData = (await eventsRes.json()) as { events: DashboardEvent[] }
         setEvents(eventsData.events)
       }
       setLoading(false)
@@ -90,6 +96,8 @@ export default function DashboardPage() {
           <p className="text-sm text-gray-500 mt-1">{user.email}</p>
         </div>
 
+        <AccountStats user={user} />
+
         <ProfileForm user={user} onSaved={(u) => setUser(u)} />
 
         <section className="space-y-4">
@@ -107,6 +115,47 @@ export default function DashboardPage() {
           )}
         </section>
       </main>
+    </div>
+  )
+}
+
+function AccountStats({ user }: { user: DashboardUser }) {
+  const lastContribution = user.lastContribution
+    ? new Date(user.lastContribution).toLocaleDateString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+      })
+    : '—'
+
+  const statusLabel = user.status
+    ? user.status.charAt(0).toUpperCase() + user.status.slice(1).toLowerCase()
+    : 'Inactive'
+
+  return (
+    <section className="space-y-4">
+      <h2 className="text-xs uppercase tracking-widest text-gray-400 font-medium">Account</h2>
+      <div className="bg-white border border-[#E8DDD0] rounded-2xl p-5 shadow-sm space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <Stat label="Last contribution" value={lastContribution} />
+          <Stat label="Total contributions" value={String(user.totalContributions)} />
+          <Stat label="Status" value={statusLabel} />
+        </div>
+        {!user.active && (
+          <p className="text-xs text-gray-600 bg-[#F5EFE6] border border-[#E8DDD0] rounded-lg px-3 py-2">
+            To reactivate your account, contribute an event.
+          </p>
+        )}
+      </div>
+    </section>
+  )
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div className="text-xs text-gray-500">{label}</div>
+      <div className="text-sm text-gray-900 mt-1">{value}</div>
     </div>
   )
 }
@@ -252,7 +301,7 @@ function Tooltip({ text }: { text: string }) {
   )
 }
 
-function EventCard({ event }: { event: AirtableEvent }) {
+function EventCard({ event }: { event: DashboardEvent }) {
   const dateFormatted = event.date
     ? new Date(event.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
     : ''
@@ -270,9 +319,21 @@ function EventCard({ event }: { event: AirtableEvent }) {
     <span className="text-sm font-medium text-gray-900">{event.name}</span>
   )
 
+  const matchPct =
+    event.matchScore !== null && event.matchScore !== undefined
+      ? `${Math.round(event.matchScore * 100)}%`
+      : null
+
   return (
     <div className="bg-white border border-[#E8DDD0] rounded-2xl px-5 py-4 shadow-sm space-y-1.5">
-      <div>{NameEl}</div>
+      <div className="flex items-start justify-between gap-3">
+        <div>{NameEl}</div>
+        {matchPct && (
+          <span className="shrink-0 text-[11px] font-medium text-gold-700 bg-gold-50 border border-gold-200 rounded-full px-2 py-0.5">
+            {matchPct} match
+          </span>
+        )}
+      </div>
       <p className="text-xs text-gray-500">
         {[event.type, event.location, dateFormatted].filter(Boolean).join(' · ')}
       </p>

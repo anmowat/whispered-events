@@ -56,6 +56,21 @@ export async function getMatchedEventIds(userEmail: string): Promise<Set<string>
   return new Set((data ?? []).map((m: { event_id: string }) => m.event_id))
 }
 
+export async function getMatchScoresForUser(userEmail: string): Promise<Map<string, number>> {
+  const supabase = getClient()
+  const { data } = await supabase
+    .from('matches')
+    .select('event_id, score')
+    .eq('user_email', userEmail)
+  const scores = new Map<string, number>()
+  for (const row of data ?? []) {
+    const r = row as { event_id: string; score: number }
+    const prev = scores.get(r.event_id) ?? -1
+    if (r.score > prev) scores.set(r.event_id, r.score)
+  }
+  return scores
+}
+
 export async function createMagicToken(email: string): Promise<string> {
   const supabase = getClient()
   const token = crypto.randomUUID()
