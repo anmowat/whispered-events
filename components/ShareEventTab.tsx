@@ -244,6 +244,8 @@ export default function ShareEventTab({ onDone }: { onDone?: () => void }) {
               Someone beat you to it! We already have this event in our database.
               <br /><br />
               If you&apos;re the host of this event, email <a href="mailto:team@whispered.com" className="text-gold-700 hover:underline">team@whispered.com</a>.
+              <br /><br />
+              Thank you for contributing — we&apos;ve credited a contribution to your account for sharing this event.
             </div>
             <button
               onClick={() => onDone?.()}

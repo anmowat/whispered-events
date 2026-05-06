@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { checkDuplicate, getEventHostEmail } from '@/lib/airtable'
+import {
+  checkDuplicate,
+  getEventHostEmail,
+  updateEvent,
+  updateLastContribution,
+} from '@/lib/airtable'
 import { parseEventInput } from '@/lib/parse-event'
 import { EventRecord, ParsedEvent } from '@/lib/types'
 
@@ -39,8 +44,16 @@ export async function POST(req: NextRequest) {
     const submitterEmail = email.trim().toLowerCase()
 
     // Only allow editing when the submitter's email matches the existing host.
-    // No host on file, or different host -> polite rejection.
+    // No host on file, or different host -> polite rejection, but still credit
+    // the contribution: update the event's Submitter and bump the user's
+    // LastContribution.
     if (!hostEmail || hostEmail !== submitterEmail) {
+      updateEvent(dup.existingId, { submitter: email.trim() }).catch((e) =>
+        console.error('check-event submitter update error:', e)
+      )
+      updateLastContribution(email.trim()).catch((e) =>
+        console.error('check-event updateLastContribution error:', e)
+      )
       const response: CheckResponse = { status: 'duplicate-not-host' }
       return NextResponse.json(response)
     }
