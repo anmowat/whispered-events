@@ -104,6 +104,7 @@ const USER_FIELDS = [
   'Location',
   'Active',
   'LastContribution',
+  'Contributions',
 ] as const
 
 function toAirtableUser(r: { id: string; get: (f: string) => unknown }): AirtableUser {
@@ -121,7 +122,7 @@ function toAirtableUser(r: { id: string; get: (f: string) => unknown }): Airtabl
     active: activeRaw.toLowerCase() === 'active',
     status: activeRaw,
     lastContribution: String(r.get('LastContribution') || ''),
-    totalContributions: Number(r.get('TotalContributions') || 0),
+    totalContributions: Number(r.get('Contributions') || 0),
   }
 }
 
