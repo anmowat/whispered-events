@@ -13,7 +13,7 @@ type Step =
   | 'duplicate-not-host'
   | 'error'
 
-type Mode = 'create' | 'duplicate-host' | 'duplicate-no-host'
+type Mode = 'create' | 'duplicate-host'
 
 interface Message {
   role: 'assistant' | 'user'
@@ -106,7 +106,7 @@ export default function ShareEventTab({ onDone }: { onDone?: () => void }) {
         return
       }
 
-      // duplicate-host or duplicate-no-host
+      // duplicate-host: submitter's email matches the existing host
       const m = data.merged || {}
       setParsed({
         name: m.name || '',
@@ -116,16 +116,11 @@ export default function ShareEventTab({ onDone }: { onDone?: () => void }) {
         description: m.description || '',
         link: m.link || '',
         audience: m.audience || [],
-        host: data.status === 'duplicate-host',
+        host: true,
       })
-      setMode(data.status)
+      setMode('duplicate-host')
       setExistingId(data.existingId)
-      addMessage(
-        'assistant',
-        data.status === 'duplicate-host'
-          ? "We already have this event in our database. Here's everything we have on file — review and edit anything that needs updating, then save your changes."
-          : "We already have this event in our database. Here's what we have so far — feel free to fill in anything that's missing."
-      )
+      addMessage('assistant', "We already have this event on file with you as the host. Here's everything we have — review and edit anything that needs updating, then save your changes.")
       setStep('review')
     } catch (err) {
       setStep('error')
@@ -165,9 +160,7 @@ export default function ShareEventTab({ onDone }: { onDone?: () => void }) {
       const msg =
         mode === 'duplicate-host'
           ? "Got it — we've updated this event with your changes. Thank you."
-          : mode === 'duplicate-no-host'
-            ? "Thanks! We added the missing details to this event."
-            : "Thank you! The event has been added to our database. We appreciate you helping the community discover exclusive events."
+          : "Thank you! The event has been added to our database. We appreciate you helping the community discover exclusive events."
       addMessage('assistant', msg)
       setTimeout(() => onDone?.(), 2500)
     } catch (err) {
@@ -249,9 +242,9 @@ export default function ShareEventTab({ onDone }: { onDone?: () => void }) {
         {step === 'duplicate-not-host' && (
           <div className="animate-slide-up ml-10 space-y-3">
             <div className="bg-white rounded-2xl border border-[#E8DDD0] p-5 text-sm text-gray-700 leading-relaxed shadow-sm">
-              Thank you for submitting an event and helping us connect great executives and events. We already have this event in our database.
+              Someone beat you to it! We already have this event in our database.
               <br /><br />
-              If you are the host and would like to claim it, email us at <a href="mailto:team@whispered.com" className="text-gold-700 hover:underline">team@whispered.com</a>.
+              If you&apos;re the host of this event, email <a href="mailto:team@whispered.com" className="text-gold-700 hover:underline">team@whispered.com</a>.
             </div>
             <button
               onClick={() => onDone?.()}

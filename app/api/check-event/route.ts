@@ -9,7 +9,7 @@ type CheckResponse =
   | { status: 'new'; parsed: ParsedEvent }
   | { status: 'duplicate-not-host' }
   | {
-      status: 'duplicate-host' | 'duplicate-no-host'
+      status: 'duplicate-host'
       existingId: string
       merged: Partial<EventRecord>
     }
@@ -38,7 +38,9 @@ export async function POST(req: NextRequest) {
     const hostEmail = await getEventHostEmail(dup.existingId)
     const submitterEmail = email.trim().toLowerCase()
 
-    if (hostEmail && hostEmail !== submitterEmail) {
+    // Only allow editing when the submitter's email matches the existing host.
+    // No host on file, or different host -> polite rejection.
+    if (!hostEmail || hostEmail !== submitterEmail) {
       const response: CheckResponse = { status: 'duplicate-not-host' }
       return NextResponse.json(response)
     }
@@ -55,7 +57,7 @@ export async function POST(req: NextRequest) {
     }
 
     const response: CheckResponse = {
-      status: hostEmail ? 'duplicate-host' : 'duplicate-no-host',
+      status: 'duplicate-host',
       existingId: dup.existingId,
       merged,
     }

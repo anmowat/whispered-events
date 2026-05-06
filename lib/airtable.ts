@@ -153,24 +153,6 @@ export async function updateEvent(
   await base(EVENTS_TABLE).update(id, updateData)
 }
 
-export async function getEventById(id: string): Promise<Partial<EventRecord> | null> {
-  const base = getBase()
-  try {
-    const r = await base(EVENTS_TABLE).find(id)
-    return {
-      name: String(r.get('Name') || ''),
-      type: (r.get('Type') as EventRecord['type']) || 'Other',
-      date: String(r.get('Date') || ''),
-      location: String(r.get('Location') || ''),
-      description: String(r.get('Description') || ''),
-      link: String(r.get('Link') || ''),
-      audience: String(r.get('Audience') || '').split(',').map(s => s.trim()).filter(Boolean),
-    }
-  } catch {
-    return null
-  }
-}
-
 export interface Partner {
   id: string
   name: string

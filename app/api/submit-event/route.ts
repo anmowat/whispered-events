@@ -5,7 +5,6 @@ import {
   updateEvent,
   updateLastContribution,
   getEventHostEmail,
-  getEventById,
   getPartnerUserByEmail,
 } from '@/lib/airtable'
 import { EventRecord } from '@/lib/types'
@@ -32,49 +31,31 @@ export async function POST(req: NextRequest) {
 
     const submitterEmail = event.submitter.toLowerCase()
 
-    // Update path — submitter previously identified as host, or existing record had no host
+    // Update path — only allowed when submitter's email matches the existing host
     if (existingId) {
-      const existing = await getEventById(existingId)
-      if (!existing) {
-        return NextResponse.json({ error: 'Event not found' }, { status: 404 })
-      }
-
       const hostEmail = await getEventHostEmail(existingId)
-
-      if (hostEmail) {
-        if (hostEmail !== submitterEmail) {
-          return NextResponse.json(
-            { error: 'You are not the host of this event.' },
-            { status: 403 }
-          )
-        }
-        // Host edit — overwrite all editable fields with what they submitted
-        await updateEvent(existingId, {
-          name: event.name,
-          type: event.type,
-          date: event.date,
-          location: event.location,
-          description: event.description,
-          audience: event.audience,
-          submitter: event.submitter,
-        })
-      } else {
-        // No host on existing record — only fill blanks
-        const updates: Partial<EventRecord> = { submitter: event.submitter }
-        if (!existing.name && event.name) updates.name = event.name
-        if (!existing.date && event.date) updates.date = event.date
-        if (!existing.location && event.location) updates.location = event.location
-        if (!existing.description && event.description) updates.description = event.description
-        if (!existing.audience?.length && event.audience?.length) updates.audience = event.audience
-        if ((!existing.type || existing.type === 'Other') && event.type) updates.type = event.type
-        await updateEvent(existingId, updates)
+      if (!hostEmail || hostEmail !== submitterEmail) {
+        return NextResponse.json(
+          { error: 'You are not the host of this event.' },
+          { status: 403 }
+        )
       }
+
+      await updateEvent(existingId, {
+        name: event.name,
+        type: event.type,
+        date: event.date,
+        location: event.location,
+        description: event.description,
+        audience: event.audience,
+        submitter: event.submitter,
+      })
 
       updateLastContribution(event.submitter).catch((e) =>
         console.error('updateLastContribution error:', e)
       )
 
-      return NextResponse.json({ status: 'updated', id: existingId, hadHost: !!hostEmail })
+      return NextResponse.json({ status: 'updated', id: existingId })
     }
 
     // Create path — defense-in-depth duplicate check
