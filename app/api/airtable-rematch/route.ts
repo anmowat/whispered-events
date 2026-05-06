@@ -4,16 +4,35 @@ import { clearUserMatchCheckbox } from '@/lib/airtable'
 // Webhook target for the Airtable "User Match" automation.
 // When a team member checks the `Match` box on a User row, Airtable POSTs here.
 // We fire a fanout match run, then uncheck the box so the team can re-trigger.
+function normalize(v: string | null | undefined): string {
+  if (!v) return ''
+  let s = v.trim()
+  // Strip a single pair of surrounding quotes if present (Airtable sometimes wraps values)
+  if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
+    s = s.slice(1, -1)
+  }
+  return s
+}
+
+function fingerprint(v: string): string {
+  if (!v) return '<empty>'
+  const head = v.slice(0, 2)
+  const tail = v.slice(-2)
+  return `${head}…${tail}(len=${v.length})`
+}
+
 export async function POST(req: NextRequest) {
-  const secret = req.headers.get('x-webhook-secret')
-  const expected = process.env.AIRTABLE_WEBHOOK_SECRET
+  const rawSecret = req.headers.get('x-webhook-secret')
+  const rawExpected = process.env.AIRTABLE_WEBHOOK_SECRET
+  const secret = normalize(rawSecret)
+  const expected = normalize(rawExpected)
   if (!expected || secret !== expected) {
     console.log('airtable-rematch auth check:', {
-      expectedDefined: !!expected,
-      expectedLen: expected?.length ?? 0,
-      receivedDefined: !!secret,
-      receivedLen: secret?.length ?? 0,
-      match: secret === expected,
+      expectedFp: fingerprint(expected),
+      receivedFp: fingerprint(secret),
+      rawExpectedLen: rawExpected?.length ?? 0,
+      rawReceivedLen: rawSecret?.length ?? 0,
+      normalizedMatch: secret === expected,
     })
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
