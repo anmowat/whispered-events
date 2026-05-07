@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { clearUserMatchCheckbox } from '@/lib/airtable'
+import { clearUserMatchCheckbox, refreshUserLatLon } from '@/lib/airtable'
 
 // Webhook target for the Airtable "User Match" automation.
 // When a team member checks the `Match` box on a User row, Airtable POSTs here.
@@ -43,6 +43,14 @@ export async function POST(req: NextRequest) {
 
   if (type !== 'user' || !id) {
     return NextResponse.json({ error: 'type=user and id are required' }, { status: 400 })
+  }
+
+  // Re-geocode in case an admin edited Location directly. Awaited so the
+  // match fanout below sees the fresh LatLon.
+  try {
+    await refreshUserLatLon(id)
+  } catch (err) {
+    console.error('airtable-rematch: refreshUserLatLon failed:', err)
   }
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'

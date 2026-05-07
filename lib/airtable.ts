@@ -424,6 +424,24 @@ export async function clearUserMatchCheckbox(userId: string): Promise<void> {
   await base(PROFILES_TABLE).update(userId, { Match: false } as Partial<FieldSet>)
 }
 
+// Re-geocode the user's Location and write LatLon. Used when an admin may
+// have edited Location directly in Airtable (no app-side write to trigger
+// geocoding). Safe to call even when Location is unchanged — idempotent.
+export async function refreshUserLatLon(userId: string): Promise<void> {
+  const base = getBase()
+  const record = await base(PROFILES_TABLE).find(userId)
+  const location = String(record.get('Location') || '').trim()
+  if (!location) return
+  const geo = geocodeLocation(location)
+  if (!geo) {
+    console.warn(`refreshUserLatLon: could not geocode "${location}" for ${userId}`)
+    return
+  }
+  const fresh = formatLatLon(geo)
+  if (String(record.get('LatLon') || '') === fresh) return
+  await base(PROFILES_TABLE).update(userId, { LatLon: fresh } as Partial<FieldSet>)
+}
+
 export async function getUserById(userId: string): Promise<AirtableUser | null> {
   const base = getBase()
   try {
