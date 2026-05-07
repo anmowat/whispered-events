@@ -10,7 +10,10 @@ interface Message {
   content: string
 }
 
-const EMPLOYMENT_OPTIONS = ['Employed', 'Fractional', 'Searching', 'Other']
+const EMPLOYMENT_OPTIONS = ['Employed', 'Searching', 'Fractional', 'Other']
+
+const SEARCHING_NOTE =
+  "The job market is changing fast — AI is reshaping everything.\n\nFor senior leaders, many of the best roles aren't posted. They're whispered.\n\nFor free playbooks, career strategies, and access to unposted GTM roles + the network to get them, visit [whispered.com](https://www.whispered.com/)."
 
 const QUESTIONS: Record<Step, string> = {
   email: "**What's your email address?** We use this only to send you events — nothing else.",
@@ -18,7 +21,7 @@ const QUESTIONS: Record<Step, string> = {
   interest: "**What types of events are you interested in?**\n\nWe'll pull your function and seniority from your LinkedIn, so focus here on anything additional that would help us tailor events to you — industry focus, specific topics, preferred formats, etc.\n\nYou can update these at any time on your profile (Login in top nav).",
   employment: "**What is your current work situation?**\n\nWe ask because some events focus on people in specific roles while others are open to anyone.",
   size: "**What is the approximate revenue of your current company?**\n\nMany events are run by vendors who want to focus on specific company sizes — this helps us make sure you're only seeing events you'd actually qualify for.",
-  linkedin: "**What's your LinkedIn profile URL?**",
+  linkedin: "Finally, one last question for us to create your profile.\n\n**And what's your LinkedIn profile URL?**",
   confirm: '',
   submitted: '',
 }
@@ -187,6 +190,9 @@ export default function ViewEventsTab({ eventCount = 0, startAtForm, onReturnHom
     const normalized = ['skip', 'none'].includes(value.toLowerCase().trim()) ? '' : value.trim()
     const updatedProfile = field ? { ...profile, [field]: normalized } : profile
     setProfile(updatedProfile)
+    if (currentStep === 'employment' && normalized.toLowerCase() === 'searching') {
+      addMessage('assistant', SEARCHING_NOTE)
+    }
     const next = nextStep(currentStep, normalized)
     if (next === 'confirm') {
       setStep('confirm')
