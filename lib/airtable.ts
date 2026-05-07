@@ -472,6 +472,16 @@ export async function updateLastContribution(email: string): Promise<void> {
   await base(PROFILES_TABLE).update(records[0].id, { LastContribution: today } as Partial<FieldSet>)
 }
 
+export async function createMinimalUser(email: string): Promise<string> {
+  const base = getBase()
+  const today = new Date().toISOString().split('T')[0]
+  const record = await base(PROFILES_TABLE).create({
+    Email: email,
+    LastContribution: today,
+  } as Partial<FieldSet>)
+  return record.id
+}
+
 export async function createProfile(profile: UserProfile): Promise<string> {
   const base = getBase()
   const today = new Date().toISOString().split('T')[0]
