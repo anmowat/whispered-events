@@ -140,7 +140,7 @@ export default function DashboardPage() {
                 onClick={() => setEditingProfile(true)}
                 className="shrink-0 px-4 py-2 rounded-lg border border-[#E8DDD0] bg-white text-sm text-gray-700 hover:border-gold-400 hover:text-gray-900 transition-colors"
               >
-                Edit profile
+                Refine Matches
               </button>
             </div>
           </div>
