@@ -29,6 +29,7 @@ const TYPES = ['All', 'Community', 'Vendor', 'Investor']
 
 export default function PartnersPage() {
   const [partners, setPartners] = useState<Partner[]>([])
+  const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('All')
   const [showLogin, setShowLogin] = useState(false)
 
@@ -37,6 +38,7 @@ export default function PartnersPage() {
       .then((r) => r.json())
       .then((d: { partners: Partner[] }) => setPartners(d.partners ?? []))
       .catch(() => {})
+      .finally(() => setLoading(false))
   }, [])
 
   const filtered = (filter === 'All' ? partners : partners.filter((p) => p.type === filter))
@@ -83,7 +85,9 @@ export default function PartnersPage() {
         </div>
 
         {/* Partner grid */}
-        {filtered.length === 0 ? (
+        {loading ? (
+          <p className="text-sm text-gray-400 text-center py-12">Loading partners…</p>
+        ) : filtered.length === 0 ? (
           <p className="text-sm text-gray-400 text-center py-12">No partners found.</p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
