@@ -15,11 +15,7 @@ export async function scrapeUrl(url: string): Promise<string> {
   }
 
   const html = await response.text()
-  const extracted = extractTextFromHtml(html)
-  console.log(
-    `scrapeUrl: ${url} status=${response.status} html=${html.length}b extracted=${extracted.length}b preview=${JSON.stringify(extracted.slice(0, 200))}`,
-  )
-  return extracted
+  return extractTextFromHtml(html)
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

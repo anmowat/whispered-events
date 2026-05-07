@@ -65,9 +65,7 @@ export async function POST(req: NextRequest) {
   const combined = `${subject}\n\n${text}`
   const url = extractFirstUrl(combined)
 
-  console.log(
-    `inbound-email: from=${senderEmail} subject=${JSON.stringify(subject)} text=${text.length}b url=${url}`,
-  )
+  console.log('inbound-email: from', senderEmail, 'url', url, 'subject', subject)
 
   let content = combined
   if (url) {
@@ -79,7 +77,6 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  console.log(`inbound-email: content length=${content.length}`)
   const parsed = await parseEventContent(content, url)
 
   const link = parsed.link || url
