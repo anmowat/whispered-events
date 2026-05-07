@@ -109,6 +109,7 @@ const USER_FIELDS = [
   'Active',
   'LastContribution',
   'Contributions',
+  'Frequency',
 ] as const
 
 // LatLon is stored as a single text field "lat,lng" on both Users and Events.
@@ -152,6 +153,7 @@ function toAirtableUser(r: { id: string; get: (f: string) => unknown }): Airtabl
     status: activeRaw,
     lastContribution: String(r.get('LastContribution') || ''),
     totalContributions: Number(r.get('Contributions') || 0),
+    frequency: String(r.get('Frequency') || ''),
   }
 }
 
@@ -303,6 +305,7 @@ export interface AirtableUser {
   status: string
   lastContribution: string
   totalContributions: number
+  frequency: string
 }
 
 export interface AirtableEvent {
@@ -380,6 +383,7 @@ export interface UserProfileUpdate {
   interest?: string
   employment?: string
   companySize?: string
+  frequency?: string
 }
 
 export async function updateUserProfile(
@@ -413,6 +417,7 @@ export async function updateUserProfile(
   if (update.interest !== undefined) fields['Interest'] = update.interest
   if (update.employment !== undefined) fields['Employment'] = update.employment
   if (update.companySize !== undefined) fields['Size'] = update.companySize
+  if (update.frequency !== undefined) fields['Frequency'] = update.frequency
 
   if (Object.keys(fields).length === 0) return { id: records[0].id }
   await base(PROFILES_TABLE).update(records[0].id, fields)

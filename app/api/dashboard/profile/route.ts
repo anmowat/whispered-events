@@ -19,17 +19,26 @@ export async function POST(req: NextRequest) {
   if (typeof body.interest === 'string') update.interest = body.interest
   if (typeof body.employment === 'string') update.employment = body.employment
   if (typeof body.companySize === 'string') update.companySize = body.companySize
+  if (typeof body.frequency === 'string') update.frequency = body.frequency
 
   // Mirror the application form rule — Size only meaningful when Employed
   if (update.employment && update.employment.toLowerCase() !== 'employed') {
     update.companySize = ''
   }
 
+  // Frequency is a delivery preference, not a matching input — skip the
+  // re-match if it's the only thing that changed.
+  const matchingInputsChanged =
+    update.location !== undefined ||
+    update.interest !== undefined ||
+    update.employment !== undefined ||
+    update.companySize !== undefined
+
   try {
     const updated = await updateUserProfile(email, update)
-    if (updated) {
+    if (updated && matchingInputsChanged) {
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-      fetch(`${appUrl}/api/process-matches?trigger=user&id=${updated.id}`).catch((e) =>
+      fetch(`${appUrl}/api/process-matches?trigger=user&id=${updated.id}&noEmail=1`).catch((e) =>
         console.error('process-matches fire-and-forget error:', e),
       )
     }

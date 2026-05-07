@@ -33,6 +33,7 @@ export async function GET(req: NextRequest) {
       active: user.active,
       lastContribution: user.lastContribution,
       totalContributions: user.totalContributions,
+      frequency: user.frequency,
     },
   })
 }

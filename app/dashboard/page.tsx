@@ -14,7 +14,15 @@ interface DashboardUser {
   active: boolean
   lastContribution: string
   totalContributions: number
+  frequency: string
 }
+
+const FREQUENCY_OPTIONS = [
+  'Each New Event',
+  'Weekly When New Events',
+  'Monthly When New Events',
+  'Dashboard Only',
+]
 
 type DashboardEvent = AirtableEvent & {
   matchScore: number | null
@@ -136,6 +144,7 @@ export default function DashboardPage() {
                   Clear filters
                 </button>
               )}
+              <FrequencyControl user={user} onSaved={(u) => setUser(u)} />
               <button
                 onClick={() => setEditingProfile(true)}
                 className="shrink-0 px-4 py-2 rounded-lg border border-[#E8DDD0] bg-white text-sm text-gray-700 hover:border-gold-400 hover:text-gray-900 transition-colors"
@@ -263,6 +272,56 @@ function Stat({ label, value }: { label: string; value: string }) {
     <div className="text-center">
       <div className="text-xs uppercase tracking-wide font-bold text-white">{label}</div>
       <div className="text-sm text-white mt-1">{value}</div>
+    </div>
+  )
+}
+
+function FrequencyControl({
+  user,
+  onSaved,
+}: {
+  user: DashboardUser
+  onSaved: (u: DashboardUser) => void
+}) {
+  const [saving, setSaving] = useState(false)
+  const value = user.frequency || ''
+
+  async function handleChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    const next = e.target.value
+    if (next === value) return
+    setSaving(true)
+    onSaved({ ...user, frequency: next })
+    try {
+      const res = await fetch('/api/dashboard/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ frequency: next }),
+      })
+      if (!res.ok) {
+        // Revert on failure
+        onSaved({ ...user, frequency: value })
+      }
+    } catch {
+      onSaved({ ...user, frequency: value })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <label className="text-xs text-gray-500 hidden sm:inline">Email updates</label>
+      <select
+        value={value}
+        onChange={handleChange}
+        disabled={saving}
+        className="bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:border-gold-400 disabled:opacity-50 transition-colors"
+      >
+        <option value="">Select…</option>
+        {FREQUENCY_OPTIONS.map((opt) => (
+          <option key={opt} value={opt}>{opt}</option>
+        ))}
+      </select>
     </div>
   )
 }
