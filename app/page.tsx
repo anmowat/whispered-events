@@ -56,22 +56,27 @@ export default function Home() {
       {/* Header */}
       {showLogin && <LoginModal onClose={() => setShowLogin(false)} />}
       <header className="border-b border-[#E8DDD0] bg-[#F5EFE6]/90 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 h-14 grid grid-cols-[1fr_auto_1fr] items-center gap-4">
-          <button onClick={handleBack}>
-            <img src="/logo.svg" alt="Whispered Events" className="h-7 w-auto" />
-          </button>
-          <div className="flex gap-1 bg-white border border-[#E8DDD0] rounded-xl p-1 shadow-sm">
-            <TabPill active={tab === 'view'} onClick={() => selectTab('view')}>Find Events</TabPill>
-            <TabPill active={tab === 'contribute'} onClick={() => selectTab('contribute')}>Contribute Event</TabPill>
-            <TabPill active={tab === 'partner'} onClick={() => selectTab('partner')}>Partner</TabPill>
-          </div>
-          <div className="flex justify-end">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 py-3 sm:py-0 sm:h-14">
+          {/* Mobile: row 1 = logo + Log in. On desktop the wrapper dissolves
+              and these become siblings of the tab pills via display:contents. */}
+          <div className="flex items-center justify-between sm:contents">
+            <button onClick={handleBack} className="sm:flex-1 sm:order-1">
+              <img src="/logo.svg" alt="Whispered Events" className="h-7 w-auto" />
+            </button>
             <button
               onClick={() => setShowLogin(true)}
-              className="text-sm text-gray-500 hover:text-gray-800 transition-colors"
+              className="text-sm text-gray-500 hover:text-gray-800 transition-colors sm:flex-1 sm:order-3 sm:text-right"
             >
               Log in
             </button>
+          </div>
+          {/* Mobile: row 2 (centered). Desktop: middle column. */}
+          <div className="flex justify-center sm:order-2">
+            <div className="flex gap-1 bg-white border border-[#E8DDD0] rounded-xl p-1 shadow-sm">
+              <TabPill active={tab === 'view'} onClick={() => selectTab('view')}>Find Events</TabPill>
+              <TabPill active={tab === 'contribute'} onClick={() => selectTab('contribute')}>Contribute Event</TabPill>
+              <TabPill active={tab === 'partner'} onClick={() => selectTab('partner')}>Partner</TabPill>
+            </div>
           </div>
         </div>
       </header>
