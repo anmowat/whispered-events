@@ -89,7 +89,7 @@ export default function Home() {
       </main>
 
       <footer className="border-t border-[#E8DDD0] py-4">
-        <p className="text-center text-xs text-gray-400">Whispered Events &mdash; For executives only</p>
+        <p className="text-center text-xs text-gray-400">Whispered Events &mdash; Connecting Executives and Great Events</p>
         <p className="text-center text-xs text-gray-400 mt-1">
           Updated {new Date(process.env.NEXT_PUBLIC_BUILD_TIME!).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}
         </p>
