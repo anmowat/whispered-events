@@ -21,7 +21,7 @@ const QUESTIONS: Record<Step, string> = {
   interest: "**What types of events are you interested in?**\n\nWe'll pull your function and seniority from your LinkedIn, so focus here on anything additional that would help us tailor events to you — industry focus, specific topics, preferred formats, etc.\n\nYou can update these at any time on your profile (Login in top nav).",
   employment: "**What is your current work situation?**\n\nWe ask because some events focus on people in specific roles while others are open to anyone.",
   size: "**What is the approximate revenue of your current company?**\n\nMany events are run by vendors who want to focus on specific company sizes — this helps us make sure you're only seeing events you'd actually qualify for.",
-  linkedin: "Finally, one last question for us to create your profile.\n\n**And what's your LinkedIn profile URL?**",
+  linkedin: "Finally, one last question for us to create your profile.\n\n**What's your LinkedIn profile URL?**",
   confirm: '',
   submitted: '',
 }
