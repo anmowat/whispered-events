@@ -134,9 +134,17 @@ export default function DashboardPage() {
 
         <section className="space-y-4">
           <div className="flex items-center justify-between gap-3">
-            <h2 className="text-xs uppercase tracking-widest text-gray-400 font-medium">
-              Matched events
-            </h2>
+            <div className="flex items-center gap-3">
+              <h2 className="text-xs uppercase tracking-widest text-gray-400 font-medium">
+                Matched events
+              </h2>
+              <button
+                onClick={() => setEditingProfile(true)}
+                className="shrink-0 px-4 py-2 rounded-lg border border-[#E8DDD0] bg-white text-sm text-gray-700 hover:border-gold-400 hover:text-gray-900 transition-colors"
+              >
+                Refine Matches
+              </button>
+            </div>
             <div className="flex items-center gap-3">
               {filtersActive && (
                 <button
@@ -150,12 +158,6 @@ export default function DashboardPage() {
                 </button>
               )}
               <FrequencyControl user={user} onSaved={(u) => setUser(u)} />
-              <button
-                onClick={() => setEditingProfile(true)}
-                className="shrink-0 px-4 py-2 rounded-lg border border-[#E8DDD0] bg-white text-sm text-gray-700 hover:border-gold-400 hover:text-gray-900 transition-colors"
-              >
-                Refine Matches
-              </button>
             </div>
           </div>
 
