@@ -74,6 +74,8 @@ export async function GET(req: NextRequest) {
     skippedLocation: rows.filter((r) => r.skippedReason === 'location_zero').length,
     skippedGradeC: rows.filter((r) => r.skippedReason === 'grade_c').length,
     inFutureEvents: rows.filter((r) => r.eventName !== '(not in future events)').length,
+    futureEventsTotal: events.length,
+    futureEventsWithLatLon: events.filter((e) => e.lat != null && e.lng != null).length,
   }
 
   return NextResponse.json({ email, user: userBlock, summary, rows })
