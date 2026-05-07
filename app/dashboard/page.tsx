@@ -202,11 +202,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {filteredEvents.length === 0 ? (
-            <p className="text-sm text-gray-500">
-              {events.length === 0 ? 'No upcoming events yet.' : 'No events match these filters.'}
-            </p>
-          ) : (
+          {filteredEvents.length > 0 && (
             <div className="space-y-3">
               {filteredEvents.map((event) => (
                 <EventCard key={event.id} event={event} />
@@ -215,9 +211,10 @@ export default function DashboardPage() {
           )}
 
           <div className="pt-6 text-center text-xs text-gray-500 leading-relaxed space-y-1">
-            <p>Matches are personalized based on your LinkedIn profile (seniority, function, work history) and profile.</p>
+            <p>Matches are personalized based on your LinkedIn profile (seniority, function, work history).</p>
+            <p>Update your profile above (Click Refine Matches).</p>
             <p>
-              Updated your LinkedIn profile? Email us at{' '}
+              And if your LinkedIn has changed, email{' '}
               <a href="mailto:team@whisperedevents.com" className="text-gold-700 hover:underline">team@whisperedevents.com</a>{' '}
               and we can refresh your matches.
             </p>
