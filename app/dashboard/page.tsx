@@ -31,6 +31,7 @@ export default function DashboardPage() {
   const [typeFilter, setTypeFilter] = useState<string>('')
   const [fromDate, setFromDate] = useState<string>('')
   const [toDate, setToDate] = useState<string>('')
+  const [sortBy, setSortBy] = useState<'match' | 'date-asc' | 'date-desc'>('match')
 
   useEffect(() => {
     async function load() {
@@ -81,12 +82,22 @@ export default function DashboardPage() {
 
   const types = Array.from(new Set(events.map((e) => e.type).filter(Boolean))).sort()
 
-  const filteredEvents = events.filter((e) => {
-    if (typeFilter && e.type !== typeFilter) return false
-    if (fromDate && e.date && e.date < fromDate) return false
-    if (toDate && e.date && e.date > toDate) return false
-    return true
-  })
+  const filteredEvents = events
+    .filter((e) => {
+      if (typeFilter && e.type !== typeFilter) return false
+      if (fromDate && e.date && e.date < fromDate) return false
+      if (toDate && e.date && e.date > toDate) return false
+      return true
+    })
+    .sort((a, b) => {
+      if (sortBy === 'match') {
+        const diff = (b.matchScore ?? -1) - (a.matchScore ?? -1)
+        if (diff !== 0) return diff
+        return (a.date || '').localeCompare(b.date || '')
+      }
+      if (sortBy === 'date-desc') return (b.date || '').localeCompare(a.date || '')
+      return (a.date || '').localeCompare(b.date || '')
+    })
 
   const filtersActive = !!(typeFilter || fromDate || toDate)
 
@@ -143,7 +154,7 @@ export default function DashboardPage() {
             )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <div className="space-y-1">
               <label className="text-xs text-gray-500">Type</label>
               <select
@@ -174,6 +185,18 @@ export default function DashboardPage() {
                 onChange={(e) => setToDate(e.target.value)}
                 className={inputCls}
               />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-gray-500">Sort by</label>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as 'match' | 'date-asc' | 'date-desc')}
+                className={inputCls}
+              >
+                <option value="match">Best match</option>
+                <option value="date-asc">Date (earliest)</option>
+                <option value="date-desc">Date (latest)</option>
+              </select>
             </div>
           </div>
 
