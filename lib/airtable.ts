@@ -105,10 +105,27 @@ const USER_FIELDS = [
   'Interest',
   'Employment',
   'Location',
+  'LatLon',
   'Active',
   'LastContribution',
   'Contributions',
 ] as const
+
+// LatLon is stored as a single text field "lat,lng" on both Users and Events.
+function parseLatLon(raw: unknown): { lat?: number; lng?: number } {
+  const s = String(raw || '').trim()
+  if (!s) return {}
+  const [latStr, lngStr] = s.split(',').map((p) => p.trim())
+  const lat = Number(latStr)
+  const lng = Number(lngStr)
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return {}
+  if (lat === 0 && lng === 0) return {}
+  return { lat, lng }
+}
+
+function formatLatLon(geo: { lat: number; lng: number }): string {
+  return `${geo.lat},${geo.lng}`
+}
 
 function toAirtableUser(r: { id: string; get: (f: string) => unknown }): AirtableUser {
   const activeRaw = String(r.get('Active') || '')
@@ -116,6 +133,7 @@ function toAirtableUser(r: { id: string; get: (f: string) => unknown }): Airtabl
   const grade = gradeRaw === 'A' || gradeRaw === 'Polish' || gradeRaw === 'B' || gradeRaw === 'C'
     ? (gradeRaw as 'A' | 'Polish' | 'B' | 'C')
     : undefined
+  const { lat, lng } = parseLatLon(r.get('LatLon'))
   return {
     id: r.id,
     email: String(r.get('Email') || ''),
@@ -128,8 +146,8 @@ function toAirtableUser(r: { id: string; get: (f: string) => unknown }): Airtabl
     interest: String(r.get('Interest') || ''),
     employment: String(r.get('Employment') || ''),
     location: String(r.get('Location') || ''),
-    lat: undefined,
-    lng: undefined,
+    lat,
+    lng,
     active: activeRaw.toLowerCase() === 'active',
     status: activeRaw,
     lastContribution: String(r.get('LastContribution') || ''),
@@ -166,8 +184,7 @@ export async function createEvent(event: EventRecord, hostUserId?: string): Prom
   }
   const geo = geocodeLocation(event.location)
   if (geo) {
-    fields['Lat'] = geo.lat
-    fields['Lng'] = geo.lng
+    fields['LatLon'] = formatLatLon(geo)
   } else if (event.location) {
     console.warn(`createEvent: could not geocode "${event.location}"`)
   }
@@ -188,13 +205,9 @@ export async function updateEvent(
     updateData['Location'] = fields.location
     const geo = geocodeLocation(fields.location)
     if (geo) {
-      updateData['Lat'] = geo.lat
-      updateData['Lng'] = geo.lng
+      updateData['LatLon'] = formatLatLon(geo)
     } else {
-      // Clear stale coords. The Airtable SDK accepts null to clear, but the type
-      // doesn't reflect that — cast to satisfy TS.
-      ;(updateData as Record<string, unknown>)['Lat'] = null
-      ;(updateData as Record<string, unknown>)['Lng'] = null
+      ;(updateData as Record<string, unknown>)['LatLon'] = null
       console.warn(`updateEvent: could not geocode "${fields.location}"`)
     }
   }
@@ -325,14 +338,13 @@ export async function getFutureEvents(): Promise<AirtableEvent[]> {
   const records = await base(EVENTS_TABLE)
     .select({
       filterByFormula: `AND({Date} >= '${today}', {Date} != '')`,
-      fields: ['Name', 'Type', 'Date', 'Location', 'Description', 'Link', 'Audience', 'Lat', 'Lng'],
+      fields: ['Name', 'Type', 'Date', 'Location', 'Description', 'Link', 'Audience', 'LatLon'],
     })
     .all()
 
   return records
     .map((r) => {
-      const lat = Number(r.get('Lat'))
-      const lng = Number(r.get('Lng'))
+      const { lat, lng } = parseLatLon(r.get('LatLon'))
       return {
         id: r.id,
         name: String(r.get('Name') || ''),
@@ -342,8 +354,8 @@ export async function getFutureEvents(): Promise<AirtableEvent[]> {
         description: String(r.get('Description') || ''),
         link: String(r.get('Link') || ''),
         audience: String(r.get('Audience') || '').split(',').map((s) => s.trim()).filter(Boolean),
-        lat: Number.isFinite(lat) && lat !== 0 ? lat : undefined,
-        lng: Number.isFinite(lng) && lng !== 0 ? lng : undefined,
+        lat,
+        lng,
       }
     })
     .filter((e) => e.name)
@@ -388,6 +400,15 @@ export async function updateUserProfile(
   const fields: Partial<FieldSet> = {}
   if (update.location !== undefined) {
     fields['Location'] = update.location
+    const geo = geocodeLocation(update.location)
+    if (geo) {
+      fields['LatLon'] = formatLatLon(geo)
+    } else {
+      ;(fields as Record<string, unknown>)['LatLon'] = null
+      if (update.location) {
+        console.warn(`updateUserProfile: could not geocode "${update.location}"`)
+      }
+    }
   }
   if (update.interest !== undefined) fields['Interest'] = update.interest
   if (update.employment !== undefined) fields['Employment'] = update.employment
