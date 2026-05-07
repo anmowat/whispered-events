@@ -78,8 +78,6 @@ export default function DashboardPage() {
     )
   }
 
-  const firstName = user.name && user.name !== 'DEFAULT' ? user.name.split(' ')[0] : null
-
   const types = Array.from(new Set(events.map((e) => e.type).filter(Boolean))).sort()
 
   const filteredEvents = events
@@ -118,40 +116,33 @@ export default function DashboardPage() {
       </header>
 
       <main className="max-w-3xl mx-auto px-4 sm:px-6 py-10 space-y-10">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-xl font-serif text-gray-900">
-              {firstName ? `Welcome back, ${firstName}` : 'Your dashboard'}
-            </h1>
-            <p className="text-sm text-gray-500 mt-1">{user.email}</p>
-          </div>
-          <button
-            onClick={() => setEditingProfile(true)}
-            className="shrink-0 px-4 py-2 rounded-lg border border-[#E8DDD0] bg-white text-sm text-gray-700 hover:border-gold-400 hover:text-gray-900 transition-colors"
-          >
-            Edit profile
-          </button>
-        </div>
-
         <AccountStats user={user} />
 
         <section className="space-y-4">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-xs uppercase tracking-widest text-gray-400 font-medium">
-              Upcoming events
+              Matched events
             </h2>
-            {filtersActive && (
+            <div className="flex items-center gap-3">
+              {filtersActive && (
+                <button
+                  onClick={() => {
+                    setTypeFilter('')
+                    setFromDate('')
+                    setToDate('')
+                  }}
+                  className="text-xs text-gray-500 hover:text-gray-800 transition-colors"
+                >
+                  Clear filters
+                </button>
+              )}
               <button
-                onClick={() => {
-                  setTypeFilter('')
-                  setFromDate('')
-                  setToDate('')
-                }}
-                className="text-xs text-gray-500 hover:text-gray-800 transition-colors"
+                onClick={() => setEditingProfile(true)}
+                className="shrink-0 px-4 py-2 rounded-lg border border-[#E8DDD0] bg-white text-sm text-gray-700 hover:border-gold-400 hover:text-gray-900 transition-colors"
               >
-                Clear filters
+                Edit profile
               </button>
-            )}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -239,16 +230,15 @@ function AccountStats({ user }: { user: DashboardUser }) {
     : 'Inactive'
 
   return (
-    <section className="space-y-4">
-      <h2 className="text-xs uppercase tracking-widest text-gray-400 font-medium">Account</h2>
-      <div className="bg-white border border-[#E8DDD0] rounded-2xl p-5 shadow-sm space-y-4">
+    <section>
+      <div className="bg-gold-700 rounded-2xl p-5 shadow-sm space-y-4 text-white">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Stat label="Last contribution" value={lastContribution} />
           <Stat label="Total contributions" value={String(user.totalContributions)} />
           <Stat label="Status" value={statusLabel} />
         </div>
         {!user.active && (
-          <p className="text-xs text-gray-600 bg-[#F5EFE6] border border-[#E8DDD0] rounded-lg px-3 py-2">
+          <p className="text-xs text-white/90 bg-white/10 border border-white/20 rounded-lg px-3 py-2">
             To reactivate your account, contribute an event.
           </p>
         )}
@@ -260,8 +250,8 @@ function AccountStats({ user }: { user: DashboardUser }) {
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <div className="text-xs text-gray-500">{label}</div>
-      <div className="text-sm text-gray-900 mt-1">{value}</div>
+      <div className="text-xs uppercase tracking-wide text-white/70">{label}</div>
+      <div className="text-sm font-medium text-white mt-1">{value}</div>
     </div>
   )
 }
@@ -339,11 +329,16 @@ function ProfileModal({
         </div>
 
         <div className="px-5 py-4 space-y-4 overflow-y-auto">
-          <Field label="Location" tooltip="The cit(ies) / metro area(s) you want to see events for">
+          <div className="space-y-1.5">
+            <label className="text-xs text-gray-500">Email</label>
+            <p className="text-sm text-gray-700 bg-[#F5EFE6] border border-[#E8DDD0] rounded-lg px-3 py-2">{user.email}</p>
+          </div>
+
+          <Field label="Location" tooltip="The city that you are located in. We will show you events within a hundred miles. You can update this at any time to get refreshed matches (5 min delay once you update your profile).">
             <input
               value={location}
               onChange={(e) => setLocation(e.target.value)}
-              placeholder="e.g. New York, NY · San Francisco, CA"
+              placeholder="e.g. San Francisco, CA"
               className={inputCls}
             />
           </Field>
