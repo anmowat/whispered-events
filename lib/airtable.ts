@@ -105,8 +105,6 @@ const USER_FIELDS = [
   'Interest',
   'Employment',
   'Location',
-  'Lat',
-  'Lng',
   'Active',
   'LastContribution',
   'Contributions',
@@ -118,8 +116,6 @@ function toAirtableUser(r: { id: string; get: (f: string) => unknown }): Airtabl
   const grade = gradeRaw === 'A' || gradeRaw === 'Polish' || gradeRaw === 'B' || gradeRaw === 'C'
     ? (gradeRaw as 'A' | 'Polish' | 'B' | 'C')
     : undefined
-  const lat = Number(r.get('Lat'))
-  const lng = Number(r.get('Lng'))
   return {
     id: r.id,
     email: String(r.get('Email') || ''),
@@ -132,8 +128,8 @@ function toAirtableUser(r: { id: string; get: (f: string) => unknown }): Airtabl
     interest: String(r.get('Interest') || ''),
     employment: String(r.get('Employment') || ''),
     location: String(r.get('Location') || ''),
-    lat: Number.isFinite(lat) && lat !== 0 ? lat : undefined,
-    lng: Number.isFinite(lng) && lng !== 0 ? lng : undefined,
+    lat: undefined,
+    lng: undefined,
     active: activeRaw.toLowerCase() === 'active',
     status: activeRaw,
     lastContribution: String(r.get('LastContribution') || ''),
@@ -392,17 +388,6 @@ export async function updateUserProfile(
   const fields: Partial<FieldSet> = {}
   if (update.location !== undefined) {
     fields['Location'] = update.location
-    const geo = geocodeLocation(update.location)
-    if (geo) {
-      fields['Lat'] = geo.lat
-      fields['Lng'] = geo.lng
-    } else {
-      ;(fields as Record<string, unknown>)['Lat'] = null
-      ;(fields as Record<string, unknown>)['Lng'] = null
-      if (update.location) {
-        console.warn(`updateUserProfile: could not geocode "${update.location}"`)
-      }
-    }
   }
   if (update.interest !== undefined) fields['Interest'] = update.interest
   if (update.employment !== undefined) fields['Employment'] = update.employment
