@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAllMatchesForUser } from '@/lib/supabase'
-import { getFutureEvents } from '@/lib/airtable'
+import { getFutureEvents, getUserByEmail } from '@/lib/airtable'
+import { isMatchEligible } from '@/lib/matching'
 
 // Admin: returns every persisted match row for a given user with the full
 // score breakdown, joined with the event name. Helps debug "why am I not
@@ -27,11 +28,28 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'email query param required' }, { status: 400 })
   }
 
-  const [matches, events] = await Promise.all([
+  const [matches, events, user] = await Promise.all([
     getAllMatchesForUser(email.toLowerCase().trim()),
     getFutureEvents(),
+    getUserByEmail(email.toLowerCase().trim()),
   ])
   const eventById = new Map(events.map((e) => [e.id, e]))
+
+  const userBlock = user
+    ? {
+        id: user.id,
+        email: user.email,
+        active: user.active,
+        status: user.status,
+        grade: user.grade ?? null,
+        function: user.function || null,
+        seniority: user.seniority || null,
+        fullExp: user.fullExp ? `${user.fullExp.length} chars` : null,
+        location: user.location || null,
+        latLon: user.lat != null && user.lng != null ? `${user.lat},${user.lng}` : null,
+        eligibleForMatching: isMatchEligible(user),
+      }
+    : { found: false }
 
   const rows = matches.map((m) => {
     const event = eventById.get(m.event_id)
@@ -58,5 +76,5 @@ export async function GET(req: NextRequest) {
     inFutureEvents: rows.filter((r) => r.eventName !== '(not in future events)').length,
   }
 
-  return NextResponse.json({ email, summary, rows })
+  return NextResponse.json({ email, user: userBlock, summary, rows })
 }
