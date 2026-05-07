@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { UserProfile } from '@/lib/types'
 
-type Step = 'email' | 'interest' | 'employment' | 'size' | 'linkedin' | 'confirm' | 'submitted'
+type Step = 'email' | 'location' | 'interest' | 'employment' | 'size' | 'linkedin' | 'confirm' | 'submitted'
 
 interface Message {
   role: 'assistant' | 'user'
@@ -14,7 +14,8 @@ const EMPLOYMENT_OPTIONS = ['Employed', 'Fractional', 'Searching', 'Other']
 
 const QUESTIONS: Record<Step, string> = {
   email: "**What's your email address?** We use this only to send you events — nothing else.",
-  interest: "**What types of events are you interested in?**\n\nWe'll pull your function, seniority and location from your LinkedIn, so focus here on anything additional that would help us tailor events to you — industry focus, specific topics, preferred formats, etc.\n\nYou can update this any time.",
+  location: "**What city are you based in?**\n\nWe'll send you events within 200 miles. One city only — pick wherever you're most often traveling from for events.",
+  interest: "**What types of events are you interested in?**\n\nWe'll pull your function and seniority from your LinkedIn, so focus here on anything additional that would help us tailor events to you — industry focus, specific topics, preferred formats, etc.\n\nYou can update this any time.",
   employment: "**What is your current work situation?**\n\nWe ask because some events focus on people in specific roles while others are open to anyone.",
   size: "**What is the approximate revenue of your current company?**\n\nMany events are run by vendors who want to focus on specific company sizes — this helps us make sure you're only seeing events you'd actually qualify for.",
   linkedin: "**What's your LinkedIn profile URL?**",
@@ -22,11 +23,12 @@ const QUESTIONS: Record<Step, string> = {
   submitted: '',
 }
 
-const EMPTY_PROFILE: UserProfile = { linkedin: '', interest: '', employment: '', companySize: '', email: '' }
+const EMPTY_PROFILE: UserProfile = { linkedin: '', interest: '', employment: '', companySize: '', email: '', location: '' }
 
 function profileField(step: Step): keyof UserProfile | null {
   const map: Partial<Record<Step, keyof UserProfile>> = {
     email: 'email',
+    location: 'location',
     interest: 'interest',
     employment: 'employment',
     size: 'companySize',
@@ -36,7 +38,7 @@ function profileField(step: Step): keyof UserProfile | null {
 }
 
 function nextStep(current: Step, value: string): Step {
-  const order: Step[] = ['email', 'interest', 'employment', 'size', 'linkedin', 'confirm']
+  const order: Step[] = ['email', 'location', 'interest', 'employment', 'size', 'linkedin', 'confirm']
   if (current === 'employment' && value.toLowerCase() !== 'employed') {
     return 'linkedin'
   }
@@ -80,6 +82,7 @@ function ProfileSummary({ profile, onUpdate, onSubmit, isSubmitting }: {
 
   const fields: { key: keyof UserProfile; label: string }[] = [
     { key: 'email', label: 'Email' },
+    { key: 'location', label: 'City' },
     { key: 'interest', label: 'Interests' },
     { key: 'employment', label: 'Employment' },
     ...(profile.employment.toLowerCase() === 'employed' ? [{ key: 'companySize' as keyof UserProfile, label: 'Company size' }] : []),

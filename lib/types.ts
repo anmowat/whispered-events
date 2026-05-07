@@ -33,6 +33,7 @@ export interface UserProfile {
   employment: string
   companySize: string
   email: string
+  location: string
 }
 
 export interface ChatMessage {

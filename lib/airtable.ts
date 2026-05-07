@@ -470,13 +470,23 @@ export async function updateLastContribution(email: string): Promise<void> {
 export async function createProfile(profile: UserProfile): Promise<string> {
   const base = getBase()
   const today = new Date().toISOString().split('T')[0]
-  const record = await base(PROFILES_TABLE).create({
+  const fields: Partial<FieldSet> = {
     LinkedIn: profile.linkedin,
     Interest: profile.interest,
     Employment: profile.employment,
     'Size': profile.companySize,
     Email: profile.email,
+    Location: profile.location,
     LastContribution: today,
-  } as Partial<FieldSet>)
+  }
+  if (profile.location) {
+    const geo = geocodeLocation(profile.location)
+    if (geo) {
+      fields['LatLon'] = formatLatLon(geo)
+    } else {
+      console.warn(`createProfile: could not geocode "${profile.location}"`)
+    }
+  }
+  const record = await base(PROFILES_TABLE).create(fields)
   return record.id
 }
