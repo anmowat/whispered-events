@@ -79,7 +79,7 @@ export default function LoginModal({ onClose }: { onClose: () => void }) {
         ) : state === 'inactive' ? (
           <div className="space-y-3">
             <p className="text-sm text-gray-800">Your account isn&apos;t active yet.</p>
-            <p className="text-sm text-gray-500">New profiles are reviewed manually — if you&apos;ve just applied, you&apos;ll hear from us soon. If your access has lapsed, contribute an event from the <strong>Partner</strong> tab to reactivate.</p>
+            <p className="text-sm text-gray-500">New profiles are reviewed manually — if you&apos;ve just applied, you&apos;ll hear from us soon. If your access has lapsed, contribute an event to reactivate.</p>
             <button onClick={onClose} className="w-full py-3 rounded-xl bg-gold-600 hover:bg-gold-500 text-white text-sm font-medium transition-colors">Got it</button>
           </div>
         ) : (
