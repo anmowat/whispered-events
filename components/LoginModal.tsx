@@ -12,13 +12,13 @@ export default function LoginModal({ onClose }: { onClose: () => void }) {
     if (!email.trim()) return
     setState('loading')
     try {
-      const res = await fetch('/api/auth/dev-login', {
+      const res = await fetch('/api/auth/magic-link', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim() }),
       })
       if (res.ok) {
-        window.location.href = '/dashboard'
+        setState('sent')
         return
       }
       const data = await res.json() as { error: string }
