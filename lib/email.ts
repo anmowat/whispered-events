@@ -6,7 +6,7 @@ function getResend() {
   return new Resend(process.env.RESEND_API_KEY)
 }
 
-const FROM = 'Whispered Events <events@whispered.events>'
+const FROM = 'Whispered Events <events@whisperedevents.com>'
 
 export async function sendEventNotification(
   user: AirtableUser,
