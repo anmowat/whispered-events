@@ -182,7 +182,7 @@ export async function createEvent(event: EventRecord, hostUserId?: string): Prom
     Audience: event.audience.join(', '),
     Submitter: event.submitter,
   }
-  const geo = geocodeLocation(event.location)
+  const geo = await geocodeLocation(event.location)
   if (geo) {
     fields['LatLon'] = formatLatLon(geo)
   } else if (event.location) {
@@ -203,7 +203,7 @@ export async function updateEvent(
   if (fields.name) updateData['Name'] = fields.name
   if (fields.location) {
     updateData['Location'] = fields.location
-    const geo = geocodeLocation(fields.location)
+    const geo = await geocodeLocation(fields.location)
     if (geo) {
       updateData['LatLon'] = formatLatLon(geo)
     } else {
@@ -400,7 +400,7 @@ export async function updateUserProfile(
   const fields: Partial<FieldSet> = {}
   if (update.location !== undefined) {
     fields['Location'] = update.location
-    const geo = geocodeLocation(update.location)
+    const geo = await geocodeLocation(update.location)
     if (geo) {
       fields['LatLon'] = formatLatLon(geo)
     } else {
@@ -432,7 +432,7 @@ export async function refreshUserLatLon(userId: string): Promise<void> {
   const record = await base(PROFILES_TABLE).find(userId)
   const location = String(record.get('Location') || '').trim()
   if (!location) return
-  const geo = geocodeLocation(location)
+  const geo = await geocodeLocation(location)
   if (!geo) {
     console.warn(`refreshUserLatLon: could not geocode "${location}" for ${userId}`)
     return
@@ -480,7 +480,7 @@ export async function createProfile(profile: UserProfile): Promise<string> {
     LastContribution: today,
   }
   if (profile.location) {
-    const geo = geocodeLocation(profile.location)
+    const geo = await geocodeLocation(profile.location)
     if (geo) {
       fields['LatLon'] = formatLatLon(geo)
     } else {

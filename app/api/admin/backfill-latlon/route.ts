@@ -5,6 +5,10 @@ import { geocodeLocation } from '@/lib/geocode'
 // Idempotent backfill: scans Users and Events, geocodes Location, and writes
 // LatLon when missing or stale. Auth via the same shared webhook secret.
 // Safe to re-run.
+//
+// Geocoding goes through Nominatim which is throttled to ~1 req/sec, so
+// large tables can take a while. Bump the function timeout accordingly.
+export const maxDuration = 300
 
 function normalize(v: string | null | undefined): string {
   if (!v) return ''
@@ -45,7 +49,7 @@ async function backfillTable(table: string): Promise<TableStats> {
       stats.noLocation++
       continue
     }
-    const geo = geocodeLocation(location)
+    const geo = await geocodeLocation(location)
     if (!geo) {
       stats.ungeocodable++
       if (stats.ungeocodableSamples.length < 10) stats.ungeocodableSamples.push(location)

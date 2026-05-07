@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { createHash } from 'crypto'
 import { AirtableEvent, AirtableUser } from './airtable'
-import { geocodeAllLocations, withinMiles } from './geocode'
+import { withinMiles } from './geocode'
 import { VIRTUAL_LOCATION_RE } from './types'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
@@ -74,14 +74,8 @@ export function computeLocationScore(event: AirtableEvent, user: AirtableUser): 
   // Virtual events are no longer accepted; treat any that slip through as location=0.
   if (isVirtualEvent(event)) return 0
   if (event.lat == null || event.lng == null) return 0
-  if (user.lat != null && user.lng != null) {
-    return withinMiles({ lat: user.lat, lng: user.lng }, { lat: event.lat, lng: event.lng }, MAX_MILES) ? 1 : 0
-  }
-  // Fallback: parse user.location text and check any of its coordinates.
-  const userPoints = geocodeAllLocations(user.location || '')
-  if (!userPoints.length) return 0
-  const eventPoint = { lat: event.lat, lng: event.lng }
-  return userPoints.some((p) => withinMiles(p, eventPoint, MAX_MILES)) ? 1 : 0
+  if (user.lat == null || user.lng == null) return 0
+  return withinMiles({ lat: user.lat, lng: user.lng }, { lat: event.lat, lng: event.lng }, MAX_MILES) ? 1 : 0
 }
 
 function buildToPercent(score: number): number {
