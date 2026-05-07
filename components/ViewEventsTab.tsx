@@ -228,7 +228,7 @@ export default function ViewEventsTab({ eventCount = 0, startAtForm, onReturnHom
         if (n > 0) {
           addMessage(
             'assistant',
-            `Welcome back! We've noticed you've contributed ${n} ${n === 1 ? 'event' : 'events'}.`,
+            `Welcome! We've noticed you've already contributed ${n} ${n === 1 ? 'event' : 'events'}. We're excited to have you activate your profile.`,
           )
         }
       } catch {}
