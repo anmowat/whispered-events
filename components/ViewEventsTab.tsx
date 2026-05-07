@@ -203,7 +203,7 @@ export default function ViewEventsTab({ eventCount = 0, startAtForm, onReturnHom
     }
   }
 
-  function handleSend(value?: string) {
+  async function handleSend(value?: string) {
     const val = (value ?? input).trim()
     if (!val) return
     setInput('')
@@ -212,9 +212,26 @@ export default function ViewEventsTab({ eventCount = 0, startAtForm, onReturnHom
       addMessage('assistant', "Please share your LinkedIn profile URL (e.g. https://linkedin.com/in/yourname).")
       return
     }
-    if (step === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
-      addMessage('assistant', "That doesn't look like a valid email. Please try again.")
-      return
+    if (step === 'email') {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
+        addMessage('assistant', "That doesn't look like a valid email. Please try again.")
+        return
+      }
+      try {
+        const res = await fetch('/api/check-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: val }),
+        })
+        const data = (await res.json()) as { contributions?: number }
+        const n = data.contributions ?? 0
+        if (n > 0) {
+          addMessage(
+            'assistant',
+            `Welcome back! We've noticed you've contributed ${n} ${n === 1 ? 'event' : 'events'}.`,
+          )
+        }
+      } catch {}
     }
     advance(step, val)
   }

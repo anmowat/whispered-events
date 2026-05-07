@@ -485,12 +485,13 @@ export async function createMinimalUser(email: string): Promise<string> {
 export async function createProfile(profile: UserProfile): Promise<string> {
   const base = getBase()
   const today = new Date().toISOString().split('T')[0]
+  const email = profile.email.trim().toLowerCase()
   const fields: Partial<FieldSet> = {
     LinkedIn: profile.linkedin,
     Interest: profile.interest,
     Employment: profile.employment,
     'Size': profile.companySize,
-    Email: profile.email,
+    Email: email,
     Location: profile.location,
     LastContribution: today,
   }
@@ -502,6 +503,48 @@ export async function createProfile(profile: UserProfile): Promise<string> {
       console.warn(`createProfile: could not geocode "${profile.location}"`)
     }
   }
+
+  // Upsert: if a record already exists for this email (e.g. a minimal user
+  // auto-created when they contributed an event), update it instead of
+  // creating a duplicate.
+  const existing = await base(PROFILES_TABLE)
+    .select({
+      filterByFormula: `LOWER({Email}) = '${email.replace(/'/g, "\\'")}'`,
+      fields: ['Email'],
+      maxRecords: 1,
+    })
+    .all()
+  if (existing.length) {
+    await base(PROFILES_TABLE).update(existing[0].id, fields)
+    return existing[0].id
+  }
+
   const record = await base(PROFILES_TABLE).create(fields)
   return record.id
+}
+
+export async function getContributionCount(email: string): Promise<number> {
+  const base = getBase()
+  const normalized = email.trim().toLowerCase()
+  const user = await base(PROFILES_TABLE)
+    .select({
+      filterByFormula: `LOWER({Email}) = '${normalized.replace(/'/g, "\\'")}'`,
+      fields: ['Contributions'],
+      maxRecords: 1,
+    })
+    .all()
+  if (user.length) {
+    const n = Number(user[0].get('Contributions') || 0)
+    if (Number.isFinite(n) && n > 0) return n
+  }
+
+  // Fall back to counting Events by Submitter — covers the case where the
+  // user contributed an event but no Users row exists yet.
+  const events = await base(EVENTS_TABLE)
+    .select({
+      filterByFormula: `LOWER({Submitter}) = '${normalized.replace(/'/g, "\\'")}'`,
+      fields: ['Submitter'],
+    })
+    .all()
+  return events.length
 }
