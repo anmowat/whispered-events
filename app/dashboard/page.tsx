@@ -37,8 +37,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [editingProfile, setEditingProfile] = useState(false)
   const [typeFilter, setTypeFilter] = useState<string>('')
-  const [fromDate, setFromDate] = useState<string>('')
-  const [toDate, setToDate] = useState<string>('')
+  const [dateRange, setDateRange] = useState<'' | '30' | '60' | '90'>('')
   const [sortBy, setSortBy] = useState<'match' | 'date-asc' | 'date-desc'>('match')
 
   useEffect(() => {
@@ -88,11 +87,18 @@ export default function DashboardPage() {
 
   const types = Array.from(new Set(events.map((e) => e.type).filter(Boolean))).sort()
 
+  const cutoffDate = (() => {
+    if (!dateRange) return null
+    const days = Number(dateRange)
+    const d = new Date()
+    d.setDate(d.getDate() + days)
+    return d.toISOString().slice(0, 10)
+  })()
+
   const filteredEvents = events
     .filter((e) => {
       if (typeFilter && e.type !== typeFilter) return false
-      if (fromDate && e.date && e.date < fromDate) return false
-      if (toDate && e.date && e.date > toDate) return false
+      if (cutoffDate && e.date && e.date > cutoffDate) return false
       return true
     })
     .sort((a, b) => {
@@ -105,7 +111,7 @@ export default function DashboardPage() {
       return (a.date || '').localeCompare(b.date || '')
     })
 
-  const filtersActive = !!(typeFilter || fromDate || toDate)
+  const filtersActive = !!(typeFilter || dateRange)
 
   return (
     <div className="min-h-screen bg-[#F5EFE6]">
@@ -136,8 +142,7 @@ export default function DashboardPage() {
                 <button
                   onClick={() => {
                     setTypeFilter('')
-                    setFromDate('')
-                    setToDate('')
+                    setDateRange('')
                   }}
                   className="text-xs text-gray-500 hover:text-gray-800 transition-colors"
                 >
@@ -154,7 +159,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="space-y-1">
               <label className="text-xs text-gray-500">Type</label>
               <select
@@ -169,22 +174,17 @@ export default function DashboardPage() {
               </select>
             </div>
             <div className="space-y-1">
-              <label className="text-xs text-gray-500">From</label>
-              <input
-                type="date"
-                value={fromDate}
-                onChange={(e) => setFromDate(e.target.value)}
+              <label className="text-xs text-gray-500">Date range</label>
+              <select
+                value={dateRange}
+                onChange={(e) => setDateRange(e.target.value as '' | '30' | '60' | '90')}
                 className={inputCls}
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs text-gray-500">To</label>
-              <input
-                type="date"
-                value={toDate}
-                onChange={(e) => setToDate(e.target.value)}
-                className={inputCls}
-              />
+              >
+                <option value="">All upcoming</option>
+                <option value="90">Next 90 days</option>
+                <option value="60">Next 60 days</option>
+                <option value="30">Next 30 days</option>
+              </select>
             </div>
             <div className="space-y-1">
               <label className="text-xs text-gray-500">Sort by</label>
@@ -310,7 +310,10 @@ function FrequencyControl({
 
   return (
     <div className="flex items-center gap-2">
-      <label className="text-xs text-gray-500 hidden sm:inline">Email updates</label>
+      <div className="hidden sm:flex items-center gap-1.5">
+        <label className="text-xs text-gray-500">Email updates</label>
+        <Tooltip text="Email updates coming shortly. Currently, use dashboard." />
+      </div>
       <select
         value={value}
         onChange={handleChange}
