@@ -214,16 +214,14 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {filteredEvents.length > 0 && (
-            <div className="pt-6 text-center text-xs text-gray-500 leading-relaxed space-y-1">
-              <p>Matches are personalized based on your LinkedIn profile (seniority, function, work history) and profile.</p>
-              <p>
-                Updated your LinkedIn profile? Email us at{' '}
-                <a href="mailto:team@whisperedevents.com" className="text-gold-700 hover:underline">team@whisperedevents.com</a>{' '}
-                and we can refresh your matches.
-              </p>
-            </div>
-          )}
+          <div className="pt-6 text-center text-xs text-gray-500 leading-relaxed space-y-1">
+            <p>Matches are personalized based on your LinkedIn profile (seniority, function, work history) and profile.</p>
+            <p>
+              Updated your LinkedIn profile? Email us at{' '}
+              <a href="mailto:team@whisperedevents.com" className="text-gold-700 hover:underline">team@whisperedevents.com</a>{' '}
+              and we can refresh your matches.
+            </p>
+          </div>
         </section>
       </main>
 
