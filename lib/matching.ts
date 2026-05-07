@@ -6,7 +6,7 @@ import { VIRTUAL_LOCATION_RE } from './types'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
-const MAX_MILES = 200
+const MAX_MILES = 100
 const FREE_TEXT_CAP = 500
 const MAX_SCORE = 3.0
 const QUALITY_MULTIPLIER: Record<'A' | 'Polish' | 'B' | 'C', number> = {
@@ -224,7 +224,7 @@ export async function scoreEventUser(
     return emptyResult({
       location: 0,
       quality,
-      reason: 'Skipped: user not within 200 miles of event city',
+      reason: 'Skipped: user not within 100 miles of event city',
       skippedReason: 'location_zero',
       inputsHash,
     })
