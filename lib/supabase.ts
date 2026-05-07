@@ -69,7 +69,7 @@ export interface MatchLog {
 
 export async function logMatch(entry: MatchLog): Promise<void> {
   const supabase = getClient()
-  await supabase.from('matches').upsert(
+  const { error } = await supabase.from('matches').upsert(
     {
       event_id: entry.eventId,
       user_id: entry.userId,
@@ -85,6 +85,10 @@ export async function logMatch(entry: MatchLog): Promise<void> {
     },
     { onConflict: 'event_id,user_id' },
   )
+  if (error) {
+    console.error('logMatch upsert error:', error)
+    throw new Error(`logMatch failed: ${error.message}`)
+  }
 }
 
 const NOTIFY_THRESHOLD = 1.0
