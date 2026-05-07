@@ -17,6 +17,7 @@ export default function Home() {
   const [eventCount, setEventCount] = useState(0)
   const [partners, setPartners] = useState<Partner[]>([])
   const [featuredEvents, setFeaturedEvents] = useState<FeaturedEvent[]>([])
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
 
   useEffect(() => {
     fetch('/api/events-count')
@@ -32,6 +33,11 @@ export default function Home() {
     fetch('/api/featured-events')
       .then((r) => r.json())
       .then((d: { events: FeaturedEvent[] }) => setFeaturedEvents(d.events ?? []))
+      .catch(() => {})
+
+    fetch('/api/auth/me')
+      .then((r) => r.json())
+      .then((d: { user: unknown }) => setIsLoggedIn(!!d.user))
       .catch(() => {})
   }, [])
 
@@ -63,12 +69,21 @@ export default function Home() {
             <button onClick={handleBack} className="sm:flex-1 sm:order-1">
               <img src="/logo.svg" alt="Whispered Events" className="h-7 w-auto" />
             </button>
-            <button
-              onClick={() => setShowLogin(true)}
-              className="text-sm text-gray-500 hover:text-gray-800 transition-colors sm:flex-1 sm:order-3 sm:text-right"
-            >
-              Log in
-            </button>
+            {isLoggedIn ? (
+              <a
+                href="/dashboard"
+                className="text-sm text-gray-500 hover:text-gray-800 transition-colors sm:flex-1 sm:order-3 sm:text-right"
+              >
+                Profile
+              </a>
+            ) : (
+              <button
+                onClick={() => setShowLogin(true)}
+                className="text-sm text-gray-500 hover:text-gray-800 transition-colors sm:flex-1 sm:order-3 sm:text-right"
+              >
+                Log in
+              </button>
+            )}
           </div>
           {/* Mobile: row 2 (centered). Desktop: middle column. */}
           <div className="flex justify-center sm:order-2">
