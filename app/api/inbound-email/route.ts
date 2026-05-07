@@ -128,7 +128,7 @@ export async function POST(req: NextRequest) {
     console.error('inbound-email: updateLastContribution error', e),
   )
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://whisperedevents.com'
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.whisperedevents.com'
   fetch(`${appUrl}/api/process-matches?trigger=event&id=${id}`).catch((e) =>
     console.error('inbound-email: process-matches fire-and-forget error', e),
   )
