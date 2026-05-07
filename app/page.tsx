@@ -149,7 +149,7 @@ function Landing({
       {/* Info card */}
       <div className="w-full max-w-md animate-slide-up" key={tab}>
         {tab === 'view' && <ViewCard onCTA={onCTA} featuredEvents={featuredEvents} />}
-        {tab === 'contribute' && <ContributeCard onCTA={onCTA} featuredEvents={featuredEvents} />}
+        {tab === 'contribute' && <ContributeCard onCTA={onCTA} onShowPartner={() => setTab('partner')} featuredEvents={featuredEvents} />}
         {tab === 'partner' && <PartnerCard featuredEvents={featuredEvents} />}
       </div>
 
@@ -219,7 +219,7 @@ function ViewCard({ onCTA, featuredEvents }: { onCTA: () => void; featuredEvents
   )
 }
 
-function ContributeCard({ onCTA, featuredEvents }: { onCTA: () => void; featuredEvents: FeaturedEvent[] }) {
+function ContributeCard({ onCTA, onShowPartner, featuredEvents }: { onCTA: () => void; onShowPartner: () => void; featuredEvents: FeaturedEvent[] }) {
   return (
     <div className="bg-white rounded-2xl border border-[#E8DDD0] p-7 space-y-6 shadow-sm">
       <div className="space-y-3">
@@ -242,7 +242,7 @@ function ContributeCard({ onCTA, featuredEvents }: { onCTA: () => void; featured
       </button>
       <p className="text-center text-xs text-gray-400 leading-relaxed">
         You can share an event you are running or just one you are aware of.{' '}
-        Partners get more control of how their events are shared.
+        <button onClick={onShowPartner} className="text-gold-700 hover:text-gold-600 underline">Partners</button> get more control of how their events are shared.
       </p>
       <FeaturedEventsCarousel events={featuredEvents} />
     </div>
