@@ -121,6 +121,27 @@ export async function getMatchScoresForUser(
   return scores
 }
 
+export interface MatchAuditRow {
+  event_id: string
+  score: number
+  match_percent: number | null
+  location_score: number | null
+  audience_score: number | null
+  quality_score: number | null
+  preference_score: number | null
+  skipped_reason: string | null
+}
+
+export async function getAllMatchesForUser(userEmail: string): Promise<MatchAuditRow[]> {
+  const supabase = getClient()
+  const { data } = await supabase
+    .from('matches')
+    .select('event_id, score, match_percent, location_score, audience_score, quality_score, preference_score, skipped_reason')
+    .eq('user_email', userEmail)
+    .order('score', { ascending: false })
+  return (data ?? []) as MatchAuditRow[]
+}
+
 export async function createMagicToken(email: string): Promise<string> {
   const supabase = getClient()
   const token = crypto.randomUUID()
