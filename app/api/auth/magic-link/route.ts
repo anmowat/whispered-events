@@ -20,8 +20,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'inactive' }, { status: 403 })
   }
 
-  const token = await createMagicToken(user.email)
-  await sendMagicLink(user.email, token, req.nextUrl.origin)
-
-  return NextResponse.json({ ok: true })
+  try {
+    const token = await createMagicToken(user.email)
+    await sendMagicLink(user.email, token, req.nextUrl.origin)
+    return NextResponse.json({ ok: true })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    console.error('[magic-link] failed', { email: user.email, message, err })
+    return NextResponse.json({ error: 'send_failed', message }, { status: 500 })
+  }
 }

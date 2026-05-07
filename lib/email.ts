@@ -39,7 +39,7 @@ export async function sendEventNotification(
 export async function sendMagicLink(email: string, token: string, baseUrl: string): Promise<void> {
   const resend = getResend()
   const link = `${baseUrl}/api/auth/verify?token=${token}`
-  await resend.emails.send({
+  const { data, error } = await resend.emails.send({
     from: FROM,
     to: email,
     subject: 'Your Whispered Events login link',
@@ -52,6 +52,11 @@ export async function sendMagicLink(email: string, token: string, baseUrl: strin
       </div>
     `,
   })
+  if (error) {
+    console.error('sendMagicLink: Resend error', { email, from: FROM, error })
+    throw new Error(`Resend send failed: ${error.message ?? JSON.stringify(error)}`)
+  }
+  console.log('sendMagicLink: sent', { email, id: data?.id })
 }
 
 export async function sendUserDigest(
