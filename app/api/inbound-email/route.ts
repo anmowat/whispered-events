@@ -63,6 +63,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  console.log(`inbound-email: content length=${content.length}`)
   const parsed = await parseEventContent(content, url)
 
   const link = parsed.link || url

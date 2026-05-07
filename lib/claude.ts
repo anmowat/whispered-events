@@ -39,6 +39,8 @@ Return ONLY valid JSON, no markdown, no explanation. Example:
   const text =
     message.content[0].type === 'text' ? message.content[0].text : ''
 
+  console.log('parseEventContent: raw response', JSON.stringify(text.slice(0, 500)))
+
   try {
     // Strip markdown code fences if present
     const cleaned = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '')
