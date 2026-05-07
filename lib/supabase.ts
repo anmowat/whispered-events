@@ -180,7 +180,7 @@ export async function verifyMagicToken(token: string): Promise<string | null> {
 export async function createSession(email: string): Promise<string> {
   const supabase = getClient()
   const token = crypto.randomUUID()
-  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
+  const expiresAt = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000) // 60 days
   const { error } = await supabase.from('sessions').insert({
     email,
     token,

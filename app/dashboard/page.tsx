@@ -61,11 +61,6 @@ export default function DashboardPage() {
     load()
   }, [])
 
-  async function handleLogout() {
-    await fetch('/api/auth/logout', { method: 'POST' })
-    window.location.href = '/'
-  }
-
   if (loading) {
     return (
       <div className="min-h-screen bg-[#F5EFE6] flex items-center justify-center">
@@ -120,12 +115,12 @@ export default function DashboardPage() {
           <a href="/">
             <img src="/logo.svg" alt="Whispered Events" className="h-7 w-auto" />
           </a>
-          <button
-            onClick={handleLogout}
+          <a
+            href="/"
             className="text-sm text-gray-500 hover:text-gray-800 transition-colors"
           >
-            Log out
-          </button>
+            ← Back to home
+          </a>
         </div>
       </header>
 
