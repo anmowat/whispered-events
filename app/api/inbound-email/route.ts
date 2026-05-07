@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { Resend } from 'resend'
+import { Resend, type GetReceivingEmailResponseSuccess } from 'resend'
 import { scrapeUrl } from '@/lib/scraper'
 import { parseEventContent } from '@/lib/claude'
 import {
@@ -18,10 +18,9 @@ const FROM = 'Whispered Events <events@whisperedevents.com>'
 interface InboundPayload {
   type?: string
   data?: {
+    email_id?: string
     from?: string | { email?: string; name?: string }
     subject?: string
-    text?: string
-    html?: string
   }
 }
 
@@ -40,22 +39,35 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'invalid json' }, { status: 400 })
   }
 
-  console.log(
-    `inbound-email: payload data keys=${JSON.stringify(Object.keys(payload.data ?? {}))} text=${(payload.data?.text ?? '').length}b html=${(payload.data?.html ?? '').length}b`,
-  )
-
   const senderEmail = extractSenderEmail(payload.data?.from)
   if (!senderEmail) {
     console.error('inbound-email: could not extract sender', payload.data?.from)
     return NextResponse.json({ ok: true, reason: 'no sender' })
   }
 
-  const subject = payload.data?.subject ?? ''
-  const text = payload.data?.text ?? stripHtml(payload.data?.html ?? '')
+  const emailId = payload.data?.email_id
+  if (!emailId || !process.env.RESEND_API_KEY) {
+    console.error('inbound-email: missing email_id or RESEND_API_KEY', { emailId, hasKey: !!process.env.RESEND_API_KEY })
+    return NextResponse.json({ ok: true, reason: 'no email_id' })
+  }
+
+  const resend = new Resend(process.env.RESEND_API_KEY)
+  const fetched = await resend.get<GetReceivingEmailResponseSuccess>(
+    `/emails/receiving/${emailId}`,
+  )
+  if (fetched.error || !fetched.data) {
+    console.error('inbound-email: receiving.get failed', fetched.error)
+    return NextResponse.json({ ok: true, reason: 'fetch failed' })
+  }
+
+  const subject = fetched.data.subject ?? payload.data?.subject ?? ''
+  const text = fetched.data.text ?? stripHtml(fetched.data.html ?? '')
   const combined = `${subject}\n\n${text}`
   const url = extractFirstUrl(combined)
 
-  console.log('inbound-email: from', senderEmail, 'url', url, 'subject', subject)
+  console.log(
+    `inbound-email: from=${senderEmail} subject=${JSON.stringify(subject)} text=${text.length}b url=${url}`,
+  )
 
   let content = combined
   if (url) {
