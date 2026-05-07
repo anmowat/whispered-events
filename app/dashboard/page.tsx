@@ -260,9 +260,9 @@ function AccountStats({ user }: { user: DashboardUser }) {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div>
-      <div className="text-xs uppercase tracking-wide text-white/70">{label}</div>
-      <div className="text-sm font-medium text-white mt-1">{value}</div>
+    <div className="text-center">
+      <div className="text-xs uppercase tracking-wide font-bold text-white">{label}</div>
+      <div className="text-sm text-white mt-1">{value}</div>
     </div>
   )
 }
