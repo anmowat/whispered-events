@@ -444,8 +444,13 @@ function EventCard({ event }: { event: DashboardEvent }) {
       <div className="flex items-start justify-between gap-3">
         <div>{NameEl}</div>
         {matchPct && (
-          <span className="shrink-0 text-[11px] font-medium text-gold-700 bg-gold-50 border border-gold-200 rounded-full px-2 py-0.5">
-            {matchPct} match
+          <span className="relative inline-flex group shrink-0">
+            <span className="cursor-help text-[11px] font-medium text-gold-700 bg-gold-50 border border-gold-200 rounded-full px-2 py-0.5">
+              {matchPct} match
+            </span>
+            <span className="pointer-events-none absolute right-0 top-full mt-1 z-20 hidden group-hover:block w-64 bg-gray-900 text-white text-xs leading-snug rounded-lg px-3 py-2 shadow-lg">
+              Matches are based on event criteria, your profile, and your interests. To improve your matches, update your profile.
+            </span>
           </span>
         )}
       </div>

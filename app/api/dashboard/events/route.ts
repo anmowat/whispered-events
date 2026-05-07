@@ -4,9 +4,8 @@ import { getFutureEvents } from '@/lib/airtable'
 
 const NOTIFY_THRESHOLD = 1.0
 
-// TESTING: returns all upcoming events regardless of match score. Pass
-// ?matched=1 to restrict to events with score >= 1.0 once we're ready to
-// enforce match filtering.
+// Returns upcoming events that have a persisted match score >= NOTIFY_THRESHOLD
+// for the logged-in user. Pass ?all=1 to bypass the filter (admin/debug).
 export async function GET(req: NextRequest) {
   const sessionToken = req.cookies.get('session')?.value
 
@@ -20,7 +19,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 
-  const matchedOnly = req.nextUrl.searchParams.get('matched') === '1'
+  const showAll = req.nextUrl.searchParams.get('all') === '1'
 
   const [futureEvents, scores] = await Promise.all([
     getFutureEvents(),
@@ -36,9 +35,9 @@ export async function GET(req: NextRequest) {
     }
   })
 
-  const filtered = matchedOnly
-    ? withScores.filter((e) => (e.matchScore ?? 0) >= NOTIFY_THRESHOLD)
-    : withScores
+  const filtered = showAll
+    ? withScores
+    : withScores.filter((e) => (e.matchScore ?? 0) >= NOTIFY_THRESHOLD)
 
   const events = filtered.sort((a, b) => a.date.localeCompare(b.date))
   return NextResponse.json({ events })

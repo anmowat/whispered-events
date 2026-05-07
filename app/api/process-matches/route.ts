@@ -41,7 +41,7 @@ async function processEventTrigger(eventId: string) {
   }
 }
 
-async function processUserTrigger(userId: string) {
+async function processUserTrigger(userId: string, options: { noEmail?: boolean } = {}) {
   const targetUser = await getUserById(userId)
   if (!targetUser) {
     console.log(`process-matches: user ${userId} not found, skipping`)
@@ -104,7 +104,7 @@ async function processUserTrigger(userId: string) {
     .sort((a, b) => b.outcome.result.score - a.outcome.result.score)
     .slice(0, 5)
 
-  if (topMatches.length) {
+  if (topMatches.length && !options.noEmail) {
     await sendUserDigest(
       targetUser,
       topMatches.map((m) => m.event),
@@ -191,10 +191,11 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+    const noEmail = searchParams.get('noEmail') === '1'
     if (trigger === 'event') {
       await processEventTrigger(id)
     } else if (trigger === 'user') {
-      await processUserTrigger(id)
+      await processUserTrigger(id, { noEmail })
     } else {
       return NextResponse.json({ error: 'trigger must be "event" or "user"' }, { status: 400 })
     }
