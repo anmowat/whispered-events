@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
     const id = await createProfile(profile)
 
     // Match runs are kicked off by the team via the Airtable `Match` checkbox
-    // after the user is enriched (Grade, Function, Seniority, FullExp).
+    // after the user is enriched (Grade, Function, Seniority — FullExp optional).
     return NextResponse.json({ status: 'created', id })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)

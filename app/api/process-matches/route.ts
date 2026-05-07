@@ -53,7 +53,7 @@ async function processUserTrigger(userId: string, options: { noEmail?: boolean }
   }
   if (!isMatchEligible(targetUser)) {
     console.log(
-      `process-matches: user ${targetUser.email} is not eligible (missing Grade/Function/Seniority/FullExp), skipping`,
+      `process-matches: user ${targetUser.email} is not eligible (missing Grade/Function/Seniority), skipping`,
     )
     return
   }

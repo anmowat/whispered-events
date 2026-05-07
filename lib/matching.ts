@@ -31,9 +31,7 @@ export interface ScoreResult {
 }
 
 export function isMatchEligible(user: AirtableUser): boolean {
-  return Boolean(
-    user.grade && user.function?.trim() && user.seniority?.trim() && user.fullExp?.trim(),
-  )
+  return Boolean(user.grade && user.function?.trim() && user.seniority?.trim())
 }
 
 export function computeInputsHash(event: AirtableEvent, user: AirtableUser): string {
@@ -126,7 +124,7 @@ async function callLLM(
   const userBlock = `Attendee profile:
 - Function/Role: ${user.function}
 - Seniority: ${user.seniority}
-- Full experience: ${cap(user.fullExp)}
+- Full experience: ${cap(user.fullExp) || 'Not provided — ignore in scoring'}
 - Company size: ${user.companySize || 'Not specified — ignore in scoring'}
 - Employment: ${user.employment || 'Not specified — ignore in scoring'}
 - Event interests: ${interest || 'Not stated — return preferences=1.0 (neutral)'}`
