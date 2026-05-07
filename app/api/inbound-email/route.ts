@@ -40,6 +40,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'invalid json' }, { status: 400 })
   }
 
+  console.log(
+    `inbound-email: payload data keys=${JSON.stringify(Object.keys(payload.data ?? {}))} text=${(payload.data?.text ?? '').length}b html=${(payload.data?.html ?? '').length}b`,
+  )
+
   const senderEmail = extractSenderEmail(payload.data?.from)
   if (!senderEmail) {
     console.error('inbound-email: could not extract sender', payload.data?.from)
