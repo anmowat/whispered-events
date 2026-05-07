@@ -323,7 +323,7 @@ export async function getActiveUsers(): Promise<AirtableUser[]> {
 
   const records = await base(PROFILES_TABLE)
     .select({
-      filterByFormula: `{Active} = "active"`,
+      filterByFormula: `LOWER({Active}) = "active"`,
       fields: [...USER_FIELDS],
     })
     .all()
