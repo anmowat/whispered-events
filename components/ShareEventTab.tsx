@@ -157,10 +157,14 @@ export default function ShareEventTab({ onDone }: { onDone?: () => void }) {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || data.message || `HTTP ${res.status}`)
       setStep('submitted')
-      const msg =
+      let msg =
         mode === 'duplicate-host'
           ? "Got it — we've updated this event with your changes. Thank you."
           : "Thank you! The event has been added to our database. We appreciate you helping the community discover exclusive events."
+      if (data.hostClaimDenied) {
+        msg +=
+          "\n\nWe don't have you on file as a Whispered partner yet, so we couldn't list you as the host. If you'd like to partner with us, email team@whisperedevents.com."
+      }
       addMessage('assistant', msg)
     } catch (err) {
       setStep('error')

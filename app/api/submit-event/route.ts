@@ -80,20 +80,18 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Host claim handling for new events
+    // Host claim handling for new events. If the submitter isn't a partner,
+    // we still create the event — we just drop the host claim and tell the
+    // client so it can surface a friendly message.
     let hostUserId: string | undefined
+    let hostClaimDenied = false
     if (event.host) {
       const partnerUser = await getPartnerUserByEmail(event.submitter)
       if (!partnerUser) {
-        return NextResponse.json(
-          {
-            message:
-              'Only partners can claim events as host. If you want to partner with us visit the partner tab',
-          },
-          { status: 403 }
-        )
+        hostClaimDenied = true
+      } else {
+        hostUserId = partnerUser.id
       }
-      hostUserId = partnerUser.id
     }
 
     const id = await createEvent(event, hostUserId)
@@ -107,7 +105,7 @@ export async function POST(req: NextRequest) {
       console.error('process-matches fire-and-forget error:', e)
     )
 
-    return NextResponse.json({ status: 'created', id })
+    return NextResponse.json({ status: 'created', id, hostClaimDenied })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     console.error('submit-event error:', message)
