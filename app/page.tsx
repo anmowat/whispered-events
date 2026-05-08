@@ -137,7 +137,7 @@ function Landing({
       <div className="text-center max-w-xl space-y-4 mb-10">
         <div className="space-y-0.5">
           <p className="text-gray-900 text-xl leading-snug font-semibold">Real relationships are built in person.</p>
-          <p className="text-gray-900 text-xl leading-snug font-semibold">The best events aren&apos;t posted—they&apos;re whispered.</p>
+          <p className="text-gray-900 text-xl leading-snug font-semibold">The best events aren&apos;t posted - they&apos;re whispered.</p>
         </div>
         <div className="space-y-0.5">
           <p className="text-gray-500 text-sm leading-relaxed">
