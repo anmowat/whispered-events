@@ -17,9 +17,13 @@ export async function POST(req: NextRequest) {
 
     const id = await createProfile(profile)
 
-    sendUserAppliedEmail(profile.email).catch((e) =>
+    // Awaited so the in-flight Resend request isn't killed when the
+    // serverless function returns. Failures here must not break signup.
+    try {
+      await sendUserAppliedEmail(profile.email)
+    } catch (e) {
       console.error('submit-profile: sendUserAppliedEmail error:', e)
-    )
+    }
 
     // Match runs are kicked off by the team via the Airtable `Match` checkbox
     // after the user is enriched (Grade, Function, Seniority — FullExp optional).
