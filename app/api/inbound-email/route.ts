@@ -9,11 +9,12 @@ import {
   getUserByEmail,
   updateLastContribution,
 } from '@/lib/airtable'
+import { sendEventCouldNotReadEmail, sendEventSubmittedEmail } from '@/lib/email'
 import { EventRecord, VIRTUAL_LOCATION_RE } from '@/lib/types'
 
 export const maxDuration = 60
 
-const FROM = 'Whispered Events <events@whisperedevents.com>'
+const FROM = 'Whispered Events <event@whisperedevents.com>'
 
 interface InboundPayload {
   type?: string
@@ -82,11 +83,11 @@ export async function POST(req: NextRequest) {
   const link = parsed.link || url
   if (!parsed.name || !link) {
     console.error('inbound-email: parse incomplete', parsed)
-    await sendReply(
-      senderEmail,
-      'We could not read your event',
-      `Hi,\n\nThanks for sending an event to Whispered Events. We were not able to extract the details automatically.\n\nReply with a public event link (Luma, Eventbrite, the host's site, etc.) and we will try again.\n\n— Whispered Events`,
-    )
+    try {
+      await sendEventCouldNotReadEmail(senderEmail)
+    } catch (e) {
+      console.error('inbound-email: sendEventCouldNotReadEmail failed', e)
+    }
     return NextResponse.json({ ok: true, reason: 'parse incomplete' })
   }
 
@@ -147,11 +148,11 @@ export async function POST(req: NextRequest) {
     console.error('inbound-email: process-matches fire-and-forget error', e),
   )
 
-  await sendReply(
-    senderEmail,
-    `Added: ${parsed.name}`,
-    `Hi,\n\nThanks for contributing! "${parsed.name}" has been added to Whispered Events and you have been credited. Members whose profiles match will be notified.\n\n— Whispered Events`,
-  )
+  try {
+    await sendEventSubmittedEmail(senderEmail, parsed.name)
+  } catch (e) {
+    console.error('inbound-email: sendEventSubmittedEmail failed', e)
+  }
 
   return NextResponse.json({ ok: true, id })
 }
