@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createProfile } from '@/lib/airtable'
+import { sendUserAppliedEmail } from '@/lib/email'
 import { UserProfile } from '@/lib/types'
 
 export async function POST(req: NextRequest) {
@@ -15,6 +16,10 @@ export async function POST(req: NextRequest) {
     }
 
     const id = await createProfile(profile)
+
+    sendUserAppliedEmail(profile.email).catch((e) =>
+      console.error('submit-profile: sendUserAppliedEmail error:', e)
+    )
 
     // Match runs are kicked off by the team via the Airtable `Match` checkbox
     // after the user is enriched (Grade, Function, Seniority — FullExp optional).
