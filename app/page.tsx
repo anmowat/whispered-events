@@ -212,7 +212,7 @@ function ViewCard({ onCTA, featuredEvents }: { onCTA: () => void; featuredEvents
         </ol>
       </div>
       <button onClick={onCTA} className="w-full py-3 rounded-xl bg-gold-600 hover:bg-gold-500 text-white font-medium transition-colors">
-        Apply for access
+        Get Access - Free Forever
       </button>
       <p className="text-center text-xs text-gray-400">
         Tag <a href="https://www.linkedin.com/company/whispered-events/about/?viewAsMember=true" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">Whispered Events</a> on a LinkedIn post<br />and we&apos;ll upgrade you to 6 months!
