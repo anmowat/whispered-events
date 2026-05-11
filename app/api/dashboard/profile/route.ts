@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifySession } from '@/lib/supabase'
-import { updateUserProfile, UserProfileUpdate } from '@/lib/airtable'
+import { verifySession, markAllMatchesNotifiedForUser } from '@/lib/supabase'
+import { getUserByEmail, updateUserProfile, UserProfileUpdate } from '@/lib/airtable'
+
+const DIGEST_FREQUENCIES = new Set([
+  'Each New Event',
+  'Weekly When New Events',
+  'Monthly When New Events',
+])
 
 export async function POST(req: NextRequest) {
   const sessionToken = req.cookies.get('session')?.value
@@ -35,7 +41,20 @@ export async function POST(req: NextRequest) {
     update.companySize !== undefined
 
   try {
+    // Capture the user's current frequency so we can detect a Dashboard-Only →
+    // digest transition and zero out the backlog of unnotified matches.
+    const before = update.frequency !== undefined ? await getUserByEmail(email) : null
+
     const updated = await updateUserProfile(email, update)
+
+    if (updated && before && update.frequency !== undefined) {
+      const wasNonDigest = !DIGEST_FREQUENCIES.has(before.frequency)
+      const nowDigest = DIGEST_FREQUENCIES.has(update.frequency)
+      if (wasNonDigest && nowDigest) {
+        await markAllMatchesNotifiedForUser(updated.id)
+      }
+    }
+
     if (updated && matchingInputsChanged) {
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
       fetch(`${appUrl}/api/process-matches?trigger=user&id=${updated.id}&noEmail=1`).catch((e) =>
