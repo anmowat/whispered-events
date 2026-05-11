@@ -34,6 +34,7 @@ export interface UserProfile {
   companySize: string
   email: string
   location: string
+  frequency: string
 }
 
 export interface ChatMessage {
