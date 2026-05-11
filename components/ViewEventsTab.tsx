@@ -137,13 +137,27 @@ function ProfileSummary({ profile, onUpdate, onSubmit, isSubmitting }: {
               {isEditing ? (
                 <div className="space-y-2">
                   <p className="text-xs font-medium text-gold-700 uppercase tracking-wide">{label}</p>
-                  <input
-                    autoFocus
-                    value={editValue}
-                    onChange={(e) => setEditValue(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') { setEditingField(null); setEditError('') } }}
-                    className="w-full bg-[#FDFAF6] border border-gold-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:border-gold-500 transition-colors"
-                  />
+                  {editingField === 'frequency' ? (
+                    <select
+                      autoFocus
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Escape') { setEditingField(null); setEditError('') } }}
+                      className="w-full bg-[#FDFAF6] border border-gold-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:border-gold-500 transition-colors"
+                    >
+                      {FREQUENCY_OPTIONS.map((opt) => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      autoFocus
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') { setEditingField(null); setEditError('') } }}
+                      className="w-full bg-[#FDFAF6] border border-gold-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:border-gold-500 transition-colors"
+                    />
+                  )}
                   {editError && <p className="text-xs text-red-500">{editError}</p>}
                   <div className="flex gap-2">
                     <button onClick={saveEdit} className="px-3 py-1.5 rounded-lg bg-gold-600 hover:bg-gold-500 text-white text-xs font-medium transition-colors">Save</button>
