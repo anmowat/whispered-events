@@ -11,7 +11,7 @@ type Tab = 'view' | 'contribute' | 'partner'
 type Mode = 'landing' | 'active'
 
 export default function Home() {
-  const [tab, setTab] = useState<Tab>('contribute')
+  const [tab, setTab] = useState<Tab>('view')
   const [mode, setMode] = useState<Mode>('landing')
   const [showLogin, setShowLogin] = useState(false)
   const [eventCount, setEventCount] = useState(0)
