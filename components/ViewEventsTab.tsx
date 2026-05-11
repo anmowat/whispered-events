@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { UserProfile } from '@/lib/types'
 
-type Step = 'email' | 'location' | 'interest' | 'employment' | 'size' | 'linkedin' | 'confirm' | 'submitted'
+type Step = 'email' | 'location' | 'interest' | 'employment' | 'size' | 'linkedin' | 'frequency' | 'confirm' | 'submitted'
 
 interface Message {
   role: 'assistant' | 'user'
@@ -11,6 +11,15 @@ interface Message {
 }
 
 const EMPLOYMENT_OPTIONS = ['Employed', 'Searching', 'Fractional', 'Other']
+
+// Exact spellings/capitalizations match the Frequency single-select options in Airtable Users table.
+const FREQUENCY_OPTIONS = [
+  'Each New Event',
+  'Weekly When New Events',
+  'Monthly When New Events',
+  'Dashboard Only',
+]
+const DEFAULT_FREQUENCY = 'Monthly When New Events'
 
 const SEARCHING_NOTE =
   "The job market is changing fast — AI is reshaping everything.\n\nFor senior leaders, many of the best roles aren't posted. They're whispered.\n\nFor free playbooks, career strategies, and access to unposted GTM roles + the network to get them, visit [whispered.com](https://www.whispered.com/)."
@@ -21,12 +30,13 @@ const QUESTIONS: Record<Step, string> = {
   interest: "**What types of events are you interested in?**\n\nWe'll pull your function and seniority from your LinkedIn, so focus here on anything additional that would help us tailor events to you — industry focus, specific topics, preferred formats, etc.\n\nYou can update these at any time on your profile (Login in top nav).",
   employment: "**What is your current work situation?**\n\nWe ask because some events focus on people in specific roles while others are open to anyone.",
   size: "**What is the approximate revenue of your current company?**\n\nMany events are run by vendors who want to focus on specific company sizes — this helps us make sure you're only seeing events you'd actually qualify for.",
-  linkedin: "Finally, one last question for us to create your profile.\n\n**What's your LinkedIn profile URL?**",
+  linkedin: "**What's your LinkedIn profile URL?**",
+  frequency: "Last question — **how often would you like to receive emails with matching events?**\n\nYou can change this anytime on your profile.",
   confirm: '',
   submitted: '',
 }
 
-const EMPTY_PROFILE: UserProfile = { linkedin: '', interest: '', employment: '', companySize: '', email: '', location: '' }
+const EMPTY_PROFILE: UserProfile = { linkedin: '', interest: '', employment: '', companySize: '', email: '', location: '', frequency: DEFAULT_FREQUENCY }
 
 function profileField(step: Step): keyof UserProfile | null {
   const map: Partial<Record<Step, keyof UserProfile>> = {
@@ -36,12 +46,13 @@ function profileField(step: Step): keyof UserProfile | null {
     employment: 'employment',
     size: 'companySize',
     linkedin: 'linkedin',
+    frequency: 'frequency',
   }
   return map[step] ?? null
 }
 
 function nextStep(current: Step, value: string): Step {
-  const order: Step[] = ['email', 'location', 'interest', 'employment', 'size', 'linkedin', 'confirm']
+  const order: Step[] = ['email', 'location', 'interest', 'employment', 'size', 'linkedin', 'frequency', 'confirm']
   if (current === 'employment' && value.toLowerCase() !== 'employed') {
     return 'linkedin'
   }
@@ -90,6 +101,7 @@ function ProfileSummary({ profile, onUpdate, onSubmit, isSubmitting }: {
     { key: 'employment', label: 'Employment' },
     ...(profile.employment.toLowerCase() === 'employed' ? [{ key: 'companySize' as keyof UserProfile, label: 'Company size' }] : []),
     { key: 'linkedin', label: 'LinkedIn' },
+    { key: 'frequency', label: 'Email frequency' },
   ]
 
   function startEdit(field: keyof UserProfile) {
@@ -212,6 +224,10 @@ export default function ViewEventsTab({ eventCount = 0, startAtForm, onReturnHom
       addMessage('assistant', "Please share your LinkedIn profile URL (e.g. https://linkedin.com/in/yourname).")
       return
     }
+    if (step === 'frequency' && !FREQUENCY_OPTIONS.includes(val)) {
+      addMessage('assistant', 'Please pick one of the options above.')
+      return
+    }
     if (step === 'email') {
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
         addMessage('assistant', "That doesn't look like a valid email. Please try again.")
@@ -291,6 +307,20 @@ export default function ViewEventsTab({ eventCount = 0, startAtForm, onReturnHom
           </div>
         )}
 
+        {step === 'frequency' && (
+          <div className="ml-10 flex flex-wrap gap-2 animate-slide-up">
+            {FREQUENCY_OPTIONS.map((opt) => (
+              <button
+                key={opt}
+                onClick={() => handleSend(opt)}
+                className="px-4 py-2 rounded-xl border border-[#E8DDD0] bg-white text-sm text-gray-700 hover:bg-[#F5EFE6] hover:border-gold-400 transition-colors shadow-sm"
+              >
+                {opt}
+              </button>
+            ))}
+          </div>
+        )}
+
         {step === 'confirm' && (
           <ProfileSummary
             profile={profile}
@@ -322,7 +352,7 @@ export default function ViewEventsTab({ eventCount = 0, startAtForm, onReturnHom
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') handleSend() }}
-              placeholder={step === 'employment' ? 'Or type your answer…' : 'Type your answer...'}
+              placeholder={step === 'employment' || step === 'frequency' ? 'Or pick an option above…' : 'Type your answer...'}
               className="flex-1 bg-white border border-[#E8DDD0] rounded-xl px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-gold-400 transition-colors shadow-sm"
             />
             <button onClick={() => handleSend()} disabled={!input.trim()} className="px-4 py-2 rounded-xl bg-gold-600 hover:bg-gold-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors">
