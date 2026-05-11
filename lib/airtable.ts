@@ -519,16 +519,21 @@ export async function createProfile(profile: UserProfile): Promise<string> {
       maxRecords: 1,
     })
     .all()
+  const chosenFrequency = profile.frequency?.trim() || DEFAULT_FREQUENCY
+
   if (existing.length) {
-    // Preserve an existing Frequency choice; only set the default when blank.
-    if (!String(existing[0].get('Frequency') || '').trim()) {
+    // Overwrite Frequency if the user picked one in the chat; otherwise
+    // preserve any existing choice and fall back to the default when blank.
+    if (profile.frequency?.trim()) {
+      fields['Frequency'] = chosenFrequency
+    } else if (!String(existing[0].get('Frequency') || '').trim()) {
       fields['Frequency'] = DEFAULT_FREQUENCY
     }
     await base(PROFILES_TABLE).update(existing[0].id, fields)
     return existing[0].id
   }
 
-  fields['Frequency'] = DEFAULT_FREQUENCY
+  fields['Frequency'] = chosenFrequency
   const record = await base(PROFILES_TABLE).create(fields)
   return record.id
 }
