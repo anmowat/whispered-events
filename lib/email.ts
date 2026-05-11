@@ -258,6 +258,79 @@ function renderSection(title: string, entries: DigestEventEntry[]): string {
   `
 }
 
+// Combined approval + first-digest email. Sent once at approval to users who
+// chose any frequency other than Dashboard Only. Falls back to a plain
+// approval-style body when no matches qualify so the user still hears
+// they're in.
+export async function sendApprovedWithDigest(
+  user: AirtableUser,
+  payload: DigestPayload,
+): Promise<void> {
+  const resend = getResend()
+  const firstName = firstNameOrThere(user)
+  const hasMatches = payload.newEvents.length > 0 || payload.topMatches.length > 0
+
+  const html = shell(`
+    <p>Hi ${escapeHtml(firstName)},</p>
+    <p>Welcome to the club!</p>
+    <p>You've been approved for Whispered Events.${hasMatches ? ' Here are some upcoming events that match your profile:' : ''}</p>
+    ${renderSection('New', payload.newEvents)}
+    ${renderSection('Top Matches', payload.topMatches)}
+    <p>Login anytime via the top right of the site to see all your matches, and update your profile to refine them.</p>
+    <p>Whispered Events is 100% free, built to help executives discover great events — the ones that aren't posted, they're whispered. Want to help us grow? Share or tag us on LinkedIn.</p>
+    ${signature()}
+    <p style="color:#555;font-size:13px;margin-top:24px">P.S. You can submit events anytime on the site or via event@whisperedevents.com</p>
+  `)
+
+  const textLines: string[] = [
+    `Hi ${firstName},`,
+    '',
+    'Welcome to the club!',
+    '',
+    `You've been approved for Whispered Events.${hasMatches ? ' Here are some upcoming events that match your profile:' : ''}`,
+    '',
+  ]
+  const appendSection = (title: string, entries: DigestEventEntry[]) => {
+    if (!entries.length) return
+    textLines.push(title, '')
+    for (const { event, matchPercent } of entries) {
+      const date = shortDate(event.date)
+      const datePart = date ? ` (${date})` : ''
+      const desc = event.description ? ` ${event.description}` : ''
+      textLines.push(`${event.name}${datePart}${desc} (Match ${Math.round(matchPercent)}%)`)
+      textLines.push(event.link)
+      textLines.push('')
+    }
+  }
+  appendSection('New', payload.newEvents)
+  appendSection('Top Matches', payload.topMatches)
+  textLines.push('Login anytime via the top right of the site to see all your matches, and update your profile to refine them.')
+  textLines.push('')
+  textLines.push("Whispered Events is 100% free, built to help executives discover great events — the ones that aren't posted, they're whispered. Want to help us grow? Share or tag us on LinkedIn.")
+  textLines.push('')
+  textLines.push(`Andy (${ANDY_LINK})`)
+  textLines.push('Founder, Whispered')
+  textLines.push('')
+  textLines.push('P.S. You can submit events anytime on the site or via event@whisperedevents.com')
+  const text = textLines.join('\n')
+
+  const subject = hasMatches
+    ? 'Welcome to Whispered Events — here are your first matches'
+    : "You're Approved for Whispered Events"
+
+  const { error } = await resend.emails.send({
+    from: TEAM_FROM,
+    to: user.email,
+    subject,
+    html,
+    text,
+  })
+  if (error) {
+    console.error('sendApprovedWithDigest: Resend error', { email: user.email, error })
+    throw new Error(`Resend send failed: ${error.message ?? JSON.stringify(error)}`)
+  }
+}
+
 export async function sendUserDigest(
   user: AirtableUser,
   payload: DigestPayload,
