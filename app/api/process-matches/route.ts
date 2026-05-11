@@ -12,8 +12,9 @@ import {
   computeInputsHash,
   ScoreResult,
 } from '@/lib/matching'
-import { getExistingMatch, logMatch } from '@/lib/supabase'
-import { sendEventNotification, sendUserDigest } from '@/lib/email'
+import { getExistingMatch, logMatch, markMatchesNotified } from '@/lib/supabase'
+import { sendUserDigest } from '@/lib/email'
+import { sendEachNewEventDigest, DIGEST_CAP_PER_SECTION } from '@/lib/digest'
 
 const SCORE_THRESHOLD = 1.0
 const DIGEST_THRESHOLD = 1.5
@@ -97,19 +98,33 @@ async function processUserTrigger(userId: string, options: { noEmail?: boolean }
       ),
   )
 
-  // Digest the top-5 above DIGEST_THRESHOLD, but only include freshly-scored matches
-  // — cached rows have already triggered an email previously.
-  const topMatches = scored
+  // Welcome digest: freshly-scored matches above DIGEST_THRESHOLD. Render in the
+  // same shape as the cron digest so there's one email template — top 3 go into
+  // "New for you", next 3 into "Top matches".
+  if (targetUser.frequency === 'Dashboard Only' || options.noEmail) return
+
+  const freshAboveThreshold = scored
     .filter((s) => !s.outcome.cached && s.outcome.result.score >= DIGEST_THRESHOLD)
     .sort((a, b) => b.outcome.result.score - a.outcome.result.score)
-    .slice(0, 5)
 
-  if (topMatches.length && !options.noEmail) {
-    await sendUserDigest(
-      targetUser,
-      topMatches.map((m) => m.event),
-    )
-  }
+  if (!freshAboveThreshold.length) return
+
+  const newEvents = freshAboveThreshold
+    .slice(0, DIGEST_CAP_PER_SECTION)
+    .map((s) => s.event)
+  const topMatches = freshAboveThreshold
+    .slice(DIGEST_CAP_PER_SECTION, DIGEST_CAP_PER_SECTION * 2)
+    .map((s) => s.event)
+
+  await sendUserDigest(targetUser, {
+    newEvents,
+    topMatches,
+    totalCandidateCount: freshAboveThreshold.length,
+  })
+
+  await markMatchesNotified(
+    newEvents.map((e) => ({ eventId: e.id, userId: targetUser.id })),
+  )
 }
 
 async function scoreAndNotify(
@@ -141,7 +156,18 @@ async function scoreAndNotify(
     })
 
     if (result.score < SCORE_THRESHOLD) return
-    await sendEventNotification(user, event)
+
+    // Frequency routes delivery:
+    //   - Each New Event: send an immediate digest-format email (1 new + top matches)
+    //   - Weekly / Monthly: leave notified_at NULL; cron will pick it up
+    //   - Dashboard Only: never email
+    if (user.frequency === 'Each New Event') {
+      try {
+        await sendEachNewEventDigest(user, event)
+      } catch (e) {
+        console.error(`process-matches: sendEachNewEventDigest failed for ${user.email} / ${event.id}:`, e)
+      }
+    }
   } catch (err) {
     console.error(`process-matches: error for user ${user.email} / event ${event.id}:`, err)
   }

@@ -178,34 +178,6 @@ Founder, Whispered`
   }
 }
 
-export async function sendEventNotification(
-  user: AirtableUser,
-  event: AirtableEvent
-): Promise<void> {
-  const resend = getResend()
-  const dateFormatted = event.date
-    ? new Date(event.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-    : ''
-
-  await resend.emails.send({
-    from: FROM,
-    to: user.email,
-    subject: `New event for you: ${event.name}`,
-    html: `
-      <div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#111">
-        <p>Hi${user.name && user.name !== 'DEFAULT' ? ` ${user.name.split(' ')[0]}` : ''},</p>
-        <p>A new event was just added that looks like a great fit for you:</p>
-        <h2 style="margin:16px 0 4px">${event.name}</h2>
-        <p style="color:#555;margin:0">${event.type}${dateFormatted ? ` · ${dateFormatted}` : ''}${event.location ? ` · ${event.location}` : ''}</p>
-        ${event.description ? `<p style="margin-top:12px">${event.description}</p>` : ''}
-        <a href="${event.link}" style="display:inline-block;margin-top:16px;padding:10px 20px;background:#000;color:#fff;text-decoration:none;border-radius:4px">View event</a>
-        <hr style="margin:32px 0;border:none;border-top:1px solid #eee">
-        <p style="color:#888;font-size:12px">You're receiving this because you're a member of Whispered. Reply to unsubscribe.</p>
-      </div>
-    `,
-  })
-}
-
 export async function sendMagicLink(email: string, token: string, baseUrl: string): Promise<void> {
   const resend = getResend()
   const link = `${baseUrl}/api/auth/verify?token=${token}`
@@ -229,41 +201,107 @@ export async function sendMagicLink(email: string, token: string, baseUrl: strin
   console.log('sendMagicLink: sent', { email, id: data?.id })
 }
 
+export interface DigestPayload {
+  newEvents: AirtableEvent[]
+  topMatches: AirtableEvent[]
+  totalCandidateCount: number
+}
+
+function renderEventCard(e: AirtableEvent): string {
+  const dateFormatted = e.date
+    ? new Date(e.date).toLocaleDateString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+      })
+    : ''
+  const meta = [e.type, dateFormatted, e.location].filter(Boolean).join(' · ')
+  return `
+    <div style="margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid #eee">
+      <h3 style="margin:0 0 4px;font-size:17px"><a href="${e.link}" style="color:#000;text-decoration:none">${escapeHtml(e.name)}</a></h3>
+      <p style="color:#555;margin:0 0 8px;font-size:14px">${escapeHtml(meta)}</p>
+      ${e.description ? `<p style="margin:0;font-size:14px">${escapeHtml(e.description)}</p>` : ''}
+    </div>
+  `
+}
+
+function renderSection(title: string, events: AirtableEvent[]): string {
+  if (!events.length) return ''
+  return `
+    <h2 style="margin:24px 0 12px;font-size:18px;color:#111">${title}</h2>
+    ${events.map(renderEventCard).join('')}
+  `
+}
+
 export async function sendUserDigest(
   user: AirtableUser,
-  events: AirtableEvent[]
+  payload: DigestPayload,
 ): Promise<void> {
-  if (!events.length) return
+  if (!payload.newEvents.length) return
   const resend = getResend()
 
-  const eventItems = events
-    .slice(0, 5)
-    .map((e) => {
-      const dateFormatted = e.date
-        ? new Date(e.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-        : ''
-      return `
-        <div style="margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid #eee">
-          <h3 style="margin:0 0 4px"><a href="${e.link}" style="color:#000">${e.name}</a></h3>
-          <p style="color:#555;margin:0 0 8px;font-size:14px">${e.type}${dateFormatted ? ` · ${dateFormatted}` : ''}${e.location ? ` · ${e.location}` : ''}</p>
-          ${e.description ? `<p style="margin:0;font-size:14px">${e.description}</p>` : ''}
-        </div>
-      `
-    })
-    .join('')
+  const firstName =
+    user.name && user.name !== 'DEFAULT' ? ` ${user.name.split(' ')[0]}` : ''
+  const newCount = payload.newEvents.length
+  const subject = `${newCount} new event${newCount > 1 ? 's' : ''} for you`
 
-  await resend.emails.send({
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.whisperedevents.com'
+  const dashboardLink = `${appUrl}/dashboard`
+
+  const moreCta =
+    payload.totalCandidateCount > payload.newEvents.length + payload.topMatches.length
+      ? `<p style="margin:16px 0 0"><a href="${dashboardLink}" style="color:#8B6914;text-decoration:underline">View more matches on your dashboard →</a></p>`
+      : ''
+
+  const html = `
+    <div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#111;font-size:15px;line-height:1.55">
+      <p>Hi${firstName},</p>
+      ${renderSection('New for you', payload.newEvents)}
+      ${renderSection('Top matches', payload.topMatches)}
+      ${moreCta}
+      <hr style="margin:32px 0;border:none;border-top:1px solid #eee">
+      <p style="color:#888;font-size:12px">You're receiving this because you're a member of Whispered. Update your email frequency on <a href="${dashboardLink}" style="color:#888">your dashboard</a>.</p>
+    </div>
+  `
+
+  const textLines: string[] = [`Hi${firstName},`, '']
+  const appendSection = (title: string, events: AirtableEvent[]) => {
+    if (!events.length) return
+    textLines.push(title, '')
+    for (const e of events) {
+      const dateFormatted = e.date
+        ? new Date(e.date).toLocaleDateString('en-US', {
+            month: 'long',
+            day: 'numeric',
+            year: 'numeric',
+          })
+        : ''
+      const meta = [e.type, dateFormatted, e.location].filter(Boolean).join(' · ')
+      textLines.push(e.name)
+      if (meta) textLines.push(meta)
+      textLines.push(e.link)
+      textLines.push('')
+    }
+  }
+  appendSection('New for you:', payload.newEvents)
+  appendSection('Top matches:', payload.topMatches)
+  if (
+    payload.totalCandidateCount >
+    payload.newEvents.length + payload.topMatches.length
+  ) {
+    textLines.push(`View more matches on your dashboard: ${dashboardLink}`)
+  }
+  const text = textLines.join('\n')
+
+  const { error } = await resend.emails.send({
     from: FROM,
     to: user.email,
-    subject: `${events.length} event${events.length > 1 ? 's' : ''} matched to your profile`,
-    html: `
-      <div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#111">
-        <p>Hi${user.name && user.name !== 'DEFAULT' ? ` ${user.name.split(' ')[0]}` : ''},</p>
-        <p>Welcome to Whispered! Here are the upcoming events that match your profile:</p>
-        ${eventItems}
-        <hr style="margin:32px 0;border:none;border-top:1px solid #eee">
-        <p style="color:#888;font-size:12px">You're receiving this because you just joined Whispered. Reply to unsubscribe.</p>
-      </div>
-    `,
+    subject,
+    html,
+    text,
   })
+  if (error) {
+    console.error('sendUserDigest: Resend error', { email: user.email, error })
+    throw new Error(`Resend send failed: ${error.message ?? JSON.stringify(error)}`)
+  }
 }
