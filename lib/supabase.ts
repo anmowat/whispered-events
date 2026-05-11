@@ -189,6 +189,22 @@ export async function getUpcomingMatchesForUser(
   return (data ?? []) as DigestMatchRow[]
 }
 
+// Stamps notified_at on every still-unnotified match for the user. Used when a
+// user flips from Dashboard Only (or no preference) to a digest frequency so
+// they don't get drip-fed the entire backlog 3 events at a time.
+export async function markAllMatchesNotifiedForUser(userId: string): Promise<void> {
+  const supabase = getClient()
+  const nowIso = new Date().toISOString()
+  const { error } = await supabase
+    .from('matches')
+    .update({ notified_at: nowIso })
+    .eq('user_id', userId)
+    .is('notified_at', null)
+  if (error) {
+    console.error('markAllMatchesNotifiedForUser error', { userId, error })
+  }
+}
+
 export async function markMatchesNotified(
   pairs: Array<{ eventId: string; userId: string }>,
 ): Promise<void> {
