@@ -11,6 +11,7 @@ const TEAM_FROM = 'Whispered Events <team@whisperedevents.com>'
 const EVENT_FROM = 'Whispered Events <event@whisperedevents.com>'
 
 const ANDY_LINK = 'https://www.linkedin.com/in/amowat/'
+const AMPLIFY_POST_LINK = 'https://www.linkedin.com/feed/update/urn:li:activity:7459465011686453248'
 
 function shell(inner: string): string {
   return `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#111;font-size:15px;line-height:1.55">${inner}</div>`
@@ -36,7 +37,7 @@ export async function sendUserAppliedEmail(email: string): Promise<void> {
     <p>We'll quickly verify your LinkedIn profile and activate your account (typically within 24 hours).</p>
     <p>Once approved, you'll start seeing event matches curated for senior operators and executives.</p>
     <p>We built Whispered Events for one reason: helping great people find the best events — the ones that aren't posted, they're whispered.</p>
-    <p>If you love it, share or tag us on LinkedIn. We ❤️ feedback and feature ideas.</p>
+    <p>If you love it, amplify <a href="${AMPLIFY_POST_LINK}" style="color:#1a73e8;text-decoration:underline">this post</a> on LinkedIn with a comment/repost. We ❤️ feedback and feature ideas.</p>
     ${signature()}
     <p style="color:#555;font-size:13px;margin-top:24px">P.S. You can submit events anytime on the site or by emailing event@whisperedevents.com</p>
   `)
@@ -50,7 +51,7 @@ Once approved, you'll start seeing event matches curated for senior operators an
 
 We built Whispered Events for one reason: helping great people find the best events — the ones that aren't posted, they're whispered.
 
-If you love it, share or tag us on LinkedIn. We love feedback and feature ideas.
+If you love it, amplify this post on LinkedIn with a comment/repost (${AMPLIFY_POST_LINK}). We love feedback and feature ideas.
 
 Andy (${ANDY_LINK})
 Founder, Whispered
