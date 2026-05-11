@@ -69,9 +69,12 @@ P.S. You can submit events anytime on the site or by emailing event@whisperedeve
   }
 }
 
-export async function sendUserApprovedEmail(email: string): Promise<void> {
+export async function sendUserApprovedEmail(email: string, name?: string): Promise<void> {
   const resend = getResend()
+  const firstName = name && name !== 'DEFAULT' ? name.split(' ')[0] : ''
+  const greeting = firstName ? `Hi ${firstName},` : 'Hi there,'
   const html = shell(`
+    <p>${escapeHtml(greeting)}</p>
     <p>Welcome to the club!</p>
     <p>You've been approved for Whispered Events.</p>
     <p>Login via the top right of the site to see your matches (matches typically appear within ~5 minutes of approval).</p>
@@ -81,7 +84,9 @@ export async function sendUserApprovedEmail(email: string): Promise<void> {
     ${signature()}
     <p style="color:#555;font-size:13px;margin-top:24px">P.S. You can submit events anytime on the site or via event@whisperedevents.com</p>
   `)
-  const text = `Welcome to the club!
+  const text = `${greeting}
+
+Welcome to the club!
 
 You've been approved for Whispered Events.
 

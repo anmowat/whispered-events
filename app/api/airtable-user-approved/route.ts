@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    await sendUserApprovedEmail(user.email)
+    await sendUserApprovedEmail(user.email, user.name)
   } catch (e) {
     console.error('airtable-user-approved: sendUserApprovedEmail failed', e)
     return NextResponse.json({ error: 'send failed' }, { status: 500 })
