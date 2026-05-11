@@ -13,8 +13,10 @@ import {
   ScoreResult,
 } from '@/lib/matching'
 import { getExistingMatch, logMatch, markMatchesNotified } from '@/lib/supabase'
-import { sendUserDigest } from '@/lib/email'
+import { sendUserDigest, sendApprovedWithDigest, sendUserApprovedEmail } from '@/lib/email'
 import { sendEachNewEventDigest, DIGEST_CAP_PER_SECTION } from '@/lib/digest'
+
+export const maxDuration = 300
 
 const SCORE_THRESHOLD = 1.0
 const DIGEST_THRESHOLD = 1.5
@@ -42,7 +44,10 @@ async function processEventTrigger(eventId: string) {
   }
 }
 
-async function processUserTrigger(userId: string, options: { noEmail?: boolean } = {}) {
+async function processUserTrigger(
+  userId: string,
+  options: { noEmail?: boolean; welcome?: boolean } = {},
+) {
   const targetUser = await getUserById(userId)
   if (!targetUser) {
     console.log(`process-matches: user ${userId} not found, skipping`)
@@ -56,6 +61,15 @@ async function processUserTrigger(userId: string, options: { noEmail?: boolean }
     console.log(
       `process-matches: user ${targetUser.email} is not eligible (missing Grade/Function/Seniority), skipping`,
     )
+    // A welcome trigger expects an email to land. Send the plain approval so
+    // an ineligible-at-approval user still hears that they're in.
+    if (options.welcome && !options.noEmail) {
+      try {
+        await sendUserApprovedEmail(targetUser)
+      } catch (e) {
+        console.error(`process-matches: fallback sendUserApprovedEmail failed for ${targetUser.email}:`, e)
+      }
+    }
     return
   }
 
@@ -98,16 +112,14 @@ async function processUserTrigger(userId: string, options: { noEmail?: boolean }
       ),
   )
 
-  // Welcome digest: freshly-scored matches above DIGEST_THRESHOLD. Render in the
-  // same shape as the cron digest so there's one email template — top 3 go into
-  // "New for you", next 3 into "Top matches".
-  if (targetUser.frequency === 'Dashboard Only' || options.noEmail) return
+  if (options.noEmail) return
+  // Dashboard Only users never receive a post-matching email. The approval
+  // email was already sent up front by the airtable-user-approved webhook.
+  if (targetUser.frequency === 'Dashboard Only') return
 
   const freshAboveThreshold = scored
     .filter((s) => !s.outcome.cached && s.outcome.result.score >= DIGEST_THRESHOLD)
     .sort((a, b) => b.outcome.result.score - a.outcome.result.score)
-
-  if (!freshAboveThreshold.length) return
 
   const toEntry = (s: { event: AirtableEvent; outcome: ScoreOutcome }) => ({
     event: s.event,
@@ -120,8 +132,30 @@ async function processUserTrigger(userId: string, options: { noEmail?: boolean }
     .slice(DIGEST_CAP_PER_SECTION, DIGEST_CAP_PER_SECTION * 2)
     .map(toEntry)
 
-  await sendUserDigest(targetUser, { newEvents, topMatches })
+  if (options.welcome) {
+    // First email since approval: combined "welcome + your first matches".
+    // Falls back to a plain approval email when no matches qualify so the
+    // user still hears they're in.
+    try {
+      await sendApprovedWithDigest(targetUser, { newEvents, topMatches })
+    } catch (e) {
+      console.error(`process-matches: sendApprovedWithDigest failed for ${targetUser.email}, falling back to plain approval:`, e)
+      try {
+        await sendUserApprovedEmail(targetUser)
+      } catch (e2) {
+        console.error(`process-matches: fallback sendUserApprovedEmail also failed for ${targetUser.email}:`, e2)
+      }
+    }
+    if (newEvents.length) {
+      await markMatchesNotified(
+        newEvents.map((e) => ({ eventId: e.event.id, userId: targetUser.id })),
+      )
+    }
+    return
+  }
 
+  if (!freshAboveThreshold.length) return
+  await sendUserDigest(targetUser, { newEvents, topMatches })
   await markMatchesNotified(
     newEvents.map((e) => ({ eventId: e.event.id, userId: targetUser.id })),
   )
@@ -218,10 +252,11 @@ export async function GET(req: NextRequest) {
 
   try {
     const noEmail = searchParams.get('noEmail') === '1'
+    const welcome = searchParams.get('welcome') === '1'
     if (trigger === 'event') {
       await processEventTrigger(id)
     } else if (trigger === 'user') {
-      await processUserTrigger(id, { noEmail })
+      await processUserTrigger(id, { noEmail, welcome })
     } else {
       return NextResponse.json({ error: 'trigger must be "event" or "user"' }, { status: 400 })
     }
