@@ -32,11 +32,27 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'user not found' }, { status: 404 })
   }
 
-  try {
-    await sendUserApprovedEmail(user)
-  } catch (e) {
-    console.error('airtable-user-approved: sendUserApprovedEmail failed', e)
-    return NextResponse.json({ error: 'send failed' }, { status: 500 })
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+  const isDashboardOnly = user.frequency === 'Dashboard Only'
+
+  if (isDashboardOnly) {
+    // Dashboard Only: send the plain approval email immediately, then run
+    // matching in the background so the dashboard has data on first login.
+    try {
+      await sendUserApprovedEmail(user)
+    } catch (e) {
+      console.error('airtable-user-approved: sendUserApprovedEmail failed', e)
+      return NextResponse.json({ error: 'send failed' }, { status: 500 })
+    }
+    fetch(`${appUrl}/api/process-matches?trigger=user&id=${id}&noEmail=1`).catch((e) =>
+      console.error('airtable-user-approved: noEmail process-matches trigger failed', e),
+    )
+  } else {
+    // Digest-receiving user: defer the approval email until matching finishes
+    // and ship one combined "welcome + first matches" email from there.
+    fetch(`${appUrl}/api/process-matches?trigger=user&id=${id}&welcome=1`).catch((e) =>
+      console.error('airtable-user-approved: welcome process-matches trigger failed', e),
+    )
   }
 
   return NextResponse.json({ ok: true })
