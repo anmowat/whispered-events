@@ -148,6 +148,7 @@ export interface MatchAuditRow {
 export interface DigestMatchRow {
   event_id: string
   score: number
+  match_percent: number | null
   notified_at: string | null
 }
 
@@ -160,7 +161,7 @@ export async function getUnnotifiedMatchesForUser(
   const supabase = getClient()
   const { data, error } = await supabase
     .from('matches')
-    .select('event_id, score, notified_at')
+    .select('event_id, score, match_percent, notified_at')
     .eq('user_id', userId)
     .is('notified_at', null)
     .gte('score', threshold)
@@ -179,7 +180,7 @@ export async function getUpcomingMatchesForUser(
   const supabase = getClient()
   const { data, error } = await supabase
     .from('matches')
-    .select('event_id, score, notified_at')
+    .select('event_id, score, match_percent, notified_at')
     .eq('user_id', userId)
     .gte('score', threshold)
     .in('event_id', futureEventIds)

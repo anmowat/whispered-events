@@ -109,21 +109,21 @@ async function processUserTrigger(userId: string, options: { noEmail?: boolean }
 
   if (!freshAboveThreshold.length) return
 
+  const toEntry = (s: { event: AirtableEvent; outcome: ScoreOutcome }) => ({
+    event: s.event,
+    matchPercent: s.outcome.result.matchPercent,
+  })
   const newEvents = freshAboveThreshold
     .slice(0, DIGEST_CAP_PER_SECTION)
-    .map((s) => s.event)
+    .map(toEntry)
   const topMatches = freshAboveThreshold
     .slice(DIGEST_CAP_PER_SECTION, DIGEST_CAP_PER_SECTION * 2)
-    .map((s) => s.event)
+    .map(toEntry)
 
-  await sendUserDigest(targetUser, {
-    newEvents,
-    topMatches,
-    totalCandidateCount: freshAboveThreshold.length,
-  })
+  await sendUserDigest(targetUser, { newEvents, topMatches })
 
   await markMatchesNotified(
-    newEvents.map((e) => ({ eventId: e.id, userId: targetUser.id })),
+    newEvents.map((e) => ({ eventId: e.event.id, userId: targetUser.id })),
   )
 }
 
@@ -163,7 +163,7 @@ async function scoreAndNotify(
     //   - Dashboard Only: never email
     if (user.frequency === 'Each New Event') {
       try {
-        await sendEachNewEventDigest(user, event)
+        await sendEachNewEventDigest(user, event, result.matchPercent)
       } catch (e) {
         console.error(`process-matches: sendEachNewEventDigest failed for ${user.email} / ${event.id}:`, e)
       }

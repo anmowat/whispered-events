@@ -6,7 +6,9 @@ import {
 } from './airtable'
 import { isMatchEligible } from './matching'
 import { sendUserDigest } from './email'
+import type { DigestEventEntry } from './email'
 import {
+  DigestMatchRow,
   getUnnotifiedMatchesForUser,
   getUpcomingMatchesForUser,
   markMatchesNotified,
@@ -61,6 +63,22 @@ export function nextSundayAfter(now: Date): string {
   return addDays(today, daysUntilSun)
 }
 
+function toEntries(
+  rows: DigestMatchRow[],
+  futureById: Map<string, AirtableEvent>,
+): DigestEventEntry[] {
+  const entries: DigestEventEntry[] = []
+  for (const row of rows) {
+    const event = futureById.get(row.event_id)
+    if (!event) continue
+    const matchPercent =
+      row.match_percent ??
+      Math.max(0, Math.min(100, Math.round((row.score / 3.0) * 100)))
+    entries.push({ event, matchPercent })
+  }
+  return entries
+}
+
 async function processUser(
   user: AirtableUser,
   futureById: Map<string, AirtableEvent>,
@@ -81,19 +99,13 @@ async function processUser(
     futureIds,
     DIGEST_SCORE_THRESHOLD,
   )
-  const remaining = allUpcoming.filter((m) => !newEventIds.has(m.event_id))
-  const topMatches = remaining.slice(0, DIGEST_CAP_PER_SECTION)
-
-  const totalCandidateCount = newMatches.length + remaining.length
+  const remaining = allUpcoming
+    .filter((m) => !newEventIds.has(m.event_id))
+    .slice(0, DIGEST_CAP_PER_SECTION)
 
   await sendUserDigest(user, {
-    newEvents: topNew
-      .map((m) => futureById.get(m.event_id))
-      .filter((e): e is AirtableEvent => !!e),
-    topMatches: topMatches
-      .map((m) => futureById.get(m.event_id))
-      .filter((e): e is AirtableEvent => !!e),
-    totalCandidateCount,
+    newEvents: toEntries(topNew, futureById),
+    topMatches: toEntries(remaining, futureById),
   })
 
   await markMatchesNotified(
@@ -149,16 +161,14 @@ export async function runDigests(now: Date): Promise<{
 }
 
 // Per-event each-new-event path: build the same digest payload but with the
-// just-matched event as the single "new" entry. Returns true if an email was
-// sent. The caller is responsible for marking the triggering match notified.
+// just-matched event as the single "new" entry.
 export async function sendEachNewEventDigest(
   user: AirtableUser,
   triggeringEvent: AirtableEvent,
+  triggeringMatchPercent: number,
 ): Promise<boolean> {
   const futureEvents = await getFutureEvents()
   const futureById = new Map(futureEvents.map((e) => [e.id, e]))
-  // Ensure the triggering event is in the upcoming pool (it may have just been
-  // scored but not yet visible to a fresh query in rare races).
   if (!futureById.has(triggeringEvent.id)) {
     futureById.set(triggeringEvent.id, triggeringEvent)
   }
@@ -169,17 +179,13 @@ export async function sendEachNewEventDigest(
     futureIds,
     DIGEST_SCORE_THRESHOLD,
   )
-  const topMatches = allUpcoming
+  const topMatchesRows = allUpcoming
     .filter((m) => m.event_id !== triggeringEvent.id)
     .slice(0, DIGEST_CAP_PER_SECTION)
-  const totalCandidateCount = 1 + allUpcoming.filter((m) => m.event_id !== triggeringEvent.id).length
 
   await sendUserDigest(user, {
-    newEvents: [triggeringEvent],
-    topMatches: topMatches
-      .map((m) => futureById.get(m.event_id))
-      .filter((e): e is AirtableEvent => !!e),
-    totalCandidateCount,
+    newEvents: [{ event: triggeringEvent, matchPercent: triggeringMatchPercent }],
+    topMatches: toEntries(topMatchesRows, futureById),
   })
 
   await markMatchesNotified([{ eventId: triggeringEvent.id, userId: user.id }])
