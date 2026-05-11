@@ -14,6 +14,15 @@ import { createClient } from '@supabase/supabase-js'
 //   email text NOT NULL,
 //   token text UNIQUE NOT NULL,
 //   expires_at timestamptz NOT NULL
+//
+// matches: (existing) — adds notified_at timestamptz, NULL until the (user, event)
+//   pair has been included in an emailed digest. Indexed via
+//   matches_notified_at_idx (user_id, notified_at).
+//
+// user_digest_state:
+//   user_id text PRIMARY KEY,            -- Airtable User record id
+//   next_monthly_digest_at date NOT NULL,
+//   last_monthly_digest_sent_at timestamptz NULL
 
 function getClient() {
   if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -134,6 +143,110 @@ export interface MatchAuditRow {
   quality_score: number | null
   preference_score: number | null
   skipped_reason: string | null
+}
+
+export interface DigestMatchRow {
+  event_id: string
+  score: number
+  match_percent: number | null
+  notified_at: string | null
+}
+
+export async function getUnnotifiedMatchesForUser(
+  userId: string,
+  futureEventIds: string[],
+  threshold: number,
+): Promise<DigestMatchRow[]> {
+  if (futureEventIds.length === 0) return []
+  const supabase = getClient()
+  const { data, error } = await supabase
+    .from('matches')
+    .select('event_id, score, match_percent, notified_at')
+    .eq('user_id', userId)
+    .is('notified_at', null)
+    .gte('score', threshold)
+    .in('event_id', futureEventIds)
+    .order('score', { ascending: false })
+  if (error) throw new Error(`getUnnotifiedMatchesForUser failed: ${error.message}`)
+  return (data ?? []) as DigestMatchRow[]
+}
+
+export async function getUpcomingMatchesForUser(
+  userId: string,
+  futureEventIds: string[],
+  threshold: number,
+): Promise<DigestMatchRow[]> {
+  if (futureEventIds.length === 0) return []
+  const supabase = getClient()
+  const { data, error } = await supabase
+    .from('matches')
+    .select('event_id, score, match_percent, notified_at')
+    .eq('user_id', userId)
+    .gte('score', threshold)
+    .in('event_id', futureEventIds)
+    .order('score', { ascending: false })
+  if (error) throw new Error(`getUpcomingMatchesForUser failed: ${error.message}`)
+  return (data ?? []) as DigestMatchRow[]
+}
+
+export async function markMatchesNotified(
+  pairs: Array<{ eventId: string; userId: string }>,
+): Promise<void> {
+  if (pairs.length === 0) return
+  const supabase = getClient()
+  const nowIso = new Date().toISOString()
+  // No bulk update-by-pair primitive in PostgREST; loop with per-row updates.
+  // Volume is bounded: at most 3 pairs per digest send.
+  for (const { eventId, userId } of pairs) {
+    const { error } = await supabase
+      .from('matches')
+      .update({ notified_at: nowIso })
+      .eq('event_id', eventId)
+      .eq('user_id', userId)
+      .is('notified_at', null)
+    if (error) {
+      console.error('markMatchesNotified error', { eventId, userId, error })
+    }
+  }
+}
+
+export interface DigestState {
+  next_monthly_digest_at: string
+  last_monthly_digest_sent_at: string | null
+}
+
+export async function getDigestState(userId: string): Promise<DigestState | null> {
+  const supabase = getClient()
+  const { data, error } = await supabase
+    .from('user_digest_state')
+    .select('next_monthly_digest_at, last_monthly_digest_sent_at')
+    .eq('user_id', userId)
+    .maybeSingle()
+  if (error) {
+    console.error('getDigestState error', { userId, error })
+    return null
+  }
+  return (data as DigestState | null) ?? null
+}
+
+export async function upsertDigestState(
+  userId: string,
+  fields: { nextMonthly: string; lastSent?: string | null },
+): Promise<void> {
+  const supabase = getClient()
+  const row: Record<string, unknown> = {
+    user_id: userId,
+    next_monthly_digest_at: fields.nextMonthly,
+  }
+  if (fields.lastSent !== undefined) {
+    row.last_monthly_digest_sent_at = fields.lastSent
+  }
+  const { error } = await supabase
+    .from('user_digest_state')
+    .upsert(row, { onConflict: 'user_id' })
+  if (error) {
+    console.error('upsertDigestState error', { userId, error })
+  }
 }
 
 export async function getAllMatchesForUser(userEmail: string): Promise<MatchAuditRow[]> {

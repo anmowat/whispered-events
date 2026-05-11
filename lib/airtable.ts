@@ -97,6 +97,7 @@ export async function getEventHostEmail(eventId: string): Promise<string | null>
 const USER_FIELDS = [
   'Email',
   'Name',
+  'FirstName',
   'Function',
   'Seniority',
   'FullExp',
@@ -139,6 +140,7 @@ function toAirtableUser(r: { id: string; get: (f: string) => unknown }): Airtabl
     id: r.id,
     email: String(r.get('Email') || ''),
     name: String(r.get('Name') || ''),
+    firstName: String(r.get('FirstName') || ''),
     function: String(r.get('Function') || ''),
     seniority: String(r.get('Seniority') || ''),
     fullExp: String(r.get('FullExp') || ''),
@@ -291,6 +293,7 @@ export interface AirtableUser {
   id: string
   email: string
   name: string
+  firstName: string
   function: string
   seniority: string
   fullExp: string
@@ -482,6 +485,8 @@ export async function createMinimalUser(email: string): Promise<string> {
   return record.id
 }
 
+export const DEFAULT_FREQUENCY = 'Monthly When New Events'
+
 export async function createProfile(profile: UserProfile): Promise<string> {
   const base = getBase()
   const today = new Date().toISOString().split('T')[0]
@@ -510,15 +515,20 @@ export async function createProfile(profile: UserProfile): Promise<string> {
   const existing = await base(PROFILES_TABLE)
     .select({
       filterByFormula: `LOWER({Email}) = '${email.replace(/'/g, "\\'")}'`,
-      fields: ['Email'],
+      fields: ['Email', 'Frequency'],
       maxRecords: 1,
     })
     .all()
   if (existing.length) {
+    // Preserve an existing Frequency choice; only set the default when blank.
+    if (!String(existing[0].get('Frequency') || '').trim()) {
+      fields['Frequency'] = DEFAULT_FREQUENCY
+    }
     await base(PROFILES_TABLE).update(existing[0].id, fields)
     return existing[0].id
   }
 
+  fields['Frequency'] = DEFAULT_FREQUENCY
   const record = await base(PROFILES_TABLE).create(fields)
   return record.id
 }
