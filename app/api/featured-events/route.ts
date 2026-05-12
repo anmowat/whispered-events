@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getFeaturedEvents } from '@/lib/airtable'
 
-export const dynamic = 'force-dynamic'
+export const revalidate = 86400 // cache for 24 hours
 
 export async function GET() {
   try {
