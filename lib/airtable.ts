@@ -13,6 +13,23 @@ function getBase(): Base {
   return new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base('appK8AqOvtEgIquRT')
 }
 
+// 90-second in-memory cache. Many flows (process-matches, cron digest,
+// per-event each-new-event emails) call these multiple times in rapid
+// succession; without this cache each call is a full Airtable scan.
+const CACHE_TTL_MS = 90_000
+const userCache: { value: AirtableUser[] | null; expires: number } = { value: null, expires: 0 }
+const eventCache: { value: AirtableEvent[] | null; expires: number } = { value: null, expires: 0 }
+
+export function invalidateUserCache(): void {
+  userCache.value = null
+  userCache.expires = 0
+}
+
+export function invalidateEventCache(): void {
+  eventCache.value = null
+  eventCache.expires = 0
+}
+
 export async function getEventsCount(): Promise<number> {
   const base = getBase()
   const today = new Date().toISOString().split('T')[0]
@@ -194,6 +211,9 @@ export async function createEvent(event: EventRecord, hostUserId?: string): Prom
   }
   if (hostUserId) fields['Host'] = [hostUserId]
   const record = await base(EVENTS_TABLE).create(fields)
+  // Bust the cache so the immediately-following processEventTrigger sees the
+  // new event.
+  invalidateEventCache()
   return record.id
 }
 
@@ -222,6 +242,7 @@ export async function updateEvent(
   if (fields.submitter) updateData['Submitter'] = fields.submitter
   if (hostUserId) updateData['Host'] = [hostUserId]
   await base(EVENTS_TABLE).update(id, updateData)
+  invalidateEventCache()
 }
 
 export interface Partner {
@@ -325,19 +346,27 @@ export interface AirtableEvent {
 }
 
 export async function getActiveUsers(): Promise<AirtableUser[]> {
-  const base = getBase()
+  const now = Date.now()
+  if (userCache.value && userCache.expires > now) return userCache.value
 
+  const base = getBase()
   const records = await base(PROFILES_TABLE)
     .select({
       filterByFormula: `LOWER({Active}) = "active"`,
       fields: [...USER_FIELDS],
     })
     .all()
+  const users = records.map(toAirtableUser).filter((u) => u.email)
 
-  return records.map(toAirtableUser).filter((u) => u.email)
+  userCache.value = users
+  userCache.expires = now + CACHE_TTL_MS
+  return users
 }
 
 export async function getFutureEvents(): Promise<AirtableEvent[]> {
+  const now = Date.now()
+  if (eventCache.value && eventCache.expires > now) return eventCache.value
+
   const base = getBase()
   const today = new Date().toISOString().split('T')[0]
 
@@ -348,7 +377,7 @@ export async function getFutureEvents(): Promise<AirtableEvent[]> {
     })
     .all()
 
-  return records
+  const events = records
     .map((r) => {
       const { lat, lng } = parseLatLon(r.get('LatLon'))
       return {
@@ -365,6 +394,10 @@ export async function getFutureEvents(): Promise<AirtableEvent[]> {
       }
     })
     .filter((e) => e.name)
+
+  eventCache.value = events
+  eventCache.expires = now + CACHE_TTL_MS
+  return events
 }
 
 export async function getUserByEmail(email: string): Promise<AirtableUser | null> {
@@ -424,6 +457,7 @@ export async function updateUserProfile(
 
   if (Object.keys(fields).length === 0) return { id: records[0].id }
   await base(PROFILES_TABLE).update(records[0].id, fields)
+  invalidateUserCache()
   return { id: records[0].id }
 }
 
@@ -482,6 +516,7 @@ export async function createMinimalUser(email: string): Promise<string> {
     Email: email,
     LastContribution: today,
   } as Partial<FieldSet>)
+  invalidateUserCache()
   return record.id
 }
 
@@ -530,11 +565,13 @@ export async function createProfile(profile: UserProfile): Promise<string> {
       fields['Frequency'] = DEFAULT_FREQUENCY
     }
     await base(PROFILES_TABLE).update(existing[0].id, fields)
+    invalidateUserCache()
     return existing[0].id
   }
 
   fields['Frequency'] = chosenFrequency
   const record = await base(PROFILES_TABLE).create(fields)
+  invalidateUserCache()
   return record.id
 }
 
