@@ -5,7 +5,8 @@ import { syncUsersToCache, syncEventsToCache } from '@/lib/sync'
 // for forcing a fresh pull when debugging. Production traffic should be
 // handled by the cron at /api/cron/sync-airtable.
 //
-// Auth: same x-webhook-secret header as other admin routes.
+// Auth: either the x-webhook-secret header matching AIRTABLE_WEBHOOK_SECRET,
+// OR an Authorization: Bearer <CRON_SECRET> header (matches the cron route).
 // Optional ?only=users or ?only=events to sync just one table.
 
 export const maxDuration = 300
@@ -19,10 +20,20 @@ function normalize(v: string | null | undefined): string {
   return s
 }
 
+function isAuthorized(req: NextRequest): boolean {
+  const webhookSecret = normalize(process.env.AIRTABLE_WEBHOOK_SECRET)
+  const sentWebhook = normalize(req.headers.get('x-webhook-secret'))
+  if (webhookSecret && sentWebhook === webhookSecret) return true
+
+  const cronSecret = normalize(process.env.CRON_SECRET)
+  const auth = req.headers.get('authorization') || ''
+  if (cronSecret && auth === `Bearer ${cronSecret}`) return true
+
+  return false
+}
+
 export async function POST(req: NextRequest) {
-  const got = normalize(req.headers.get('x-webhook-secret'))
-  const expected = normalize(process.env.AIRTABLE_WEBHOOK_SECRET)
-  if (!expected || got !== expected) {
+  if (!isAuthorized(req)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 
