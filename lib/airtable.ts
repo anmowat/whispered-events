@@ -55,15 +55,33 @@ export async function checkDuplicate(
   date?: string
 ): Promise<DuplicateCheckResult> {
   const base = getBase()
-  const allRecords = await base(EVENTS_TABLE)
-    .select({ fields: ['Name', 'Link', 'Date', 'Location', 'Description', 'Audience', 'Type'] })
+
+  // Exact link match wins — short-circuit before any fuzzy scan.
+  if (link) {
+    const linkRecords = await base(EVENTS_TABLE)
+      .select({
+        filterByFormula: `{Link} = '${link.replace(/'/g, "\\'")}'`,
+        fields: ['Name', 'Link', 'Date', 'Location', 'Description', 'Audience', 'Type'],
+        maxRecords: 1,
+      })
+      .all()
+    if (linkRecords.length) return buildDuplicateResult(linkRecords[0])
+  }
+
+  // Fuzzy name check only against events that are still upcoming (or happened
+  // within the last 30 days, to catch near-misses on just-passed events).
+  // Old archived events get skipped — scoring N>1000 names with stringSimilarity
+  // on every submission was the main cost here.
+  const cutoff = new Date(Date.now() - 30 * 86_400_000).toISOString().split('T')[0]
+  const records = await base(EVENTS_TABLE)
+    .select({
+      filterByFormula: `AND({Date} >= '${cutoff}', {Date} != '')`,
+      fields: ['Name', 'Link', 'Date', 'Location', 'Description', 'Audience', 'Type'],
+    })
     .all()
 
-  for (const record of allRecords) {
+  for (const record of records) {
     const existingName = String(record.get('Name') || '')
-    const existingLink = String(record.get('Link') || '')
-
-    const linkMatch = !!(link && existingLink && existingLink === link)
     const nameSimilarity = existingName
       ? stringSimilarity.compareTwoStrings(
           name.toLowerCase(),
@@ -73,32 +91,36 @@ export async function checkDuplicate(
     const nameMatch = nameSimilarity > 0.7
     const dateMatch = !!(date && record.get('Date') === date)
 
-    if (linkMatch || (nameMatch && dateMatch) || nameSimilarity > 0.9) {
-      const missingFields: string[] = []
-      if (!record.get('Description')) missingFields.push('description')
-      if (!record.get('Audience')) missingFields.push('audience')
-      if (!record.get('Type')) missingFields.push('type')
-      if (!record.get('Date')) missingFields.push('date')
-      if (!record.get('Location')) missingFields.push('location')
-
-      return {
-        isDuplicate: true,
-        existingId: record.id,
-        existingRecord: {
-          name: existingName,
-          link: existingLink,
-          date: String(record.get('Date') || ''),
-          location: String(record.get('Location') || ''),
-          description: String(record.get('Description') || ''),
-          type: (record.get('Type') as EventRecord['type']) || 'Other',
-          audience: String(record.get('Audience') || '').split(',').map(s => s.trim()).filter(Boolean),
-        },
-        missingFields,
-      }
+    if ((nameMatch && dateMatch) || nameSimilarity > 0.9) {
+      return buildDuplicateResult(record)
     }
   }
 
   return { isDuplicate: false }
+}
+
+function buildDuplicateResult(record: { id: string; get: (f: string) => unknown }): DuplicateCheckResult {
+  const missingFields: string[] = []
+  if (!record.get('Description')) missingFields.push('description')
+  if (!record.get('Audience')) missingFields.push('audience')
+  if (!record.get('Type')) missingFields.push('type')
+  if (!record.get('Date')) missingFields.push('date')
+  if (!record.get('Location')) missingFields.push('location')
+
+  return {
+    isDuplicate: true,
+    existingId: record.id,
+    existingRecord: {
+      name: String(record.get('Name') || ''),
+      link: String(record.get('Link') || ''),
+      date: String(record.get('Date') || ''),
+      location: String(record.get('Location') || ''),
+      description: String(record.get('Description') || ''),
+      type: (record.get('Type') as EventRecord['type']) || 'Other',
+      audience: String(record.get('Audience') || '').split(',').map((s) => s.trim()).filter(Boolean),
+    },
+    missingFields,
+  }
 }
 
 export async function getEventHostEmail(eventId: string): Promise<string | null> {
