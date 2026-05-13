@@ -13,6 +13,11 @@ const EVENT_FROM = 'Whispered Events <event@whisperedevents.com>'
 const ANDY_LINK = 'https://www.linkedin.com/in/amowat/'
 const AMPLIFY_POST_LINK = 'https://www.linkedin.com/feed/update/urn:li:activity:7459465011686453248'
 
+// BCC'd on every user-facing send so we can monitor copy/formatting in
+// real time. Excluded from magic-link emails (those contain auth tokens —
+// a compromised inbox here would otherwise grant session access).
+const MONITOR_BCC = 'andy@whisperedevents.com'
+
 function shell(inner: string): string {
   return `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#111;font-size:15px;line-height:1.55">${inner}</div>`
 }
@@ -60,6 +65,7 @@ P.S. You can submit events anytime on the site or by emailing event@whisperedeve
   const { error } = await resend.emails.send({
     from: TEAM_FROM,
     to: email,
+    bcc: MONITOR_BCC,
     subject: 'Whispered Events - Application Received',
     html,
     text,
@@ -105,6 +111,7 @@ P.S. You can submit events anytime on the site or via event@whisperedevents.com`
   const { error } = await resend.emails.send({
     from: TEAM_FROM,
     to: user.email,
+    bcc: MONITOR_BCC,
     subject: "You're Approved for Whispered Events",
     html,
     text,
@@ -141,6 +148,7 @@ P.S. We love feedback and feature ideas.`
   const { error } = await resend.emails.send({
     from: EVENT_FROM,
     to: email,
+    bcc: MONITOR_BCC,
     subject: `Event Added - ${eventName}`,
     html,
     text,
@@ -173,6 +181,7 @@ Founder, Whispered`
   const { error } = await resend.emails.send({
     from: EVENT_FROM,
     to: email,
+    bcc: MONITOR_BCC,
     subject: "We couldn't read your event",
     html,
     text,
@@ -322,6 +331,7 @@ export async function sendApprovedWithDigest(
   const { error } = await resend.emails.send({
     from: TEAM_FROM,
     to: user.email,
+    bcc: MONITOR_BCC,
     subject,
     html,
     text,
@@ -384,6 +394,7 @@ export async function sendUserDigest(
   const { error } = await resend.emails.send({
     from: TEAM_FROM,
     to: user.email,
+    bcc: MONITOR_BCC,
     subject: 'New Matching Whispered Events',
     html,
     text,
