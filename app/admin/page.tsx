@@ -12,6 +12,7 @@ interface UserRow {
   matchCount: number
   totalContributions: number
   lastContribution: string | null
+  lastSeen: string | null
 }
 
 interface Stats {
@@ -20,7 +21,7 @@ interface Stats {
   generatedAt: string
 }
 
-type SortKey = 'matches' | 'contributions' | 'lastContribution'
+type SortKey = 'matches' | 'contributions' | 'lastContribution' | 'lastSeen'
 
 const POLL_MS = 10_000
 
@@ -28,9 +29,10 @@ const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: 'matches', label: 'Match count' },
   { value: 'contributions', label: 'Total contributions' },
   { value: 'lastContribution', label: 'Last contribution' },
+  { value: 'lastSeen', label: 'Last seen' },
 ]
 
-function formatLastContribution(iso: string | null): string {
+function formatDate(iso: string | null): string {
   if (!iso) return '—'
   const d = new Date(iso)
   if (isNaN(d.getTime())) return '—'
@@ -101,9 +103,13 @@ export default function AdminPage() {
         if (b.totalContributions !== a.totalContributions) {
           return b.totalContributions - a.totalContributions
         }
-      } else {
+      } else if (sortBy === 'lastContribution') {
         const at = a.lastContribution ? new Date(a.lastContribution).getTime() : 0
         const bt = b.lastContribution ? new Date(b.lastContribution).getTime() : 0
+        if (bt !== at) return bt - at
+      } else {
+        const at = a.lastSeen ? new Date(a.lastSeen).getTime() : 0
+        const bt = b.lastSeen ? new Date(b.lastSeen).getTime() : 0
         if (bt !== at) return bt - at
       }
       const an = (a.name || a.email).toLowerCase()
@@ -204,6 +210,7 @@ export default function AdminPage() {
                     <th className="text-right px-4 py-3 text-xs uppercase tracking-widest text-gold-700 font-medium">Matches</th>
                     <th className="text-right px-4 py-3 text-xs uppercase tracking-widest text-gold-700 font-medium">Contributions</th>
                     <th className="text-right px-4 py-3 text-xs uppercase tracking-widest text-gold-700 font-medium">Last contribution</th>
+                    <th className="text-right px-4 py-3 text-xs uppercase tracking-widest text-gold-700 font-medium">Last seen</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -224,7 +231,10 @@ export default function AdminPage() {
                         {u.totalContributions}
                       </td>
                       <td className={`px-4 py-3 text-right tabular-nums ${u.lastContribution ? 'text-gray-800' : 'text-gray-400'}`}>
-                        {formatLastContribution(u.lastContribution)}
+                        {formatDate(u.lastContribution)}
+                      </td>
+                      <td className={`px-4 py-3 text-right tabular-nums ${u.lastSeen ? 'text-gray-800' : 'text-gray-400'}`}>
+                        {formatDate(u.lastSeen)}
                       </td>
                     </tr>
                   ))}

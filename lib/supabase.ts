@@ -13,7 +13,9 @@ import { createClient } from '@supabase/supabase-js'
 //   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
 //   email text NOT NULL,
 //   token text UNIQUE NOT NULL,
-//   expires_at timestamptz NOT NULL
+//   expires_at timestamptz NOT NULL,
+//   last_seen_at timestamptz NOT NULL DEFAULT now()
+//   (touched by verifySession, throttled to once per 5 min per session)
 //
 // matches: (existing) — adds notified_at timestamptz, NULL until the (user, event)
 //   pair has been included in an emailed digest. Indexed via
@@ -359,16 +361,75 @@ export async function createSession(email: string): Promise<string> {
   return token
 }
 
+// Bumps last_seen_at if older than this. Throttles writes on the auth path —
+// /api/auth/me runs on every dashboard page load, we don't need per-request
+// precision for "last visited."
+const SESSION_TOUCH_THROTTLE_MS = 5 * 60_000
+
 export async function verifySession(token: string): Promise<string | null> {
   const supabase = getClient()
   const { data } = await supabase
     .from('sessions')
-    .select('email, expires_at')
+    .select('email, expires_at, last_seen_at')
     .eq('token', token)
     .maybeSingle()
 
   if (!data || new Date(data.expires_at) < new Date()) return null
+
+  // Fire-and-forget: don't block auth on the write, and don't fail the
+  // request if the touch errors.
+  const lastSeenMs = data.last_seen_at ? new Date(data.last_seen_at).getTime() : 0
+  if (Date.now() - lastSeenMs > SESSION_TOUCH_THROTTLE_MS) {
+    supabase
+      .from('sessions')
+      .update({ last_seen_at: new Date().toISOString() })
+      .eq('token', token)
+      .then(({ error }) => {
+        if (error) console.error('verifySession touch error', error)
+      })
+  }
+
   return data.email
+}
+
+// Returns email -> ISO last_seen_at (latest across all of that email's
+// sessions). Used by the admin overview as a "last visit" signal.
+export async function getLastSeenByEmail(): Promise<Map<string, string>> {
+  const supabase = getClient()
+  const { data, error } = await supabase
+    .from('sessions')
+    .select('email, last_seen_at')
+    .order('last_seen_at', { ascending: false })
+  if (error) {
+    console.error('getLastSeenByEmail error', error)
+    return new Map()
+  }
+  const out = new Map<string, string>()
+  for (const row of (data ?? []) as Array<{ email: string; last_seen_at: string | null }>) {
+    const key = (row.email || '').trim().toLowerCase()
+    if (!key || !row.last_seen_at) continue
+    // First row per key wins (data is sorted by last_seen_at desc).
+    if (!out.has(key)) out.set(key, row.last_seen_at)
+  }
+  return out
+}
+
+export async function getLastSeenForEmail(email: string): Promise<string | null> {
+  const cleaned = (email || '').trim().toLowerCase()
+  if (!cleaned) return null
+  const supabase = getClient()
+  const { data, error } = await supabase
+    .from('sessions')
+    .select('last_seen_at')
+    .ilike('email', cleaned)
+    .order('last_seen_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (error) {
+    console.error('getLastSeenForEmail error', error)
+    return null
+  }
+  return (data as { last_seen_at: string } | null)?.last_seen_at ?? null
 }
 
 export async function deleteSession(token: string): Promise<void> {

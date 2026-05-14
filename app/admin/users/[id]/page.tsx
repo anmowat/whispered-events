@@ -26,6 +26,7 @@ interface UserDetail {
   totalContributions: number
   contributionsLast30: number
   contributionsLast90: number
+  lastSeen: string | null
 }
 
 interface EventRow {
@@ -195,6 +196,18 @@ export default function AdminUserDetailPage() {
                 <Field
                   label="Contributions (total / 30d / 90d)"
                   value={`${user.totalContributions} / ${user.contributionsLast30} / ${user.contributionsLast90}`}
+                />
+                <Field
+                  label="Last seen"
+                  value={
+                    user.lastSeen
+                      ? new Date(user.lastSeen).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                        })
+                      : ''
+                  }
                 />
               </dl>
             </div>

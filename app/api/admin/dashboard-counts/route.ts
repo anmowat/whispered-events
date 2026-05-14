@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { isAdmin } from '@/lib/admin-auth'
-import { getMatchCountsByEmail, getContributionTotalsByEmail } from '@/lib/supabase'
+import {
+  getMatchCountsByEmail,
+  getContributionTotalsByEmail,
+  getLastSeenByEmail,
+} from '@/lib/supabase'
 import { getActiveUsers, getFutureEvents } from '@/lib/airtable'
 
 // Admin overview: each active user's id/name/email/location + match count for
-// events on their dashboard + contribution totals. Sub-second via bulk Supabase
-// queries plus the 90s-cached Airtable reads.
+// events on their dashboard + contribution totals + last-seen timestamp.
+// Sub-second via bulk Supabase queries plus the 90s-cached Airtable reads.
 
 export const maxDuration = 60
 
@@ -15,10 +19,11 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const [activeUsers, futureEvents, contribStats] = await Promise.all([
+    const [activeUsers, futureEvents, contribStats, lastSeen] = await Promise.all([
       getActiveUsers(),
       getFutureEvents(),
       getContributionTotalsByEmail(),
+      getLastSeenByEmail(),
     ])
     const futureEventIds = futureEvents.map((e) => e.id)
     const counts = await getMatchCountsByEmail(futureEventIds)
@@ -37,6 +42,7 @@ export async function GET(req: NextRequest) {
           matchCount: counts.get(u.email) ?? 0,
           totalContributions: c?.total ?? 0,
           lastContribution: c?.lastAt ?? null,
+          lastSeen: lastSeen.get(key) ?? null,
         }
       })
       .sort((a, b) => {
