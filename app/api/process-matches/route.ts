@@ -21,7 +21,10 @@ import { sendEachNewEventDigest, DIGEST_CAP_PER_SECTION } from '@/lib/digest'
 export const maxDuration = 300
 
 const SCORE_THRESHOLD = 1.0
-const DIGEST_THRESHOLD = 1.5
+// Align welcome digest threshold with everywhere else (dashboard, cron digest,
+// each-new-event email) so the first email a new user gets contains the same
+// set of matches their dashboard shows.
+const DIGEST_THRESHOLD = 1.0
 const BATCH_SIZE = 50
 
 async function processEventTrigger(eventId: string) {
