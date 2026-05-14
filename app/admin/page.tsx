@@ -4,7 +4,11 @@ import { useEffect, useState } from 'react'
 import LoginModal from '@/components/LoginModal'
 
 interface UserRow {
+  id: string
   email: string
+  name: string
+  firstName: string
+  location: string
   matchCount: number
 }
 
@@ -53,6 +57,12 @@ export default function AdminPage() {
     const id = setInterval(fetchCounts, POLL_MS)
     return () => clearInterval(id)
   }, [])
+
+  function displayName(u: UserRow): string {
+    if (u.name && u.name !== 'DEFAULT') return u.name
+    if (u.firstName && u.firstName !== 'DEFAULT') return u.firstName
+    return u.email
+  }
 
   return (
     <div className="min-h-screen bg-[#F5EFE6] flex flex-col">
@@ -118,14 +128,22 @@ export default function AdminPage() {
               <table className="w-full text-sm">
                 <thead className="bg-[#FDFAF6] border-b border-[#E8DDD0]">
                   <tr>
-                    <th className="text-left px-4 py-3 text-xs uppercase tracking-widest text-gold-700 font-medium">Email</th>
+                    <th className="text-left px-4 py-3 text-xs uppercase tracking-widest text-gold-700 font-medium">Name</th>
+                    <th className="text-left px-4 py-3 text-xs uppercase tracking-widest text-gold-700 font-medium">Location</th>
                     <th className="text-right px-4 py-3 text-xs uppercase tracking-widest text-gold-700 font-medium">Match Count</th>
                   </tr>
                 </thead>
                 <tbody>
                   {users.map((u) => (
-                    <tr key={u.email} className="border-b border-[#F0E8DC] last:border-b-0">
-                      <td className="px-4 py-3 text-gray-700 truncate max-w-md">{u.email}</td>
+                    <tr key={u.id} className="border-b border-[#F0E8DC] last:border-b-0 hover:bg-[#FDFAF6] transition-colors">
+                      <td className="px-4 py-3">
+                        <a href={`/admin/users/${u.id}`} className="text-gold-700 hover:text-gold-600 underline underline-offset-2">
+                          {displayName(u)}
+                        </a>
+                      </td>
+                      <td className="px-4 py-3 text-gray-600 truncate max-w-xs">
+                        {u.location || <span className="text-gray-400 italic">—</span>}
+                      </td>
                       <td className={`px-4 py-3 text-right tabular-nums font-medium ${u.matchCount === 0 ? 'text-gray-400' : 'text-gray-800'}`}>
                         {u.matchCount}
                       </td>
