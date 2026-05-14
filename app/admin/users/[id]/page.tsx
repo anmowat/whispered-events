@@ -186,7 +186,7 @@ export default function AdminUserDetailPage() {
             {/* Future events sorted by % match */}
             <div className="flex items-end justify-between mb-3 flex-wrap gap-2">
               <h3 className="text-xs uppercase tracking-widest text-gold-700 font-medium">Future events · {events.length}</h3>
-              <p className="text-xs text-gray-400">Hover the % to see the score breakdown</p>
+              <p className="text-xs text-gray-400">Hover the % to see the score breakdown · Green ≥ 33%, red below</p>
             </div>
             <div className="bg-white border border-[#E8DDD0] rounded-2xl overflow-hidden shadow-sm">
               <table className="w-full text-sm">
@@ -220,12 +220,12 @@ export default function AdminUserDetailPage() {
                       <td
                         className={`px-4 py-3 text-right tabular-nums font-medium cursor-help ${
                           e.skippedReason
-                            ? 'text-red-400'
+                            ? 'text-red-600'
                             : e.matchPercent === null
                               ? 'text-gray-400'
-                              : e.matchPercent >= 67
-                                ? 'text-gold-700'
-                                : 'text-gray-700'
+                              : e.matchPercent >= 33
+                                ? 'text-green-600'
+                                : 'text-red-600'
                         }`}
                         title={scoreTooltip(e)}
                       >
