@@ -270,15 +270,19 @@ function renderEntry(entry: DigestEventEntry): string {
 
 // Annotates topMatches entries whose event also appears in newEvents so the
 // renderer shows a compact "see above" body instead of repeating the
-// description.
+// description. If every Top Match is a duplicate (common in the welcome flow
+// where every match is also "new"), suppress the section entirely to avoid
+// a redundant block of "see above" lines.
 function markDuplicates(payload: DigestPayload): DigestPayload {
   const newIds = new Set(payload.newEvents.map((e) => e.event.id))
+  const topMatches = payload.topMatches.map((e) => ({
+    ...e,
+    isDuplicate: newIds.has(e.event.id),
+  }))
+  const allDup = topMatches.length > 0 && topMatches.every((e) => e.isDuplicate)
   return {
     newEvents: payload.newEvents,
-    topMatches: payload.topMatches.map((e) => ({
-      ...e,
-      isDuplicate: newIds.has(e.event.id),
-    })),
+    topMatches: allDup ? [] : topMatches,
   }
 }
 
