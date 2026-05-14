@@ -1,26 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifySession, getMatchCountsByEmail } from '@/lib/supabase'
+import { isAdmin } from '@/lib/admin-auth'
+import { getMatchCountsByEmail } from '@/lib/supabase'
 import { getActiveUsers, getFutureEvents } from '@/lib/airtable'
 
-// Admin overview: returns each active user's email + how many matches they
-// would currently see on their personal dashboard. Sub-second via one bulk
-// Supabase query plus the 90s-cached Airtable reads.
-//
-// Auth: session cookie email must be in ADMIN_EMAILS (comma-separated env var).
+// Admin overview: each active user's id/name/email/location + match count for
+// events on their dashboard. Sub-second via one bulk Supabase query plus the
+// 90s-cached Airtable reads.
 
 export const maxDuration = 60
-
-async function isAdmin(req: NextRequest): Promise<boolean> {
-  const token = req.cookies.get('session')?.value
-  if (!token) return false
-  const email = await verifySession(token)
-  if (!email) return false
-  const allow = (process.env.ADMIN_EMAILS || '')
-    .split(',')
-    .map((s) => s.trim().toLowerCase())
-    .filter(Boolean)
-  return allow.includes(email.toLowerCase())
-}
 
 export async function GET(req: NextRequest) {
   if (!(await isAdmin(req))) {
@@ -38,12 +25,18 @@ export async function GET(req: NextRequest) {
     const users = activeUsers
       .filter((u) => u.email)
       .map((u) => ({
+        id: u.id,
         email: u.email,
+        name: u.name,
+        firstName: u.firstName,
+        location: u.location,
         matchCount: counts.get(u.email) ?? 0,
       }))
       .sort((a, b) => {
         if (b.matchCount !== a.matchCount) return b.matchCount - a.matchCount
-        return a.email.localeCompare(b.email)
+        const an = (a.name || a.email).toLowerCase()
+        const bn = (b.name || b.email).toLowerCase()
+        return an.localeCompare(bn)
       })
 
     return NextResponse.json({
