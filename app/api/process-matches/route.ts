@@ -4,6 +4,7 @@ import {
   getFutureEvents,
   getUserById,
   invalidateEventCache,
+  invalidateUserCache,
   AirtableEvent,
   AirtableUser,
 } from '@/lib/airtable'
@@ -24,17 +25,15 @@ const DIGEST_THRESHOLD = 1.5
 const BATCH_SIZE = 50
 
 async function processEventTrigger(eventId: string) {
-  // The 90s in-memory cache lives per Vercel function instance. If this
-  // request lands on a different instance than the one that just created the
-  // event, the cache may be stale and miss the new event. On cache miss,
-  // force-refresh and try once more before giving up.
-  let events = await getFutureEvents()
-  let event = events.find((e) => e.id === eventId)
-  if (!event) {
-    invalidateEventCache()
-    events = await getFutureEvents()
-    event = events.find((e) => e.id === eventId)
-  }
+  // Bust both caches at the entry to a new-event flow. The 90s in-memory
+  // cache is a hot-loop optimization; for the once-per-new-event scoring
+  // path it's not worth the cross-instance staleness risk. Two Airtable
+  // reads in exchange for never silently missing a user.
+  invalidateEventCache()
+  invalidateUserCache()
+
+  const events = await getFutureEvents()
+  const event = events.find((e) => e.id === eventId)
   if (!event) {
     console.error(`process-matches: event ${eventId} not found (or not in future)`)
     return
@@ -48,10 +47,25 @@ async function processEventTrigger(eventId: string) {
     } ineligible)`,
   )
 
+  // Tally per-user outcomes so silent failures surface in logs. Without
+  // this, a one-off Claude/Supabase blip for a single user is invisible.
+  let scored = 0
+  let cached = 0
+  let failed = 0
   for (let i = 0; i < users.length; i += BATCH_SIZE) {
     const batch = users.slice(i, i + BATCH_SIZE)
-    await Promise.all(batch.map((user) => scoreAndNotify(event, user, 'event')))
+    const results = await Promise.all(
+      batch.map((user) => scoreAndNotify(event, user, 'event')),
+    )
+    for (const r of results) {
+      if (r === 'cached') cached++
+      else if (r === 'scored') scored++
+      else failed++
+    }
   }
+  console.log(
+    `process-matches: event "${event.name}" done — scored ${scored}, cached ${cached}, failed ${failed} (of ${users.length})`,
+  )
 }
 
 async function processUserTrigger(
@@ -171,17 +185,19 @@ async function processUserTrigger(
   )
 }
 
+type ScoreOutcomeStatus = 'scored' | 'cached' | 'failed'
+
 async function scoreAndNotify(
   event: AirtableEvent,
   user: AirtableUser,
   fixedSide: 'event' | 'user',
-) {
+): Promise<ScoreOutcomeStatus> {
   try {
     const outcome = await scoreOrReuse(event, user, fixedSide)
 
     if (outcome.cached) {
       // Already persisted with the same inputs; user was already notified at this score.
-      return
+      return 'cached'
     }
 
     const result = outcome.result
@@ -199,7 +215,7 @@ async function scoreAndNotify(
       skippedReason: result.skippedReason,
     })
 
-    if (result.score < SCORE_THRESHOLD) return
+    if (result.score < SCORE_THRESHOLD) return 'scored'
 
     // Frequency routes delivery:
     //   - Each New Event: send an immediate digest-format email (1 new + top matches)
@@ -212,8 +228,10 @@ async function scoreAndNotify(
         console.error(`process-matches: sendEachNewEventDigest failed for ${user.email} / ${event.id}:`, e)
       }
     }
+    return 'scored'
   } catch (err) {
     console.error(`process-matches: error for user ${user.email} / event ${event.id}:`, err)
+    return 'failed'
   }
 }
 
