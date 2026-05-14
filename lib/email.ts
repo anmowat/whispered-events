@@ -218,6 +218,10 @@ export async function sendMagicLink(email: string, token: string, baseUrl: strin
 export interface DigestEventEntry {
   event: AirtableEvent
   matchPercent: number
+  // Set on Top Matches rows whose event also appears in the New section, so
+  // the email renders a compact "see above" line instead of repeating the
+  // full description.
+  isDuplicate?: boolean
 }
 
 export interface DigestPayload {
@@ -248,16 +252,34 @@ function shortDate(iso: string): string {
 }
 
 function renderEntry(entry: DigestEventEntry): string {
-  const { event, matchPercent } = entry
+  const { event, matchPercent, isDuplicate } = entry
   const date = shortDate(event.date)
   const datePart = date ? `<strong> (${date})</strong> ` : ' '
-  const desc = event.description ? `${escapeHtml(event.description)} ` : ''
   const match = `<strong>(Match ${Math.round(matchPercent)}%)</strong>`
+  const body = isDuplicate
+    ? `<em>see above</em> `
+    : event.description
+      ? `${escapeHtml(event.description)} `
+      : ''
   return `
     <p style="margin:0 0 14px;font-size:15px;line-height:1.55">
-      <a href="${event.link}" style="color:#1a73e8;font-weight:bold;text-decoration:underline">${escapeHtml(event.name)}</a>${datePart}${desc}${match}
+      <a href="${event.link}" style="color:#1a73e8;font-weight:bold;text-decoration:underline">${escapeHtml(event.name)}</a>${datePart}${body}${match}
     </p>
   `
+}
+
+// Annotates topMatches entries whose event also appears in newEvents so the
+// renderer shows a compact "see above" body instead of repeating the
+// description.
+function markDuplicates(payload: DigestPayload): DigestPayload {
+  const newIds = new Set(payload.newEvents.map((e) => e.event.id))
+  return {
+    newEvents: payload.newEvents,
+    topMatches: payload.topMatches.map((e) => ({
+      ...e,
+      isDuplicate: newIds.has(e.event.id),
+    })),
+  }
 }
 
 function renderSection(title: string, entries: DigestEventEntry[]): string {
@@ -279,13 +301,14 @@ export async function sendApprovedWithDigest(
   const resend = getResend()
   const firstName = firstNameOrThere(user)
   const hasMatches = payload.newEvents.length > 0 || payload.topMatches.length > 0
+  const annotated = markDuplicates(payload)
 
   const html = shell(`
     <p>Hi ${escapeHtml(firstName)},</p>
     <p>Welcome to the club!</p>
     <p>You've been approved for Whispered Events.${hasMatches ? ' Here are some upcoming events that match your profile:' : ''}</p>
-    ${renderSection('New', payload.newEvents)}
-    ${renderSection('Top Matches', payload.topMatches)}
+    ${renderSection('New', annotated.newEvents)}
+    ${renderSection('Top Matches', annotated.topMatches)}
     <p>Login anytime via the top right of the site to see all your matches, and update your profile to refine them.</p>
     <p>Whispered Events is 100% free, built to help executives discover great events — the ones that aren't posted, they're whispered. Want to help us grow? Share or tag us on LinkedIn.</p>
     ${signature()}
@@ -303,17 +326,18 @@ export async function sendApprovedWithDigest(
   const appendSection = (title: string, entries: DigestEventEntry[]) => {
     if (!entries.length) return
     textLines.push(title, '')
-    for (const { event, matchPercent } of entries) {
+    for (const entry of entries) {
+      const { event, matchPercent, isDuplicate } = entry
       const date = shortDate(event.date)
       const datePart = date ? ` (${date})` : ''
-      const desc = event.description ? ` ${event.description}` : ''
-      textLines.push(`${event.name}${datePart}${desc} (Match ${Math.round(matchPercent)}%)`)
+      const body = isDuplicate ? ' see above' : event.description ? ` ${event.description}` : ''
+      textLines.push(`${event.name}${datePart}${body} (Match ${Math.round(matchPercent)}%)`)
       textLines.push(event.link)
       textLines.push('')
     }
   }
-  appendSection('New', payload.newEvents)
-  appendSection('Top Matches', payload.topMatches)
+  appendSection('New', annotated.newEvents)
+  appendSection('Top Matches', annotated.topMatches)
   textLines.push('Login anytime via the top right of the site to see all your matches, and update your profile to refine them.')
   textLines.push('')
   textLines.push("Whispered Events is 100% free, built to help executives discover great events — the ones that aren't posted, they're whispered. Want to help us grow? Share or tag us on LinkedIn.")
@@ -350,18 +374,21 @@ export async function sendUserDigest(
   const resend = getResend()
 
   const firstName = firstNameOrThere(user)
+  const annotated = markDuplicates(payload)
 
+  // Footer intentionally avoids the <hr> + tiny-italic-centered pattern,
+  // which Gmail collapses behind a "..." as quoted-signature content.
+  // A plain styled div with normal 14px text reads as body, not signature.
   const html = `
     <div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#111;font-size:15px;line-height:1.55">
       <p>Hi ${escapeHtml(firstName)},</p>
       <p>We have some new matching Whispered Events for you</p>
-      ${renderSection('New', payload.newEvents)}
-      ${renderSection('Top Matches', payload.topMatches)}
-      <hr style="margin:32px 0;border:none;border-top:1px solid #eee">
-      <div style="text-align:center;color:#555;font-size:13px;font-style:italic;line-height:1.7">
+      ${renderSection('New', annotated.newEvents)}
+      ${renderSection('Top Matches', annotated.topMatches)}
+      <div style="margin-top:28px;padding-top:20px;border-top:1px solid #eee;color:#555;font-size:14px;line-height:1.7">
         <div>Update your match criteria and frequency on <a href="${DASHBOARD_LINK}" style="color:#1a73e8;text-decoration:underline">your Dashboard</a>.</div>
-        <div>Email new events to <a href="${NEW_EVENT_MAILTO}" style="color:#1a73e8;text-decoration:underline">event@whisperedevents.com</a></div>
-        <div>And … help more execs discover great events by <a href="${TAG_US_LINK}" style="color:#1a73e8;text-decoration:underline">tagging us</a> on LinkedIn</div>
+        <div>Email new events to <a href="${NEW_EVENT_MAILTO}" style="color:#1a73e8;text-decoration:underline">event@whisperedevents.com</a>.</div>
+        <div>Help us grow — post on LinkedIn and <a href="${TAG_US_LINK}" style="color:#1a73e8;text-decoration:underline">tag us</a> so we can find more great events for everyone.</div>
       </div>
     </div>
   `
@@ -375,20 +402,21 @@ export async function sendUserDigest(
   const appendSection = (title: string, entries: DigestEventEntry[]) => {
     if (!entries.length) return
     textLines.push(title, '')
-    for (const { event, matchPercent } of entries) {
+    for (const entry of entries) {
+      const { event, matchPercent, isDuplicate } = entry
       const date = shortDate(event.date)
       const datePart = date ? ` (${date})` : ''
-      const desc = event.description ? ` ${event.description}` : ''
-      textLines.push(`${event.name}${datePart}${desc} (Match ${Math.round(matchPercent)}%)`)
+      const body = isDuplicate ? ' see above' : event.description ? ` ${event.description}` : ''
+      textLines.push(`${event.name}${datePart}${body} (Match ${Math.round(matchPercent)}%)`)
       textLines.push(event.link)
       textLines.push('')
     }
   }
-  appendSection('New', payload.newEvents)
-  appendSection('Top Matches', payload.topMatches)
+  appendSection('New', annotated.newEvents)
+  appendSection('Top Matches', annotated.topMatches)
   textLines.push(`Update your match criteria and frequency on your Dashboard: ${DASHBOARD_LINK}`)
   textLines.push(`Email new events to event@whisperedevents.com`)
-  textLines.push(`And help more execs discover great events by tagging us on LinkedIn: ${TAG_US_LINK}`)
+  textLines.push(`Help us grow — post on LinkedIn and tag us so we can find more great events for everyone: ${TAG_US_LINK}`)
   const text = textLines.join('\n')
 
   const { error } = await resend.emails.send({
