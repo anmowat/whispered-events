@@ -368,25 +368,46 @@ const SESSION_TOUCH_THROTTLE_MS = 5 * 60_000
 
 export async function verifySession(token: string): Promise<string | null> {
   const supabase = getClient()
-  const { data } = await supabase
+  let { data, error } = await supabase
     .from('sessions')
     .select('email, expires_at, last_seen_at')
     .eq('token', token)
     .maybeSingle()
 
+  // If the last_seen_at column hasn't been added yet (schema migration not
+  // applied), retry with only the columns we know exist so auth still works.
+  if (error && /last_seen_at/i.test(error.message ?? '')) {
+    console.warn('verifySession: last_seen_at column missing, falling back', error.message)
+    const fallback = await supabase
+      .from('sessions')
+      .select('email, expires_at')
+      .eq('token', token)
+      .maybeSingle()
+    data = fallback.data as typeof data
+    error = fallback.error
+  }
+
+  if (error) {
+    console.error('verifySession query error', error)
+    return null
+  }
   if (!data || new Date(data.expires_at) < new Date()) return null
 
   // Fire-and-forget: don't block auth on the write, and don't fail the
-  // request if the touch errors.
-  const lastSeenMs = data.last_seen_at ? new Date(data.last_seen_at).getTime() : 0
-  if (Date.now() - lastSeenMs > SESSION_TOUCH_THROTTLE_MS) {
-    supabase
-      .from('sessions')
-      .update({ last_seen_at: new Date().toISOString() })
-      .eq('token', token)
-      .then(({ error }) => {
-        if (error) console.error('verifySession touch error', error)
-      })
+  // request if the touch errors. Skipped when last_seen_at isn't on the row
+  // (column missing on this DB).
+  const seen = (data as { last_seen_at?: string | null }).last_seen_at
+  if (seen) {
+    const lastSeenMs = new Date(seen).getTime()
+    if (Date.now() - lastSeenMs > SESSION_TOUCH_THROTTLE_MS) {
+      supabase
+        .from('sessions')
+        .update({ last_seen_at: new Date().toISOString() })
+        .eq('token', token)
+        .then(({ error }) => {
+          if (error) console.error('verifySession touch error', error)
+        })
+    }
   }
 
   return data.email
