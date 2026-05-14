@@ -266,7 +266,7 @@ function PartnerCard({ featuredEvents }: { featuredEvents: FeaturedEvent[] }) {
           {[
             'Share (and update) events you are running',
             'Customize targeting for your events',
-            'Feature Events',
+            'See execs who match your audience',
           ].map((text, i) => (
             <li key={i} className="flex items-start gap-3">
               <span className="w-5 h-5 rounded-full bg-gold-50 border border-gold-200 text-gold-700 text-xs flex items-center justify-center flex-shrink-0 mt-0.5 font-medium">{i + 1}</span>
