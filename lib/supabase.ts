@@ -206,16 +206,17 @@ export async function getMatchCountsByEmail(
     .in('event_id', futureEventIds)
   if (error) throw new Error(`getMatchCountsByEmail failed: ${error.message}`)
   // Dedupe (user_email, event_id) pairs in case of stray duplicates, then count.
+  // forEach (rather than for-of) avoids needing the downlevelIteration tsconfig flag.
   const seen = new Map<string, Set<string>>()
   for (const row of data ?? []) {
     const r = row as { user_email: string; event_id: string }
     if (!r.user_email || !r.event_id) continue
-    const set = seen.get(r.user_email) ?? new Set()
+    const set = seen.get(r.user_email) ?? new Set<string>()
     set.add(r.event_id)
     seen.set(r.user_email, set)
   }
   const counts = new Map<string, number>()
-  for (const [email, set] of seen) counts.set(email, set.size)
+  seen.forEach((set, email) => counts.set(email, set.size))
   return counts
 }
 
