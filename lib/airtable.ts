@@ -320,7 +320,9 @@ export async function getPartners(): Promise<Partner[]> {
         id: record.id,
         name: String(record.get('Name') || ''),
         type: String(record.get('Type') || ''),
-        logoUrl: logo?.[0]?.url || '',
+        // Point browsers at our own proxy route (stable, CDN-cached) instead
+        // of the raw Airtable signed URL (expires ~2h, so it breaks once cached).
+        logoUrl: logo?.[0]?.url ? `/api/partner-logo/${record.id}` : '',
         website: String(record.get('Site') || ''),
         description: String(record.get('Description') || ''),
         featured: record.get('Featured') === true,
