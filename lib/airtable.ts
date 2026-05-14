@@ -124,14 +124,39 @@ function buildDuplicateResult(record: { id: string; get: (f: string) => unknown 
   }
 }
 
-export async function getEventHostEmail(eventId: string): Promise<string | null> {
+// Lowercased emails of every user linked in the event's Host field. The
+// Host field is a multi-link, so this is the only correct way to ask
+// "is this submitter a host of this event?" — single-host probing was
+// stale once we started allowing co-hosts. Returns [] for unhosted events.
+export async function getEventHostEmails(eventId: string): Promise<string[]> {
   const base = getBase()
   const record = await base(EVENTS_TABLE).find(eventId)
   const hostIds = record.get('Host') as string[] | undefined
-  if (!hostIds?.length) return null
-  const hostRecord = await base(PROFILES_TABLE).find(hostIds[0])
-  const email = String(hostRecord.get('Email') || '')
-  return email.toLowerCase() || null
+  if (!hostIds?.length) return []
+  // Per-id find loop is fine — Host arrays are tiny in practice (usually
+  // 1-3 partners). Parallel via Promise.all so we don't serialize.
+  const records = await Promise.all(
+    hostIds.map((id) => base(PROFILES_TABLE).find(id).catch(() => null)),
+  )
+  return records
+    .map((r) => (r ? String(r.get('Email') || '').toLowerCase() : ''))
+    .filter(Boolean)
+}
+
+// Append a single user id to the event's Host[] linked field. Idempotent —
+// if the id is already present, the existing list is preserved and we no-op.
+// Used by /api/claim-host. Cache-invalidates the event cache so downstream
+// reads see the new host immediately.
+export async function addEventHost(eventId: string, userId: string): Promise<void> {
+  if (!eventId || !userId) return
+  const base = getBase()
+  const record = await base(EVENTS_TABLE).find(eventId)
+  const existing = (record.get('Host') as string[] | undefined) ?? []
+  if (existing.includes(userId)) return
+  await base(EVENTS_TABLE).update(eventId, {
+    Host: [...existing, userId],
+  } as Partial<FieldSet>)
+  invalidateEventCache()
 }
 
 const USER_FIELDS = [

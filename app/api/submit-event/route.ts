@@ -2,21 +2,24 @@ import { NextRequest, NextResponse } from 'next/server'
 import {
   checkDuplicate,
   createEvent,
-  updateEvent,
-  getEventHostEmail,
   getPartnerUserByEmail,
 } from '@/lib/airtable'
 import { recordContribution } from '@/lib/supabase'
 import { EventRecord, VIRTUAL_LOCATION_RE } from '@/lib/types'
+
+// Create-only endpoint as of the host-flow cleanup. Editing existing events
+// happens at /host (magic-link auth + multi-host aware). Anything that used
+// to land here with `existingId` set now falls through into the duplicate
+// path below, which 409s — the right answer for "you already submitted this."
 
 export const maxDuration = 30
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { event, existingId } = body as { event: EventRecord; existingId?: string }
+    const { event } = body as { event: EventRecord }
 
-    if (!event.name || !event.link) {
+    if (!event?.name || !event.link) {
       return NextResponse.json(
         { error: 'Event name and link are required' },
         { status: 400 }
@@ -39,39 +42,9 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const submitterEmail = event.submitter.toLowerCase()
-
-    // Update path — only allowed when submitter's email matches the existing host
-    if (existingId) {
-      const hostEmail = await getEventHostEmail(existingId)
-      if (!hostEmail || hostEmail !== submitterEmail) {
-        return NextResponse.json(
-          { error: 'You are not the host of this event.' },
-          { status: 403 }
-        )
-      }
-
-      await updateEvent(existingId, {
-        name: event.name,
-        type: event.type,
-        date: event.date,
-        location: event.location,
-        description: event.description,
-        audience: event.audience,
-        submitter: event.submitter,
-      })
-
-      recordContribution({
-        email: event.submitter,
-        eventId: existingId,
-        eventName: event.name,
-        source: 'form',
-      }).catch((e) => console.error('recordContribution error:', e))
-
-      return NextResponse.json({ status: 'updated', id: existingId })
-    }
-
-    // Create path — defense-in-depth duplicate check
+    // Defense-in-depth duplicate check (check-event already runs upstream
+    // for chat-driven flows but inbound-email and direct API callers don't
+    // hit that path).
     const dupCheck = await checkDuplicate(event.name, event.link, event.date)
     if (dupCheck.isDuplicate) {
       return NextResponse.json(
@@ -83,18 +56,13 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Host claim handling for new events. If the submitter isn't a partner,
-    // we still create the event — we just drop the host claim and tell the
-    // client so it can surface a friendly message.
+    // Partners auto-link as Host on the new event. Non-partners just create
+    // the event without a host — the contribute UI shows an inline notice
+    // before submit so they already know claim-as-host requires partnership.
     let hostUserId: string | undefined
-    let hostClaimDenied = false
     if (event.host) {
       const partnerUser = await getPartnerUserByEmail(event.submitter)
-      if (!partnerUser) {
-        hostClaimDenied = true
-      } else {
-        hostUserId = partnerUser.id
-      }
+      if (partnerUser) hostUserId = partnerUser.id
     }
 
     const id = await createEvent(event, hostUserId)
@@ -112,7 +80,7 @@ export async function POST(req: NextRequest) {
       console.error('process-matches fire-and-forget error:', e)
     )
 
-    return NextResponse.json({ status: 'created', id, hostClaimDenied })
+    return NextResponse.json({ status: 'created', id })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     console.error('submit-event error:', message)

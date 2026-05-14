@@ -11,9 +11,11 @@ type Step =
   | 'submitting'
   | 'submitted'
   | 'duplicate-not-host'
+  | 'duplicate-existing-host'
+  | 'duplicate-claim-available'
+  | 'duplicate-claim-additional'
+  | 'claim-success'
   | 'error'
-
-type Mode = 'create' | 'duplicate-host'
 
 interface Message {
   role: 'assistant' | 'user'
@@ -22,24 +24,26 @@ interface Message {
 
 const EVENT_TYPES: EventType[] = ['Conference', 'Dinner', 'Virtual', 'Other']
 
-function isValidUrl(str: string) {
-  try { new URL(str); return true } catch { return false }
-}
-
 const WELCOME_MESSAGE: Message = {
   role: 'assistant',
   content: "Welcome to Whispered Events. To share an event, paste a link to the event page — or type out the event details directly.",
 }
 
-export default function ShareEventTab({ onDone }: { onDone?: () => void }) {
+export default function ShareEventTab({ onDone, onShowPartner }: { onDone?: () => void; onShowPartner?: () => void }) {
   const [step, setStep] = useState<Step>('input')
   const [messages, setMessages] = useState<Message[]>([WELCOME_MESSAGE])
   const [input, setInput] = useState('')
   const [pendingInput, setPendingInput] = useState('')
   const [submitterEmail, setSubmitterEmail] = useState('')
-  const [mode, setMode] = useState<Mode>('create')
-  const [existingId, setExistingId] = useState<string | undefined>(undefined)
+  // null = unknown (still loading or check failed). The inline host notice
+  // shows for false AND null — safer to over-warn than to let a non-partner
+  // think they'll be auto-linked.
+  const [isPartner, setIsPartner] = useState<boolean | null>(null)
   const [parsed, setParsed] = useState<Partial<EventRecord>>({ type: 'Other', host: false, audience: [], location: '' })
+  // Set when check-event returns one of the duplicate-* statuses; used by
+  // the claim flow to call /api/claim-host.
+  const [existingId, setExistingId] = useState<string | undefined>(undefined)
+  const [claimMessage, setClaimMessage] = useState<string>('')
   const [isLoading, setIsLoading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null)
@@ -73,6 +77,19 @@ export default function ShareEventTab({ onDone }: { onDone?: () => void }) {
     setStep('parsing')
     addMessage('assistant', "Thanks. Let me look this up...")
     setIsLoading(true)
+
+    // Kick off the partner check in parallel — we want to know by the time
+    // the user reaches the review step (where the host checkbox lives) so
+    // the inline notice can render or be suppressed instantly.
+    fetch('/api/check-partner', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    })
+      .then((r) => r.json())
+      .then((d: { isPartner?: boolean }) => setIsPartner(!!d.isPartner))
+      .catch(() => setIsPartner(false))
+
     try {
       const res = await fetch('/api/check-event', {
         method: 'POST',
@@ -81,11 +98,6 @@ export default function ShareEventTab({ onDone }: { onDone?: () => void }) {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to look up event')
-
-      if (data.status === 'duplicate-not-host') {
-        setStep('duplicate-not-host')
-        return
-      }
 
       if (data.status === 'new') {
         const p = data.parsed
@@ -99,29 +111,50 @@ export default function ShareEventTab({ onDone }: { onDone?: () => void }) {
           audience: p.audience || [],
           host: false,
         })
-        setMode('create')
         setExistingId(undefined)
         addMessage('assistant', "Here's what I found. Review the details below and fill in anything that's missing, then we'll get this submitted.")
         setStep('review')
         return
       }
 
-      // duplicate-host: submitter's email matches the existing host
-      const m = data.merged || {}
-      setParsed({
-        name: m.name || '',
-        type: m.type || 'Other',
-        date: m.date || '',
-        location: m.location || '',
-        description: m.description || '',
-        link: m.link || '',
-        audience: m.audience || [],
-        host: true,
+      // All duplicate-* statuses carry existingId (except duplicate-not-host).
+      if (data.existingId) setExistingId(data.existingId)
+
+      if (data.status === 'duplicate-existing-host') {
+        setStep('duplicate-existing-host')
+        return
+      }
+      if (data.status === 'duplicate-claim-available') {
+        setStep('duplicate-claim-available')
+        return
+      }
+      if (data.status === 'duplicate-claim-additional') {
+        setStep('duplicate-claim-additional')
+        return
+      }
+      // duplicate-not-host (or any unknown duplicate flavor)
+      setStep('duplicate-not-host')
+    } catch (err) {
+      setStep('error')
+      addMessage('assistant', `Something went wrong: ${err instanceof Error ? err.message : 'Please try again.'}`)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  async function handleClaimHost(successMessage: string) {
+    if (!existingId) return
+    setIsLoading(true)
+    try {
+      const res = await fetch('/api/claim-host', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ eventId: existingId, email: submitterEmail }),
       })
-      setMode('duplicate-host')
-      setExistingId(data.existingId)
-      addMessage('assistant', "We already have this event on file with you as the host. Here's everything we have — review and edit anything that needs updating, then save your changes.")
-      setStep('review')
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error((data as { error?: string }).error || `HTTP ${res.status}`)
+      setClaimMessage(successMessage)
+      setStep('claim-success')
     } catch (err) {
       setStep('error')
       addMessage('assistant', `Something went wrong: ${err instanceof Error ? err.message : 'Please try again.'}`)
@@ -152,20 +185,15 @@ export default function ShareEventTab({ onDone }: { onDone?: () => void }) {
       const res = await fetch('/api/submit-event', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ event: fullEvent, existingId }),
+        body: JSON.stringify({ event: fullEvent }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || data.message || `HTTP ${res.status}`)
       setStep('submitted')
-      let msg =
-        mode === 'duplicate-host'
-          ? "Got it — we've updated this event with your changes. Thank you."
-          : "Thank you! The event has been added to our database. We appreciate you helping the community discover exclusive events."
-      if (data.hostClaimDenied) {
-        msg +=
-          "\n\nWe don't have you on file as a Whispered partner yet, so we couldn't list you as the host. If you'd like to partner with us, email team@whisperedevents.com."
-      }
-      addMessage('assistant', msg)
+      addMessage(
+        'assistant',
+        "Thank you! The event has been added to our database. We appreciate you helping the community discover exclusive events.",
+      )
     } catch (err) {
       setStep('error')
       addMessage('assistant', `Something went wrong: ${err instanceof Error ? err.message : 'Please try again.'}`)
@@ -180,13 +208,13 @@ export default function ShareEventTab({ onDone }: { onDone?: () => void }) {
     setParsed({ type: 'Other', host: false, audience: [], location: '' })
     setSubmitterEmail('')
     setPendingInput('')
-    setMode('create')
     setExistingId(undefined)
+    setIsPartner(null)
+    setClaimMessage('')
     setInput('')
   }
 
   const audienceInput = parsed.audience?.join(', ') || ''
-  const showHostCheckbox = mode === 'create'
 
   return (
     <div className="flex flex-col h-full max-w-2xl mx-auto">
@@ -236,9 +264,97 @@ export default function ShareEventTab({ onDone }: { onDone?: () => void }) {
               onChange={setParsed}
               audienceInput={audienceInput}
               onContinue={handleReviewContinue}
-              showHostCheckbox={showHostCheckbox}
-              submitLabel={mode === 'create' ? 'Submit event' : 'Save changes'}
+              isPartner={isPartner}
+              onShowPartner={onShowPartner}
             />
+          </div>
+        )}
+
+        {step === 'duplicate-existing-host' && (
+          <div className="animate-slide-up ml-10 space-y-3">
+            <div className="bg-white rounded-2xl border border-[#E8DDD0] p-5 text-sm text-gray-700 leading-relaxed shadow-sm">
+              This event is already in Whispered Events with you listed as a host.
+              <br /><br />
+              Log in to your <a href="/host" className="text-gold-700 underline hover:text-gold-600">/host page</a> to edit the event details and see who matches.
+              <br /><br />
+              We&apos;ve also credited a contribution to your account for re-sharing.
+            </div>
+            <a
+              href="/host"
+              className="block text-center w-full py-2.5 rounded-lg bg-gold-600 hover:bg-gold-500 text-white text-sm font-medium transition-colors"
+            >
+              Go to /host
+            </a>
+          </div>
+        )}
+
+        {step === 'duplicate-claim-available' && !isLoading && (
+          <div className="animate-slide-up ml-10 space-y-3">
+            <div className="bg-white rounded-2xl border border-[#E8DDD0] p-5 text-sm text-gray-700 leading-relaxed shadow-sm">
+              This event is already in Whispered Events but doesn&apos;t have a host on file yet.
+              <br /><br />
+              Are you hosting this event? If so, we can list you as the host so you can edit it and see the matching audience.
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleClaimHost("You're now listed as the host. Edit the event and see your matches in /host.")}
+                className="flex-1 py-2.5 rounded-lg bg-gold-600 hover:bg-gold-500 text-white text-sm font-medium transition-colors"
+              >
+                Yes, claim as host
+              </button>
+              <button
+                onClick={() => setStep('duplicate-not-host')}
+                className="flex-1 py-2.5 rounded-lg bg-white border border-[#E8DDD0] text-gray-600 text-sm hover:border-gold-300 hover:text-gold-700 transition-colors shadow-sm"
+              >
+                No
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === 'duplicate-claim-additional' && !isLoading && (
+          <div className="animate-slide-up ml-10 space-y-3">
+            <div className="bg-white rounded-2xl border border-[#E8DDD0] p-5 text-sm text-gray-700 leading-relaxed shadow-sm">
+              This event is already in Whispered Events with another host listed.
+              <br /><br />
+              Are you also a host of this event? If so, we&apos;ll add you as a co-host. Our team will confirm — you&apos;ll be able to edit at /host once we do.
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleClaimHost("Added as a co-host. Our team will confirm — you'll be able to edit at /host.")}
+                className="flex-1 py-2.5 rounded-lg bg-gold-600 hover:bg-gold-500 text-white text-sm font-medium transition-colors"
+              >
+                Yes, I&apos;m also a host
+              </button>
+              <button
+                onClick={() => setStep('duplicate-not-host')}
+                className="flex-1 py-2.5 rounded-lg bg-white border border-[#E8DDD0] text-gray-600 text-sm hover:border-gold-300 hover:text-gold-700 transition-colors shadow-sm"
+              >
+                No
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === 'claim-success' && (
+          <div className="animate-slide-up ml-10 space-y-3">
+            <div className="bg-white rounded-2xl border border-[#E8DDD0] p-5 text-sm text-gray-700 leading-relaxed shadow-sm">
+              {claimMessage}
+            </div>
+            <div className="flex gap-2">
+              <a
+                href="/host"
+                className="flex-1 text-center py-2.5 rounded-lg bg-gold-600 hover:bg-gold-500 text-white text-sm font-medium transition-colors"
+              >
+                Go to /host
+              </a>
+              <button
+                onClick={() => onDone?.()}
+                className="flex-1 py-2.5 rounded-lg bg-white border border-[#E8DDD0] text-gray-600 text-sm hover:border-gold-300 hover:text-gold-700 transition-colors shadow-sm"
+              >
+                Return Home
+              </button>
+            </div>
           </div>
         )}
 
@@ -246,8 +362,6 @@ export default function ShareEventTab({ onDone }: { onDone?: () => void }) {
           <div className="animate-slide-up ml-10 space-y-3">
             <div className="bg-white rounded-2xl border border-[#E8DDD0] p-5 text-sm text-gray-700 leading-relaxed shadow-sm">
               Someone beat you to it! We already have this event in our database.
-              <br /><br />
-              If you&apos;re the host of this event, email <a href="mailto:team@whispered.com" className="text-gold-700 hover:underline">team@whispered.com</a>.
               <br /><br />
               Thank you for contributing — we&apos;ve credited a contribution to your account for sharing this event.
             </div>
@@ -307,19 +421,23 @@ export default function ShareEventTab({ onDone }: { onDone?: () => void }) {
   )
 }
 
-function EventReviewForm({ event, onChange, audienceInput, onContinue, showHostCheckbox, submitLabel }: {
+function EventReviewForm({ event, onChange, audienceInput, onContinue, isPartner, onShowPartner }: {
   event: Partial<EventRecord>
   onChange: (e: Partial<EventRecord>) => void
   audienceInput: string
   onContinue: () => void
-  showHostCheckbox: boolean
-  submitLabel: string
+  isPartner: boolean | null
+  onShowPartner?: () => void
 }) {
   const [localAudience, setLocalAudience] = useState(audienceInput)
   function update(field: keyof EventRecord, value: unknown) { onChange({ ...event, [field]: value }) }
   function handleAudienceBlur() {
     onChange({ ...event, audience: localAudience.split(',').map(s => s.trim()).filter(Boolean) })
   }
+  // Inline notice shows when host is checked AND we don't have positive
+  // confirmation the submitter is a Partner. Unknown (null) still warns —
+  // safer than misleading a non-partner.
+  const showHostWarning = !!event.host && isPartner !== true
   return (
     <div className="bg-white rounded-2xl border border-[#E8DDD0] p-5 ml-10 space-y-4 shadow-sm">
       <h3 className="text-xs uppercase tracking-widest text-gold-600 font-medium">Event Details</h3>
@@ -348,14 +466,27 @@ function EventReviewForm({ event, onChange, audienceInput, onContinue, showHostC
       <Field label="Audience (comma-separated)">
         <input value={localAudience} onChange={(e) => setLocalAudience(e.target.value)} onBlur={handleAudienceBlur} placeholder="e.g. CROs, CMOs, Revenue Leaders" className={inputCls} />
       </Field>
-      {showHostCheckbox && (
+      <div className="space-y-2">
         <div className="flex items-center gap-2">
           <input id="host-check" type="checkbox" checked={event.host || false} onChange={(e) => update('host', e.target.checked)} className="w-4 h-4 rounded border-gray-300 text-gold-600" />
           <label htmlFor="host-check" className="text-sm text-gray-600">I am hosting this event</label>
         </div>
-      )}
+        {showHostWarning && (
+          <div className="bg-gold-50 border border-gold-200 rounded-lg px-3 py-2.5 text-xs text-gold-800 leading-relaxed">
+            Only Whispered Partners can claim Host status on an event. If you&apos;d like to partner with us,{' '}
+            {onShowPartner ? (
+              <button onClick={onShowPartner} className="font-medium underline hover:text-gold-900">
+                head to the Partner tab
+              </button>
+            ) : (
+              <span className="font-medium">head to the Partner tab</span>
+            )}{' '}
+            to get in touch.
+          </div>
+        )}
+      </div>
       <button onClick={onContinue} disabled={!event.name || !event.link} className="w-full py-2.5 rounded-lg bg-gold-600 hover:bg-gold-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors">
-        {submitLabel}
+        Submit event
       </button>
     </div>
   )
