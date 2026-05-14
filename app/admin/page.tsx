@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import LoginModal from '@/components/LoginModal'
 
 interface UserRow {
@@ -10,6 +10,8 @@ interface UserRow {
   firstName: string
   location: string
   matchCount: number
+  totalContributions: number
+  lastContribution: string | null
 }
 
 interface Stats {
@@ -18,7 +20,22 @@ interface Stats {
   generatedAt: string
 }
 
+type SortKey = 'matches' | 'contributions' | 'lastContribution'
+
 const POLL_MS = 10_000
+
+const SORT_OPTIONS: { value: SortKey; label: string }[] = [
+  { value: 'matches', label: 'Match count' },
+  { value: 'contributions', label: 'Total contributions' },
+  { value: 'lastContribution', label: 'Last contribution' },
+]
+
+function formatLastContribution(iso: string | null): string {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return '—'
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
 
 export default function AdminPage() {
   const [users, setUsers] = useState<UserRow[] | null>(null)
@@ -27,6 +44,8 @@ export default function AdminPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [refreshedAt, setRefreshedAt] = useState<Date | null>(null)
   const [showLogin, setShowLogin] = useState(false)
+  const [sortBy, setSortBy] = useState<SortKey>('matches')
+  const [search, setSearch] = useState('')
 
   async function fetchCounts() {
     try {
@@ -64,12 +83,42 @@ export default function AdminPage() {
     return u.email
   }
 
+  const visibleUsers = useMemo(() => {
+    if (!users) return []
+    const q = search.trim().toLowerCase()
+    const filtered = q
+      ? users.filter((u) => {
+          const name = (u.name && u.name !== 'DEFAULT' ? u.name : '').toLowerCase()
+          const firstName = (u.firstName && u.firstName !== 'DEFAULT' ? u.firstName : '').toLowerCase()
+          const email = u.email.toLowerCase()
+          return name.includes(q) || firstName.includes(q) || email.includes(q)
+        })
+      : users
+    const sorted = [...filtered].sort((a, b) => {
+      if (sortBy === 'matches') {
+        if (b.matchCount !== a.matchCount) return b.matchCount - a.matchCount
+      } else if (sortBy === 'contributions') {
+        if (b.totalContributions !== a.totalContributions) {
+          return b.totalContributions - a.totalContributions
+        }
+      } else {
+        const at = a.lastContribution ? new Date(a.lastContribution).getTime() : 0
+        const bt = b.lastContribution ? new Date(b.lastContribution).getTime() : 0
+        if (bt !== at) return bt - at
+      }
+      const an = (a.name || a.email).toLowerCase()
+      const bn = (b.name || b.email).toLowerCase()
+      return an.localeCompare(bn)
+    })
+    return sorted
+  }, [users, search, sortBy])
+
   return (
     <div className="min-h-screen bg-[#F5EFE6] flex flex-col">
       {showLogin && <LoginModal onClose={() => { setShowLogin(false); fetchCounts() }} />}
 
       <header className="border-b border-[#E8DDD0] bg-[#F5EFE6]/90 backdrop-blur-sm">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <a href="/" className="flex items-center">
             <img src="/logo.svg" alt="Whispered Events" className="h-7 w-auto" />
           </a>
@@ -77,7 +126,7 @@ export default function AdminPage() {
         </div>
       </header>
 
-      <main className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 py-8">
+      <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-8">
         {authState === 'unknown' && (
           <p className="text-sm text-gray-500">Loading…</p>
         )}
@@ -110,7 +159,7 @@ export default function AdminPage() {
           <>
             <div className="flex items-end justify-between mb-4 flex-wrap gap-2">
               <div>
-                <h1 className="text-2xl font-semibold text-gray-900">Match counts</h1>
+                <h1 className="text-2xl font-semibold text-gray-900">Active users</h1>
                 <p className="text-xs text-gray-500 mt-1">
                   {stats?.activeUserCount ?? 0} active users · {stats?.futureEventCount ?? 0} future events
                   {refreshedAt && ` · refreshed ${refreshedAt.toLocaleTimeString()}`}
@@ -124,17 +173,41 @@ export default function AdminPage() {
               </button>
             </div>
 
+            <div className="flex items-center gap-3 mb-4 flex-wrap">
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by name or email…"
+                className="flex-1 min-w-[200px] bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-gold-400 transition-colors shadow-sm"
+              />
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-gray-500">Sort by</label>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as SortKey)}
+                  className="bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:border-gold-400 transition-colors shadow-sm"
+                >
+                  {SORT_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
             <div className="bg-white border border-[#E8DDD0] rounded-2xl overflow-hidden shadow-sm">
               <table className="w-full text-sm">
                 <thead className="bg-[#FDFAF6] border-b border-[#E8DDD0]">
                   <tr>
                     <th className="text-left px-4 py-3 text-xs uppercase tracking-widest text-gold-700 font-medium">Name</th>
                     <th className="text-left px-4 py-3 text-xs uppercase tracking-widest text-gold-700 font-medium">Location</th>
-                    <th className="text-right px-4 py-3 text-xs uppercase tracking-widest text-gold-700 font-medium">Match Count</th>
+                    <th className="text-right px-4 py-3 text-xs uppercase tracking-widest text-gold-700 font-medium">Matches</th>
+                    <th className="text-right px-4 py-3 text-xs uppercase tracking-widest text-gold-700 font-medium">Contributions</th>
+                    <th className="text-right px-4 py-3 text-xs uppercase tracking-widest text-gold-700 font-medium">Last contribution</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {users.map((u) => (
+                  {visibleUsers.map((u) => (
                     <tr key={u.id} className="border-b border-[#F0E8DC] last:border-b-0 hover:bg-[#FDFAF6] transition-colors">
                       <td className="px-4 py-3">
                         <a href={`/admin/users/${u.id}`} className="text-gold-700 hover:text-gold-600 underline underline-offset-2">
@@ -147,12 +220,20 @@ export default function AdminPage() {
                       <td className={`px-4 py-3 text-right tabular-nums font-medium ${u.matchCount === 0 ? 'text-gray-400' : 'text-gray-800'}`}>
                         {u.matchCount}
                       </td>
+                      <td className={`px-4 py-3 text-right tabular-nums ${u.totalContributions === 0 ? 'text-gray-400' : 'text-gray-800'}`}>
+                        {u.totalContributions}
+                      </td>
+                      <td className={`px-4 py-3 text-right tabular-nums ${u.lastContribution ? 'text-gray-800' : 'text-gray-400'}`}>
+                        {formatLastContribution(u.lastContribution)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-              {users.length === 0 && (
-                <p className="px-4 py-6 text-sm text-gray-500 text-center">No active users.</p>
+              {visibleUsers.length === 0 && (
+                <p className="px-4 py-6 text-sm text-gray-500 text-center">
+                  {users.length === 0 ? 'No active users.' : 'No users match your search.'}
+                </p>
               )}
             </div>
           </>

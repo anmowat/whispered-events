@@ -472,6 +472,35 @@ export async function getContributionStats(email: string): Promise<ContributionS
   }
 }
 
+// Bulk version of getContributionStats — one query, returns total + lastAt
+// keyed by lowercased email. Used by the admin overview to avoid N round-trips.
+export async function getContributionTotalsByEmail(): Promise<
+  Map<string, { total: number; lastAt: string | null }>
+> {
+  const supabase = getClient()
+  const { data, error } = await supabase
+    .from('contributions')
+    .select('submitter_email, submitted_at')
+    .order('submitted_at', { ascending: false })
+  if (error) {
+    console.error('getContributionTotalsByEmail error', error)
+    return new Map()
+  }
+  const out = new Map<string, { total: number; lastAt: string | null }>()
+  for (const row of (data ?? []) as Array<{ submitter_email: string; submitted_at: string }>) {
+    const key = (row.submitter_email || '').trim().toLowerCase()
+    if (!key) continue
+    const cur = out.get(key)
+    if (cur) {
+      cur.total++
+      // submitted_at desc means the first row we see per key is the latest.
+    } else {
+      out.set(key, { total: 1, lastAt: row.submitted_at })
+    }
+  }
+  return out
+}
+
 export interface ContributionRow {
   id: string
   submitter_email: string

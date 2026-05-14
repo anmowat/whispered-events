@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { isAdmin } from '@/lib/admin-auth'
-import { getMatchCountsByEmail } from '@/lib/supabase'
+import { getMatchCountsByEmail, getContributionTotalsByEmail } from '@/lib/supabase'
 import { getActiveUsers, getFutureEvents } from '@/lib/airtable'
 
 // Admin overview: each active user's id/name/email/location + match count for
-// events on their dashboard. Sub-second via one bulk Supabase query plus the
-// 90s-cached Airtable reads.
+// events on their dashboard + contribution totals. Sub-second via bulk Supabase
+// queries plus the 90s-cached Airtable reads.
 
 export const maxDuration = 60
 
@@ -15,23 +15,30 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const [activeUsers, futureEvents] = await Promise.all([
+    const [activeUsers, futureEvents, contribStats] = await Promise.all([
       getActiveUsers(),
       getFutureEvents(),
+      getContributionTotalsByEmail(),
     ])
     const futureEventIds = futureEvents.map((e) => e.id)
     const counts = await getMatchCountsByEmail(futureEventIds)
 
     const users = activeUsers
       .filter((u) => u.email)
-      .map((u) => ({
-        id: u.id,
-        email: u.email,
-        name: u.name,
-        firstName: u.firstName,
-        location: u.location,
-        matchCount: counts.get(u.email) ?? 0,
-      }))
+      .map((u) => {
+        const key = u.email.trim().toLowerCase()
+        const c = contribStats.get(key)
+        return {
+          id: u.id,
+          email: u.email,
+          name: u.name,
+          firstName: u.firstName,
+          location: u.location,
+          matchCount: counts.get(u.email) ?? 0,
+          totalContributions: c?.total ?? 0,
+          lastContribution: c?.lastAt ?? null,
+        }
+      })
       .sort((a, b) => {
         if (b.matchCount !== a.matchCount) return b.matchCount - a.matchCount
         const an = (a.name || a.email).toLowerCase()
