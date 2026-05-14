@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { isAdmin } from '@/lib/admin-auth'
 import { getUserById, getFutureEvents } from '@/lib/airtable'
-import { getAllMatchesForUser } from '@/lib/supabase'
+import { getAllMatchesForUser, getContributionStats } from '@/lib/supabase'
 
 // Admin user detail: returns the user's profile fields plus every future
 // event scored against them, sorted by match % desc, with per-pair score
@@ -28,9 +28,10 @@ export async function GET(
       return NextResponse.json({ error: 'user not found' }, { status: 404 })
     }
 
-    const [futureEvents, matchRows] = await Promise.all([
+    const [futureEvents, matchRows, contributions] = await Promise.all([
       getFutureEvents(),
       getAllMatchesForUser(user.email),
+      getContributionStats(user.email),
     ])
 
     const byEventId = new Map(matchRows.map((m) => [m.event_id, m]))
@@ -87,8 +88,11 @@ export async function GET(
         active: user.active,
         status: user.status,
         frequency: user.frequency,
-        lastContribution: user.lastContribution,
-        totalContributions: user.totalContributions,
+        // Contribution stats now sourced from Supabase `contributions` table.
+        lastContribution: contributions.lastAt,
+        totalContributions: contributions.total,
+        contributionsLast30: contributions.last30,
+        contributionsLast90: contributions.last90,
       },
       events,
       generatedAt: new Date().toISOString(),

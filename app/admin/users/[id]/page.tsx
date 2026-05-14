@@ -22,8 +22,10 @@ interface UserDetail {
   active: boolean
   status: string
   frequency: string
-  lastContribution: string
+  lastContribution: string | null
   totalContributions: number
+  contributionsLast30: number
+  contributionsLast90: number
 }
 
 interface EventRow {
@@ -178,8 +180,22 @@ export default function AdminUserDetailPage() {
                 <Field label="Company Size" value={user.companySize} />
                 <Field label="Interest" value={user.interest} multiline />
                 <Field label="Full Experience" value={user.fullExp} multiline />
-                <Field label="Last Contribution" value={user.lastContribution} />
-                <Field label="Total Contributions" value={String(user.totalContributions)} />
+                <Field
+                  label="Last Contribution"
+                  value={
+                    user.lastContribution
+                      ? new Date(user.lastContribution).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                        })
+                      : ''
+                  }
+                />
+                <Field
+                  label="Contributions (total / 30d / 90d)"
+                  value={`${user.totalContributions} / ${user.contributionsLast30} / ${user.contributionsLast90}`}
+                />
               </dl>
             </div>
 
