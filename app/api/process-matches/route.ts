@@ -144,9 +144,14 @@ async function processUserTrigger(
   // email was already sent up front by the airtable-user-approved webhook.
   if (targetUser.frequency === 'Dashboard Only') return
 
-  const freshAboveThreshold = scored
-    .filter((s) => !s.outcome.cached && s.outcome.result.score >= DIGEST_THRESHOLD)
+  // "New" = top 3 freshly-scored matches above threshold (haven't been
+  // included in an earlier email). "Top Matches" = top 3 of ALL matches
+  // above threshold (cached or fresh); may overlap with New, in which case
+  // the email template renders the overlapping rows compactly.
+  const allAboveThreshold = scored
+    .filter((s) => s.outcome.result.score >= DIGEST_THRESHOLD)
     .sort((a, b) => b.outcome.result.score - a.outcome.result.score)
+  const freshAboveThreshold = allAboveThreshold.filter((s) => !s.outcome.cached)
 
   const toEntry = (s: { event: AirtableEvent; outcome: ScoreOutcome }) => ({
     event: s.event,
@@ -155,8 +160,8 @@ async function processUserTrigger(
   const newEvents = freshAboveThreshold
     .slice(0, DIGEST_CAP_PER_SECTION)
     .map(toEntry)
-  const topMatches = freshAboveThreshold
-    .slice(DIGEST_CAP_PER_SECTION, DIGEST_CAP_PER_SECTION * 2)
+  const topMatches = allAboveThreshold
+    .slice(0, DIGEST_CAP_PER_SECTION)
     .map(toEntry)
 
   if (options.welcome) {
