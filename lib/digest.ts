@@ -92,20 +92,19 @@ async function processUser(
   if (newMatches.length === 0) return { sent: false }
 
   const topNew = newMatches.slice(0, DIGEST_CAP_PER_SECTION)
-  const newEventIds = new Set(topNew.map((m) => m.event_id))
 
+  // Top Matches = absolute top 3 upcoming above threshold; overlap with
+  // New is allowed (the email template renders dupes compactly).
   const allUpcoming = await getUpcomingMatchesForUser(
     user.id,
     futureIds,
     DIGEST_SCORE_THRESHOLD,
   )
-  const remaining = allUpcoming
-    .filter((m) => !newEventIds.has(m.event_id))
-    .slice(0, DIGEST_CAP_PER_SECTION)
+  const top = allUpcoming.slice(0, DIGEST_CAP_PER_SECTION)
 
   await sendUserDigest(user, {
     newEvents: toEntries(topNew, futureById),
-    topMatches: toEntries(remaining, futureById),
+    topMatches: toEntries(top, futureById),
   })
 
   await markMatchesNotified(
@@ -179,9 +178,9 @@ export async function sendEachNewEventDigest(
     futureIds,
     DIGEST_SCORE_THRESHOLD,
   )
-  const topMatchesRows = allUpcoming
-    .filter((m) => m.event_id !== triggeringEvent.id)
-    .slice(0, DIGEST_CAP_PER_SECTION)
+  // Top Matches = absolute top 3 (may include the triggering event; the
+  // email template renders dupes compactly via "see above").
+  const topMatchesRows = allUpcoming.slice(0, DIGEST_CAP_PER_SECTION)
 
   await sendUserDigest(user, {
     newEvents: [{ event: triggeringEvent, matchPercent: triggeringMatchPercent }],
