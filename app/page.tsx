@@ -89,7 +89,7 @@ export default function Home() {
           <div className="flex justify-center sm:order-2">
             <div className="flex gap-1 bg-white border border-[#E8DDD0] rounded-xl p-1 shadow-sm">
               <TabPill active={tab === 'view'} onClick={() => selectTab('view')}>Find Events</TabPill>
-              <TabPill active={tab === 'contribute'} onClick={() => selectTab('contribute')}>Contribute Event</TabPill>
+              <TabPill active={tab === 'contribute'} onClick={() => selectTab('contribute')}>Contribute</TabPill>
               <TabPill active={tab === 'partner'} onClick={() => selectTab('partner')}>Partner</TabPill>
             </div>
           </div>
