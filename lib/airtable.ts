@@ -149,6 +149,7 @@ const USER_FIELDS = [
   'LatLon',
   'Active',
   'Frequency',
+  'LinkedIn',
 ] as const
 
 // LatLon is stored as a single text field "lat,lng" on both Users and Events.
@@ -192,6 +193,7 @@ function toAirtableUser(r: { id: string; get: (f: string) => unknown }): Airtabl
     active: activeRaw.toLowerCase() === 'active',
     status: activeRaw,
     frequency: String(r.get('Frequency') || ''),
+    linkedin: String(r.get('LinkedIn') || ''),
   }
 }
 
@@ -349,6 +351,7 @@ export interface AirtableUser {
   active: boolean
   status: string
   frequency: string
+  linkedin: string
 }
 
 export interface AirtableEvent {
@@ -571,4 +574,72 @@ export async function createProfile(profile: UserProfile): Promise<string> {
     console.error('createProfile: linkContributionsToUser failed', e),
   )
   return record.id
+}
+
+// Future events where the given Airtable user id appears in the Host linked
+// field. Filtered in-memory because Airtable formula functions can't compare
+// against linked-record ids directly (ARRAYJOIN flattens to primary-field
+// values, not ids).
+export async function getEventsHostedBy(userId: string): Promise<AirtableEvent[]> {
+  if (!userId) return []
+  const base = getBase()
+  const today = new Date().toISOString().split('T')[0]
+  const records = await base(EVENTS_TABLE)
+    .select({
+      filterByFormula: `AND({Date} >= '${today}', {Date} != '')`,
+      fields: ['Name', 'Type', 'Date', 'Location', 'Description', 'Link', 'Audience', 'LatLon', 'Host'],
+    })
+    .all()
+
+  return records
+    .filter((r) => {
+      const hosts = r.get('Host') as string[] | undefined
+      return !!hosts && hosts.includes(userId)
+    })
+    .map((r) => {
+      const { lat, lng } = parseLatLon(r.get('LatLon'))
+      return {
+        id: r.id,
+        name: String(r.get('Name') || ''),
+        type: String(r.get('Type') || ''),
+        date: String(r.get('Date') || ''),
+        location: String(r.get('Location') || ''),
+        description: String(r.get('Description') || ''),
+        link: String(r.get('Link') || ''),
+        audience: String(r.get('Audience') || '').split(',').map((s) => s.trim()).filter(Boolean),
+        lat,
+        lng,
+      }
+    })
+    .filter((e) => e.name)
+}
+
+// Returns the event only if the given user id is a Host. Used by the host
+// detail/edit routes as an authorization check.
+export async function getEventByIdIfHost(
+  eventId: string,
+  userId: string,
+): Promise<AirtableEvent | null> {
+  if (!eventId || !userId) return null
+  const base = getBase()
+  try {
+    const r = await base(EVENTS_TABLE).find(eventId)
+    const hosts = r.get('Host') as string[] | undefined
+    if (!hosts || !hosts.includes(userId)) return null
+    const { lat, lng } = parseLatLon(r.get('LatLon'))
+    return {
+      id: r.id,
+      name: String(r.get('Name') || ''),
+      type: String(r.get('Type') || ''),
+      date: String(r.get('Date') || ''),
+      location: String(r.get('Location') || ''),
+      description: String(r.get('Description') || ''),
+      link: String(r.get('Link') || ''),
+      audience: String(r.get('Audience') || '').split(',').map((s) => s.trim()).filter(Boolean),
+      lat,
+      lng,
+    }
+  } catch {
+    return null
+  }
 }

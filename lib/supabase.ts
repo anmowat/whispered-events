@@ -231,6 +231,62 @@ export async function getMatchCountsByEmail(
   return counts
 }
 
+// Returns event_id -> count of matches above NOTIFY_THRESHOLD (skipped excluded).
+// Used by the host listing page to show how many execs match each event.
+export async function getMatchCountsByEventId(
+  eventIds: string[],
+): Promise<Map<string, number>> {
+  if (eventIds.length === 0) return new Map()
+  const supabase = getClient()
+  const { data, error } = await supabase
+    .from('matches')
+    .select('event_id, user_id')
+    .gte('score', NOTIFY_THRESHOLD)
+    .is('skipped_reason', null)
+    .in('event_id', eventIds)
+  if (error) {
+    console.error('getMatchCountsByEventId error', error)
+    return new Map()
+  }
+  // Dedupe by (event_id, user_id) in case of stray duplicate rows.
+  const seen = new Map<string, Set<string>>()
+  for (const row of (data ?? []) as Array<{ event_id: string; user_id: string }>) {
+    if (!row.event_id || !row.user_id) continue
+    const set = seen.get(row.event_id) ?? new Set<string>()
+    set.add(row.user_id)
+    seen.set(row.event_id, set)
+  }
+  const counts = new Map<string, number>()
+  seen.forEach((set, id) => counts.set(id, set.size))
+  return counts
+}
+
+export interface EventMatchRow {
+  user_id: string
+  user_email: string
+  score: number
+  match_percent: number | null
+}
+
+// All matches above NOTIFY_THRESHOLD for an event (skipped excluded), ordered
+// by score desc. Used by the host detail page.
+export async function getMatchesForEvent(eventId: string): Promise<EventMatchRow[]> {
+  if (!eventId) return []
+  const supabase = getClient()
+  const { data, error } = await supabase
+    .from('matches')
+    .select('user_id, user_email, score, match_percent')
+    .eq('event_id', eventId)
+    .gte('score', NOTIFY_THRESHOLD)
+    .is('skipped_reason', null)
+    .order('score', { ascending: false })
+  if (error) {
+    console.error('getMatchesForEvent error', error)
+    return []
+  }
+  return (data ?? []) as EventMatchRow[]
+}
+
 // Stamps notified_at on every still-unnotified match for the user. Used when a
 // user flips from Dashboard Only (or no preference) to a digest frequency so
 // they don't get drip-fed the entire backlog 3 events at a time.
