@@ -23,6 +23,15 @@ import { createClient } from '@supabase/supabase-js'
 //   user_id text PRIMARY KEY,            -- Airtable User record id
 //   next_monthly_digest_at date NOT NULL,
 //   last_monthly_digest_sent_at timestamptz NULL
+//
+// contributions:
+//   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+//   submitter_email text NOT NULL,
+//   event_id text NULL,                  -- Airtable event record id
+//   event_name text NULL,
+//   airtable_user_id text NULL,          -- backfilled at signup/approval
+//   source text NOT NULL,                -- 'form' | 'inbound_email' | 'check_event'
+//   submitted_at timestamptz NOT NULL DEFAULT now()
 
 function getClient() {
   if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -365,4 +374,132 @@ export async function verifySession(token: string): Promise<string | null> {
 export async function deleteSession(token: string): Promise<void> {
   const supabase = getClient()
   await supabase.from('sessions').delete().eq('token', token)
+}
+
+// =====================
+// Contributions
+// =====================
+//
+// One row per event submission. Source of truth for "who submitted what,
+// when." Captures contributions from people who haven't signed up yet
+// (airtable_user_id is NULL until they do); linkContributionsToUser backfills
+// the user_id when they finish signup.
+
+export interface ContributionStats {
+  total: number
+  last30: number
+  last90: number
+  lastAt: string | null
+}
+
+export async function recordContribution(opts: {
+  email: string
+  eventId?: string
+  eventName?: string
+  source: 'form' | 'inbound_email' | 'check_event'
+  airtableUserId?: string | null
+}): Promise<void> {
+  const email = (opts.email || '').trim().toLowerCase()
+  if (!email) {
+    console.error('recordContribution: missing email')
+    return
+  }
+  const supabase = getClient()
+  const { error } = await supabase.from('contributions').insert({
+    submitter_email: email,
+    event_id: opts.eventId ?? null,
+    event_name: opts.eventName ?? null,
+    airtable_user_id: opts.airtableUserId ?? null,
+    source: opts.source,
+  })
+  if (error) {
+    console.error('recordContribution error', { email, source: opts.source, error })
+  }
+}
+
+// Idempotent. Attributes any prior contributions matching this email to the
+// freshly-created/approved user record.
+export async function linkContributionsToUser(
+  userId: string,
+  email: string,
+): Promise<number> {
+  const cleaned = (email || '').trim().toLowerCase()
+  if (!userId || !cleaned) return 0
+  const supabase = getClient()
+  const { data, error } = await supabase
+    .from('contributions')
+    .update({ airtable_user_id: userId })
+    .ilike('submitter_email', cleaned)
+    .is('airtable_user_id', null)
+    .select('id')
+  if (error) {
+    console.error('linkContributionsToUser error', { userId, cleaned, error })
+    return 0
+  }
+  return (data ?? []).length
+}
+
+export async function getContributionStats(email: string): Promise<ContributionStats> {
+  const cleaned = (email || '').trim().toLowerCase()
+  if (!cleaned) return { total: 0, last30: 0, last90: 0, lastAt: null }
+  const supabase = getClient()
+  const { data, error } = await supabase
+    .from('contributions')
+    .select('submitted_at')
+    .ilike('submitter_email', cleaned)
+    .order('submitted_at', { ascending: false })
+  if (error) {
+    console.error('getContributionStats error', { cleaned, error })
+    return { total: 0, last30: 0, last90: 0, lastAt: null }
+  }
+  const rows = (data ?? []) as Array<{ submitted_at: string }>
+  const now = Date.now()
+  const day = 86_400_000
+  let last30 = 0
+  let last90 = 0
+  for (const r of rows) {
+    const t = new Date(r.submitted_at).getTime()
+    if (Number.isFinite(t)) {
+      if (now - t <= 30 * day) last30++
+      if (now - t <= 90 * day) last90++
+    }
+  }
+  return {
+    total: rows.length,
+    last30,
+    last90,
+    lastAt: rows[0]?.submitted_at ?? null,
+  }
+}
+
+export interface ContributionRow {
+  id: string
+  submitter_email: string
+  event_id: string | null
+  event_name: string | null
+  airtable_user_id: string | null
+  source: string
+  submitted_at: string
+}
+
+export async function getRecentContributions(opts: {
+  sinceDays?: number
+  limit?: number
+}): Promise<ContributionRow[]> {
+  const supabase = getClient()
+  let query = supabase
+    .from('contributions')
+    .select('id, submitter_email, event_id, event_name, airtable_user_id, source, submitted_at')
+    .order('submitted_at', { ascending: false })
+    .limit(opts.limit ?? 500)
+  if (opts.sinceDays) {
+    const cutoff = new Date(Date.now() - opts.sinceDays * 86_400_000).toISOString()
+    query = query.gte('submitted_at', cutoff)
+  }
+  const { data, error } = await query
+  if (error) {
+    console.error('getRecentContributions error', error)
+    return []
+  }
+  return (data ?? []) as ContributionRow[]
 }
