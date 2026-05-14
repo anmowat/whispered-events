@@ -189,6 +189,36 @@ export async function getUpcomingMatchesForUser(
   return (data ?? []) as DigestMatchRow[]
 }
 
+// Returns email -> count of distinct future event matches above NOTIFY_THRESHOLD
+// for every user that has at least one. Mirrors the filter the user dashboard
+// applies (score >= 1.0, skipped_reason IS NULL, future event_id). Single
+// Supabase query so the admin overview page stays sub-second.
+export async function getMatchCountsByEmail(
+  futureEventIds: string[],
+): Promise<Map<string, number>> {
+  if (futureEventIds.length === 0) return new Map()
+  const supabase = getClient()
+  const { data, error } = await supabase
+    .from('matches')
+    .select('user_email, event_id')
+    .gte('score', NOTIFY_THRESHOLD)
+    .is('skipped_reason', null)
+    .in('event_id', futureEventIds)
+  if (error) throw new Error(`getMatchCountsByEmail failed: ${error.message}`)
+  // Dedupe (user_email, event_id) pairs in case of stray duplicates, then count.
+  const seen = new Map<string, Set<string>>()
+  for (const row of data ?? []) {
+    const r = row as { user_email: string; event_id: string }
+    if (!r.user_email || !r.event_id) continue
+    const set = seen.get(r.user_email) ?? new Set()
+    set.add(r.event_id)
+    seen.set(r.user_email, set)
+  }
+  const counts = new Map<string, number>()
+  for (const [email, set] of seen) counts.set(email, set.size)
+  return counts
+}
+
 // Stamps notified_at on every still-unnotified match for the user. Used when a
 // user flips from Dashboard Only (or no preference) to a digest frequency so
 // they don't get drip-fed the entire backlog 3 events at a time.
