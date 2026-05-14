@@ -3,6 +3,7 @@ import {
   getActiveUsers,
   getFutureEvents,
   getUserById,
+  invalidateEventCache,
   AirtableEvent,
   AirtableUser,
 } from '@/lib/airtable'
@@ -23,8 +24,17 @@ const DIGEST_THRESHOLD = 1.5
 const BATCH_SIZE = 50
 
 async function processEventTrigger(eventId: string) {
-  const events = await getFutureEvents()
-  const event = events.find((e) => e.id === eventId)
+  // The 90s in-memory cache lives per Vercel function instance. If this
+  // request lands on a different instance than the one that just created the
+  // event, the cache may be stale and miss the new event. On cache miss,
+  // force-refresh and try once more before giving up.
+  let events = await getFutureEvents()
+  let event = events.find((e) => e.id === eventId)
+  if (!event) {
+    invalidateEventCache()
+    events = await getFutureEvents()
+    event = events.find((e) => e.id === eventId)
+  }
   if (!event) {
     console.error(`process-matches: event ${eventId} not found (or not in future)`)
     return
