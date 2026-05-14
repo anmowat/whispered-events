@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getUserById } from '@/lib/airtable'
 import { sendUserApprovedEmail } from '@/lib/email'
+import { linkContributionsToUser } from '@/lib/supabase'
 
 // Webhook target for the Airtable "User Approved" automation.
 // Configure Airtable to POST here when a user record transitions to Approved.
@@ -31,6 +32,12 @@ export async function POST(req: NextRequest) {
   if (!user || !user.email) {
     return NextResponse.json({ error: 'user not found' }, { status: 404 })
   }
+
+  // Attribute any prior pre-signup contributions to this user. Belt-and-
+  // suspenders alongside createProfile (covers admin-created users).
+  linkContributionsToUser(user.id, user.email).catch((e) =>
+    console.error('airtable-user-approved: linkContributionsToUser failed', e),
+  )
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
   const isDashboardOnly = user.frequency === 'Dashboard Only'

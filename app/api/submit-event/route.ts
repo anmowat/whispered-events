@@ -3,10 +3,10 @@ import {
   checkDuplicate,
   createEvent,
   updateEvent,
-  updateLastContribution,
   getEventHostEmail,
   getPartnerUserByEmail,
 } from '@/lib/airtable'
+import { recordContribution } from '@/lib/supabase'
 import { EventRecord, VIRTUAL_LOCATION_RE } from '@/lib/types'
 
 export const maxDuration = 30
@@ -61,9 +61,12 @@ export async function POST(req: NextRequest) {
         submitter: event.submitter,
       })
 
-      updateLastContribution(event.submitter).catch((e) =>
-        console.error('updateLastContribution error:', e)
-      )
+      recordContribution({
+        email: event.submitter,
+        eventId: existingId,
+        eventName: event.name,
+        source: 'form',
+      }).catch((e) => console.error('recordContribution error:', e))
 
       return NextResponse.json({ status: 'updated', id: existingId })
     }
@@ -96,9 +99,13 @@ export async function POST(req: NextRequest) {
 
     const id = await createEvent(event, hostUserId)
 
-    updateLastContribution(event.submitter).catch((e) =>
-      console.error('updateLastContribution error:', e)
-    )
+    recordContribution({
+      email: event.submitter,
+      eventId: id,
+      eventName: event.name,
+      source: 'form',
+      airtableUserId: hostUserId ?? null,
+    }).catch((e) => console.error('recordContribution error:', e))
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
     fetch(`${appUrl}/api/process-matches?trigger=event&id=${id}`).catch((e) =>

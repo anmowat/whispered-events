@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifySession } from '@/lib/supabase'
+import { verifySession, getContributionStats } from '@/lib/supabase'
 import { getUserByEmail } from '@/lib/airtable'
 
 export async function GET(req: NextRequest) {
@@ -15,7 +15,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ user: null })
   }
 
-  const user = await getUserByEmail(email)
+  const [user, stats] = await Promise.all([
+    getUserByEmail(email),
+    getContributionStats(email),
+  ])
 
   if (!user) {
     return NextResponse.json({ user: null })
@@ -31,9 +34,12 @@ export async function GET(req: NextRequest) {
       companySize: user.companySize,
       status: user.status,
       active: user.active,
-      lastContribution: user.lastContribution,
-      totalContributions: user.totalContributions,
       frequency: user.frequency,
+      // Sourced from Supabase `contributions` table.
+      lastContribution: stats.lastAt,
+      totalContributions: stats.total,
+      contributionsLast30: stats.last30,
+      contributionsLast90: stats.last90,
     },
   })
 }

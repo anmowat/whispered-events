@@ -5,10 +5,9 @@ import { parseEventContent } from '@/lib/claude'
 import {
   checkDuplicate,
   createEvent,
-  createMinimalUser,
   getUserByEmail,
-  updateLastContribution,
 } from '@/lib/airtable'
+import { recordContribution } from '@/lib/supabase'
 import { sendEventCouldNotReadEmail, sendEventSubmittedEmail } from '@/lib/email'
 import { EventRecord, VIRTUAL_LOCATION_RE } from '@/lib/types'
 
@@ -111,13 +110,6 @@ export async function POST(req: NextRequest) {
   }
 
   const existingUser = await getUserByEmail(senderEmail)
-  if (!existingUser) {
-    try {
-      await createMinimalUser(senderEmail)
-    } catch (e) {
-      console.error('inbound-email: createMinimalUser failed', e)
-    }
-  }
 
   const eventToCreate: EventRecord = {
     name: parsed.name,
@@ -139,9 +131,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'create failed' }, { status: 500 })
   }
 
-  updateLastContribution(senderEmail).catch((e) =>
-    console.error('inbound-email: updateLastContribution error', e),
-  )
+  recordContribution({
+    email: senderEmail,
+    eventId: id,
+    eventName: parsed.name,
+    source: 'inbound_email',
+    airtableUserId: existingUser?.id ?? null,
+  }).catch((e) => console.error('inbound-email: recordContribution error', e))
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.whisperedevents.com'
   fetch(`${appUrl}/api/process-matches?trigger=event&id=${id}`).catch((e) =>
