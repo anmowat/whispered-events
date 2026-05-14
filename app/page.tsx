@@ -113,9 +113,6 @@ export default function Home() {
         <p className="text-center text-xs text-gray-400 mt-1">
           Ideas on how to make this more awesome? Email us at <a href="mailto:team@whisperedevents.com" className="underline hover:text-gray-600">team@whisperedevents.com</a>
         </p>
-        <p className="text-center text-xs text-gray-400 mt-1">
-          Updated {new Date(process.env.NEXT_PUBLIC_BUILD_TIME!).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}
-        </p>
       </footer>
     </div>
   )

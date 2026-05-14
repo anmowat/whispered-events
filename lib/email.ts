@@ -86,7 +86,7 @@ export async function sendUserApprovedEmail(user: AirtableUser): Promise<void> {
     <p>Login via the top right of the site to see your matches (matches typically appear within ~5 minutes of approval).</p>
     <p>You can update your profile anytime to refine your matches — and we ❤️ feedback and feature ideas.</p>
     <p>Whispered Events is 100% free, built to help executives discover great events — the ones that aren't posted, they're whispered.</p>
-    <p>Want to help us grow? Share or tag us on LinkedIn.</p>
+    <p>Want to help us grow? Share or tag us on <a href="${TAG_US_LINK}" style="color:#1a73e8;text-decoration:underline">LinkedIn</a>.</p>
     ${signature()}
     <p style="color:#555;font-size:13px;margin-top:24px">P.S. You can submit events anytime on the site or via event@whisperedevents.com</p>
   `)
@@ -102,7 +102,7 @@ You can update your profile anytime to refine your matches — and we love feedb
 
 Whispered Events is 100% free, built to help executives discover great events — the ones that aren't posted, they're whispered.
 
-Want to help us grow? Share or tag us on LinkedIn.
+Want to help us grow? Share or tag us on LinkedIn: ${TAG_US_LINK}
 
 Andy (${ANDY_LINK})
 Founder, Whispered
@@ -230,7 +230,7 @@ export interface DigestPayload {
 }
 
 const DASHBOARD_LINK = 'https://www.whisperedevents.com/dashboard'
-const TAG_US_LINK = 'https://www.linkedin.com/company/whispered-events'
+const TAG_US_LINK = 'https://www.linkedin.com/company/whispered-events/about/?viewAsMember=true'
 const NEW_EVENT_MAILTO = 'mailto:event@whisperedevents.com'
 
 export function firstNameOrThere(user: AirtableUser): string {
@@ -314,7 +314,7 @@ export async function sendApprovedWithDigest(
     ${renderSection('New', annotated.newEvents)}
     ${renderSection('Top Matches', annotated.topMatches)}
     <p>Login anytime via the top right of the site to see all your matches, and update your profile to refine them.</p>
-    <p>Whispered Events is 100% free, built to help executives discover great events — the ones that aren't posted, they're whispered. Want to help us grow? Share or tag us on LinkedIn.</p>
+    <p>Whispered Events is 100% free, built to help executives discover great events — the ones that aren't posted, they're whispered. Want to help us grow? Share or tag us on <a href="${TAG_US_LINK}" style="color:#1a73e8;text-decoration:underline">LinkedIn</a>.</p>
     ${signature()}
     <p style="color:#555;font-size:13px;margin-top:24px">P.S. You can submit events anytime on the site or via event@whisperedevents.com</p>
   `)
@@ -344,7 +344,7 @@ export async function sendApprovedWithDigest(
   appendSection('Top Matches', annotated.topMatches)
   textLines.push('Login anytime via the top right of the site to see all your matches, and update your profile to refine them.')
   textLines.push('')
-  textLines.push("Whispered Events is 100% free, built to help executives discover great events — the ones that aren't posted, they're whispered. Want to help us grow? Share or tag us on LinkedIn.")
+  textLines.push(`Whispered Events is 100% free, built to help executives discover great events — the ones that aren't posted, they're whispered. Want to help us grow? Share or tag us on LinkedIn: ${TAG_US_LINK}`)
   textLines.push('')
   textLines.push(`Andy (${ANDY_LINK})`)
   textLines.push('Founder, Whispered')
