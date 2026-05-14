@@ -99,8 +99,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, reason: 'virtual' })
   }
 
+  const existingUser = await getUserByEmail(senderEmail)
+
   const dup = await checkDuplicate(parsed.name, link, parsed.date)
   if (dup.isDuplicate) {
+    recordContribution({
+      email: senderEmail,
+      eventId: dup.existingId,
+      eventName: dup.existingRecord?.name ?? parsed.name,
+      source: 'inbound_email',
+      airtableUserId: existingUser?.id ?? null,
+    }).catch((e) => console.error('inbound-email: recordContribution (duplicate) error', e))
     await sendReply(
       senderEmail,
       'Event already in Whispered',
@@ -108,8 +117,6 @@ export async function POST(req: NextRequest) {
     )
     return NextResponse.json({ ok: true, reason: 'duplicate' })
   }
-
-  const existingUser = await getUserByEmail(senderEmail)
 
   const eventToCreate: EventRecord = {
     name: parsed.name,
