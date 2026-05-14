@@ -202,7 +202,7 @@ function ViewCard({ onCTA, featuredEvents }: { onCTA: () => void; featuredEvents
           {[
             'Share your profile and event interests',
             'Get notified of new matching events',
-            'Contribute (every 3 or 6 months) to stay active',
+            'Update your profile to improve matches',
           ].map((text, i) => (
             <li key={i} className="flex items-start gap-3">
               <span className="w-5 h-5 rounded-full bg-gold-50 border border-gold-200 text-gold-700 text-xs flex items-center justify-center flex-shrink-0 mt-0.5 font-medium">{i + 1}</span>
@@ -215,7 +215,7 @@ function ViewCard({ onCTA, featuredEvents }: { onCTA: () => void; featuredEvents
         Create your free profile now
       </button>
       <p className="text-center text-xs text-gray-400">
-        Tag <a href="https://www.linkedin.com/company/whispered-events/about/?viewAsMember=true" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">Whispered Events</a> on a LinkedIn post<br />and we&apos;ll upgrade you to 6 months!
+        Love what we are doing?<br />Tag <a href="https://www.linkedin.com/company/whispered-events/about/?viewAsMember=true" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">Whispered Events</a> on a LinkedIn post
       </p>
       <FeaturedEventsCarousel events={featuredEvents} />
     </div>
