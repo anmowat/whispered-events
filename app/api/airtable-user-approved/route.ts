@@ -19,6 +19,17 @@ export async function POST(req: NextRequest) {
   const expected = normalize(process.env.AIRTABLE_WEBHOOK_SECRET)
   const received = normalize(req.headers.get('x-webhook-secret'))
   if (!expected || received !== expected) {
+    // Temporary diagnostic: prints lengths + 4-char prefixes only so we can
+    // tell whether the env var is missing, the header is missing, or the two
+    // genuinely differ. Remove once the 401 is solved.
+    console.error('airtable-user-approved: 401', {
+      envSet: !!process.env.AIRTABLE_WEBHOOK_SECRET,
+      expectedLen: expected.length,
+      receivedLen: received.length,
+      expectedPrefix: expected.slice(0, 4),
+      receivedPrefix: received.slice(0, 4),
+      headerPresent: req.headers.get('x-webhook-secret') !== null,
+    })
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 
