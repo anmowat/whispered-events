@@ -127,21 +127,13 @@ export default function DashboardPage() {
       </header>
 
       <main className="max-w-3xl mx-auto px-4 sm:px-6 py-10 space-y-10">
-        <AccountStats user={user} />
+        <AccountStats user={user} onEditProfile={() => setEditingProfile(true)} />
 
         <section className="space-y-4">
           <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <h2 className="text-xs uppercase tracking-widest text-gray-400 font-medium">
-                Matched events
-              </h2>
-              <button
-                onClick={() => setEditingProfile(true)}
-                className="shrink-0 px-4 py-2 rounded-lg border border-[#E8DDD0] bg-white text-sm text-gray-700 hover:border-gold-400 hover:text-gray-900 transition-colors"
-              >
-                Refine Matches
-              </button>
-            </div>
+            <h2 className="text-xs uppercase tracking-widest text-gray-400 font-medium">
+              Matched events
+            </h2>
             <div className="flex items-center gap-3">
               {filtersActive && (
                 <button
@@ -209,7 +201,7 @@ export default function DashboardPage() {
 
           <div className="pt-6 text-center text-xs text-gray-500 leading-relaxed space-y-1">
             <p>Matches are personalized based on your LinkedIn profile (seniority, function, work history).</p>
-            <p>Update your profile above (Click Refine Matches).</p>
+            <p>Click Update Profile above to refine your matches.</p>
             <p>
               And if your LinkedIn has changed, email{' '}
               <a href="mailto:team@whisperedevents.com" className="text-gold-700 hover:underline">team@whisperedevents.com</a>{' '}
@@ -230,7 +222,7 @@ export default function DashboardPage() {
   )
 }
 
-function AccountStats({ user }: { user: DashboardUser }) {
+function AccountStats({ user, onEditProfile }: { user: DashboardUser; onEditProfile: () => void }) {
   const lastContribution = user.lastContribution
     ? new Date(user.lastContribution).toLocaleDateString('en-US', {
         month: 'long',
@@ -246,6 +238,14 @@ function AccountStats({ user }: { user: DashboardUser }) {
   return (
     <section>
       <div className="bg-gold-700 rounded-2xl p-5 shadow-sm space-y-4 text-white">
+        <div className="flex justify-end">
+          <button
+            onClick={onEditProfile}
+            className="shrink-0 px-4 py-2 rounded-lg bg-white text-gold-700 hover:bg-gold-50 text-sm font-semibold shadow-sm transition-colors"
+          >
+            Update Profile
+          </button>
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Stat label="Last contribution" value={lastContribution} />
           <Stat label="Total contributions" value={String(user.totalContributions)} />
