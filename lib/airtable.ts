@@ -2,6 +2,7 @@ import Airtable, { FieldSet, Base } from 'airtable'
 import { EventRecord, UserProfile } from './types'
 import stringSimilarity from 'string-similarity'
 import { geocodeLocation } from './geocode'
+import { linkContributionsToUser } from './supabase'
 
 const EVENTS_TABLE = 'Events'
 const PROFILES_TABLE = 'Users'
@@ -147,8 +148,6 @@ const USER_FIELDS = [
   'Location',
   'LatLon',
   'Active',
-  'LastContribution',
-  'Contributions',
   'Frequency',
 ] as const
 
@@ -192,8 +191,6 @@ function toAirtableUser(r: { id: string; get: (f: string) => unknown }): Airtabl
     lng,
     active: activeRaw.toLowerCase() === 'active',
     status: activeRaw,
-    lastContribution: String(r.get('LastContribution') || ''),
-    totalContributions: Number(r.get('Contributions') || 0),
     frequency: String(r.get('Frequency') || ''),
   }
 }
@@ -349,8 +346,6 @@ export interface AirtableUser {
   lng?: number
   active: boolean
   status: string
-  lastContribution: string
-  totalContributions: number
   frequency: string
 }
 
@@ -516,37 +511,10 @@ export async function getUserById(userId: string): Promise<AirtableUser | null> 
   }
 }
 
-export async function updateLastContribution(email: string): Promise<void> {
-  const base = getBase()
-  const records = await base(PROFILES_TABLE)
-    .select({
-      filterByFormula: `{Email} = '${email.replace(/'/g, "\\'")}'`,
-      fields: ['Email'],
-      maxRecords: 1,
-    })
-    .all()
-
-  if (!records.length) return
-  const today = new Date().toISOString().split('T')[0]
-  await base(PROFILES_TABLE).update(records[0].id, { LastContribution: today } as Partial<FieldSet>)
-}
-
-export async function createMinimalUser(email: string): Promise<string> {
-  const base = getBase()
-  const today = new Date().toISOString().split('T')[0]
-  const record = await base(PROFILES_TABLE).create({
-    Email: email,
-    LastContribution: today,
-  } as Partial<FieldSet>)
-  invalidateUserCache()
-  return record.id
-}
-
 export const DEFAULT_FREQUENCY = 'Monthly When New Events'
 
 export async function createProfile(profile: UserProfile): Promise<string> {
   const base = getBase()
-  const today = new Date().toISOString().split('T')[0]
   const email = profile.email.trim().toLowerCase()
   const fields: Partial<FieldSet> = {
     LinkedIn: profile.linkedin,
@@ -555,7 +523,6 @@ export async function createProfile(profile: UserProfile): Promise<string> {
     'Size': profile.companySize,
     Email: email,
     Location: profile.location,
-    LastContribution: today,
   }
   if (profile.location) {
     const geo = await geocodeLocation(profile.location)
@@ -588,37 +555,18 @@ export async function createProfile(profile: UserProfile): Promise<string> {
     }
     await base(PROFILES_TABLE).update(existing[0].id, fields)
     invalidateUserCache()
+    // Attribute any prior pre-signup contributions to this freshly-known user.
+    linkContributionsToUser(existing[0].id, email).catch((e) =>
+      console.error('createProfile: linkContributionsToUser failed', e),
+    )
     return existing[0].id
   }
 
   fields['Frequency'] = chosenFrequency
   const record = await base(PROFILES_TABLE).create(fields)
   invalidateUserCache()
+  linkContributionsToUser(record.id, email).catch((e) =>
+    console.error('createProfile: linkContributionsToUser failed', e),
+  )
   return record.id
-}
-
-export async function getContributionCount(email: string): Promise<number> {
-  const base = getBase()
-  const normalized = email.trim().toLowerCase()
-  const user = await base(PROFILES_TABLE)
-    .select({
-      filterByFormula: `LOWER({Email}) = '${normalized.replace(/'/g, "\\'")}'`,
-      fields: ['Contributions'],
-      maxRecords: 1,
-    })
-    .all()
-  if (user.length) {
-    const n = Number(user[0].get('Contributions') || 0)
-    if (Number.isFinite(n) && n > 0) return n
-  }
-
-  // Fall back to counting Events by Submitter — covers the case where the
-  // user contributed an event but no Users row exists yet.
-  const events = await base(EVENTS_TABLE)
-    .select({
-      filterByFormula: `LOWER({Submitter}) = '${normalized.replace(/'/g, "\\'")}'`,
-      fields: ['Submitter'],
-    })
-    .all()
-  return events.length
 }

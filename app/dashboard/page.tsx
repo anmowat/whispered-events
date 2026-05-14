@@ -12,8 +12,10 @@ interface DashboardUser {
   companySize: string
   status: string
   active: boolean
-  lastContribution: string
+  lastContribution: string | null
   totalContributions: number
+  contributionsLast30: number
+  contributionsLast90: number
   frequency: string
 }
 

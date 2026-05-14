@@ -194,7 +194,7 @@ export default function ViewEventsTab({ eventCount = 0, startAtForm, onReturnHom
   const [step, setStep] = useState<Step>('email')
   const [messages, setMessages] = useState<Message[]>([{
     role: 'assistant',
-    content: `Welcome! Whispered Events is a free platform where executives discover and share exclusive, invitation-only events${eventCount > 0 ? ` — we have ${eventCount} upcoming events waiting` : ''}.\n\nI'll ask you a few questions to complete your profile. As long as your LinkedIn matches what you share, you're approved. Your account stays active as long as you contribute (or update) events.\n\n${QUESTIONS['email']}`,
+    content: `Welcome! Whispered Events is a free platform where executives discover and share exclusive, invitation-only events${eventCount > 0 ? ` — we have ${eventCount} upcoming events waiting` : ''}.\n\nI'll ask you a few questions to complete your profile. As long as your LinkedIn matches what you share, you're approved.\n\n${QUESTIONS['email']}`,
   }])
   const [input, setInput] = useState('')
   const [profile, setProfile] = useState<UserProfile>(EMPTY_PROFILE)
@@ -279,7 +279,7 @@ export default function ViewEventsTab({ eventCount = 0, startAtForm, onReturnHom
       if (!res.ok) throw new Error(data.error || 'Submission failed')
 
       setStep('submitted')
-      addMessage('assistant', `You're all set! As long as your LinkedIn checks out, you're approved — we'll send matching events to ${profile.email}.\n\nYour account stays active as long as you contribute at least one event every 3 months (tag [Whispered Events](https://www.linkedin.com/company/whispered-events/about/?viewAsMember=true) on a post on LinkedIn and we'll increase that to 6 months).`)
+      addMessage('assistant', `You're all set! As long as your LinkedIn checks out, you're approved — we'll send matching events to ${profile.email}.\n\nLove what we are doing? Tag [Whispered Events](https://www.linkedin.com/company/whispered-events/about/?viewAsMember=true) on a LinkedIn post to help us grow.`)
     } catch (err) {
       addMessage('assistant', `Something went wrong: ${err instanceof Error ? err.message : 'Please try again.'}`)
     } finally {

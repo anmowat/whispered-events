@@ -48,8 +48,6 @@ interface UserCacheRow {
   lng: number | null
   active: boolean
   status: string
-  last_contribution: string
-  total_contributions: number
   frequency: string
   airtable_deleted_at: null
 }
@@ -71,7 +69,7 @@ interface EventCacheRow {
 const USER_FIELDS = [
   'Email', 'Name', 'FirstName', 'Function', 'Seniority', 'FullExp', 'Grade',
   'Size', 'Interest', 'Employment', 'Location', 'LatLon', 'Active',
-  'LastContribution', 'Contributions', 'Frequency',
+  'Frequency',
 ]
 
 const EVENT_FIELDS = [
@@ -115,8 +113,6 @@ export async function syncUsersToCache(): Promise<SyncStats> {
       lng,
       active: activeRaw.toLowerCase() === 'active',
       status: activeRaw,
-      last_contribution: String(r.get('LastContribution') || ''),
-      total_contributions: Number(r.get('Contributions') || 0),
       frequency: String(r.get('Frequency') || ''),
       airtable_deleted_at: null,
     }
