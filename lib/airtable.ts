@@ -6,6 +6,7 @@ import { linkContributionsToUser } from './supabase'
 
 const EVENTS_TABLE = 'Events'
 const PROFILES_TABLE = 'Users'
+const PARTNERS_TABLE = 'Partners'
 
 function getBase(): Base {
   if (!process.env.AIRTABLE_API_KEY) {
@@ -667,4 +668,87 @@ export async function getEventByIdIfHost(
   } catch {
     return null
   }
+}
+
+// Single-shot mutation used by /api/submit-partner. Owns the dedupe rules
+// for both tables so the route stays thin:
+//   - Partners: match by case-insensitive Name. If found, overwrite the
+//     application fields (Audience/Volume/Description) per product spec;
+//     if not, create a new row with Status left blank so it doesn't show
+//     up on the public /partners directory until admin review.
+//   - Users: match by case-insensitive Email. If found, overwrite LinkedIn
+//     and (re)link Company; if not, create a new row.
+//
+// LinkedIn is always written from the application (overwriting any stale
+// value) because the applicant just told us their current profile.
+export interface PartnerApplication {
+  email: string
+  company: string
+  audience: string
+  volume: string
+  description: string
+  linkedin: string
+}
+
+export async function upsertPartnerApplication(
+  app: PartnerApplication,
+): Promise<{ partnerId: string; userId: string }> {
+  const base = getBase()
+  const email = app.email.trim().toLowerCase()
+  const companyName = app.company.trim()
+  const sanitizedCompany = companyName.replace(/'/g, "\\'")
+  const partnerFields: Partial<FieldSet> = {
+    Name: companyName,
+    Audience: app.audience.trim(),
+    Volume: app.volume.trim(),
+    Description: app.description.trim(),
+  }
+
+  const existingPartner = await base(PARTNERS_TABLE)
+    .select({
+      filterByFormula: `LOWER({Name}) = '${sanitizedCompany.toLowerCase()}'`,
+      fields: ['Name'],
+      maxRecords: 1,
+    })
+    .all()
+
+  let partnerId: string
+  if (existingPartner.length) {
+    partnerId = existingPartner[0].id
+    await base(PARTNERS_TABLE).update(partnerId, partnerFields)
+  } else {
+    const created = await base(PARTNERS_TABLE).create(partnerFields)
+    partnerId = created.id
+  }
+
+  const sanitizedEmail = email.replace(/'/g, "\\'")
+  const existingUser = await base(PROFILES_TABLE)
+    .select({
+      filterByFormula: `LOWER({Email}) = '${sanitizedEmail}'`,
+      fields: ['Email'],
+      maxRecords: 1,
+    })
+    .all()
+
+  const linkedinValue = app.linkedin.trim()
+  let userId: string
+  if (existingUser.length) {
+    userId = existingUser[0].id
+    // Don't rewrite the existing Email field — preserves whatever casing
+    // and history is already on the record.
+    await base(PROFILES_TABLE).update(userId, {
+      LinkedIn: linkedinValue,
+      Company: [partnerId],
+    } as Partial<FieldSet>)
+  } else {
+    const created = await base(PROFILES_TABLE).create({
+      Email: email,
+      LinkedIn: linkedinValue,
+      Company: [partnerId],
+    } as Partial<FieldSet>)
+    userId = created.id
+  }
+
+  invalidateUserCache()
+  return { partnerId, userId }
 }

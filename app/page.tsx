@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import ShareEventTab from '@/components/ShareEventTab'
+import PartnerApplyTab from '@/components/PartnerApplyTab'
 import ViewEventsTab from '@/components/ViewEventsTab'
 import FeaturedEventsCarousel from '@/components/FeaturedEventsCarousel'
 import LoginModal from '@/components/LoginModal'
@@ -103,7 +104,7 @@ export default function Home() {
           <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
             {tab === 'view' && <ViewEventsTab startAtForm onReturnHome={handleBack} />}
             {tab === 'contribute' && <ShareEventTab onDone={handleBack} onShowPartner={() => selectTab('partner')} />}
-            {tab === 'partner' && <PartnerCard featuredEvents={featuredEvents} />}
+            {tab === 'partner' && <PartnerApplyTab onDone={handleBack} />}
           </div>
         )}
       </main>
@@ -150,7 +151,7 @@ function Landing({
       <div className="w-full max-w-md animate-slide-up" key={tab}>
         {tab === 'view' && <ViewCard onCTA={onCTA} featuredEvents={featuredEvents} />}
         {tab === 'contribute' && <ContributeCard onCTA={onCTA} onShowPartner={() => setTab('partner')} featuredEvents={featuredEvents} />}
-        {tab === 'partner' && <PartnerCard featuredEvents={featuredEvents} />}
+        {tab === 'partner' && <PartnerCard onCTA={onCTA} featuredEvents={featuredEvents} />}
       </div>
 
       {/* Partner logos carousel — only shown if partners loaded */}
@@ -249,7 +250,7 @@ function ContributeCard({ onCTA, onShowPartner, featuredEvents }: { onCTA: () =>
   )
 }
 
-function PartnerCard({ featuredEvents }: { featuredEvents: FeaturedEvent[] }) {
+function PartnerCard({ onCTA, featuredEvents }: { onCTA: () => void; featuredEvents: FeaturedEvent[] }) {
   return (
     <div className="bg-white rounded-2xl border border-[#E8DDD0] p-7 space-y-6 shadow-sm">
       <div className="space-y-4">
@@ -275,12 +276,12 @@ function PartnerCard({ featuredEvents }: { featuredEvents: FeaturedEvent[] }) {
           ))}
         </ol>
       </div>
-      <a
-        href="mailto:team@whispered.com"
+      <button
+        onClick={onCTA}
         className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-gold-600 hover:bg-gold-500 text-white font-medium transition-colors"
       >
-        Email team@whispered.com
-      </a>
+        Apply
+      </button>
       <FeaturedEventsCarousel events={featuredEvents} />
     </div>
   )
@@ -290,11 +291,7 @@ function TabPill({ active, onClick, children }: { active: boolean; onClick: () =
   return (
     <button
       onClick={onClick}
-      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
-        active
-          ? 'bg-gold-600 text-white shadow-sm'
-          : 'bg-gold-50 text-gold-700 border border-gold-200 hover:bg-gold-100'
-      }`}
+      className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${active ? 'bg-gold-600 text-white shadow-sm' : 'bg-gold-50 text-gold-700 border border-gold-200 hover:bg-gold-100'}"
     >
       {children}
     </button>

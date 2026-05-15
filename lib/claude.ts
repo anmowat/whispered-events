@@ -61,3 +61,31 @@ Return ONLY valid JSON, no markdown, no explanation. Example:
     return { link: sourceUrl }
   }
 }
+
+// Used by the Partner apply chat to show "we know your audience" before
+// asking for event volume. One short sentence, no follow-up question (the
+// chat appends the volume prompt separately so it can be tweaked client-side).
+// Returns a generic ack on any error so the flow never blocks.
+export async function generateAudienceAck(audience: string): Promise<string> {
+  const trimmed = audience.trim()
+  if (!trimmed) return 'Got it.'
+  try {
+    const message = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 120,
+      messages: [
+        {
+          role: 'user',
+          content: `A potential partner just described their target audience as: "${trimmed}"
+
+Reply with ONE warm, knowledgeable sentence (max 25 words) acknowledging this audience in a way that shows we understand who they are and what they care about. Do not ask any question. Do not start with "Great" or "Awesome". Do not use emojis. Return ONLY the sentence.`,
+        },
+      ],
+    })
+    const text = message.content[0].type === 'text' ? message.content[0].text.trim() : ''
+    return text || 'Got it — we know that crowd well.'
+  } catch (e) {
+    console.error('generateAudienceAck error:', e instanceof Error ? e.message : String(e))
+    return 'Got it — we know that crowd well.'
+  }
+}
