@@ -63,15 +63,19 @@ Return ONLY valid JSON, no markdown, no explanation. Example:
 }
 
 // Used by the Partner apply chat to show "we have your audience" before
-// asking for event volume. Speaks about Whispered already having those
-// people on platform — does NOT lecture about what the audience cares
-// about (an earlier version did that and felt fake / consultant-y).
-// Returns a generic ack on any error so the chat flow never blocks.
+// asking for event volume. Reply must echo the audience the partner just
+// named — generic "right people" copy felt empty. Returns an audience-aware
+// template on any error so the chat flow never blocks AND the reply still
+// references what the partner said.
 export async function generateAudienceAck(audience: string): Promise<string> {
   const trimmed = audience.trim()
-  const fallback =
-    'That is great. We have the right people on our platform and look forward to connecting you with them.'
-  if (!trimmed) return fallback
+  if (!trimmed) {
+    return 'That is great. We have the right people on our platform and look forward to connecting you with them.'
+  }
+  // Audience-aware fallback used on any LLM error. Echoing the raw input
+  // is better than generic copy because the whole point of the ack is to
+  // mirror back what the partner just told us.
+  const fallback = `That is great. We have ${trimmed} on our platform and look forward to connecting you with the right ones.`
   try {
     const message = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
@@ -81,9 +85,15 @@ export async function generateAudienceAck(audience: string): Promise<string> {
           role: 'user',
           content: `A potential partner just described their target audience as: "${trimmed}"
 
-Reply with 1-2 short, warm sentences telling them we already have that kind of audience on the Whispered Events platform and look forward to connecting them with the right ones. Translate the literal roles they listed into a natural seniority-and-function plural noun phrase (e.g. "CROs" → "senior revenue leaders", "CMOs and VPs of Marketing" → "senior marketing leaders", "VCs" → "investors", "founders of pre-seed startups" → "early-stage founders"). Do NOT lecture about what this audience cares about or what they prioritize. Do NOT explain what the audience does. Do not start with "Great" or "Awesome". Do not use emojis. Return ONLY the sentence(s).
+Reply with 1-2 short, warm sentences that:
+1. Acknowledge their answer warmly (do NOT start with "Great" or "Awesome").
+2. Explicitly reference the SAME audience they just named. Translate the literal roles into a natural seniority-and-function plural noun phrase (e.g. "CROs" → "senior revenue leaders", "CMOs and VPs of Marketing" → "senior marketing leaders", "VCs" → "investors", "founders of pre-seed startups" → "early-stage founders"). If the audience they named is already a natural phrase, you may use it as-is. The audience phrase MUST appear in your reply.
+3. Position Whispered Events as already having those exact people on platform and wanting to connect them with the right ones.
 
-Example for input "CROs": "That is great. We have senior revenue leaders on our platform and look forward to connecting you with the right ones."`,
+Do NOT lecture about what this audience cares about. Do NOT explain what the audience does or prioritizes. Do not use emojis. Return ONLY the sentence(s).
+
+Example for input "CROs": "That is great. We have senior revenue leaders on our platform and look forward to connecting you with the right ones."
+Example for input "early-stage fintech founders": "That is great. We have early-stage fintech founders on our platform and look forward to connecting you with the right ones."`,
         },
       ],
     })
