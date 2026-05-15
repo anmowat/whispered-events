@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { Fragment, useState, useRef, useEffect } from 'react'
+import type { ReactNode } from 'react'
 
 type Step =
   | 'email'
@@ -27,7 +28,24 @@ const LINKEDIN_RE = /(^|\.)linkedin\.com\/(in|company|pub)\//i
 const WELCOME: Message = {
   role: 'assistant',
   content:
-    "Welcome to Whispered Events. Partnering with us is free for people who host great executive events. We'll ask a few quick questions, then our team will review and follow up — typically within 24 hours.\n\nFirst, can we get your email?",
+    "Welcome to Whispered Events. Partnering with us is free for people who host great executive events. We'll ask a few quick questions, then our team will review and follow up — typically within 24 hours.\n\n**First, can we get your email?**",
+}
+
+// Tiny `**bold**` parser used only for assistant messages. We do this rather
+// than send rich nodes through state so the message history stays plain
+// string and is easy to debug / log. Bolded segments use the gold accent
+// to make the actual ask pop visually in a long chat thread.
+function renderAssistant(content: string): ReactNode {
+  const parts = content.split(/(\*\*[^*]+\*\*)/g)
+  return parts.map((part, i) =>
+    part.startsWith('**') && part.endsWith('**') ? (
+      <strong key={i} className="text-gold-700 font-semibold">
+        {part.slice(2, -2)}
+      </strong>
+    ) : (
+      <Fragment key={i}>{part}</Fragment>
+    ),
+  )
 }
 
 // Pulls the first one or two digit-groups out of a free-text answer so we
@@ -99,7 +117,7 @@ export default function PartnerApplyTab({ onDone }: { onDone?: () => void }) {
       setForm((f) => ({ ...f, email: value }))
       addUser(value)
       setInput('')
-      addAssistant("Thanks. What's the name of your company / organization?")
+      addAssistant("Thanks. **What's the name of your company / organization?**")
       setStep('company')
       return
     }
@@ -109,7 +127,7 @@ export default function PartnerApplyTab({ onDone }: { onDone?: () => void }) {
       addUser(value)
       setInput('')
       addAssistant(
-        "Got it. To start, can you describe your target audience(s) for your events? Roles and levels are most useful — e.g. CROs, VPs of Sales, GTM leaders at $50M+ ARR companies.",
+        "Its great to connect. **To start, can you describe your target audience(s) for your events?** Roles and levels are most useful — e.g. CROs, VPs of Sales, GTM leaders at $50M+ ARR companies.",
       )
       setStep('audience')
       return
@@ -128,13 +146,15 @@ export default function PartnerApplyTab({ onDone }: { onDone?: () => void }) {
           body: JSON.stringify({ audience: value }),
         })
         const data = (await res.json().catch(() => ({}))) as { ack?: string }
-        const ack = data.ack?.trim() || 'Got it — we know that crowd well.'
+        const fallback =
+          'That is great. We have the right people on our platform and look forward to connecting you with them.'
+        const ack = data.ack?.trim() || fallback
         addAssistant(
-          `${ack}\n\nHow many events do you host or run each year? A single number is great — even a rough estimate works.`,
+          `${ack}\n\n**How many events do you host or run each year?** A single number is great — even a rough estimate works.`,
         )
       } catch {
         addAssistant(
-          'Got it — we know that crowd well.\n\nHow many events do you host or run each year? A single number is great — even a rough estimate works.',
+          'That is great. We have the right people on our platform and look forward to connecting you with them.\n\n**How many events do you host or run each year?** A single number is great — even a rough estimate works.',
         )
       } finally {
         setIsLoading(false)
@@ -161,7 +181,7 @@ export default function PartnerApplyTab({ onDone }: { onDone?: () => void }) {
         setForm((f) => ({ ...f, volume: String(parsed) }))
       }
       addAssistant(
-        "If we approve you, we'll list you on our partner directory. Can you share a short description of what your company does?",
+        "If we approve you, we'll list you on our partner directory. **Can you share a short description of what your company does?**",
       )
       setStep('description')
       return
@@ -171,7 +191,7 @@ export default function PartnerApplyTab({ onDone }: { onDone?: () => void }) {
       setForm((f) => ({ ...f, description: value }))
       addUser(value)
       setInput('')
-      addAssistant("Last one — what's your LinkedIn profile URL?")
+      addAssistant("Last one — **what's your LinkedIn profile URL?**")
       setStep('linkedin')
       return
     }
@@ -200,7 +220,7 @@ export default function PartnerApplyTab({ onDone }: { onDone?: () => void }) {
         const data = (await res.json().catch(() => ({}))) as { error?: string }
         if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
         addAssistant(
-          "Great — your application is in. Our team will review and follow up within 24 hours.\n\nPartnership is free. While you wait, two things that really help: (a) share events you're hosting or hear about, and (b) tell top execs in your network about Whispered Events.",
+          "**Great — your application is in.** Our team will review and follow up within 24 hours.\n\nPartnership is free. While you wait, two things that really help: (a) share events you're hosting or hear about, and (b) tell top execs in your network about Whispered Events.",
         )
         setStep('submitted')
       } catch (err) {
@@ -253,7 +273,7 @@ export default function PartnerApplyTab({ onDone }: { onDone?: () => void }) {
                   : 'bg-gold-600 text-white rounded-tr-sm'
               }`}
             >
-              {msg.content}
+              {msg.role === 'assistant' ? renderAssistant(msg.content) : msg.content}
             </div>
           </div>
         ))}

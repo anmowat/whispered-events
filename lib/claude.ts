@@ -62,13 +62,16 @@ Return ONLY valid JSON, no markdown, no explanation. Example:
   }
 }
 
-// Used by the Partner apply chat to show "we know your audience" before
-// asking for event volume. One short sentence, no follow-up question (the
-// chat appends the volume prompt separately so it can be tweaked client-side).
-// Returns a generic ack on any error so the flow never blocks.
+// Used by the Partner apply chat to show "we have your audience" before
+// asking for event volume. Speaks about Whispered already having those
+// people on platform — does NOT lecture about what the audience cares
+// about (an earlier version did that and felt fake / consultant-y).
+// Returns a generic ack on any error so the chat flow never blocks.
 export async function generateAudienceAck(audience: string): Promise<string> {
   const trimmed = audience.trim()
-  if (!trimmed) return 'Got it.'
+  const fallback =
+    'That is great. We have the right people on our platform and look forward to connecting you with them.'
+  if (!trimmed) return fallback
   try {
     const message = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
@@ -78,14 +81,16 @@ export async function generateAudienceAck(audience: string): Promise<string> {
           role: 'user',
           content: `A potential partner just described their target audience as: "${trimmed}"
 
-Reply with ONE warm, knowledgeable sentence (max 25 words) acknowledging this audience in a way that shows we understand who they are and what they care about. Do not ask any question. Do not start with "Great" or "Awesome". Do not use emojis. Return ONLY the sentence.`,
+Reply with 1-2 short, warm sentences telling them we already have that kind of audience on the Whispered Events platform and look forward to connecting them with the right ones. Translate the literal roles they listed into a natural seniority-and-function plural noun phrase (e.g. "CROs" → "senior revenue leaders", "CMOs and VPs of Marketing" → "senior marketing leaders", "VCs" → "investors", "founders of pre-seed startups" → "early-stage founders"). Do NOT lecture about what this audience cares about or what they prioritize. Do NOT explain what the audience does. Do not start with "Great" or "Awesome". Do not use emojis. Return ONLY the sentence(s).
+
+Example for input "CROs": "That is great. We have senior revenue leaders on our platform and look forward to connecting you with the right ones."`,
         },
       ],
     })
     const text = message.content[0].type === 'text' ? message.content[0].text.trim() : ''
-    return text || 'Got it — we know that crowd well.'
+    return text || fallback
   } catch (e) {
     console.error('generateAudienceAck error:', e instanceof Error ? e.message : String(e))
-    return 'Got it — we know that crowd well.'
+    return fallback
   }
 }
