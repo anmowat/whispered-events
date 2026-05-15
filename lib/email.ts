@@ -22,6 +22,10 @@ function shell(inner: string): string {
   return `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#111;font-size:15px;line-height:1.55">${inner}</div>`
 }
 
+// Andy signature is now only used by sendUserAppliedEmail (the pre-approval
+// "we got your application" send). Every other content email uses the
+// shared digestFooterHtml/digestFooterTextLines block instead, so the
+// CTAs (Dashboard / Share Event / Help us grow) appear consistently.
 function signature(): string {
   return `<p style="margin:24px 0 0"><a href="${ANDY_LINK}" style="color:#8B6914;text-decoration:underline">Andy</a><br>Founder, Whispered</p>`
 }
@@ -86,28 +90,23 @@ export async function sendUserApprovedEmail(user: AirtableUser): Promise<void> {
     <p>Login via the top right of the site to see your matches (matches typically appear within ~5 minutes of approval).</p>
     <p>You can update your profile anytime to refine your matches — and we ❤️ feedback and feature ideas.</p>
     <p>Whispered Events is 100% free, built to help executives discover great events — the ones that aren't posted, they're whispered.</p>
-    <p>Want to help us grow? Share or tag us on <a href="${TAG_US_LINK}" style="color:#1a73e8;text-decoration:underline">LinkedIn</a>.</p>
-    ${signature()}
-    <p style="color:#555;font-size:13px;margin-top:24px">P.S. You can submit events anytime on the site or via event@whisperedevents.com</p>
+    ${digestFooterHtml()}
   `)
-  const text = `Hi ${firstName},
-
-Welcome to the club!
-
-You've been approved for Whispered Events.
-
-Login via the top right of the site to see your matches (matches typically appear within ~5 minutes of approval).
-
-You can update your profile anytime to refine your matches — and we love feedback and feature ideas.
-
-Whispered Events is 100% free, built to help executives discover great events — the ones that aren't posted, they're whispered.
-
-Want to help us grow? Share or tag us on LinkedIn: ${TAG_US_LINK}
-
-Andy (${ANDY_LINK})
-Founder, Whispered
-
-P.S. You can submit events anytime on the site or via event@whisperedevents.com`
+  const text = [
+    `Hi ${firstName},`,
+    '',
+    'Welcome to the club!',
+    '',
+    "You've been approved for Whispered Events.",
+    '',
+    'Login via the top right of the site to see your matches (matches typically appear within ~5 minutes of approval).',
+    '',
+    'You can update your profile anytime to refine your matches — and we love feedback and feature ideas.',
+    '',
+    "Whispered Events is 100% free, built to help executives discover great events — the ones that aren't posted, they're whispered.",
+    '',
+    ...digestFooterTextLines(),
+  ].join('\n')
   const { error } = await resend.emails.send({
     from: TEAM_FROM,
     to: user.email,
@@ -130,21 +129,19 @@ export async function sendEventSubmittedEmail(email: string, eventName: string):
     <p>Thanks for contributing an event to Whispered Events — the platform is powered by contributions like yours.</p>
     <p>"${safeName}" has been added to Whispered Events, and we've updated your contributions.</p>
     <p>Have a great time at your next event, and keep sharing Whispered Events with your network so more great people can discover the right events.</p>
-    ${signature()}
-    <p style="color:#555;font-size:13px;margin-top:24px">P.S. We ❤️ feedback and feature ideas.</p>
+    ${digestFooterHtml()}
   `)
-  const text = `Hi there —
-
-Thanks for contributing an event to Whispered Events — the platform is powered by contributions like yours.
-
-"${eventName}" has been added to Whispered Events, and we've updated your contributions.
-
-Have a great time at your next event, and keep sharing Whispered Events with your network so more great people can discover the right events.
-
-Andy (${ANDY_LINK})
-Founder, Whispered
-
-P.S. We love feedback and feature ideas.`
+  const text = [
+    'Hi there —',
+    '',
+    'Thanks for contributing an event to Whispered Events — the platform is powered by contributions like yours.',
+    '',
+    `"${eventName}" has been added to Whispered Events, and we've updated your contributions.`,
+    '',
+    'Have a great time at your next event, and keep sharing Whispered Events with your network so more great people can discover the right events.',
+    '',
+    ...digestFooterTextLines(),
+  ].join('\n')
   const { error } = await resend.emails.send({
     from: EVENT_FROM,
     to: email,
@@ -166,18 +163,19 @@ export async function sendEventCouldNotReadEmail(email: string): Promise<void> {
     <p>Thanks for sending an event to Whispered Events — the platform is powered by contributions like yours.</p>
     <p>We weren't able to extract the event details.</p>
     <p>If you have a public event link (Luma, Eventbrite, the host's site, etc.), send it over and we'll try again.</p>
-    ${signature()}
+    ${digestFooterHtml()}
   `)
-  const text = `Hi there —
-
-Thanks for sending an event to Whispered Events — the platform is powered by contributions like yours.
-
-We weren't able to extract the event details.
-
-If you have a public event link (Luma, Eventbrite, the host's site, etc.), send it over and we'll try again.
-
-Andy (${ANDY_LINK})
-Founder, Whispered`
+  const text = [
+    'Hi there —',
+    '',
+    'Thanks for sending an event to Whispered Events — the platform is powered by contributions like yours.',
+    '',
+    "We weren't able to extract the event details.",
+    '',
+    "If you have a public event link (Luma, Eventbrite, the host's site, etc.), send it over and we'll try again.",
+    '',
+    ...digestFooterTextLines(),
+  ].join('\n')
   const { error } = await resend.emails.send({
     from: EVENT_FROM,
     to: email,
@@ -233,10 +231,10 @@ const DASHBOARD_LINK = 'https://www.whisperedevents.com/dashboard'
 const TAG_US_LINK = 'https://www.linkedin.com/company/whispered-events/about/?viewAsMember=true'
 const NEW_EVENT_MAILTO = 'mailto:event@whisperedevents.com'
 
-// Shared three-line footer used at the bottom of every digest-style email
-// (the recurring digest AND the approval+first-digest welcome). Bold labels
-// with the colon, single-action link on each line. Centralised so the two
-// sends never drift apart.
+// Shared three-line footer used at the bottom of every content email except
+// the pre-approval "Application Received" send (which still uses Andy's
+// signature). Bold labels with the colon, single-action link on each line.
+// Centralised so the various sends can never drift apart.
 function digestFooterHtml(): string {
   return `
     <div style="margin-top:28px;padding-top:20px;border-top:1px solid #eee;color:#555;font-size:14px;line-height:1.7">
