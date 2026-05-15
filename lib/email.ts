@@ -390,9 +390,9 @@ export async function sendUserDigest(
       ${renderSection('New', annotated.newEvents)}
       ${renderSection('Top Matches', annotated.topMatches)}
       <div style="margin-top:28px;padding-top:20px;border-top:1px solid #eee;color:#555;font-size:14px;line-height:1.7">
-        <div>Update your match criteria and frequency on <a href="${DASHBOARD_LINK}" style="color:#1a73e8;text-decoration:underline">your Dashboard</a>.</div>
-        <div>Email new events to <a href="${NEW_EVENT_MAILTO}" style="color:#1a73e8;text-decoration:underline">event@whisperedevents.com</a>.</div>
-        <div>Help us grow — post on LinkedIn and <a href="${TAG_US_LINK}" style="color:#1a73e8;text-decoration:underline">tag us</a> so we can find more great events for everyone.</div>
+        <div><strong style="color:#111">Improve your matches:</strong> Update on <a href="${DASHBOARD_LINK}" style="color:#1a73e8;text-decoration:underline">your Dashboard</a></div>
+        <div><strong style="color:#111">Share Event:</strong> Email <a href="${NEW_EVENT_MAILTO}" style="color:#1a73e8;text-decoration:underline">event@whisperedevents.com</a></div>
+        <div><strong style="color:#111">See more events (help us grow):</strong> Share with others + post on LinkedIn and <a href="${TAG_US_LINK}" style="color:#1a73e8;text-decoration:underline">tag us</a></div>
       </div>
     </div>
   `
@@ -418,9 +418,9 @@ export async function sendUserDigest(
   }
   appendSection('New', annotated.newEvents)
   appendSection('Top Matches', annotated.topMatches)
-  textLines.push(`Update your match criteria and frequency on your Dashboard: ${DASHBOARD_LINK}`)
-  textLines.push(`Email new events to event@whisperedevents.com`)
-  textLines.push(`Help us grow — post on LinkedIn and tag us so we can find more great events for everyone: ${TAG_US_LINK}`)
+  textLines.push(`Improve your matches: Update on your Dashboard — ${DASHBOARD_LINK}`)
+  textLines.push(`Share Event: Email event@whisperedevents.com`)
+  textLines.push(`See more events (help us grow): Share with others + post on LinkedIn and tag us — ${TAG_US_LINK}`)
   const text = textLines.join('\n')
 
   const { error } = await resend.emails.send({
