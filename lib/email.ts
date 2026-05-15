@@ -233,6 +233,28 @@ const DASHBOARD_LINK = 'https://www.whisperedevents.com/dashboard'
 const TAG_US_LINK = 'https://www.linkedin.com/company/whispered-events/about/?viewAsMember=true'
 const NEW_EVENT_MAILTO = 'mailto:event@whisperedevents.com'
 
+// Shared three-line footer used at the bottom of every digest-style email
+// (the recurring digest AND the approval+first-digest welcome). Bold labels
+// with the colon, single-action link on each line. Centralised so the two
+// sends never drift apart.
+function digestFooterHtml(): string {
+  return `
+    <div style="margin-top:28px;padding-top:20px;border-top:1px solid #eee;color:#555;font-size:14px;line-height:1.7">
+      <div><strong style="color:#111">Improve your matches:</strong> Update on <a href="${DASHBOARD_LINK}" style="color:#1a73e8;text-decoration:underline">your Dashboard</a></div>
+      <div><strong style="color:#111">Share Event:</strong> Email <a href="${NEW_EVENT_MAILTO}" style="color:#1a73e8;text-decoration:underline">event@whisperedevents.com</a></div>
+      <div><strong style="color:#111">See more events (help us grow):</strong> Share with others + post on LinkedIn and <a href="${TAG_US_LINK}" style="color:#1a73e8;text-decoration:underline">tag us</a></div>
+    </div>
+  `
+}
+
+function digestFooterTextLines(): string[] {
+  return [
+    `Improve your matches: Update on your Dashboard — ${DASHBOARD_LINK}`,
+    `Share Event: Email event@whisperedevents.com`,
+    `See more events (help us grow): Share with others + post on LinkedIn and tag us — ${TAG_US_LINK}`,
+  ]
+}
+
 export function firstNameOrThere(user: AirtableUser): string {
   const f = user.firstName?.trim()
   if (f && f.toUpperCase() !== 'DEFAULT') return f
@@ -307,24 +329,20 @@ export async function sendApprovedWithDigest(
   const hasMatches = payload.newEvents.length > 0 || payload.topMatches.length > 0
   const annotated = markDuplicates(payload)
 
-  const html = shell(`
-    <p>Hi ${escapeHtml(firstName)},</p>
-    <p>Welcome to the club!</p>
-    <p>You've been approved for Whispered Events.${hasMatches ? ' Here are some upcoming events that match your profile:' : ''}</p>
-    ${renderSection('New', annotated.newEvents)}
-    ${renderSection('Top Matches', annotated.topMatches)}
-    <p>Login anytime via the top right of the site to see all your matches, and update your profile to refine them.</p>
-    <p>Whispered Events is 100% free, built to help executives discover great events — the ones that aren't posted, they're whispered. Want to help us grow? Share or tag us on <a href="${TAG_US_LINK}" style="color:#1a73e8;text-decoration:underline">LinkedIn</a>.</p>
-    ${signature()}
-    <p style="color:#555;font-size:13px;margin-top:24px">P.S. You can submit events anytime on the site or via event@whisperedevents.com</p>
-  `)
+  const html = `
+    <div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#111;font-size:15px;line-height:1.55">
+      <p>Hi ${escapeHtml(firstName)},</p>
+      <p>Welcome to the club! You've been approved for Whispered Events.${hasMatches ? ' Here are some upcoming events that match your profile:' : ''}</p>
+      ${renderSection('New', annotated.newEvents)}
+      ${renderSection('Top Matches', annotated.topMatches)}
+      ${digestFooterHtml()}
+    </div>
+  `
 
   const textLines: string[] = [
     `Hi ${firstName},`,
     '',
-    'Welcome to the club!',
-    '',
-    `You've been approved for Whispered Events.${hasMatches ? ' Here are some upcoming events that match your profile:' : ''}`,
+    `Welcome to the club! You've been approved for Whispered Events.${hasMatches ? ' Here are some upcoming events that match your profile:' : ''}`,
     '',
   ]
   const appendSection = (title: string, entries: DigestEventEntry[]) => {
@@ -342,14 +360,7 @@ export async function sendApprovedWithDigest(
   }
   appendSection('New', annotated.newEvents)
   appendSection('Top Matches', annotated.topMatches)
-  textLines.push('Login anytime via the top right of the site to see all your matches, and update your profile to refine them.')
-  textLines.push('')
-  textLines.push(`Whispered Events is 100% free, built to help executives discover great events — the ones that aren't posted, they're whispered. Want to help us grow? Share or tag us on LinkedIn: ${TAG_US_LINK}`)
-  textLines.push('')
-  textLines.push(`Andy (${ANDY_LINK})`)
-  textLines.push('Founder, Whispered')
-  textLines.push('')
-  textLines.push('P.S. You can submit events anytime on the site or via event@whisperedevents.com')
+  textLines.push(...digestFooterTextLines())
   const text = textLines.join('\n')
 
   const subject = hasMatches
@@ -389,11 +400,7 @@ export async function sendUserDigest(
       <p>We have some new matching Whispered Events for you</p>
       ${renderSection('New', annotated.newEvents)}
       ${renderSection('Top Matches', annotated.topMatches)}
-      <div style="margin-top:28px;padding-top:20px;border-top:1px solid #eee;color:#555;font-size:14px;line-height:1.7">
-        <div><strong style="color:#111">Improve your matches:</strong> Update on <a href="${DASHBOARD_LINK}" style="color:#1a73e8;text-decoration:underline">your Dashboard</a></div>
-        <div><strong style="color:#111">Share Event:</strong> Email <a href="${NEW_EVENT_MAILTO}" style="color:#1a73e8;text-decoration:underline">event@whisperedevents.com</a></div>
-        <div><strong style="color:#111">See more events (help us grow):</strong> Share with others + post on LinkedIn and <a href="${TAG_US_LINK}" style="color:#1a73e8;text-decoration:underline">tag us</a></div>
-      </div>
+      ${digestFooterHtml()}
     </div>
   `
 
@@ -418,9 +425,7 @@ export async function sendUserDigest(
   }
   appendSection('New', annotated.newEvents)
   appendSection('Top Matches', annotated.topMatches)
-  textLines.push(`Improve your matches: Update on your Dashboard — ${DASHBOARD_LINK}`)
-  textLines.push(`Share Event: Email event@whisperedevents.com`)
-  textLines.push(`See more events (help us grow): Share with others + post on LinkedIn and tag us — ${TAG_US_LINK}`)
+  textLines.push(...digestFooterTextLines())
   const text = textLines.join('\n')
 
   const { error } = await resend.emails.send({
