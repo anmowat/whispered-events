@@ -209,12 +209,10 @@ function ViewCard({ onCTA, featuredEvents }: { onCTA: () => void; featuredEvents
           ))}
         </ol>
       </div>
-      <div>
-        <button onClick={onCTA} className="w-full py-3 rounded-xl bg-gold-600 hover:bg-gold-500 text-white font-medium transition-colors">
-          Create Profile
-        </button>
-        <p className="text-center text-xs text-gray-400 mt-1.5">always free to find events</p>
-      </div>
+      <button onClick={onCTA} className="w-full py-3 rounded-xl bg-gold-600 hover:bg-gold-500 text-white font-medium transition-colors flex flex-col items-center leading-tight">
+        <span>Create Profile</span>
+        <span className="text-xs font-normal text-gold-100 mt-0.5">always free to find events</span>
+      </button>
       <p className="text-center text-xs text-gray-400">
         Love what we are doing?<br />Tag <a href="https://www.linkedin.com/company/whispered-events/about/?viewAsMember=true" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">Whispered Events</a> on a LinkedIn post
       </p>
