@@ -239,7 +239,7 @@ function ContributeCard({ onCTA, onShowPartner, featuredEvents }: { onCTA: () =>
         </ol>
       </div>
       <button onClick={onCTA} className="w-full py-3 rounded-xl bg-gold-600 hover:bg-gold-500 text-white font-medium transition-colors">
-        Start contributing
+        Share Event
       </button>
       <p className="text-center text-xs text-gray-400 leading-relaxed">
         You can share an event you are running or just one you are aware of.{' '}
