@@ -291,7 +291,11 @@ function TabPill({ active, onClick, children }: { active: boolean; onClick: () =
   return (
     <button
       onClick={onClick}
-      className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${active ? 'bg-gold-600 text-white shadow-sm' : 'bg-gold-50 text-gold-700 border border-gold-200 hover:bg-gold-100'}"
+      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
+        active
+          ? 'bg-gold-600 text-white shadow-sm'
+          : 'bg-gold-50 text-gold-700 border border-gold-200 hover:bg-gold-100'
+      }`}
     >
       {children}
     </button>
