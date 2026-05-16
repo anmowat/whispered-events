@@ -288,8 +288,8 @@ export async function getMatchesForEvent(eventId: string): Promise<EventMatchRow
 }
 
 // Stamps notified_at on every still-unnotified match for the user. Used when a
-// user flips from Dashboard Only (or no preference) to a digest frequency so
-// they don't get drip-fed the entire backlog 3 events at a time.
+// user flips from Paused (or no preference) to a digest frequency so they
+// don't get drip-fed the entire backlog 3 events at a time.
 export async function markAllMatchesNotifiedForUser(userId: string): Promise<void> {
   const supabase = getClient()
   const nowIso = new Date().toISOString()

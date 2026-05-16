@@ -2,11 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { verifySession, markAllMatchesNotifiedForUser } from '@/lib/supabase'
 import { getUserByEmail, updateUserProfile, UserProfileUpdate } from '@/lib/airtable'
 
-const DIGEST_FREQUENCIES = new Set([
-  'Each New Event',
-  'Weekly When New Events',
-  'Monthly When New Events',
-])
+// Frequencies that result in an email digest. 'Paused' opts out.
+const DIGEST_FREQUENCIES = new Set(['As they arrive', 'Weekly', 'Monthly'])
 
 export async function POST(req: NextRequest) {
   const sessionToken = req.cookies.get('session')?.value

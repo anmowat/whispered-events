@@ -129,11 +129,11 @@ export async function runDigests(now: Date): Promise<{
   let monthlySent = 0
 
   for (const user of allUsers) {
-    if (user.frequency === 'Weekly When New Events') {
+    if (user.frequency === 'Weekly') {
       weeklyProcessed += 1
       const result = await processUser(user, futureById)
       if (result.sent) weeklySent += 1
-    } else if (user.frequency === 'Monthly When New Events') {
+    } else if (user.frequency === 'Monthly') {
       const state = await getDigestState(user.id)
       // Missing state row: treat as due today so we don't strand pre-existing
       // users, and seed a row going forward.
@@ -150,7 +150,7 @@ export async function runDigests(now: Date): Promise<{
         })
       }
     }
-    // 'Each New Event' and 'Dashboard Only' are not processed by cron.
+    // 'As they arrive' and 'Paused' are not processed by cron.
   }
 
   return {

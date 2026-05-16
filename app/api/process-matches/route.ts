@@ -140,9 +140,9 @@ async function processUserTrigger(
   )
 
   if (options.noEmail) return
-  // Dashboard Only users never receive a post-matching email. The approval
+  // Paused users never receive a post-matching email. The approval
   // email was already sent up front by the airtable-user-approved webhook.
-  if (targetUser.frequency === 'Dashboard Only') return
+  if (targetUser.frequency === 'Paused') return
 
   // "New" = top 3 freshly-scored matches above threshold (haven't been
   // included in an earlier email). "Top Matches" = top 3 of ALL matches
@@ -226,10 +226,10 @@ async function scoreAndNotify(
     if (result.score < SCORE_THRESHOLD) return 'scored'
 
     // Frequency routes delivery:
-    //   - Each New Event: send an immediate digest-format email (1 new + top matches)
+    //   - As they arrive: send an immediate digest-format email (1 new + top matches)
     //   - Weekly / Monthly: leave notified_at NULL; cron will pick it up
-    //   - Dashboard Only: never email
-    if (user.frequency === 'Each New Event') {
+    //   - Paused: never email
+    if (user.frequency === 'As they arrive') {
       try {
         await sendEachNewEventDigest(user, event, result.matchPercent)
       } catch (e) {

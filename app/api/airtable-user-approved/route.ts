@@ -40,10 +40,10 @@ export async function POST(req: NextRequest) {
   )
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-  const isDashboardOnly = user.frequency === 'Dashboard Only'
+  const isPaused = user.frequency === 'Paused'
 
-  if (isDashboardOnly) {
-    // Dashboard Only: send the plain approval email immediately, then run
+  if (isPaused) {
+    // Paused: send the plain approval email immediately, then run
     // matching in the background so the dashboard has data on first login.
     try {
       await sendUserApprovedEmail(user)

@@ -28,13 +28,8 @@ const EMPLOYMENT_OPTIONS = ['Employed', 'Searching', 'Fractional', 'Other']
 // Exact spellings/capitalizations match the Frequency single-select
 // options in Airtable Users table — do not change here without also
 // updating Airtable.
-const FREQUENCY_OPTIONS = [
-  'Each New Event',
-  'Weekly When New Events',
-  'Monthly When New Events',
-  'Dashboard Only',
-]
-const DEFAULT_FREQUENCY = 'Monthly When New Events'
+const FREQUENCY_OPTIONS = ['As they arrive', 'Weekly', 'Monthly', 'Paused']
+const DEFAULT_FREQUENCY = 'Monthly'
 
 const SEARCHING_NOTE =
   "The job market is changing fast — AI is reshaping everything.\n\nFor senior leaders, many of the best roles aren't posted. They're whispered.\n\nFor free playbooks, career strategies, and access to unposted GTM roles + the network to get them, visit [whispered.com](https://www.whispered.com/)."

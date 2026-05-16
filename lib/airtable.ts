@@ -542,7 +542,7 @@ export async function getUserById(userId: string): Promise<AirtableUser | null> 
   }
 }
 
-export const DEFAULT_FREQUENCY = 'Monthly When New Events'
+export const DEFAULT_FREQUENCY = 'Monthly'
 
 export async function createProfile(profile: UserProfile): Promise<string> {
   const base = getBase()

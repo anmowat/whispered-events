@@ -21,15 +21,10 @@ interface DashboardUser {
   frequency: string
 }
 
-// Frequency options preserved verbatim from the original dashboard —
-// the user explicitly asked NOT to change copy or values here, only the
-// visual control. Empty value = "not set" → no segment is active.
-const FREQUENCY_OPTIONS = [
-  'Each New Event',
-  'Weekly When New Events',
-  'Monthly When New Events',
-  'Dashboard Only',
-]
+// Frequency picklist values — must match the Airtable Users table
+// Frequency single-select options. Empty value = "not set" → no segment
+// is active.
+const FREQUENCY_OPTIONS = ['As they arrive', 'Weekly', 'Monthly', 'Paused']
 
 type DashboardEvent = AirtableEvent & {
   matchScore: number | null
