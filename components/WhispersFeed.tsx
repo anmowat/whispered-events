@@ -1,14 +1,12 @@
-// "The Whispers · This Week" — anonymized activity ticker on the
-// landing page. Hardcoded for v1; in a later pass we'll plumb real
-// counts from Airtable/Supabase (new events this week, recent
-// partner joins, etc).
+// Whispers this week — anonymized activity ticker on the landing page.
+// Hardcoded for v1; in a later pass we'll plumb real counts from
+// Airtable/Supabase (new events this week, recent partner joins, etc).
 const WHISPERS = [
-  '3 new events added this week',
-  'Whispered to 47 CROs in NYC',
-  'New dinner · Tribeca · Mar 14',
-  'GTM Council joined as partner',
-  '12 events in San Francisco this quarter',
-  'New retreat · Aspen · May 2',
+  '15 new events in SF',
+  '8 new VP+ marketers',
+  'New intimate dinner in NYC',
+  'Added GTM Fund & Sendoso as partners',
+  'Demand & Expand conference features',
 ]
 
 export default function WhispersFeed() {

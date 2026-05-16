@@ -120,7 +120,7 @@ export default function Home() {
         className="max-w-[1040px] mx-auto w-full px-6 sm:px-8 py-5 pb-7 flex justify-between items-center text-[12px] border-t mt-14"
         style={{ borderColor: 'var(--rule-soft)', color: 'var(--ink-3)' }}
       >
-        <span>Whispered Events — for executives only</span>
+        <span>Whispered Events — for executives</span>
         <span className="font-serif italic">— est. 2026</span>
       </footer>
     </div>
@@ -175,15 +175,9 @@ function Landing({
       <section className="max-w-[1040px] w-full mt-16 grid grid-cols-1 lg:grid-cols-2 gap-12">
         <div>
           <div className="flex items-center mb-3.5 min-h-[32px]">
-            <span className="eyebrow">The Whispers · This Week</span>
+            <span className="eyebrow">Whispers this week</span>
           </div>
           <WhispersFeed />
-          <p
-            className="mt-3.5 leading-relaxed"
-            style={{ fontSize: 11.5, color: 'var(--ink-3)' }}
-          >
-            Aggregate activity from the platform. No member, host or attendee is ever named.
-          </p>
         </div>
         <Coverage />
       </section>
@@ -360,7 +354,7 @@ function ContributeCard({
   featuredEvents: FeaturedEvent[]
 }) {
   return (
-    <LandingCard title="Contribute an event in 30 seconds.">
+    <LandingCard title="Contribute an event in seconds.">
       <HowItWorks
         items={[
           'Share an event link or paste in details',
