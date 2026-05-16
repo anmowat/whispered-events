@@ -37,12 +37,29 @@ const newsreader = Newsreader({
 export const metadata: Metadata = {
   metadataBase: new URL('https://www.whisperedevents.com'),
   title: 'Whispered Events',
-  description: 'Exclusive events, curated for executives.',
+  description:
+    "Real relationships are built in person. The best events aren't posted — they're whispered. A private platform for executives to contribute and discover exclusive, invitation-only events.",
   alternates: {
     canonical: '/',
   },
   icons: {
     icon: '/favicon.svg',
+  },
+  openGraph: {
+    type: 'website',
+    siteName: 'Whispered Events',
+    title: 'Whispered Events',
+    description:
+      "The best events aren't posted — they're whispered. A private platform for executives.",
+    url: 'https://www.whisperedevents.com',
+    // Image auto-detected from app/opengraph-image.tsx
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Whispered Events',
+    description:
+      "The best events aren't posted — they're whispered. A private platform for executives.",
+    // Image auto-detected from app/opengraph-image.tsx (also wired as twitter:image)
   },
 }
 
