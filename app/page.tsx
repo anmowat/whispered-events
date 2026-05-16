@@ -190,6 +190,27 @@ function Landing({
             Partnered with the best communities &amp; firms
           </div>
           <PartnerMarquee partners={partners} />
+          <div className="flex justify-center mt-6">
+            <a
+              href="/partners"
+              className="rounded-pill text-[12px] font-medium px-4 py-2 transition-colors border"
+              style={{
+                background: 'var(--paper)',
+                color: 'var(--ink-2)',
+                borderColor: 'var(--rule)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'var(--paper-2)'
+                e.currentTarget.style.color = 'var(--ink)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'var(--paper)'
+                e.currentTarget.style.color = 'var(--ink-2)'
+              }}
+            >
+              See all partners →
+            </a>
+          </div>
         </section>
       )}
     </div>
