@@ -34,7 +34,7 @@ export default function Coverage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-3.5">
+      <div className="flex items-center justify-between mb-3.5 min-h-[32px]">
         <span className="eyebrow">Where we run deepest</span>
         <div
           className="flex p-[3px] rounded-full border"

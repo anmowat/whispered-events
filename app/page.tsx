@@ -121,7 +121,7 @@ export default function Home() {
         style={{ borderColor: 'var(--rule-soft)', color: 'var(--ink-3)' }}
       >
         <span>Whispered Events — for executives only</span>
-        <span className="font-serif italic">— est. 2024</span>
+        <span className="font-serif italic">— est. 2026</span>
       </footer>
     </div>
   )
@@ -142,15 +142,6 @@ function Landing({
     <div className="flex flex-col items-center px-4 sm:px-6 animate-fade-in">
       {/* Hero */}
       <section className="max-w-[760px] mx-auto pt-12 sm:pt-[60px] pb-7 text-center w-full">
-        <div
-          className="mb-3.5 inline-flex items-center gap-2"
-          style={{ color: 'var(--accent)' }}
-        >
-          <span className="pulse-dot" />
-          <span className="eyebrow" style={{ color: 'var(--ink-3)' }}>
-            Whispered to 47 executives this week
-          </span>
-        </div>
         <h1
           className="font-serif m-0 text-[44px] sm:text-[54px]"
           style={{ lineHeight: 1.05, color: 'var(--ink)', letterSpacing: '-0.01em' }}
@@ -183,11 +174,8 @@ function Landing({
       {/* Insights row */}
       <section className="max-w-[1040px] w-full mt-16 grid grid-cols-1 lg:grid-cols-2 gap-12">
         <div>
-          <div className="flex items-center justify-between mb-3.5">
+          <div className="flex items-center mb-3.5 min-h-[32px]">
             <span className="eyebrow">The Whispers · This Week</span>
-            <span className="eyebrow" style={{ color: 'var(--ink-3)' }}>
-              anonymized
-            </span>
           </div>
           <WhispersFeed />
           <p
@@ -217,11 +205,9 @@ function Landing({
 // ----- Landing card primitives -----
 
 function LandingCard({
-  eyebrow,
   title,
   children,
 }: {
-  eyebrow: string
   title: string
   children: React.ReactNode
 }) {
@@ -235,11 +221,8 @@ function LandingCard({
         padding: '28px 28px 26px',
       }}
     >
-      <div className="eyebrow" style={{ color: 'var(--accent)' }}>
-        {eyebrow}
-      </div>
       <h3
-        className="font-serif mt-1.5 mb-4 m-0"
+        className="font-serif mt-0 mb-4 m-0"
         style={{
           fontSize: 30,
           lineHeight: 1.15,
@@ -331,7 +314,7 @@ function ViewCard({
   featuredEvents: FeaturedEvent[]
 }) {
   return (
-    <LandingCard eyebrow="01 · How it works" title="Find events whispered to you.">
+    <LandingCard title="Find events whispered to you.">
       <HowItWorks
         items={[
           'Share your profile and event interests',
@@ -377,7 +360,7 @@ function ContributeCard({
   featuredEvents: FeaturedEvent[]
 }) {
   return (
-    <LandingCard eyebrow="02 · How it works" title="Contribute an event in 30 seconds.">
+    <LandingCard title="Contribute an event in 30 seconds.">
       <HowItWorks
         items={[
           'Share an event link or paste in details',
@@ -416,26 +399,7 @@ function PartnerCard({
   featuredEvents: FeaturedEvent[]
 }) {
   return (
-    <LandingCard eyebrow="03 · Partner with us" title="For communities, vendors & investors.">
-      <p
-        className="m-0 mb-4"
-        style={{ fontSize: 14, color: 'var(--ink-2)', lineHeight: 1.6 }}
-      >
-        We partner with{' '}
-        <span className="font-serif italic" style={{ color: 'var(--ink)' }}>
-          communities
-        </span>
-        ,{' '}
-        <span className="font-serif italic" style={{ color: 'var(--ink)' }}>
-          vendors
-        </span>{' '}
-        and{' '}
-        <span className="font-serif italic" style={{ color: 'var(--ink)' }}>
-          investors
-        </span>{' '}
-        to bring exclusive events to the right executives.
-      </p>
-      <div className="eyebrow mb-2.5">What you get</div>
+    <LandingCard title="For communities & vendors who organize events.">
       <HowItWorks
         items={[
           'Share (and update) events you are running',
