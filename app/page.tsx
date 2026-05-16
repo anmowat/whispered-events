@@ -99,7 +99,7 @@ export default function Home() {
 
       <main className="flex-1 w-full">
         {mode === 'landing' ? (
-          <Landing tab={tab} setTab={setTab} eventCount={eventCount} partners={partners} featuredEvents={featuredEvents} onCTA={handleCTA} />
+          <Landing tab={tab} eventCount={eventCount} partners={partners} featuredEvents={featuredEvents} onCTA={handleCTA} />
         ) : (
           <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
             {tab === 'view' && <ViewEventsTab startAtForm onReturnHome={handleBack} />}
@@ -120,10 +120,9 @@ export default function Home() {
 }
 
 function Landing({
-  tab, setTab, eventCount, partners, featuredEvents, onCTA,
+  tab, eventCount, partners, featuredEvents, onCTA,
 }: {
   tab: Tab
-  setTab: (t: Tab) => void
   eventCount: number
   partners: Partner[]
   featuredEvents: FeaturedEvent[]
@@ -150,7 +149,7 @@ function Landing({
       {/* Info card */}
       <div className="w-full max-w-md animate-slide-up" key={tab}>
         {tab === 'view' && <ViewCard onCTA={onCTA} featuredEvents={featuredEvents} />}
-        {tab === 'contribute' && <ContributeCard onCTA={onCTA} onShowPartner={() => setTab('partner')} featuredEvents={featuredEvents} />}
+        {tab === 'contribute' && <ContributeCard onCTA={onCTA} featuredEvents={featuredEvents} />}
         {tab === 'partner' && <PartnerCard onCTA={onCTA} featuredEvents={featuredEvents} />}
       </div>
 
@@ -221,7 +220,7 @@ function ViewCard({ onCTA, featuredEvents }: { onCTA: () => void; featuredEvents
   )
 }
 
-function ContributeCard({ onCTA, onShowPartner, featuredEvents }: { onCTA: () => void; onShowPartner: () => void; featuredEvents: FeaturedEvent[] }) {
+function ContributeCard({ onCTA, featuredEvents }: { onCTA: () => void; featuredEvents: FeaturedEvent[] }) {
   return (
     <div className="bg-white rounded-2xl border border-[#E8DDD0] p-7 space-y-6 shadow-sm">
       <div className="space-y-3">
@@ -239,13 +238,11 @@ function ContributeCard({ onCTA, onShowPartner, featuredEvents }: { onCTA: () =>
           ))}
         </ol>
       </div>
-      <button onClick={onCTA} className="w-full py-3 rounded-xl bg-gold-600 hover:bg-gold-500 text-white font-medium transition-colors flex flex-col items-center leading-tight">
-        <span>Share Event</span>
-        <span className="text-xs font-normal text-gold-100 mt-0.5">or email link to event@whisperedevents.com</span>
+      <button onClick={onCTA} className="w-full py-3 rounded-xl bg-gold-600 hover:bg-gold-500 text-white font-medium transition-colors">
+        Share Event
       </button>
       <p className="text-center text-xs text-gray-400 leading-relaxed">
-        You can share an event you are running or just one you are aware of.{' '}
-        <button onClick={onShowPartner} className="text-gold-700 hover:text-gold-600 underline">Partners</button> get more control of how their events are shared.
+        Share above or email link to <a href="mailto:event@whisperedevents.com" className="text-gold-700 hover:text-gold-600 underline">event@whisperedevents.com</a>
       </p>
       <FeaturedEventsCarousel events={featuredEvents} />
     </div>
