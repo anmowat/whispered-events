@@ -2,52 +2,122 @@
 @tailwind components;
 @tailwind utilities;
 
+/* "The Salon" CSS variables. Mirrored as Tailwind tokens in
+   tailwind.config.ts. Defined here so inline styles + non-Tailwind CSS
+   (the donut SVG strokes, the match-badge tooltip, etc.) can reach them. */
 :root {
-  --background: #F5EFE6;
-  --foreground: #1a1a1a;
+  --bg:          #F1ECE2;
+  --paper:       #FBF8F1;
+  --paper-2:     #F6F1E5;
+  --ink:         #1B1814;
+  --ink-2:       #4A433B;
+  --ink-3:       #8A8276;
+  --rule:        #DDD3C0;
+  --rule-soft:   #E9E2D2;
+  --accent:      #6E1F2B;
+  --accent-2:    #8A2A38;
+  --accent-soft: #F2DDD9;
+  --positive:    #2E5D3A;
 }
 
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
 html,
 body {
-  background-color: var(--background);
-  color: var(--foreground);
+  background-color: var(--bg);
+  color: var(--ink);
 }
+
+body {
+  font-feature-settings: "ss01", "cv11";
+  font-size: 14px;
+  line-height: 1.5;
+  letter-spacing: -0.005em;
+}
+
+/* Display headlines reach for Instrument Serif. Tailwind's font-serif
+   utility resolves to the same family — this class exists for inline use
+   when wrapping a span in the middle of body text. */
+.font-display {
+  font-family: var(--font-instrument-serif), Georgia, serif;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+/* Tabular numerals for any number that needs to align in a column. */
+.num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* Eyebrow label — small caps with wide tracking, used everywhere. */
+.eyebrow {
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  font-weight: 500;
+}
+
+/* Pulse dot used on the live activity indicator above the hero. */
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.35; }
+}
+.pulse-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: currentColor;
+  display: inline-block;
+  animation: pulseDot 1.8s ease-in-out infinite;
+}
+
+/* Marquee — used for the partner row on the landing. The track is sized
+   2× the visible row so translating -50% loops seamlessly. */
+@keyframes marquee {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+/* Hairlines */
+.hairline      { height: 1px; background: var(--rule); }
+.hairline-soft { height: 1px; background: var(--rule-soft); }
 
 /* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
+::-webkit-scrollbar       { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.12); border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.2); }
 
-::-webkit-scrollbar-track {
-  background: transparent;
-}
+input[type='date']::-webkit-calendar-picker-indicator { filter: none; opacity: 0.5; }
 
-::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.12);
-  border-radius: 9999px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.2);
-}
-
-/* Date input */
-input[type='date']::-webkit-calendar-picker-indicator {
-  filter: none;
-  opacity: 0.5;
-}
-
-/* Select arrow */
-select {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+/* Native <select> with a custom caret. Add the `salon-select` class to opt-in. */
+select.salon-select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238A8276' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 10px center;
   -webkit-appearance: none;
   appearance: none;
   padding-right: 2rem;
 }
+
+/* Event link with hover-arrow used on dashboard event cards. */
+.event-link        { color: var(--ink); text-decoration: none; display: inline-flex; align-items: baseline; gap: 6px; }
+.event-link:hover  { color: var(--accent); }
+.event-link .arrow { opacity: 0; transform: translateX(-2px); transition: opacity 0.15s, transform 0.15s; display: inline-block; }
+.event-link:hover .arrow { opacity: 1; transform: translateX(0); }
+
+/* Reusable card chrome. Tailwind utilities cover most of this — class
+   here is convenience when many props would otherwise stack. */
+.salon-card {
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+}
+
+/* Page-level animations preserved for chat surfaces. */
+@keyframes fadeIn  { 0% { opacity: 0; } 100% { opacity: 1; } }
+@keyframes slideUp { 0% { opacity: 0; transform: translateY(10px); } 100% { opacity: 1; transform: translateY(0); } }
+.animate-fade-in  { animation: fadeIn  0.4s ease-out; }
+.animate-slide-up { animation: slideUp 0.3s ease-out; }
