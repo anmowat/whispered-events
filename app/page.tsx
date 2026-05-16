@@ -425,7 +425,7 @@ function PartnerCard({
       <AccentButton onClick={onCTA}>
         Apply <ArrowIcon />
       </AccentButton>
-      <FeaturedEventsCarousel events={featuredEvents} label="Recent partner events" />
+      <FeaturedEventsCarousel events={featuredEvents} />
     </LandingCard>
   )
 }
