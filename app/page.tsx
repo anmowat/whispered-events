@@ -393,7 +393,7 @@ function PartnerCard({
   featuredEvents: FeaturedEvent[]
 }) {
   return (
-    <LandingCard title="For communities & vendors who organize events.">
+    <LandingCard title="For orgs who organize great events.">
       <HowItWorks
         items={[
           'Share (and update) events you are running',
