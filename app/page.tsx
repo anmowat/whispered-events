@@ -241,9 +241,14 @@ function ContributeCard({ onCTA, featuredEvents }: { onCTA: () => void; featured
       <button onClick={onCTA} className="w-full py-3 rounded-xl bg-gold-600 hover:bg-gold-500 text-white font-medium transition-colors">
         Share Event
       </button>
-      <p className="text-center text-xs text-gray-400 leading-relaxed">
-        Share above or email link to <a href="mailto:event@whisperedevents.com" className="text-gold-700 hover:text-gold-600 underline">event@whisperedevents.com</a>
-      </p>
+      <div className="text-center space-y-1">
+        <p className="text-xs text-gray-400 leading-relaxed">
+          Share an event you are running or just one you are aware of.
+        </p>
+        <p className="text-xs text-gray-400 leading-relaxed">
+          Share above or email link to <a href="mailto:event@whisperedevents.com" className="text-gold-700 hover:text-gold-600 underline">event@whisperedevents.com</a>
+        </p>
+      </div>
       <FeaturedEventsCarousel events={featuredEvents} />
     </div>
   )
