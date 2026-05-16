@@ -52,14 +52,25 @@ export const metadata: Metadata = {
     description:
       "The best events aren't posted — they're whispered. A private platform for executives.",
     url: 'https://www.whisperedevents.com',
-    // Image auto-detected from app/opengraph-image.tsx
+    // Versioned URL to force LinkedIn / X to re-fetch the image rather
+    // than serving their stale cached copy. Bump the v= each time the
+    // OG image changes substantially.
+    images: [
+      {
+        url: '/opengraph-image?v=4',
+        width: 2400,
+        height: 1260,
+        alt: "Whispered Events — The best events aren't posted. They're whispered.",
+        type: 'image/png',
+      },
+    ],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'Whispered Events',
     description:
       "The best events aren't posted — they're whispered. A private platform for executives.",
-    // Image auto-detected from app/opengraph-image.tsx (also wired as twitter:image)
+    images: ['/opengraph-image?v=4'],
   },
 }
 
