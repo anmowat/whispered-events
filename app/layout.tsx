@@ -1,13 +1,17 @@
 import type { Metadata } from 'next'
-import { Geist, Instrument_Serif, Newsreader } from 'next/font/google'
+import { Inter, Instrument_Serif, Newsreader } from 'next/font/google'
 import './globals.css'
 
 // Three Google fonts loaded as CSS variables so Tailwind's font-{family}
 // utilities + raw inline styles can both reach them.
-//   --font-geist             body / UI (sans)
+//   --font-geist             body / UI (sans) — Inter substitutes for Geist
+//                            since Next 14.2.5's next/font/google catalog
+//                            doesn't include Geist. Visually close enough
+//                            for the Salon brand; can swap to the
+//                            standalone 'geist' npm package later.
 //   --font-instrument-serif  display / headlines / italic emphasis
 //   --font-newsreader        wordmark only
-const geist = Geist({
+const geist = Inter({
   subsets: ['latin'],
   variable: '--font-geist',
   display: 'swap',
@@ -19,6 +23,7 @@ const instrumentSerif = Instrument_Serif({
   subsets: ['latin'],
   variable: '--font-instrument-serif',
   display: 'swap',
+  adjustFontFallback: false,
 })
 
 const newsreader = Newsreader({
@@ -26,6 +31,7 @@ const newsreader = Newsreader({
   subsets: ['latin'],
   variable: '--font-newsreader',
   display: 'swap',
+  adjustFontFallback: false,
 })
 
 export const metadata: Metadata = {
