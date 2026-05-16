@@ -1,22 +1,18 @@
 import { ImageResponse } from 'next/og'
 
 // Next.js auto-discovers this file and wires it as both the og:image
-// and twitter:image for the root route. 1200×630 is the canonical
-// social-card size — LinkedIn, X, Facebook, Slack all crop from this
-// aspect ratio.
+// and twitter:image for the root route. 2× rendered (2400×1260) so
+// LinkedIn / X aggressive JPEG re-compression downsamples to a still-
+// sharp preview thumbnail. Underlying aspect ratio is the canonical
+// 1.91:1 social card.
 //
-// Notes on the layout:
-// - Uses Satori's built-in default font, which renders considerably
-//   wider than a typical webfont; sizes are chosen so each line fits
-//   on one row in a 1200px canvas with 80px side padding.
-// - Stacks naturally with marginTop spacers rather than flex:1 on the
-//   middle column. flex:1 made an overflow vertically-compress all
-//   children into each other when the content was too tall.
+// Every element with multiple direct children has display:flex —
+// Satori's strict layout rules require it.
 
 export const runtime = 'edge'
 export const alt =
   "Whispered Events — The best events aren't posted. They're whispered."
-export const size = { width: 1200, height: 630 }
+export const size = { width: 2400, height: 1260 }
 export const contentType = 'image/png'
 
 const C = {
@@ -37,7 +33,7 @@ export default async function OpenGraphImage() {
           background: C.bg,
           display: 'flex',
           flexDirection: 'column',
-          padding: '64px 80px',
+          padding: '128px 160px',
           color: C.ink,
         }}
       >
@@ -45,15 +41,15 @@ export default async function OpenGraphImage() {
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <div
             style={{
-              width: 12,
-              height: 12,
+              width: 24,
+              height: 24,
               borderRadius: 999,
               background: C.accent,
-              marginRight: 16,
+              marginRight: 32,
             }}
           />
-          <div style={{ display: 'flex', fontSize: 40, lineHeight: 1 }}>
-            <span style={{ color: C.inkMuted, marginRight: 10 }}>Whispered</span>
+          <div style={{ display: 'flex', fontSize: 80, lineHeight: 1 }}>
+            <span style={{ color: C.inkMuted, marginRight: 20 }}>Whispered</span>
             <span style={{ color: C.ink }}>Events</span>
           </div>
         </div>
@@ -62,10 +58,10 @@ export default async function OpenGraphImage() {
         <div
           style={{
             display: 'flex',
-            fontSize: 60,
+            fontSize: 120,
             lineHeight: 1.1,
             letterSpacing: '-0.01em',
-            marginTop: 80,
+            marginTop: 160,
           }}
         >
           The best events aren&apos;t posted.
@@ -73,11 +69,11 @@ export default async function OpenGraphImage() {
         <div
           style={{
             display: 'flex',
-            fontSize: 104,
+            fontSize: 208,
             lineHeight: 1.05,
             letterSpacing: '-0.02em',
             fontStyle: 'italic',
-            marginTop: 8,
+            marginTop: 16,
           }}
         >
           They&apos;re whispered.
@@ -86,10 +82,10 @@ export default async function OpenGraphImage() {
         {/* Oxblood hairline */}
         <div
           style={{
-            width: 140,
-            height: 4,
+            width: 280,
+            height: 8,
             background: C.accent,
-            marginTop: 36,
+            marginTop: 72,
           }}
         />
 
@@ -97,11 +93,11 @@ export default async function OpenGraphImage() {
         <div
           style={{
             display: 'flex',
-            fontSize: 38,
+            fontSize: 76,
             lineHeight: 1.3,
             fontStyle: 'italic',
             color: C.ink2,
-            marginTop: 28,
+            marginTop: 56,
           }}
         >
           Share and discover exclusive events.
