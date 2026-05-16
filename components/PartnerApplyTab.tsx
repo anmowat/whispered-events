@@ -1,7 +1,15 @@
 'use client'
 
-import { Fragment, useState, useRef, useEffect } from 'react'
-import type { ReactNode } from 'react'
+import { useState, useRef, useEffect } from 'react'
+import {
+  ChatRow,
+  ChatBubble,
+  Composer,
+  StepIndicator,
+  TypingIndicator,
+  parseInline,
+  type ChatMessage,
+} from './chat/ChatShell'
 
 type Step =
   | 'email'
@@ -17,42 +25,36 @@ type Step =
   | 'submitted'
   | 'error'
 
-interface Message {
-  role: 'assistant' | 'user'
-  content: string
-}
-
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const LINKEDIN_RE = /(^|\.)linkedin\.com\/(in|company|pub)\//i
 
-const WELCOME: Message = {
+const WELCOME: ChatMessage = {
   role: 'assistant',
   content:
     "Welcome to Whispered Events. Partnering with us is free for people who host great executive events. We'll ask a few quick questions, then our team will review and follow up — typically within 24 hours.\n\n**First, can we get your email?**",
 }
 
-// Tiny `**bold**` parser used only for assistant messages. We do this rather
-// than send rich nodes through state so the message history stays plain
-// string and is easy to debug / log. Bolded segments use the gold accent
-// to make the actual ask pop visually in a long chat thread.
-function renderAssistant(content: string): ReactNode {
-  const parts = content.split(/(\*\*[^*]+\*\*)/g)
-  return parts.map((part, i) =>
-    part.startsWith('**') && part.endsWith('**') ? (
-      <strong key={i} className="text-gold-700 font-semibold">
-        {part.slice(2, -2)}
-      </strong>
-    ) : (
-      <Fragment key={i}>{part}</Fragment>
-    ),
-  )
+// 1-based step index used by the StepIndicator. Clarify-steps reuse
+// their parent slot so the progress doesn't visually rewind.
+const STEP_INDEX: Partial<Record<Step, number>> = {
+  email: 1,
+  company: 2,
+  audience: 3,
+  'awaiting-ack': 4,
+  volume: 4,
+  'volume-clarify': 4,
+  description: 5,
+  linkedin: 6,
+  'linkedin-clarify': 6,
+  submitting: 6,
+  submitted: 6,
+  error: 6,
 }
+const TOTAL_STEPS = 6
 
-// Pulls the first one or two digit-groups out of a free-text answer so we
-// can accept "5", "about 5", "5-7", "5 to 7", "10–12 per year" without an
-// extra round-trip. Range → midpoint. Returns null when the user said
-// something vague like "a lot" so the caller can ask one clarifying
-// follow-up before giving up.
+// Accepts "5", "about 5", "5-7", "5 to 7", "10–12 per year". Range →
+// midpoint. Returns null on vague answers so the caller can ask one
+// clarifying follow-up before giving up.
 function parseVolume(input: string): number | null {
   const numbers = input.match(/\d+/g)?.map(Number) ?? []
   if (numbers.length === 0) return null
@@ -69,7 +71,7 @@ function normalizeLinkedin(raw: string): string {
 
 export default function PartnerApplyTab({ onDone }: { onDone?: () => void }) {
   const [step, setStep] = useState<Step>('email')
-  const [messages, setMessages] = useState<Message[]>([WELCOME])
+  const [messages, setMessages] = useState<ChatMessage[]>([WELCOME])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [form, setForm] = useState({
@@ -81,17 +83,10 @@ export default function PartnerApplyTab({ onDone }: { onDone?: () => void }) {
     linkedin: '',
   })
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, step])
-
-  useEffect(() => {
-    if (step !== 'submitting' && step !== 'submitted' && step !== 'awaiting-ack') {
-      inputRef.current?.focus()
-    }
-  }, [step])
 
   function addAssistant(content: string) {
     setMessages((prev) => [...prev, { role: 'assistant', content }])
@@ -100,9 +95,9 @@ export default function PartnerApplyTab({ onDone }: { onDone?: () => void }) {
     setMessages((prev) => [...prev, { role: 'user', content }])
   }
 
-  // Single dispatcher that consumes the input field based on which step
-  // we're on. Keeps the UI shape constant — one persistent text input at
-  // the bottom — instead of swapping in different forms per step.
+  // Single dispatcher consuming the input based on the current step.
+  // Keeps the UI shape constant — one persistent text input at the
+  // bottom — instead of swapping in different forms per step.
   async function handleSend() {
     const value = input.trim()
     if (!value) return
@@ -146,15 +141,14 @@ export default function PartnerApplyTab({ onDone }: { onDone?: () => void }) {
           body: JSON.stringify({ audience: value }),
         })
         const data = (await res.json().catch(() => ({}))) as { ack?: string }
-        const fallback =
-          'That is great. We have the right people on our platform and look forward to connecting you with them.'
+        const fallback = `That is great. We have ${value} on our platform and look forward to connecting you with the right ones.`
         const ack = data.ack?.trim() || fallback
         addAssistant(
           `${ack}\n\n**How many events do you host or run each year?** A single number is great — even a rough estimate works.`,
         )
       } catch {
         addAssistant(
-          'That is great. We have the right people on our platform and look forward to connecting you with them.\n\n**How many events do you host or run each year?** A single number is great — even a rough estimate works.',
+          `That is great. We have ${value} on our platform and look forward to connecting you with the right ones.\n\n**How many events do you host or run each year?** A single number is great — even a rough estimate works.`,
         )
       } finally {
         setIsLoading(false)
@@ -169,13 +163,10 @@ export default function PartnerApplyTab({ onDone }: { onDone?: () => void }) {
       setInput('')
       if (parsed === null) {
         if (step === 'volume') {
-          addAssistant(
-            "Could you give me a number? Even a rough estimate works — e.g. 5 or 10-12.",
-          )
+          addAssistant("Could you give me a number? Even a rough estimate works — e.g. 5 or 10-12.")
           setStep('volume-clarify')
           return
         }
-        // Second time around — accept whatever they wrote so we don't loop.
         setForm((f) => ({ ...f, volume: value }))
       } else {
         setForm((f) => ({ ...f, volume: String(parsed) }))
@@ -243,63 +234,62 @@ export default function PartnerApplyTab({ onDone }: { onDone?: () => void }) {
     volume: 'e.g. 6',
     'volume-clarify': 'A number works — e.g. 5 or 10-12',
     description: 'A 1-2 sentence description of what your company does',
-    linkedin: 'https://www.linkedin.com/in/...',
-    'linkedin-clarify': 'https://www.linkedin.com/in/...',
+    linkedin: 'https://www.linkedin.com/in/…',
+    'linkedin-clarify': 'https://www.linkedin.com/in/…',
     submitting: '',
     submitted: '',
     error: '',
   }
 
   const inputDisabled =
-    step === 'submitting' || step === 'submitted' || step === 'awaiting-ack' || step === 'error'
+    step === 'submitting' ||
+    step === 'submitted' ||
+    step === 'awaiting-ack' ||
+    step === 'error'
+
+  const showStepIndicator = step !== 'submitted' && step !== 'error'
 
   return (
-    <div className="flex flex-col h-full max-w-2xl mx-auto">
+    <div className="flex flex-col h-full max-w-[680px] mx-auto">
+      {showStepIndicator && (
+        <StepIndicator
+          label="Partner"
+          current={STEP_INDEX[step] || 1}
+          total={TOTAL_STEPS}
+        />
+      )}
+
       <div className="flex-1 overflow-y-auto space-y-4 pb-4">
         {messages.map((msg, i) => (
-          <div
-            key={i}
-            className={`flex animate-slide-up ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-          >
-            {msg.role === 'assistant' && (
-              <div className="w-7 h-7 rounded-full bg-gold-100 border border-gold-200 flex items-center justify-center mr-3 mt-1 flex-shrink-0">
-                <span className="text-gold-700 text-xs font-medium">W</span>
-              </div>
-            )}
-            <div
-              className={`max-w-[85%] px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-line ${
-                msg.role === 'assistant'
-                  ? 'bg-white border border-[#E8DDD0] text-gray-800 rounded-tl-sm shadow-sm'
-                  : 'bg-gold-600 text-white rounded-tr-sm'
-              }`}
-            >
-              {msg.role === 'assistant' ? renderAssistant(msg.content) : msg.content}
-            </div>
-          </div>
+          <ChatRow key={i} role={msg.role}>
+            <ChatBubble role={msg.role}>
+              {msg.role === 'assistant' ? (
+                <div className="space-y-1">
+                  {msg.content.split('\n').map((line, j) => (
+                    <p key={j} className="m-0">
+                      {line ? parseInline(line) : ' '}
+                    </p>
+                  ))}
+                </div>
+              ) : (
+                msg.content
+              )}
+            </ChatBubble>
+          </ChatRow>
         ))}
 
-        {isLoading && (
-          <div className="flex justify-start animate-fade-in">
-            <div className="w-7 h-7 rounded-full bg-gold-100 border border-gold-200 flex items-center justify-center mr-3 mt-1 flex-shrink-0">
-              <span className="text-gold-700 text-xs font-medium">W</span>
-            </div>
-            <div className="bg-white border border-[#E8DDD0] rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm">
-              <div className="flex gap-1 items-center">
-                <span className="w-1.5 h-1.5 rounded-full bg-gold-400 animate-bounce [animation-delay:-0.3s]" />
-                <span className="w-1.5 h-1.5 rounded-full bg-gold-400 animate-bounce [animation-delay:-0.15s]" />
-                <span className="w-1.5 h-1.5 rounded-full bg-gold-400 animate-bounce" />
-              </div>
-            </div>
-          </div>
-        )}
+        {isLoading && <TypingIndicator />}
 
         {(step === 'submitted' || step === 'error') && (
-          <div className="animate-slide-up ml-10 mt-2">
+          <div className="ml-10 mt-2 animate-slide-up">
             <button
               onClick={() => onDone?.()}
-              className="w-full py-2.5 rounded-lg bg-gold-600 hover:bg-gold-500 text-white text-sm font-medium transition-colors"
+              className="w-full py-2.5 rounded-pill text-[13px] font-medium text-white transition-colors"
+              style={{ background: 'var(--accent)' }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--accent-2)')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--accent)')}
             >
-              Return Home
+              Return home
             </button>
           </div>
         )}
@@ -308,31 +298,12 @@ export default function PartnerApplyTab({ onDone }: { onDone?: () => void }) {
       </div>
 
       {!inputDisabled && (
-        <div className="pt-4 border-t border-[#E8DDD0]">
-          <div className="flex gap-2">
-            <input
-              ref={inputRef}
-              type={step === 'email' ? 'email' : 'text'}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault()
-                  handleSend()
-                }
-              }}
-              placeholder={placeholder[step]}
-              className="flex-1 bg-white border border-[#E8DDD0] rounded-xl px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-gold-400 transition-colors shadow-sm"
-            />
-            <button
-              onClick={handleSend}
-              disabled={!input.trim()}
-              className="px-4 py-2 rounded-xl bg-gold-600 hover:bg-gold-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors"
-            >
-              Send
-            </button>
-          </div>
-        </div>
+        <Composer
+          value={input}
+          onChange={setInput}
+          onSend={handleSend}
+          placeholder={placeholder[step]}
+        />
       )}
     </div>
   )
