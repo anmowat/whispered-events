@@ -5,9 +5,13 @@ import { ImageResponse } from 'next/og'
 // social-card size — LinkedIn, X, Facebook, Slack all crop from this
 // aspect ratio.
 //
-// Uses Satori's built-in default font. Every element with multiple
-// direct children has display:flex, which Satori's strict layout
-// rules require.
+// Notes on the layout:
+// - Uses Satori's built-in default font, which renders considerably
+//   wider than a typical webfont; sizes are chosen so each line fits
+//   on one row in a 1200px canvas with 80px side padding.
+// - Stacks naturally with marginTop spacers rather than flex:1 on the
+//   middle column. flex:1 made an overflow vertically-compress all
+//   children into each other when the content was too tall.
 
 export const runtime = 'edge'
 export const alt =
@@ -33,7 +37,7 @@ export default async function OpenGraphImage() {
           background: C.bg,
           display: 'flex',
           flexDirection: 'column',
-          padding: '60px 80px 80px',
+          padding: '64px 80px',
           color: C.ink,
         }}
       >
@@ -48,66 +52,59 @@ export default async function OpenGraphImage() {
               marginRight: 16,
             }}
           />
-          <div style={{ display: 'flex', fontSize: 44, lineHeight: 1 }}>
-            <span style={{ color: C.inkMuted, marginRight: 12 }}>Whispered</span>
+          <div style={{ display: 'flex', fontSize: 40, lineHeight: 1 }}>
+            <span style={{ color: C.inkMuted, marginRight: 10 }}>Whispered</span>
             <span style={{ color: C.ink }}>Events</span>
           </div>
         </div>
 
-        {/* Centered headline + subtext */}
+        {/* Headline */}
         <div
           style={{
             display: 'flex',
-            flexDirection: 'column',
-            flex: 1,
-            justifyContent: 'center',
+            fontSize: 60,
+            lineHeight: 1.1,
+            letterSpacing: '-0.01em',
+            marginTop: 80,
           }}
         >
-          <div
-            style={{
-              display: 'flex',
-              fontSize: 78,
-              lineHeight: 1.08,
-              letterSpacing: '-0.01em',
-            }}
-          >
-            The best events aren&apos;t posted.
-          </div>
-          <div
-            style={{
-              display: 'flex',
-              fontSize: 132,
-              lineHeight: 1.05,
-              letterSpacing: '-0.015em',
-              fontStyle: 'italic',
-              marginTop: 6,
-            }}
-          >
-            They&apos;re whispered.
-          </div>
+          The best events aren&apos;t posted.
+        </div>
+        <div
+          style={{
+            display: 'flex',
+            fontSize: 104,
+            lineHeight: 1.05,
+            letterSpacing: '-0.02em',
+            fontStyle: 'italic',
+            marginTop: 8,
+          }}
+        >
+          They&apos;re whispered.
+        </div>
 
-          {/* Oxblood hairline */}
-          <div
-            style={{
-              width: 140,
-              height: 4,
-              background: C.accent,
-              marginTop: 44,
-              marginBottom: 32,
-            }}
-          />
+        {/* Oxblood hairline */}
+        <div
+          style={{
+            width: 140,
+            height: 4,
+            background: C.accent,
+            marginTop: 36,
+          }}
+        />
 
-          <div
-            style={{
-              display: 'flex',
-              fontSize: 48,
-              lineHeight: 1.3,
-              fontStyle: 'italic',
-              color: C.ink2,
-            }}
-          >
-            Share and discover exclusive events.
-          </div>
+        {/* Subtext */}
+        <div
+          style={{
+            display: 'flex',
+            fontSize: 38,
+            lineHeight: 1.3,
+            fontStyle: 'italic',
+            color: C.ink2,
+            marginTop: 28,
+          }}
+        >
+          Share and discover exclusive events.
         </div>
       </div>
     ),
