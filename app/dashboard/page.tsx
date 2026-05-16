@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { AirtableEvent } from '@/lib/airtable'
+import Header from '@/components/Header'
+import MultiSelect from '@/components/MultiSelect'
 
 interface DashboardUser {
   email: string
@@ -19,6 +21,9 @@ interface DashboardUser {
   frequency: string
 }
 
+// Frequency options preserved verbatim from the original dashboard —
+// the user explicitly asked NOT to change copy or values here, only the
+// visual control. Empty value = "not set" → no segment is active.
 const FREQUENCY_OPTIONS = [
   'Each New Event',
   'Weekly When New Events',
@@ -33,12 +38,28 @@ type DashboardEvent = AirtableEvent & {
 
 const EMPLOYMENT_OPTIONS = ['Employed', 'Fractional', 'Searching', 'Other']
 
+const DATE_RANGES: { id: '' | '30' | '60' | '90'; label: string }[] = [
+  { id: '', label: 'All upcoming' },
+  { id: '90', label: 'Next 90 days' },
+  { id: '60', label: 'Next 60 days' },
+  { id: '30', label: 'Next 30 days' },
+]
+
+const SORT_OPTIONS: { id: 'match' | 'date-asc' | 'date-desc'; label: string }[] = [
+  { id: 'match', label: 'Best match' },
+  { id: 'date-asc', label: 'Date (earliest)' },
+  { id: 'date-desc', label: 'Date (latest)' },
+]
+
 export default function DashboardPage() {
   const [user, setUser] = useState<DashboardUser | null>(null)
   const [events, setEvents] = useState<DashboardEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [editingProfile, setEditingProfile] = useState(false)
-  const [typeFilter, setTypeFilter] = useState<string>('')
+
+  // Filter state — Type is multi-select per the redesign, the other two
+  // remain single-select wrapped around the existing values.
+  const [typeFilter, setTypeFilter] = useState<string[] | null>(null)
   const [dateRange, setDateRange] = useState<'' | '30' | '60' | '90'>('')
   const [sortBy, setSortBy] = useState<'match' | 'date-asc' | 'date-desc'>('match')
 
@@ -46,7 +67,6 @@ export default function DashboardPage() {
     async function load() {
       const meRes = await fetch('/api/auth/me')
       const meData = (await meRes.json()) as { user: DashboardUser | null }
-
       if (!meData.user) {
         setLoading(false)
         return
@@ -65,24 +85,36 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#F5EFE6] flex items-center justify-center">
-        <p className="text-sm text-gray-400">Loading…</p>
+      <div className="min-h-screen flex items-center justify-center" style={{ color: 'var(--ink-3)' }}>
+        <p className="text-sm">Loading…</p>
       </div>
     )
   }
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-[#F5EFE6] flex items-center justify-center p-4">
+      <div className="min-h-screen flex items-center justify-center p-4">
         <div className="text-center space-y-3">
-          <p className="text-gray-800 font-medium">You&apos;re not logged in</p>
-          <a href="/" className="text-sm text-gold-600 underline underline-offset-2">Go back to Whispered Events</a>
+          <p className="font-medium" style={{ color: 'var(--ink)' }}>
+            You&apos;re not logged in
+          </p>
+          <a
+            href="/"
+            className="text-sm underline"
+            style={{ color: 'var(--accent)', textUnderlineOffset: 3 }}
+          >
+            Go back to Whispered Events
+          </a>
         </div>
       </div>
     )
   }
 
+  // Initialize Type filter to all available types on first events load.
+  // We store `null` until events arrive so we can distinguish
+  // "not initialised yet" from "user deselected everything".
   const types = Array.from(new Set(events.map((e) => e.type).filter(Boolean))).sort()
+  const effectiveTypes = typeFilter ?? types
 
   const cutoffDate = (() => {
     if (!dateRange) return null
@@ -94,7 +126,7 @@ export default function DashboardPage() {
 
   const filteredEvents = events
     .filter((e) => {
-      if (typeFilter && e.type !== typeFilter) return false
+      if (effectiveTypes.length !== types.length && !effectiveTypes.includes(e.type)) return false
       if (cutoffDate && e.date && e.date > cutoffDate) return false
       return true
     })
@@ -108,103 +140,166 @@ export default function DashboardPage() {
       return (a.date || '').localeCompare(b.date || '')
     })
 
-  const filtersActive = !!(typeFilter || dateRange)
+  const firstName = user.name?.split(' ')[0] || 'there'
 
   return (
-    <div className="min-h-screen bg-[#F5EFE6]">
-      <header className="border-b border-[#E8DDD0] bg-[#F5EFE6]/90 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-          <a href="/">
-            <img src="/logo.svg" alt="Whispered Events" className="h-7 w-auto" />
-          </a>
+    <div className="min-h-screen">
+      <Header
+        activeTab={null}
+        onLogoClick={() => (window.location.href = '/')}
+        rightSlot={
           <a
             href="/"
-            className="text-sm text-gray-500 hover:text-gray-800 transition-colors"
+            className="text-[13px] transition-colors"
+            style={{ color: 'var(--ink-2)' }}
           >
             ← Back to home
           </a>
+        }
+      />
+
+      <main className="max-w-[820px] mx-auto px-6 sm:px-8 py-10 pb-20">
+        {/* Welcome */}
+        <div className="mb-8">
+          <h1
+            className="font-serif m-0"
+            style={{ fontSize: 32, lineHeight: 1.1, color: 'var(--ink)', letterSpacing: '-0.01em' }}
+          >
+            Welcome back, <span className="italic">{firstName}</span>
+          </h1>
+          <p className="mt-1" style={{ fontSize: 13, color: 'var(--ink-3)' }}>
+            {user.email}
+          </p>
         </div>
-      </header>
 
-      <main className="max-w-3xl mx-auto px-4 sm:px-6 py-10 space-y-10">
-        <AccountStats user={user} onEditProfile={() => setEditingProfile(true)} />
+        {!user.active && (
+          <div
+            className="mb-6 rounded-card border px-4 py-3 text-[13px]"
+            style={{
+              borderColor: 'var(--accent-soft)',
+              background: 'var(--accent-soft)',
+              color: 'var(--accent)',
+            }}
+          >
+            To reactivate your account, contribute an event.
+          </div>
+        )}
 
-        <section className="space-y-4">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-xs uppercase tracking-widest text-gray-400 font-medium">
-              Matched events
-            </h2>
-            <div className="flex items-center gap-3">
-              {filtersActive && (
-                <button
-                  onClick={() => {
-                    setTypeFilter('')
-                    setDateRange('')
-                  }}
-                  className="text-xs text-gray-500 hover:text-gray-800 transition-colors"
-                >
-                  Clear filters
-                </button>
-              )}
-              <FrequencyControl user={user} onSaved={(u) => setUser(u)} />
+        {/* Event preferences */}
+        <section className="mb-6">
+          <div className="eyebrow mb-2.5">Event preferences</div>
+          <div
+            className="rounded-card border flex justify-between items-start gap-4 px-5 py-4"
+            style={{ background: 'var(--paper)', borderColor: 'var(--rule)' }}
+          >
+            <p
+              className="m-0 leading-relaxed"
+              style={{ fontSize: 14, color: 'var(--ink)' }}
+            >
+              {user.interest || <span style={{ color: 'var(--ink-3)' }}>No interests set yet.</span>}
+            </p>
+            <button
+              onClick={() => setEditingProfile(true)}
+              className="eyebrow shrink-0 underline"
+              style={{ color: 'var(--accent)', textUnderlineOffset: 3 }}
+            >
+              Edit
+            </button>
+          </div>
+        </section>
+
+        {/* Email updates */}
+        <section className="mb-8">
+          <div className="eyebrow mb-2.5">Email updates</div>
+          <div
+            className="rounded-card border px-5 py-3.5 grid items-center gap-4"
+            style={{
+              background: 'var(--paper)',
+              borderColor: 'var(--rule)',
+              gridTemplateColumns: 'minmax(0, 1fr) auto',
+            }}
+          >
+            <div>
+              <p className="m-0 font-medium" style={{ fontSize: 13.5, color: 'var(--ink)' }}>
+                How often should we whisper to you?
+              </p>
+              <p className="mt-0.5 m-0" style={{ fontSize: 12, color: 'var(--ink-3)' }}>
+                Email digest of new matched events.
+              </p>
+            </div>
+            <FrequencyControl user={user} onSaved={(u) => setUser(u)} />
+          </div>
+        </section>
+
+        {/* Matched events */}
+        <section>
+          <div className="flex items-center justify-between mb-3.5">
+            <div className="eyebrow">Your matched events</div>
+            <div className="eyebrow num" style={{ color: 'var(--ink-3)' }}>
+              {filteredEvents.length} {filteredEvents.length === 1 ? 'result' : 'results'}
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="space-y-1">
-              <label className="text-xs text-gray-500">Type</label>
-              <select
-                value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value)}
-                className={inputCls}
-              >
-                <option value="">All types</option>
-                {types.map((t) => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs text-gray-500">Date range</label>
-              <select
-                value={dateRange}
-                onChange={(e) => setDateRange(e.target.value as '' | '30' | '60' | '90')}
-                className={inputCls}
-              >
-                <option value="">All upcoming</option>
-                <option value="90">Next 90 days</option>
-                <option value="60">Next 60 days</option>
-                <option value="30">Next 30 days</option>
-              </select>
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs text-gray-500">Sort by</label>
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as 'match' | 'date-asc' | 'date-desc')}
-                className={inputCls}
-              >
-                <option value="match">Best match</option>
-                <option value="date-asc">Date (earliest)</option>
-                <option value="date-desc">Date (latest)</option>
-              </select>
+          <div
+            className="rounded-card border mb-3 px-3.5 py-3"
+            style={{ background: 'var(--paper)', borderColor: 'var(--rule)' }}
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <FilterField label="Type">
+                <MultiSelect
+                  options={types}
+                  selected={effectiveTypes}
+                  onChange={(next) => setTypeFilter(next)}
+                  allLabel="All types"
+                />
+              </FilterField>
+              <FilterField label="Date range">
+                <NativeSelect
+                  value={dateRange}
+                  onChange={(v) => setDateRange(v as '' | '30' | '60' | '90')}
+                  options={DATE_RANGES.map((o) => ({ value: o.id, label: o.label }))}
+                />
+              </FilterField>
+              <FilterField label="Sort">
+                <NativeSelect
+                  value={sortBy}
+                  onChange={(v) => setSortBy(v as 'match' | 'date-asc' | 'date-desc')}
+                  options={SORT_OPTIONS.map((o) => ({ value: o.id, label: o.label }))}
+                />
+              </FilterField>
             </div>
           </div>
 
-          {filteredEvents.length > 0 && (
-            <div className="space-y-3">
+          {filteredEvents.length > 0 ? (
+            <div className="flex flex-col gap-3">
               {filteredEvents.map((event) => (
                 <EventCard key={event.id} event={event} />
               ))}
             </div>
+          ) : (
+            <p
+              className="text-center py-8"
+              style={{ fontSize: 13, color: 'var(--ink-3)' }}
+            >
+              No events match these filters.
+            </p>
           )}
 
-          <div className="pt-6 text-center text-xs text-gray-500 leading-relaxed space-y-1">
+          <div
+            className="pt-8 text-center space-y-1 leading-relaxed"
+            style={{ fontSize: 12, color: 'var(--ink-3)' }}
+          >
             <p>Matches are personalized based on your LinkedIn profile (seniority, function, work history).</p>
-            <p>Click Update Profile above to refine your matches.</p>
+            <p>Click Edit above to refine your matches.</p>
             <p>
-              And if your LinkedIn has changed, email{' '}
-              <a href="mailto:team@whisperedevents.com" className="text-gold-700 hover:underline">team@whisperedevents.com</a>{' '}
+              If your LinkedIn has changed, email{' '}
+              <a
+                href="mailto:team@whisperedevents.com"
+                className="underline"
+                style={{ color: 'var(--accent)', textUnderlineOffset: 3 }}
+              >
+                team@whisperedevents.com
+              </a>{' '}
               and we can refresh your matches.
             </p>
           </div>
@@ -222,51 +317,41 @@ export default function DashboardPage() {
   )
 }
 
-function AccountStats({ user, onEditProfile }: { user: DashboardUser; onEditProfile: () => void }) {
-  const lastContribution = user.lastContribution
-    ? new Date(user.lastContribution).toLocaleDateString('en-US', {
-        month: 'long',
-        day: 'numeric',
-        year: 'numeric',
-      })
-    : '—'
-
-  const statusLabel = user.status
-    ? user.status.charAt(0).toUpperCase() + user.status.slice(1).toLowerCase()
-    : 'Inactive'
-
+function FilterField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <section>
-      <div className="bg-gold-700 rounded-2xl p-5 shadow-sm space-y-4 text-white">
-        <div className="flex justify-end">
-          <button
-            onClick={onEditProfile}
-            className="shrink-0 px-4 py-2 rounded-lg bg-white text-gold-700 hover:bg-gold-50 text-sm font-semibold shadow-sm transition-colors"
-          >
-            Update Profile
-          </button>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Stat label="Last contribution" value={lastContribution} />
-          <Stat label="Total contributions" value={String(user.totalContributions)} />
-          <Stat label="Status" value={statusLabel} />
-        </div>
-        {!user.active && (
-          <p className="text-xs text-white/90 bg-white/10 border border-white/20 rounded-lg px-3 py-2">
-            To reactivate your account, contribute an event.
-          </p>
-        )}
-      </div>
-    </section>
+    <div>
+      <div className="eyebrow mb-1.5">{label}</div>
+      {children}
+    </div>
   )
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function NativeSelect({
+  value,
+  onChange,
+  options,
+}: {
+  value: string
+  onChange: (v: string) => void
+  options: { value: string; label: string }[]
+}) {
   return (
-    <div className="text-center">
-      <div className="text-xs uppercase tracking-wide font-bold text-white">{label}</div>
-      <div className="text-sm text-white mt-1">{value}</div>
-    </div>
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="salon-select w-full rounded-input border text-[13px] py-2 pl-3 pr-8"
+      style={{
+        background: 'var(--paper)',
+        borderColor: 'var(--rule)',
+        color: 'var(--ink)',
+      }}
+    >
+      {options.map((o) => (
+        <option key={o.value} value={o.value}>
+          {o.label}
+        </option>
+      ))}
+    </select>
   )
 }
 
@@ -280,10 +365,10 @@ function FrequencyControl({
   const [saving, setSaving] = useState(false)
   const value = user.frequency || ''
 
-  async function handleChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    const next = e.target.value
-    if (next === value) return
+  async function setValue(next: string) {
+    if (next === value || saving) return
     setSaving(true)
+    const previous = value
     onSaved({ ...user, frequency: next })
     try {
       const res = await fetch('/api/dashboard/profile', {
@@ -291,34 +376,36 @@ function FrequencyControl({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ frequency: next }),
       })
-      if (!res.ok) {
-        // Revert on failure
-        onSaved({ ...user, frequency: value })
-      }
+      if (!res.ok) onSaved({ ...user, frequency: previous })
     } catch {
-      onSaved({ ...user, frequency: value })
+      onSaved({ ...user, frequency: previous })
     } finally {
       setSaving(false)
     }
   }
 
   return (
-    <div className="flex items-center gap-2">
-      <div className="hidden sm:flex items-center gap-1.5">
-        <label className="text-xs text-gray-500">Email updates</label>
-        <Tooltip text="Email updates coming shortly. Currently, use dashboard." />
-      </div>
-      <select
-        value={value}
-        onChange={handleChange}
-        disabled={saving}
-        className="bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:border-gold-400 disabled:opacity-50 transition-colors"
-      >
-        <option value="">Select…</option>
-        {FREQUENCY_OPTIONS.map((opt) => (
-          <option key={opt} value={opt}>{opt}</option>
-        ))}
-      </select>
+    <div
+      className="flex flex-wrap p-[3px] rounded-full border"
+      style={{ background: 'var(--paper-2)', borderColor: 'var(--rule)' }}
+    >
+      {FREQUENCY_OPTIONS.map((opt) => {
+        const active = value === opt
+        return (
+          <button
+            key={opt}
+            onClick={() => setValue(opt)}
+            disabled={saving}
+            className="px-2.5 py-1.5 rounded-full text-[11.5px] font-medium transition-colors disabled:opacity-60"
+            style={{
+              background: active ? 'var(--ink)' : 'transparent',
+              color: active ? 'var(--paper)' : 'var(--ink-2)',
+            }}
+          >
+            {opt}
+          </button>
+        )
+      })}
     </div>
   )
 }
@@ -377,92 +464,114 @@ function ProfileModal({
 
   return (
     <div
-      className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto"
+      style={{ background: 'rgba(20,15,10,0.45)' }}
       onClick={onClose}
     >
       <div
-        className="bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl shadow-xl border border-[#E8DDD0] max-h-[90vh] flex flex-col"
+        className="w-full sm:max-w-md max-h-[90vh] flex flex-col rounded-t-card sm:rounded-card border"
+        style={{ background: 'var(--paper)', borderColor: 'var(--rule)' }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[#E8DDD0]">
-          <h2 className="font-serif text-gray-900 text-lg">Edit profile</h2>
+        <div
+          className="flex items-center justify-between px-5 py-4 border-b"
+          style={{ borderColor: 'var(--rule)' }}
+        >
+          <h2 className="font-serif m-0" style={{ fontSize: 22, color: 'var(--ink)' }}>
+            Edit profile
+          </h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 text-xl leading-none"
             aria-label="Close"
+            className="text-xl leading-none"
+            style={{ color: 'var(--ink-3)' }}
           >
             &times;
           </button>
         </div>
 
         <div className="px-5 py-4 space-y-4 overflow-y-auto">
-          <div className="space-y-1.5">
-            <label className="text-xs text-gray-500">Email</label>
-            <p className="text-sm text-gray-700 bg-[#F5EFE6] border border-[#E8DDD0] rounded-lg px-3 py-2">{user.email}</p>
-          </div>
+          <ModalField label="Email">
+            <p
+              className="m-0 px-3 py-2 rounded-input border text-[13px]"
+              style={{
+                background: 'var(--paper-2)',
+                borderColor: 'var(--rule)',
+                color: 'var(--ink-2)',
+              }}
+            >
+              {user.email}
+            </p>
+          </ModalField>
 
-          <Field label="Location" tooltip="The city that you are located in. We will show you events within a hundred miles. You can update this at any time to get refreshed matches (5 min delay once you update your profile).">
+          <ModalField label="Location">
             <input
               value={location}
               onChange={(e) => setLocation(e.target.value)}
               placeholder="e.g. San Francisco, CA"
-              className={inputCls}
+              className={modalInputCls}
             />
-          </Field>
+          </ModalField>
 
-          <Field
-            label="Interests"
-            tooltip="The types of events you want to see and ones you don't want to see. Add more here to refine your matches."
-          >
+          <ModalField label="Interests">
             <textarea
               value={interest}
               onChange={(e) => setInterest(e.target.value)}
               placeholder="e.g. RevOps, AI/ML, founder-led dinners — not pure SaaS pitch fests"
               rows={3}
-              className={`${inputCls} resize-none`}
+              className={`${modalInputCls} resize-none`}
             />
-          </Field>
+          </ModalField>
 
-          <Field label="Employment" tooltip="Share your current employment status.">
+          <ModalField label="Employment">
             <select
               value={employment}
               onChange={(e) => setEmployment(e.target.value)}
-              className={inputCls}
+              className={`salon-select ${modalInputCls}`}
             >
               <option value="">Select…</option>
               {EMPLOYMENT_OPTIONS.map((opt) => (
-                <option key={opt} value={opt}>{opt}</option>
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
               ))}
             </select>
-          </Field>
+          </ModalField>
 
           {showSize && (
-            <Field label="Company size" tooltip="The annual revenue of your company in millions.">
+            <ModalField label="Company size">
               <input
                 value={companySize}
                 onChange={(e) => setCompanySize(e.target.value)}
                 placeholder="e.g. $4 million"
-                className={inputCls}
+                className={modalInputCls}
               />
-            </Field>
+            </ModalField>
           )}
         </div>
 
-        <div className="flex items-center justify-between gap-3 px-5 py-4 border-t border-[#E8DDD0]">
-          <div className="text-xs">
-            {error && <span className="text-red-600">{error}</span>}
+        <div
+          className="flex items-center justify-between gap-3 px-5 py-4 border-t"
+          style={{ borderColor: 'var(--rule)' }}
+        >
+          <div className="text-[12px]">
+            {error && <span style={{ color: 'var(--accent)' }}>{error}</span>}
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={onClose}
-              className="px-4 py-2 rounded-lg text-sm text-gray-600 hover:text-gray-900 transition-colors"
+              className="px-4 py-2 text-[13px]"
+              style={{ color: 'var(--ink-2)' }}
             >
               Cancel
             </button>
             <button
               onClick={handleSave}
               disabled={!dirty || saving}
-              className="px-5 py-2 rounded-lg bg-gold-600 hover:bg-gold-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors"
+              className="px-5 py-2 rounded-pill text-[13px] font-medium text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              style={{ background: 'var(--accent)' }}
+              onMouseEnter={(e) => !saving && (e.currentTarget.style.background = 'var(--accent-2)')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--accent)')}
             >
               {saving ? 'Saving…' : 'Save changes'}
             </button>
@@ -473,51 +582,26 @@ function ProfileModal({
   )
 }
 
-function Field({ label, tooltip, children }: { label: string; tooltip: string; children: React.ReactNode }) {
+function ModalField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
-      <div className="flex items-center gap-1.5">
-        <label className="text-xs text-gray-500">{label}</label>
-        <Tooltip text={tooltip} />
-      </div>
+      <label className="eyebrow">{label}</label>
       {children}
     </div>
   )
 }
 
-function Tooltip({ text }: { text: string }) {
-  return (
-    <span className="relative inline-flex group">
-      <span
-        aria-label={text}
-        className="cursor-help w-4 h-4 rounded-full border border-gray-300 text-gray-400 text-[10px] flex items-center justify-center select-none"
-      >
-        i
-      </span>
-      <span className="pointer-events-none absolute left-5 top-1/2 -translate-y-1/2 z-20 hidden group-hover:block w-64 bg-gray-900 text-white text-xs leading-snug rounded-lg px-3 py-2 shadow-lg">
-        {text}
-      </span>
-    </span>
-  )
-}
+const modalInputCls =
+  'w-full rounded-input border px-3 py-2 text-[13px] focus:outline-none transition-colors'
 
 function EventCard({ event }: { event: DashboardEvent }) {
   const dateFormatted = event.date
-    ? new Date(event.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+    ? new Date(event.date).toLocaleDateString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+      })
     : ''
-
-  const NameEl = event.link ? (
-    <a
-      href={event.link}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="text-sm font-medium text-gold-700 hover:underline"
-    >
-      {event.name}
-    </a>
-  ) : (
-    <span className="text-sm font-medium text-gray-900">{event.name}</span>
-  )
 
   const matchPct =
     event.matchPercent !== null && event.matchPercent !== undefined
@@ -525,29 +609,72 @@ function EventCard({ event }: { event: DashboardEvent }) {
       : null
 
   return (
-    <div className="bg-white border border-[#E8DDD0] rounded-2xl px-5 py-4 shadow-sm space-y-1.5">
-      <div className="flex items-start justify-between gap-3">
-        <div>{NameEl}</div>
-        {matchPct && (
-          <span className="relative inline-flex group shrink-0">
-            <span className="cursor-help text-[11px] font-medium text-gold-700 bg-gold-50 border border-gold-200 rounded-full px-2 py-0.5">
-              {matchPct} match
+    <article
+      className="rounded-card border px-5 py-4"
+      style={{ background: 'var(--paper)', borderColor: 'var(--rule)' }}
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex-1 min-w-0">
+          {event.link ? (
+            <a
+              href={event.link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="event-link font-serif"
+              style={{ fontSize: 18, lineHeight: 1.25 }}
+            >
+              {event.name}
+              <span className="arrow" aria-hidden>↗</span>
+            </a>
+          ) : (
+            <span className="font-serif" style={{ fontSize: 18, color: 'var(--ink)' }}>
+              {event.name}
             </span>
-            <span className="pointer-events-none absolute right-0 top-full mt-1 z-20 hidden group-hover:block w-64 bg-gray-900 text-white text-xs leading-snug rounded-lg px-3 py-2 shadow-lg">
-              Matches are based on event criteria, your profile, and your interests. To improve your matches, update your profile.
-            </span>
-          </span>
-        )}
+          )}
+          <p className="m-0 mt-1" style={{ fontSize: 12, color: 'var(--ink-3)' }}>
+            {[event.type, dateFormatted, event.location].filter(Boolean).join(' · ')}
+          </p>
+        </div>
+        {matchPct && <MatchBadge percent={matchPct} />}
       </div>
-      <p className="text-xs text-gray-500">
-        {[event.type, event.location, dateFormatted].filter(Boolean).join(' · ')}
-      </p>
       {event.description && (
-        <p className="text-sm text-gray-600 leading-relaxed">{event.description}</p>
+        <p
+          className="m-0 mt-2 leading-relaxed"
+          style={{ fontSize: 13, color: 'var(--ink-2)' }}
+        >
+          {event.description}
+        </p>
       )}
-    </div>
+    </article>
   )
 }
 
-const inputCls =
-  'w-full bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-gold-400 transition-colors'
+// Match badge — preserves the existing tooltip copy verbatim per the
+// user's direction ("keep our current match visualization functionality").
+function MatchBadge({ percent }: { percent: string }) {
+  return (
+    <span className="relative inline-flex group shrink-0">
+      <span
+        className="cursor-help inline-flex items-center gap-1.5 text-[12px] font-medium rounded-pill px-3 py-[5px] border num"
+        style={{
+          background: 'var(--accent-soft)',
+          color: 'var(--accent)',
+          borderColor: 'var(--accent-soft)',
+        }}
+      >
+        <span
+          className="rounded-full"
+          style={{ width: 6, height: 6, background: 'var(--accent)' }}
+        />
+        {percent}
+        <span style={{ opacity: 0.7 }}>match</span>
+      </span>
+      <span
+        className="pointer-events-none absolute right-0 top-full mt-2 z-20 hidden group-hover:block w-64 text-[12px] leading-snug rounded-lg px-3 py-2 shadow-lg"
+        style={{ background: 'var(--ink)', color: 'var(--paper)' }}
+      >
+        Matches are based on event criteria, your profile, and your interests. To improve your matches, update your profile.
+      </span>
+    </span>
+  )
+}
