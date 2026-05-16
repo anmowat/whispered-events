@@ -239,8 +239,9 @@ function ContributeCard({ onCTA, onShowPartner, featuredEvents }: { onCTA: () =>
           ))}
         </ol>
       </div>
-      <button onClick={onCTA} className="w-full py-3 rounded-xl bg-gold-600 hover:bg-gold-500 text-white font-medium transition-colors">
-        Share Event
+      <button onClick={onCTA} className="w-full py-3 rounded-xl bg-gold-600 hover:bg-gold-500 text-white font-medium transition-colors flex flex-col items-center leading-tight">
+        <span>Share Event</span>
+        <span className="text-xs font-normal text-gold-100 mt-0.5">also feel free to email to event@whisperedevents.com</span>
       </button>
       <p className="text-center text-xs text-gray-400 leading-relaxed">
         You can share an event you are running or just one you are aware of.{' '}
