@@ -3,8 +3,21 @@
 import { useState, useEffect } from 'react'
 import { FeaturedEvent } from '@/lib/airtable'
 
-export default function FeaturedEventsCarousel({ events }: { events: FeaturedEvent[] }) {
-  const [index, setIndex] = useState(0)
+interface Props {
+  events: FeaturedEvent[]
+  /** Section label shown in the eyebrow. Defaults to 'Featured Events';
+   *  the Partner landing card overrides this to 'Recent partner events'. */
+  label?: string
+}
+
+// Featured-events block embedded inside each landing card. Auto-advances
+// every 4s, pauses on hover. Numbered "1 / 4" indicator on the right,
+// paging dots below.
+export default function FeaturedEventsCarousel({
+  events,
+  label = 'Featured Events',
+}: Props) {
+  const [idx, setIdx] = useState(0)
   const [fade, setFade] = useState(true)
   const [paused, setPaused] = useState(false)
 
@@ -13,7 +26,7 @@ export default function FeaturedEventsCarousel({ events }: { events: FeaturedEve
     const interval = setInterval(() => {
       setFade(false)
       setTimeout(() => {
-        setIndex((i) => (i + 1) % events.length)
+        setIdx((i) => (i + 1) % events.length)
         setFade(true)
       }, 200)
     }, 4000)
@@ -22,18 +35,35 @@ export default function FeaturedEventsCarousel({ events }: { events: FeaturedEve
 
   function goTo(i: number) {
     setFade(false)
-    setTimeout(() => { setIndex(i); setFade(true) }, 200)
+    setTimeout(() => {
+      setIdx(i)
+      setFade(true)
+    }, 200)
   }
 
   if (!events.length) return null
 
-  const event = events[index]
+  const event = events[idx]
+  const dateText = event.date
+    ? new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    : ''
 
   return (
-    <div className="mt-4 border-t border-[#F0E8DC] pt-4 space-y-3" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
-      <p className="text-xs uppercase tracking-widest text-gray-400 font-medium">Featured Events</p>
+    <div
+      className="mt-5 pt-4 border-t"
+      style={{ borderColor: 'var(--rule-soft)' }}
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+    >
+      <div className="flex items-center justify-between mb-2">
+        <span className="eyebrow">{label}</span>
+        <span className="eyebrow num" style={{ color: 'var(--ink-3)' }}>
+          {idx + 1} / {events.length}
+        </span>
+      </div>
+
       <div
-        className="space-y-1 transition-opacity duration-200"
+        className="min-h-[64px] transition-opacity duration-200"
         style={{ opacity: fade ? 1 : 0 }}
       >
         {event.link ? (
@@ -41,36 +71,60 @@ export default function FeaturedEventsCarousel({ events }: { events: FeaturedEve
             href={event.link}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-sm font-medium text-gold-700 hover:text-gold-500 underline underline-offset-2 transition-colors line-clamp-1"
+            className="font-serif block leading-tight"
+            style={{ fontSize: 17, color: 'var(--ink)' }}
           >
             {event.name}
           </a>
         ) : (
-          <p className="text-sm font-medium text-gold-700 line-clamp-1">{event.name}</p>
+          <p
+            className="font-serif m-0 leading-tight"
+            style={{ fontSize: 17, color: 'var(--ink)' }}
+          >
+            {event.name}
+          </p>
         )}
         {event.description && (
-          <p className="text-xs text-gray-500 leading-relaxed line-clamp-2">{event.description}</p>
+          <p
+            className="mt-1 leading-relaxed line-clamp-2"
+            style={{ fontSize: 12.5, color: 'var(--ink-2)' }}
+          >
+            {event.description}
+          </p>
         )}
-        {(event.location || event.date) && (
-          <div className="flex justify-between items-center pt-1">
-            <span className="text-xs text-gray-400">{event.location}</span>
-            <span className="text-xs text-gray-400">
-              {event.date ? new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}
-            </span>
-          </div>
+        {event.location && (
+          <p className="mt-1" style={{ fontSize: 12.5, color: 'var(--ink-3)' }}>
+            {event.location}
+          </p>
         )}
       </div>
-      {events.length > 1 && (
-        <div className="flex gap-1.5 items-center">
-          {events.map((_, i) => (
-            <button
-              key={i}
-              onClick={() => goTo(i)}
-              className={`h-1.5 rounded-full transition-all ${i === index ? 'w-4 bg-gold-500' : 'w-1.5 bg-gold-200'}`}
-            />
-          ))}
-        </div>
-      )}
+
+      <div className="flex items-center justify-between mt-2">
+        {events.length > 1 ? (
+          <div className="flex gap-1.5">
+            {events.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => goTo(i)}
+                aria-label={`Show featured event ${i + 1}`}
+                className="rounded-full transition-all"
+                style={{
+                  width: i === idx ? 18 : 6,
+                  height: 6,
+                  background: i === idx ? 'var(--accent)' : 'var(--rule)',
+                }}
+              />
+            ))}
+          </div>
+        ) : (
+          <div />
+        )}
+        {dateText && (
+          <span className="eyebrow num" style={{ color: 'var(--accent)' }}>
+            {dateText}
+          </span>
+        )}
+      </div>
     </div>
   )
 }

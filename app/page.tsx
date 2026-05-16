@@ -1,18 +1,26 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Header, { HeaderTab } from '@/components/Header'
 import ShareEventTab from '@/components/ShareEventTab'
 import PartnerApplyTab from '@/components/PartnerApplyTab'
 import ViewEventsTab from '@/components/ViewEventsTab'
 import FeaturedEventsCarousel from '@/components/FeaturedEventsCarousel'
 import LoginModal from '@/components/LoginModal'
+import Coverage from '@/components/Coverage'
+import WhispersFeed from '@/components/WhispersFeed'
+import PartnerMarquee from '@/components/PartnerMarquee'
 import { Partner, FeaturedEvent } from '@/lib/airtable'
 
-type Tab = 'view' | 'contribute' | 'partner'
 type Mode = 'landing' | 'active'
 
+// "The Salon" landing. Tab in the header swaps which of three cards
+// renders below the hero. The three active-mode tabs route to the
+// existing chat components (PartnerApplyTab + ShareEventTab +
+// ViewEventsTab) — unchanged behavior, restyled outer chrome only.
+
 export default function Home() {
-  const [tab, setTab] = useState<Tab>('view')
+  const [tab, setTab] = useState<HeaderTab>('view')
   const [mode, setMode] = useState<Mode>('landing')
   const [showLogin, setShowLogin] = useState(false)
   const [eventCount, setEventCount] = useState(0)
@@ -52,256 +60,393 @@ export default function Home() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  function selectTab(t: Tab) {
+  function selectTab(t: HeaderTab) {
     setTab(t)
     setMode('landing')
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
+  const rightSlot = isLoggedIn ? (
+    <a
+      href="/dashboard"
+      className="text-[13px] transition-colors"
+      style={{ color: 'var(--ink-2)' }}
+    >
+      Dashboard
+    </a>
+  ) : (
+    <button
+      onClick={() => setShowLogin(true)}
+      className="text-[13px] transition-colors"
+      style={{ color: 'var(--ink-2)' }}
+    >
+      Log in
+    </button>
+  )
+
   return (
-    <div className="min-h-screen flex flex-col bg-[#F5EFE6]">
-      {/* Header */}
+    <div className="min-h-screen flex flex-col">
       {showLogin && <LoginModal onClose={() => setShowLogin(false)} />}
-      <header className="border-b border-[#E8DDD0] bg-[#F5EFE6]/90 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 py-3 sm:py-0 sm:h-14">
-          {/* Mobile: row 1 = logo + Log in. On desktop the wrapper dissolves
-              and these become siblings of the tab pills via display:contents. */}
-          <div className="flex items-center justify-between sm:contents">
-            <button onClick={handleBack} className="sm:flex-1 sm:order-1">
-              <img src="/logo.svg" alt="Whispered Events" className="h-7 w-auto" />
-            </button>
-            {isLoggedIn ? (
-              <a
-                href="/dashboard"
-                className="text-sm text-gray-500 hover:text-gray-800 transition-colors sm:flex-1 sm:order-3 sm:text-right"
-              >
-                Profile
-              </a>
-            ) : (
-              <button
-                onClick={() => setShowLogin(true)}
-                className="text-sm text-gray-500 hover:text-gray-800 transition-colors sm:flex-1 sm:order-3 sm:text-right"
-              >
-                Log in
-              </button>
-            )}
-          </div>
-          {/* Mobile: row 2 (centered). Desktop: middle column. */}
-          <div className="flex justify-center sm:order-2">
-            <div className="flex gap-1 bg-white border border-[#E8DDD0] rounded-xl p-1 shadow-sm">
-              <TabPill active={tab === 'view'} onClick={() => selectTab('view')}>Find Events</TabPill>
-              <TabPill active={tab === 'contribute'} onClick={() => selectTab('contribute')}>Contribute</TabPill>
-              <TabPill active={tab === 'partner'} onClick={() => selectTab('partner')}>Partner</TabPill>
-            </div>
-          </div>
-        </div>
-      </header>
+
+      <Header
+        activeTab={tab}
+        onTabChange={selectTab}
+        rightSlot={rightSlot}
+        onLogoClick={handleBack}
+      />
 
       <main className="flex-1 w-full">
         {mode === 'landing' ? (
-          <Landing tab={tab} eventCount={eventCount} partners={partners} featuredEvents={featuredEvents} onCTA={handleCTA} />
+          <Landing
+            tab={tab}
+            partners={partners}
+            featuredEvents={featuredEvents}
+            onCTA={handleCTA}
+          />
         ) : (
           <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
-            {tab === 'view' && <ViewEventsTab startAtForm onReturnHome={handleBack} />}
-            {tab === 'contribute' && <ShareEventTab onDone={handleBack} onShowPartner={() => selectTab('partner')} />}
+            {tab === 'view' && (
+              <ViewEventsTab eventCount={eventCount} startAtForm onReturnHome={handleBack} />
+            )}
+            {tab === 'contribute' && (
+              <ShareEventTab onDone={handleBack} onShowPartner={() => selectTab('partner')} />
+            )}
             {tab === 'partner' && <PartnerApplyTab onDone={handleBack} />}
           </div>
         )}
       </main>
 
-      <footer className="border-t border-[#E8DDD0] py-4">
-        <p className="text-center text-xs text-gray-400">Whispered Events &mdash; Connecting Executives and Great Events</p>
-        <p className="text-center text-xs text-gray-400 mt-1">
-          Ideas on how to make this more awesome? Email us at <a href="mailto:team@whisperedevents.com" className="underline hover:text-gray-600">team@whisperedevents.com</a>
-        </p>
+      <footer
+        className="max-w-[1040px] mx-auto w-full px-6 sm:px-8 py-5 pb-7 flex justify-between items-center text-[12px] border-t mt-14"
+        style={{ borderColor: 'var(--rule-soft)', color: 'var(--ink-3)' }}
+      >
+        <span>Whispered Events — for executives only</span>
+        <span className="font-serif italic">— est. 2024</span>
       </footer>
     </div>
   )
 }
 
 function Landing({
-  tab, eventCount, partners, featuredEvents, onCTA,
+  tab,
+  partners,
+  featuredEvents,
+  onCTA,
 }: {
-  tab: Tab
-  eventCount: number
+  tab: HeaderTab
   partners: Partner[]
   featuredEvents: FeaturedEvent[]
   onCTA: () => void
 }) {
   return (
-    <div className="flex flex-col items-center px-4 sm:px-6 pt-4 pb-20 animate-fade-in">
+    <div className="flex flex-col items-center px-4 sm:px-6 animate-fade-in">
       {/* Hero */}
-      <div className="text-center max-w-xl space-y-4 mb-10">
-        <div className="space-y-0.5">
-          <p className="text-gray-900 text-xl leading-snug font-semibold">Real relationships are built in person.</p>
-          <p className="text-gray-900 text-xl leading-snug font-semibold">The best events aren&apos;t posted - they&apos;re whispered.</p>
+      <section className="max-w-[760px] mx-auto pt-12 sm:pt-[60px] pb-7 text-center w-full">
+        <div
+          className="mb-3.5 inline-flex items-center gap-2"
+          style={{ color: 'var(--accent)' }}
+        >
+          <span className="pulse-dot" />
+          <span className="eyebrow" style={{ color: 'var(--ink-3)' }}>
+            Whispered to 47 executives this week
+          </span>
         </div>
-        <div className="space-y-0.5">
-          <p className="text-gray-500 text-sm leading-relaxed">
-            Whispered Events is a free platform that
-          </p>
-          <p className="text-gray-500 text-sm leading-relaxed">
-            allows executives to contribute and see exclusive events.
-          </p>
-        </div>
-      </div>
+        <h1
+          className="font-serif m-0 text-[44px] sm:text-[54px]"
+          style={{ lineHeight: 1.05, color: 'var(--ink)', letterSpacing: '-0.01em' }}
+        >
+          Real relationships are<br />
+          built <span className="italic">in&nbsp;person</span>.
+        </h1>
+        <p
+          className="font-serif italic mt-3 mb-0 text-[18px] sm:text-[22px]"
+          style={{ color: 'var(--ink-2)', lineHeight: 1.25 }}
+        >
+          The best events aren&apos;t posted — they&apos;re whispered.
+        </p>
+        <p
+          className="mx-auto mt-4 mb-0"
+          style={{ fontSize: 14.5, color: 'var(--ink-2)', maxWidth: 520, lineHeight: 1.55 }}
+        >
+          A private platform for executives to contribute and discover exclusive, invitation-only
+          events. Free to join.
+        </p>
+      </section>
 
-      {/* Info card */}
-      <div className="w-full max-w-md animate-slide-up" key={tab}>
+      {/* Active card driven by the header tab */}
+      <section className="max-w-[520px] w-full mt-5" key={tab}>
         {tab === 'view' && <ViewCard onCTA={onCTA} featuredEvents={featuredEvents} />}
         {tab === 'contribute' && <ContributeCard onCTA={onCTA} featuredEvents={featuredEvents} />}
         {tab === 'partner' && <PartnerCard onCTA={onCTA} featuredEvents={featuredEvents} />}
-      </div>
+      </section>
 
-      {/* Partner logos carousel — only shown if partners loaded */}
-      {partners.some((p) => p.featured) && (
-        <div className="w-full max-w-2xl mt-14">
-          <p className="text-center text-xs uppercase tracking-widest text-gray-400 mb-6">
-            Partnered with top communities and companies
+      {/* Insights row */}
+      <section className="max-w-[1040px] w-full mt-16 grid grid-cols-1 lg:grid-cols-2 gap-12">
+        <div>
+          <div className="flex items-center justify-between mb-3.5">
+            <span className="eyebrow">The Whispers · This Week</span>
+            <span className="eyebrow" style={{ color: 'var(--ink-3)' }}>
+              anonymized
+            </span>
+          </div>
+          <WhispersFeed />
+          <p
+            className="mt-3.5 leading-relaxed"
+            style={{ fontSize: 11.5, color: 'var(--ink-3)' }}
+          >
+            Aggregate activity from the platform. No member, host or attendee is ever named.
           </p>
-          <div className="relative overflow-hidden">
-            <div className="absolute left-0 top-0 bottom-0 w-16 bg-gradient-to-r from-[#F5EFE6] to-transparent z-10 pointer-events-none" />
-            <div className="absolute right-0 top-0 bottom-0 w-16 bg-gradient-to-l from-[#F5EFE6] to-transparent z-10 pointer-events-none" />
-            <div className="flex gap-16 animate-marquee whitespace-nowrap">
-              {[...partners.filter((p) => p.featured), ...partners.filter((p) => p.featured)].map((p, i) => (
-                <a
-                  key={i}
-                  href={p.website || '#'}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex-shrink-0 flex items-center justify-center h-10 opacity-75 hover:opacity-100 transition-opacity"
-                >
-                  <img src={p.logoUrl} alt={p.name} className="h-full w-auto object-contain max-w-[140px]" />
-                </a>
-              ))}
-            </div>
-          </div>
-          <div className="flex justify-center mt-6">
-            <a
-              href="/partners"
-              className="text-xs bg-gold-600 hover:bg-gold-500 text-white px-4 py-2 rounded-lg transition-colors"
-            >
-              See all partners
-            </a>
-          </div>
         </div>
+        <Coverage />
+      </section>
+
+      {/* Partner marquee */}
+      {partners.some((p) => p.featured) && (
+        <section className="max-w-[1040px] w-full mt-16">
+          <div className="hairline mb-5" />
+          <div className="eyebrow text-center mb-4">
+            Partnered with the best communities &amp; firms
+          </div>
+          <PartnerMarquee partners={partners} />
+        </section>
       )}
     </div>
   )
 }
 
-function ViewCard({ onCTA, featuredEvents }: { onCTA: () => void; featuredEvents: FeaturedEvent[] }) {
-  return (
-    <div className="bg-white rounded-2xl border border-[#E8DDD0] p-7 space-y-6 shadow-sm">
-      <div className="space-y-3">
-        <h3 className="text-xs uppercase tracking-widest text-gray-400 font-medium">How it works</h3>
-        <ol className="space-y-3">
-          {[
-            'Share your profile and event interests',
-            'Get notified of new matching events',
-            'Update your profile to improve matches',
-          ].map((text, i) => (
-            <li key={i} className="flex items-start gap-3">
-              <span className="w-5 h-5 rounded-full bg-gold-50 border border-gold-200 text-gold-700 text-xs flex items-center justify-center flex-shrink-0 mt-0.5 font-medium">{i + 1}</span>
-              <span className="text-sm text-gray-600">{text}</span>
-            </li>
-          ))}
-        </ol>
-      </div>
-      <button onClick={onCTA} className="w-full py-3 rounded-xl bg-gold-600 hover:bg-gold-500 text-white font-medium transition-colors flex flex-col items-center leading-tight">
-        <span>Create Profile</span>
-        <span className="text-xs font-normal text-gold-100 mt-0.5">always free to find events</span>
-      </button>
-      <p className="text-center text-xs text-gray-400">
-        Love what we are doing?<br />Tag <a href="https://www.linkedin.com/company/whispered-events/about/?viewAsMember=true" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">Whispered Events</a> on a LinkedIn post
-      </p>
-      <FeaturedEventsCarousel events={featuredEvents} />
-    </div>
-  )
-}
+// ----- Landing card primitives -----
 
-function ContributeCard({ onCTA, featuredEvents }: { onCTA: () => void; featuredEvents: FeaturedEvent[] }) {
+function LandingCard({
+  eyebrow,
+  title,
+  children,
+}: {
+  eyebrow: string
+  title: string
+  children: React.ReactNode
+}) {
   return (
-    <div className="bg-white rounded-2xl border border-[#E8DDD0] p-7 space-y-6 shadow-sm">
-      <div className="space-y-3">
-        <h3 className="text-xs uppercase tracking-widest text-gray-400 font-medium">How it works</h3>
-        <ol className="space-y-3">
-          {[
-            'Share an event link or paste in details',
-            'Our AI extracts the information for you to confirm',
-            'Event shared just with executives whose profiles fit',
-          ].map((text, i) => (
-            <li key={i} className="flex items-start gap-3">
-              <span className="w-5 h-5 rounded-full bg-gold-50 border border-gold-200 text-gold-700 text-xs flex items-center justify-center flex-shrink-0 mt-0.5 font-medium">{i + 1}</span>
-              <span className="text-sm text-gray-600">{text}</span>
-            </li>
-          ))}
-        </ol>
+    <div
+      className="rounded-card border"
+      style={{
+        borderColor: 'var(--accent)',
+        background: 'var(--paper)',
+        boxShadow: '0 8px 30px -18px rgba(110,31,43,0.5)',
+        padding: '28px 28px 26px',
+      }}
+    >
+      <div className="eyebrow" style={{ color: 'var(--accent)' }}>
+        {eyebrow}
       </div>
-      <button onClick={onCTA} className="w-full py-3 rounded-xl bg-gold-600 hover:bg-gold-500 text-white font-medium transition-colors">
-        Share Event
-      </button>
-      <div className="text-center space-y-1">
-        <p className="text-xs text-gray-400 leading-relaxed">
-          Share an event you are running or just one you are aware of.
-        </p>
-        <p className="text-xs text-gray-400 leading-relaxed">
-          Share above or email link to <a href="mailto:event@whisperedevents.com" className="text-gold-700 hover:text-gold-600 underline">event@whisperedevents.com</a>
-        </p>
-      </div>
-      <FeaturedEventsCarousel events={featuredEvents} />
-    </div>
-  )
-}
-
-function PartnerCard({ onCTA, featuredEvents }: { onCTA: () => void; featuredEvents: FeaturedEvent[] }) {
-  return (
-    <div className="bg-white rounded-2xl border border-[#E8DDD0] p-7 space-y-6 shadow-sm">
-      <div className="space-y-4">
-        <h3 className="text-xs uppercase tracking-widest text-gray-400 font-medium">Partner with us</h3>
-        <p className="text-sm text-gray-700 leading-relaxed">
-          We partner with <span className="text-gray-900 font-medium">Communities</span>,{' '}
-          <span className="text-gray-900 font-medium">Vendors</span> and{' '}
-          <span className="text-gray-900 font-medium">Investors</span> to bring exclusive events to the right executives.
-        </p>
-      </div>
-      <div className="space-y-3">
-        <h3 className="text-xs uppercase tracking-widest text-gray-400 font-medium">How it works</h3>
-        <ol className="space-y-3">
-          {[
-            'Share (and update) events you are running',
-            'Customize targeting for your events',
-            'See execs who match your audience',
-          ].map((text, i) => (
-            <li key={i} className="flex items-start gap-3">
-              <span className="w-5 h-5 rounded-full bg-gold-50 border border-gold-200 text-gold-700 text-xs flex items-center justify-center flex-shrink-0 mt-0.5 font-medium">{i + 1}</span>
-              <span className="text-sm text-gray-600">{text}</span>
-            </li>
-          ))}
-        </ol>
-      </div>
-      <button
-        onClick={onCTA}
-        className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-gold-600 hover:bg-gold-500 text-white font-medium transition-colors"
+      <h3
+        className="font-serif mt-1.5 mb-4 m-0"
+        style={{
+          fontSize: 30,
+          lineHeight: 1.15,
+          color: 'var(--ink)',
+          letterSpacing: '-0.01em',
+        }}
       >
-        Apply
-      </button>
-      <FeaturedEventsCarousel events={featuredEvents} />
+        {title}
+      </h3>
+      {children}
     </div>
   )
 }
 
-function TabPill({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+function HowItWorks({ items }: { items: string[] }) {
+  return (
+    <ol className="m-0 p-0 list-none flex flex-col gap-3">
+      {items.map((text, i) => (
+        <li key={i} className="flex items-start gap-3">
+          <span
+            className="font-serif shrink-0 grid place-items-center rounded-full"
+            style={{
+              width: 24,
+              height: 24,
+              border: '1px solid var(--accent)',
+              color: 'var(--accent)',
+              background: 'var(--accent-soft)',
+              fontSize: 14,
+              lineHeight: 1,
+              marginTop: 1,
+            }}
+          >
+            {i + 1}
+          </span>
+          <span style={{ fontSize: 13.5, color: 'var(--ink-2)', lineHeight: 1.55 }}>
+            {text}
+          </span>
+        </li>
+      ))}
+    </ol>
+  )
+}
+
+function AccentButton({
+  children,
+  onClick,
+}: {
+  children: React.ReactNode
+  onClick: () => void
+}) {
   return (
     <button
       onClick={onClick}
-      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
-        active
-          ? 'bg-gold-600 text-white shadow-sm'
-          : 'bg-gold-50 text-gold-700 border border-gold-200 hover:bg-gold-100'
-      }`}
+      className="w-full mt-5 rounded-pill text-white font-medium transition-colors flex items-center justify-center gap-2"
+      style={{
+        padding: '10px 16px',
+        background: 'var(--accent)',
+        fontSize: 13,
+      }}
+      onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--accent-2)')}
+      onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--accent)')}
     >
       {children}
     </button>
+  )
+}
+
+function ArrowIcon() {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      width={14}
+      height={14}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      aria-hidden
+    >
+      <path d="M3 8h10M9 4l4 4-4 4" />
+    </svg>
+  )
+}
+
+function ViewCard({
+  onCTA,
+  featuredEvents,
+}: {
+  onCTA: () => void
+  featuredEvents: FeaturedEvent[]
+}) {
+  return (
+    <LandingCard eyebrow="01 · How it works" title="Find events whispered to you.">
+      <HowItWorks
+        items={[
+          'Share your profile and event interests',
+          'Get notified of new matching events',
+          'Update your profile to improve matches',
+        ]}
+      />
+      <AccentButton onClick={onCTA}>
+        Create Profile <ArrowIcon />
+      </AccentButton>
+      <p
+        className="text-center mt-3 leading-relaxed"
+        style={{ fontSize: 11.5, color: 'var(--ink-3)' }}
+      >
+        always free to find events
+      </p>
+      <p
+        className="text-center mt-3 leading-relaxed"
+        style={{ fontSize: 11.5, color: 'var(--ink-3)' }}
+      >
+        Love what we are doing? Tag{' '}
+        <a
+          href="https://www.linkedin.com/company/whispered-events/about/?viewAsMember=true"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline"
+          style={{ color: 'var(--accent)', textUnderlineOffset: 3 }}
+        >
+          Whispered Events
+        </a>{' '}
+        on a LinkedIn post
+      </p>
+      <FeaturedEventsCarousel events={featuredEvents} />
+    </LandingCard>
+  )
+}
+
+function ContributeCard({
+  onCTA,
+  featuredEvents,
+}: {
+  onCTA: () => void
+  featuredEvents: FeaturedEvent[]
+}) {
+  return (
+    <LandingCard eyebrow="02 · How it works" title="Contribute an event in 30 seconds.">
+      <HowItWorks
+        items={[
+          'Share an event link or paste in details',
+          'Our AI extracts the information for you to confirm',
+          'Event shared just with executives whose profiles fit',
+        ]}
+      />
+      <AccentButton onClick={onCTA}>
+        Share Event <ArrowIcon />
+      </AccentButton>
+      <div className="text-center mt-3 space-y-1.5">
+        <p className="leading-relaxed" style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>
+          Share an event you are running or just one you are aware of.
+        </p>
+        <p className="leading-relaxed" style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>
+          Share above or email link to{' '}
+          <a
+            href="mailto:event@whisperedevents.com"
+            className="underline"
+            style={{ color: 'var(--accent)', textUnderlineOffset: 3 }}
+          >
+            event@whisperedevents.com
+          </a>
+        </p>
+      </div>
+      <FeaturedEventsCarousel events={featuredEvents} />
+    </LandingCard>
+  )
+}
+
+function PartnerCard({
+  onCTA,
+  featuredEvents,
+}: {
+  onCTA: () => void
+  featuredEvents: FeaturedEvent[]
+}) {
+  return (
+    <LandingCard eyebrow="03 · Partner with us" title="For communities, vendors & investors.">
+      <p
+        className="m-0 mb-4"
+        style={{ fontSize: 14, color: 'var(--ink-2)', lineHeight: 1.6 }}
+      >
+        We partner with{' '}
+        <span className="font-serif italic" style={{ color: 'var(--ink)' }}>
+          communities
+        </span>
+        ,{' '}
+        <span className="font-serif italic" style={{ color: 'var(--ink)' }}>
+          vendors
+        </span>{' '}
+        and{' '}
+        <span className="font-serif italic" style={{ color: 'var(--ink)' }}>
+          investors
+        </span>{' '}
+        to bring exclusive events to the right executives.
+      </p>
+      <div className="eyebrow mb-2.5">What you get</div>
+      <HowItWorks
+        items={[
+          'Share (and update) events you are running',
+          'Customize targeting for your events',
+          'See execs who match your audience',
+        ]}
+      />
+      <AccentButton onClick={onCTA}>
+        Apply <ArrowIcon />
+      </AccentButton>
+      <FeaturedEventsCarousel events={featuredEvents} label="Recent partner events" />
+    </LandingCard>
   )
 }
