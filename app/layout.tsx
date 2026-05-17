@@ -52,12 +52,16 @@ export const metadata: Metadata = {
     description:
       "The best events aren't posted — they're whispered. A private platform for executives.",
     url: 'https://www.whisperedevents.com',
-    // Versioned URL to force LinkedIn / X to re-fetch the image rather
-    // than serving their stale cached copy. Bump the v= each time the
-    // OG image changes substantially.
+    // Absolute URLs (rather than relative paths resolved against
+    // metadataBase) — LinkedIn's bot is most reliable when og:image
+    // and og:image:secure_url are both fully-qualified. No query
+    // param: an earlier ?v= cache-bust trick coincided with LinkedIn
+    // failing to render the card at all, so this strips it back to
+    // the most boring shape that scrapers expect.
     images: [
       {
-        url: '/opengraph-image?v=4',
+        url: 'https://www.whisperedevents.com/opengraph-image',
+        secureUrl: 'https://www.whisperedevents.com/opengraph-image',
         width: 2400,
         height: 1260,
         alt: "Whispered Events — The best events aren't posted. They're whispered.",
@@ -70,7 +74,7 @@ export const metadata: Metadata = {
     title: 'Whispered Events',
     description:
       "The best events aren't posted — they're whispered. A private platform for executives.",
-    images: ['/opengraph-image?v=4'],
+    images: ['https://www.whisperedevents.com/opengraph-image'],
   },
 }
 
