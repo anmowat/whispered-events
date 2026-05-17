@@ -6,7 +6,7 @@ const WHISPERS = [
   '8 new VP+ marketers',
   'New intimate dinner in NYC',
   'Added GTM Fund & Sendoso as partners',
-  'Demand & Expand conference features',
+  'Demand & Expand conference featured',
 ]
 
 export default function WhispersFeed() {

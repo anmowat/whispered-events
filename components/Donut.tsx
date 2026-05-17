@@ -12,9 +12,12 @@ interface DonutProps {
   data: DonutDatum[]
   colors: string[]
   size?: number
+  /** Single word shown in the center of the donut, e.g. 'Events' or
+   *  'Execs'. Replaces the older 'TOTAL / number' treatment. */
+  centerLabel?: string
 }
 
-export function Donut({ data, colors, size = 160 }: DonutProps) {
+export function Donut({ data, colors, size = 160, centerLabel }: DonutProps) {
   const total = data.reduce((s, d) => s + d.value, 0)
   if (total === 0) return null
 
@@ -56,30 +59,21 @@ export function Donut({ data, colors, size = 160 }: DonutProps) {
           />
         )
       })}
-      <text
-        x={cx}
-        y={cy - 2}
-        textAnchor="middle"
-        fontSize="11"
-        fill="var(--ink-3)"
-        style={{
-          fontFamily: 'var(--font-geist), sans-serif',
-          letterSpacing: '0.14em',
-          textTransform: 'uppercase',
-        }}
-      >
-        Total
-      </text>
-      <text
-        x={cx}
-        y={cy + 18}
-        textAnchor="middle"
-        fontSize="22"
-        fill="var(--ink)"
-        style={{ fontFamily: 'var(--font-instrument-serif), Georgia, serif' }}
-      >
-        {total}
-      </text>
+      {centerLabel && (
+        <text
+          x={cx}
+          y={cy}
+          textAnchor="middle"
+          dominantBaseline="central"
+          fontSize="22"
+          fill="var(--ink)"
+          style={{
+            fontFamily: 'var(--font-instrument-serif), Georgia, serif',
+          }}
+        >
+          {centerLabel}
+        </text>
+      )}
     </svg>
   )
 }
