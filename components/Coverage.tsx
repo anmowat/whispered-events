@@ -8,14 +8,15 @@ import { Donut } from './Donut'
 // we'll build off Airtable in a later pass. Both arrays total 100 so the
 // legend reads as percentages.
 
-// Location distribution. SF, NY, Chicago, London values were specified
-// explicitly; 'Other' picks up the remainder so the total lands at 100.
+// Location distribution. Source ratios were SF 44 / NY 12 / Chicago 6 /
+// London 6 / Other 14 (summing to 82). Scaled proportionally by 100/82
+// so the legend reads as true percentages totalling 100.
 const LOCATIONS = [
-  { label: 'San Francisco', value: 44 },
-  { label: 'New York', value: 12 },
-  { label: 'Chicago', value: 6 },
-  { label: 'London', value: 6 },
-  { label: 'Other', value: 32 },
+  { label: 'San Francisco', value: 54 },
+  { label: 'New York', value: 15 },
+  { label: 'Chicago', value: 7 },
+  { label: 'London', value: 7 },
+  { label: 'Other', value: 17 },
 ]
 
 // Function distribution. Plausible mix for a GTM-tilted exec audience —
