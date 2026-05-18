@@ -146,21 +146,14 @@ function Landing({
           className="font-serif m-0 text-[44px] sm:text-[54px]"
           style={{ lineHeight: 1.05, color: 'var(--ink)', letterSpacing: '-0.01em' }}
         >
-          Real relationships are<br />
-          built <span className="italic">in&nbsp;person</span>.
+          The best events aren&apos;t posted — they&apos;re{' '}
+          <span className="italic">whispered</span>.
         </h1>
         <p
           className="font-serif italic mt-3 mb-0 text-[18px] sm:text-[22px]"
           style={{ color: 'var(--ink-2)', lineHeight: 1.25 }}
         >
-          The best events aren&apos;t posted — they&apos;re whispered.
-        </p>
-        <p
-          className="mx-auto mt-4 mb-0"
-          style={{ fontSize: 14.5, color: 'var(--ink-2)', maxWidth: 520, lineHeight: 1.55 }}
-        >
-          A private platform for executives to contribute and discover exclusive, invitation-only
-          events. Free to join.
+          contribute and discover exclusive, invitation-only events — 100% free
         </p>
       </section>
 
