@@ -146,8 +146,8 @@ function Landing({
           className="font-serif m-0 text-[44px] sm:text-[54px]"
           style={{ lineHeight: 1.05, color: 'var(--ink)', letterSpacing: '-0.01em' }}
         >
-          The best events aren&apos;t posted — they&apos;re{' '}
-          <span className="italic">whispered</span>.
+          The best events aren&apos;t posted<br />
+          they&apos;re <span className="italic">whispered</span>
         </h1>
         <p
           className="font-serif italic mt-3 mb-0 text-[18px] sm:text-[22px]"
