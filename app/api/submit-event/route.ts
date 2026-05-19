@@ -5,6 +5,7 @@ import {
   getPartnerUserByEmail,
 } from '@/lib/airtable'
 import { recordContribution } from '@/lib/supabase'
+import { sendEventSubmittedEmail } from '@/lib/email'
 import { EventRecord, VIRTUAL_LOCATION_RE } from '@/lib/types'
 
 // Create-only endpoint as of the host-flow cleanup. Editing existing events
@@ -74,6 +75,13 @@ export async function POST(req: NextRequest) {
       source: 'form',
       airtableUserId: hostUserId ?? null,
     }).catch((e) => console.error('recordContribution error:', e))
+
+    // Confirmation email to the submitter (BCC'd to MONITOR_BCC inside
+    // sendEventSubmittedEmail so we see every send). Fire-and-forget so
+    // the response stays snappy — failures land in Vercel logs.
+    sendEventSubmittedEmail(event.submitter, event.name).catch((e) =>
+      console.error('submit-event: sendEventSubmittedEmail failed', e),
+    )
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
     fetch(`${appUrl}/api/process-matches?trigger=event&id=${id}`).catch((e) =>
