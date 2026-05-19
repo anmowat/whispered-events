@@ -15,9 +15,12 @@ const AMPLIFY_POST_LINK =
   'https://www.linkedin.com/feed/update/urn:li:activity:7459465011686453248'
 
 // BCC'd on every user-facing send so we can monitor copy/formatting in
-// real time. Excluded from magic-link emails (those contain auth tokens —
-// a compromised inbox here would otherwise grant session access).
-const MONITOR_BCC = 'andy@whisperedevents.com'
+// real time. Two addresses: andy@whisperedevents.com (Andy's personal
+// monitoring) AND event@whispered.com (the team operations mailbox).
+// Resend's bcc accepts an array. Excluded from magic-link emails
+// (those contain auth tokens — a compromised inbox here would grant
+// session access).
+const MONITOR_BCC = ['andy@whisperedevents.com', 'event@whispered.com']
 
 // ----- Salon palette (inlined; CSS vars don't work in email clients) -----
 const C = {

@@ -26,6 +26,7 @@ interface InboundPayload {
 
 export async function POST(req: NextRequest) {
   const rawBody = await req.text()
+  console.log('inbound-email: webhook fired, body length', rawBody.length)
 
   if (!(await verifySvixSignature(req, rawBody))) {
     console.error('inbound-email: signature verification failed')
@@ -38,12 +39,22 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: 'invalid json' }, { status: 400 })
   }
+  // Log the raw payload shape so we can diagnose extractor failures when
+  // the `from` field arrives in an unexpected format from Resend.
+  console.log('inbound-email: payload shape', {
+    type: payload.type,
+    fromType: typeof payload.data?.from,
+    fromValue: payload.data?.from,
+    hasEmailId: !!payload.data?.email_id,
+    subject: payload.data?.subject,
+  })
 
   const senderEmail = extractSenderEmail(payload.data?.from)
   if (!senderEmail) {
     console.error('inbound-email: could not extract sender', payload.data?.from)
     return NextResponse.json({ ok: true, reason: 'no sender' })
   }
+  console.log('inbound-email: extracted sender', senderEmail)
 
   const emailId = payload.data?.email_id
   if (!emailId || !process.env.RESEND_API_KEY) {
@@ -152,7 +163,14 @@ export async function POST(req: NextRequest) {
   )
 
   try {
+    console.log(
+      'inbound-email: sending confirmation to',
+      senderEmail,
+      'for event',
+      parsed.name,
+    )
     await sendEventSubmittedEmail(senderEmail, parsed.name)
+    console.log('inbound-email: confirmation sent OK to', senderEmail)
   } catch (e) {
     console.error('inbound-email: sendEventSubmittedEmail failed', e)
   }
