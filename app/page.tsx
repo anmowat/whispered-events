@@ -153,7 +153,7 @@ function Landing({
           className="font-serif italic mt-3 mb-0 text-[18px] sm:text-[22px]"
           style={{ color: 'var(--ink-2)', lineHeight: 1.25 }}
         >
-          contribute and discover exclusive, invitation-only events — 100% free
+          contribute and discover exclusive events — 100% free
         </p>
       </section>
 
