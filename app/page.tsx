@@ -322,7 +322,7 @@ function ViewCard({
   featuredEvents: FeaturedEvent[]
 }) {
   return (
-    <LandingCard title="Find events whispered to you.">
+    <LandingCard title="Get matching exec events emailed - for free">
       <HowItWorks
         items={[
           'Share your profile and event interests',
@@ -333,12 +333,6 @@ function ViewCard({
       <AccentButton onClick={onCTA}>
         Create Profile <ArrowIcon />
       </AccentButton>
-      <p
-        className="text-center mt-3 leading-relaxed"
-        style={{ fontSize: 11.5, color: 'var(--ink-3)' }}
-      >
-        always free to find events
-      </p>
       <p
         className="text-center mt-3 leading-relaxed"
         style={{ fontSize: 11.5, color: 'var(--ink-3)' }}
@@ -407,7 +401,7 @@ function PartnerCard({
   featuredEvents: FeaturedEvent[]
 }) {
   return (
-    <LandingCard title="We collaborate with communities & vendors.">
+    <LandingCard title="Promote your event to the right execs">
       <HowItWorks
         items={[
           'Share (and update) events you are running',
