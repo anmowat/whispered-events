@@ -49,7 +49,9 @@ export async function POST(req: NextRequest) {
     subject: payload.data?.subject,
   })
 
-  const senderEmail = extractSenderEmail(payload.data?.from)
+  // `let` because we may reassign below if the envelope from is one of
+  // our own forwarder addresses (Google Workspace alias forwarding etc).
+  let senderEmail = extractSenderEmail(payload.data?.from)
   if (!senderEmail) {
     console.error('inbound-email: could not extract sender', payload.data?.from)
     return NextResponse.json({ ok: true, reason: 'no sender' })
@@ -76,7 +78,33 @@ export async function POST(req: NextRequest) {
   const combined = `${subject}\n\n${text}`
   const url = extractFirstUrl(combined)
 
-  console.log('inbound-email: from', senderEmail, 'url', url, 'subject', subject)
+  // When Google Workspace (or any external alias) forwards an inbound
+  // event to Resend, the envelope `from` gets rewritten to the
+  // forwarding mailbox — not the original sender. Detect that and
+  // recover the real sender from the body's forwarded-message block
+  // (Gmail/Outlook/etc all preserve the original From: header inline).
+  // Without this, every forwarded event records the forwarder mailbox
+  // as the submitter in Airtable.
+  if (isOwnDomain(senderEmail)) {
+    const original = extractOriginalSenderFromBody(text)
+    if (original) {
+      console.log(
+        'inbound-email: envelope sender',
+        senderEmail,
+        'is a forwarder — using body-extracted original',
+        original,
+      )
+      senderEmail = original
+    } else {
+      console.warn(
+        'inbound-email: envelope sender',
+        senderEmail,
+        'looks like a forwarder but no original From: found in body',
+      )
+    }
+  }
+
+  console.log('inbound-email: effective sender', senderEmail, 'url', url, 'subject', subject)
 
   let content = combined
   if (url) {
@@ -176,6 +204,40 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json({ ok: true, id })
+}
+
+// Returns true if `email` is at one of our own / forwarder domains —
+// i.e. it shouldn't be treated as the original submitter when an event
+// is forwarded in through a Google Workspace alias.
+function isOwnDomain(email: string): boolean {
+  const e = email.toLowerCase()
+  return (
+    e.endsWith('@whisperedevents.com') ||
+    e.endsWith('@whispered.com')
+  )
+}
+
+// Scans a forwarded email body for the original sender's address.
+// Gmail / Outlook / Apple Mail all preserve the original headers as
+// plain text inside the body, looking like:
+//
+//   ---------- Forwarded message ----------
+//   From: Kris Rudeegraap <kris@sendoso.com>
+//   Date: ...
+//
+// We pick the first `From:` line that isn't one of our forwarder
+// domains. Returns null if nothing matches.
+function extractOriginalSenderFromBody(text: string): string | null {
+  if (!text) return null
+  const lines = text.split(/\r?\n/)
+  for (const line of lines) {
+    const match = line.match(/^\s*From:\s*(?:[^<\n]*<)?([A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,})>?/i)
+    if (!match) continue
+    const candidate = match[1].toLowerCase()
+    if (isOwnDomain(candidate)) continue
+    return candidate
+  }
+  return null
 }
 
 function extractSenderEmail(from: unknown): string | null {
