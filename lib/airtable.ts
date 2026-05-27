@@ -766,10 +766,11 @@ export async function upsertPartnerApplication(
 
   const linkedinValue = app.linkedin.trim()
   // Existing user: don't rewrite Email (preserves casing/history).
-  // New user: include Email.
+  // New user: include Email. 'Partners' is the link field on the Users
+  // table pointing back to the Partners table.
   const userFields: Partial<FieldSet> = existingUser.length
-    ? { LinkedIn: linkedinValue, Company: [partnerId] }
-    : { Email: email, LinkedIn: linkedinValue, Company: [partnerId] }
+    ? { LinkedIn: linkedinValue, Partners: [partnerId] }
+    : { Email: email, LinkedIn: linkedinValue, Partners: [partnerId] }
 
   const userId = await writeWithKnownFields(
     PROFILES_TABLE,
