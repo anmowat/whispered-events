@@ -690,6 +690,43 @@ export interface PartnerApplication {
   linkedin: string
 }
 
+// Airtable rejects an ENTIRE write with a 422 (UNKNOWN_FIELD_NAME) if any
+// single field name doesn't exist on the table. This helper retries,
+// dropping the offending field one at a time, so a partial schema (e.g.
+// a Partners table missing the Audience column) degrades to writing the
+// fields that DO exist instead of failing the whole partner application.
+// Dropped fields are logged so the schema gap surfaces in Vercel logs.
+function parseUnknownField(e: unknown): string | null {
+  const msg = e instanceof Error ? e.message : String(e)
+  const m = msg.match(/Unknown field name:\s*"([^"]+)"/i)
+  return m ? m[1] : null
+}
+
+async function writeWithKnownFields(
+  table: string,
+  recordId: string | null,
+  fields: Partial<FieldSet>,
+): Promise<string> {
+  const base = getBase()
+  const working: Partial<FieldSet> = { ...fields }
+  for (let attempt = 0; attempt < 12; attempt++) {
+    try {
+      if (recordId) {
+        await base(table).update(recordId, working)
+        return recordId
+      }
+      const created = await base(table).create(working)
+      return created.id
+    } catch (e) {
+      const field = parseUnknownField(e)
+      if (!field || !(field in working)) throw e
+      console.error(`writeWithKnownFields: "${field}" is not a field on ${table} — dropping and retrying`)
+      delete (working as Record<string, unknown>)[field]
+    }
+  }
+  throw new Error(`writeWithKnownFields: exhausted retries on ${table}`)
+}
+
 export async function upsertPartnerApplication(
   app: PartnerApplication,
 ): Promise<{ partnerId: string; userId: string }> {
@@ -712,14 +749,11 @@ export async function upsertPartnerApplication(
     })
     .all()
 
-  let partnerId: string
-  if (existingPartner.length) {
-    partnerId = existingPartner[0].id
-    await base(PARTNERS_TABLE).update(partnerId, partnerFields)
-  } else {
-    const created = await base(PARTNERS_TABLE).create(partnerFields)
-    partnerId = created.id
-  }
+  const partnerId = await writeWithKnownFields(
+    PARTNERS_TABLE,
+    existingPartner.length ? existingPartner[0].id : null,
+    partnerFields,
+  )
 
   const sanitizedEmail = email.replace(/'/g, "\\'")
   const existingUser = await base(PROFILES_TABLE)
@@ -731,23 +765,17 @@ export async function upsertPartnerApplication(
     .all()
 
   const linkedinValue = app.linkedin.trim()
-  let userId: string
-  if (existingUser.length) {
-    userId = existingUser[0].id
-    // Don't rewrite the existing Email field — preserves whatever casing
-    // and history is already on the record.
-    await base(PROFILES_TABLE).update(userId, {
-      LinkedIn: linkedinValue,
-      Company: [partnerId],
-    } as Partial<FieldSet>)
-  } else {
-    const created = await base(PROFILES_TABLE).create({
-      Email: email,
-      LinkedIn: linkedinValue,
-      Company: [partnerId],
-    } as Partial<FieldSet>)
-    userId = created.id
-  }
+  // Existing user: don't rewrite Email (preserves casing/history).
+  // New user: include Email.
+  const userFields: Partial<FieldSet> = existingUser.length
+    ? { LinkedIn: linkedinValue, Company: [partnerId] }
+    : { Email: email, LinkedIn: linkedinValue, Company: [partnerId] }
+
+  const userId = await writeWithKnownFields(
+    PROFILES_TABLE,
+    existingUser.length ? existingUser[0].id : null,
+    userFields,
+  )
 
   invalidateUserCache()
   return { partnerId, userId }
