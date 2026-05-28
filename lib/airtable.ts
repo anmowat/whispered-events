@@ -690,16 +690,22 @@ export interface PartnerApplication {
   linkedin: string
 }
 
-// Airtable rejects an ENTIRE write with a 422 (UNKNOWN_FIELD_NAME) if any
-// single field name doesn't exist on the table. This helper retries,
-// dropping the offending field one at a time, so a partial schema (e.g.
-// a Partners table missing the Audience column) degrades to writing the
-// fields that DO exist instead of failing the whole partner application.
-// Dropped fields are logged so the schema gap surfaces in Vercel logs.
-function parseUnknownField(e: unknown): string | null {
+// Airtable rejects an ENTIRE write with a 422 if any single field name
+// doesn't exist (UNKNOWN_FIELD_NAME) or the value type doesn't match
+// the column type (INVALID_VALUE_FOR_COLUMN, e.g. sending a string into
+// a Number column). This helper retries, dropping the offending field
+// one at a time, so a partial schema or one bad value degrades to
+// writing the other fields rather than nuking the whole application.
+// Dropped fields are logged so the gap surfaces in Vercel logs.
+function parseProblemField(e: unknown): string | null {
   const msg = e instanceof Error ? e.message : String(e)
-  const m = msg.match(/Unknown field name:\s*"([^"]+)"/i)
-  return m ? m[1] : null
+  // UNKNOWN_FIELD_NAME format: Unknown field name: "Foo"
+  const m1 = msg.match(/Unknown field name:\s*"([^"]+)"/i)
+  if (m1) return m1[1]
+  // INVALID_VALUE_FOR_COLUMN format: Field "Foo" cannot accept the provided value
+  const m2 = msg.match(/Field\s+"([^"]+)"\s+cannot accept/i)
+  if (m2) return m2[1]
+  return null
 }
 
 async function writeWithKnownFields(
@@ -718,9 +724,12 @@ async function writeWithKnownFields(
       const created = await base(table).create(working)
       return created.id
     } catch (e) {
-      const field = parseUnknownField(e)
+      const field = parseProblemField(e)
       if (!field || !(field in working)) throw e
-      console.error(`writeWithKnownFields: "${field}" is not a field on ${table} — dropping and retrying`)
+      console.error(
+        `writeWithKnownFields: dropping "${field}" on ${table} —`,
+        e instanceof Error ? e.message : e,
+      )
       delete (working as Record<string, unknown>)[field]
     }
   }
@@ -734,11 +743,19 @@ export async function upsertPartnerApplication(
   const email = app.email.trim().toLowerCase()
   const companyName = app.company.trim()
   const sanitizedCompany = companyName.replace(/'/g, "\\'")
+
+  // Volume is a Number column in Airtable. The client normalizes vague
+  // answers ("a lot", "many") to a stringified midpoint when possible;
+  // anything that doesn't parse as an integer we omit entirely rather
+  // than 422'ing the application.
+  const volumeNum = parseInt(app.volume, 10)
   const partnerFields: Partial<FieldSet> = {
     Name: companyName,
     Audience: app.audience.trim(),
-    Volume: app.volume.trim(),
     Description: app.description.trim(),
+  }
+  if (Number.isFinite(volumeNum)) {
+    partnerFields.Volume = volumeNum
   }
 
   const existingPartner = await base(PARTNERS_TABLE)
