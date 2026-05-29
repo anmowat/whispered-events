@@ -3,10 +3,10 @@
 import { useState } from 'react'
 import { Donut } from './Donut'
 
-// "Where we run deepest" — donut chart with a Location/Function toggle.
-// Numbers are mocked for v1; the design doc flags these as aggregations
-// we'll build off Airtable in a later pass. Both arrays total 100 so the
-// legend reads as percentages.
+// "Where we run deepest" — donut chart with a Location / Function / Level
+// toggle. Numbers are mocked for v1; the design doc flags these as
+// aggregations we'll build off Airtable in a later pass. All three
+// arrays total 100 so the legend reads as percentages.
 
 // Location distribution. Source ratios were SF 44 / NY 12 / Chicago 6 /
 // London 6 / Other 14 (summing to 82). Scaled proportionally by 100/82
@@ -20,8 +20,8 @@ const LOCATIONS = [
 ]
 
 // Function distribution. Plausible mix for a GTM-tilted exec audience —
-// marketing + sales leaders dominate, founder / RevOps / CS in the
-// long tail. Sorted descending; totals 100.
+// marketing + sales leaders dominate, founder / RevOps / CS in the long
+// tail. Sorted descending; totals 100.
 const FUNCTIONS = [
   { label: 'Marketing', value: 32 },
   { label: 'Sales', value: 26 },
@@ -31,12 +31,26 @@ const FUNCTIONS = [
   { label: 'Other', value: 4 },
 ]
 
+// Seniority distribution. VPs dominate, C-level close second, directors
+// long tail. Sorted descending; totals 100.
+const LEVELS = [
+  { label: 'VP', value: 42 },
+  { label: 'C-level', value: 38 },
+  { label: 'Director', value: 15 },
+  { label: 'Other', value: 5 },
+]
+
 // Oxblood-family palette, light → dark in the same hue.
 const COLORS = ['#6E1F2B', '#8E2E3B', '#AC4854', '#C5707A', '#DB9CA1', '#EAC4C7']
 
+type Mode = 'location' | 'function' | 'level'
+
 export default function Coverage() {
-  const [mode, setMode] = useState<'location' | 'function'>('location')
-  const data = mode === 'location' ? LOCATIONS : FUNCTIONS
+  const [mode, setMode] = useState<Mode>('location')
+  const data =
+    mode === 'location' ? LOCATIONS : mode === 'function' ? FUNCTIONS : LEVELS
+  // 'Events' for location (we run events in places), 'Execs' for the two
+  // audience slices (function + level both describe our member base).
   const centerLabel = mode === 'location' ? 'Events' : 'Execs'
 
   return (
@@ -50,6 +64,7 @@ export default function Coverage() {
           {([
             { id: 'location', label: 'Location' },
             { id: 'function', label: 'Function' },
+            { id: 'level', label: 'Level' },
           ] as const).map((t) => {
             const active = mode === t.id
             return (

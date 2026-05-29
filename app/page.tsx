@@ -8,7 +8,6 @@ import ViewEventsTab from '@/components/ViewEventsTab'
 import FeaturedEventsCarousel from '@/components/FeaturedEventsCarousel'
 import LoginModal from '@/components/LoginModal'
 import Coverage from '@/components/Coverage'
-import WhispersFeed from '@/components/WhispersFeed'
 import PartnerMarquee from '@/components/PartnerMarquee'
 import { Partner, FeaturedEvent } from '@/lib/airtable'
 
@@ -164,14 +163,8 @@ function Landing({
         {tab === 'partner' && <PartnerCard onCTA={onCTA} featuredEvents={featuredEvents} />}
       </section>
 
-      {/* Insights row */}
-      <section className="max-w-[1040px] w-full mt-16 grid grid-cols-1 lg:grid-cols-2 gap-12">
-        <div>
-          <div className="flex items-center mb-3.5 min-h-[32px]">
-            <span className="eyebrow">Whispers this week</span>
-          </div>
-          <WhispersFeed />
-        </div>
+      {/* Coverage */}
+      <section className="max-w-[640px] w-full mt-16">
         <Coverage />
       </section>
 
