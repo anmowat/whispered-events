@@ -11,7 +11,10 @@ export async function parseEventContent(
   content: string,
   sourceUrl?: string
 ): Promise<ParsedEvent> {
+  const today = new Date().toISOString().split('T')[0]
   const prompt = `You are an event information extractor. Extract structured event data from the following content.
+
+Today's date is ${today} (YYYY-MM-DD). When the content shows a date without a year (e.g. "Jun 2", "Tuesday, Jun 2", "next Tuesday"), interpret it as the next occurrence on or after today and fill in the year yourself. Do not skip the date field just because the year is implicit.
 
 ${sourceUrl ? `Source URL: ${sourceUrl}` : ''}
 
@@ -21,7 +24,7 @@ ${content}
 Extract and return a JSON object with these fields (omit fields you cannot determine):
 - name: Short event name, maximum 6 words
 - type: One of exactly: "Conference", "Dinner", "Virtual", "Other" — pick the best fit based on context
-- date: ISO date string (YYYY-MM-DD) of the event start date
+- date: ISO date string (YYYY-MM-DD) of the event start date. If the source shows a year-less date like "Jun 2" or "Tuesday, Jun 2", combine it with the next applicable year based on today's date.
 - location: City, state/country or "Virtual" (e.g. "New York, NY" or "San Francisco, CA")
 - description: A 2-sentence description of the event and the intended audience that would be shared with potential attendees
 - link: The canonical URL for the event (use the source URL if appropriate)

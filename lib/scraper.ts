@@ -112,12 +112,12 @@ function extractTextFromHtml(html: string): string {
     .replace(/\s+/g, ' ')
     .trim()
 
-  if (bodyText.length > 2000) {
-    parts.push(bodyText.substring(0, 2000))
+  if (bodyText.length > 5000) {
+    parts.push(bodyText.substring(0, 5000))
   } else if (bodyText.length > 50) {
     parts.push(bodyText)
   }
 
   const result = parts.join('\n\n')
-  return result.length > 10000 ? result.substring(0, 10000) : result
+  return result.length > 12000 ? result.substring(0, 12000) : result
 }
