@@ -240,16 +240,21 @@ export async function getPartnerUserByEmail(email: string): Promise<AirtableUser
 
 export async function createEvent(event: EventRecord, hostUserId?: string): Promise<string> {
   const base = getBase()
+  // Required fields. Optional fields are added below only when non-empty —
+  // Airtable's typed columns (Date in particular) reject empty strings
+  // with INVALID_VALUE_FOR_COLUMN, which used to 500 the whole inbound
+  // pipeline when Claude couldn't extract a date from the source URL.
   const fields: Partial<FieldSet> = {
     Name: event.name,
     Type: event.type,
-    Date: event.date,
-    Location: event.location,
-    Description: event.description,
     Link: event.link,
-    Audience: event.audience.join(', '),
     Submitter: event.submitter,
   }
+  if (event.date) fields['Date'] = event.date
+  if (event.location) fields['Location'] = event.location
+  if (event.description) fields['Description'] = event.description
+  if (event.audience.length) fields['Audience'] = event.audience.join(', ')
+
   const geo = await geocodeLocation(event.location)
   if (geo) {
     fields['LatLon'] = formatLatLon(geo)

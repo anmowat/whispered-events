@@ -174,7 +174,16 @@ export async function POST(req: NextRequest) {
     id = await createEvent(eventToCreate)
   } catch (e) {
     console.error('inbound-email: createEvent failed', e)
-    return NextResponse.json({ error: 'create failed' }, { status: 500 })
+    // Send the "couldn't read your event" reply so the submitter
+    // isn't ghosted. Same end-user experience as the parse-incomplete
+    // path. Return 200 so Resend doesn't retry the webhook (the email
+    // body's data is fundamentally broken — retrying won't help).
+    try {
+      await sendEventCouldNotReadEmail(senderEmail)
+    } catch (e2) {
+      console.error('inbound-email: sendEventCouldNotReadEmail (post-create-failure) failed', e2)
+    }
+    return NextResponse.json({ ok: true, reason: 'create failed' })
   }
 
   recordContribution({
