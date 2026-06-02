@@ -19,6 +19,11 @@ const AMPLIFY_POST_LINK =
 // a compromised inbox here would otherwise grant session access).
 const MONITOR_BCC = 'andy@whisperedevents.com'
 
+// RFC 3834 auto-response header: tells well-behaved mail systems (and our
+// own inbound webhook) that the message was machine-generated, so they
+// don't auto-reply / re-forward back into us and create a loop.
+const AUTO_HEADERS = { 'Auto-Submitted': 'auto-generated' as const }
+
 // ----- Salon palette (inlined; CSS vars don't work in email clients) -----
 const C = {
   bg:           '#F1ECE2',
@@ -176,6 +181,7 @@ P.S. You can submit events anytime on the site or by emailing event@whisperedeve
     subject: 'Whispered Events — Application Received',
     html,
     text,
+    headers: AUTO_HEADERS,
   })
   if (error) {
     console.error('sendUserAppliedEmail: Resend error', { email, error })
@@ -211,6 +217,7 @@ export async function sendUserApprovedEmail(user: AirtableUser): Promise<void> {
     subject: "You're approved for Whispered Events",
     html,
     text,
+    headers: AUTO_HEADERS,
   })
   if (error) {
     console.error('sendUserApprovedEmail: Resend error', { email: user.email, error })
@@ -246,6 +253,7 @@ export async function sendEventSubmittedEmail(email: string, eventName: string):
     subject: `Event added — ${eventName}`,
     html,
     text,
+    headers: AUTO_HEADERS,
   })
   if (error) {
     console.error('sendEventSubmittedEmail: Resend error', { email, error })
@@ -280,6 +288,7 @@ export async function sendEventCouldNotReadEmail(email: string): Promise<void> {
     subject: "We couldn't read your event",
     html,
     text,
+    headers: AUTO_HEADERS,
   })
   if (error) {
     console.error('sendEventCouldNotReadEmail: Resend error', { email, error })
@@ -319,6 +328,7 @@ export async function sendMagicLink(email: string, token: string, baseUrl: strin
     subject: 'Your Whispered Events login link',
     html,
     text: `Sign in to Whispered Events.\n\nThis link expires in 15 minutes and can only be used once.\n\n${link}\n\nDidn't request this? You can safely ignore this email.`,
+    headers: AUTO_HEADERS,
   })
   if (error) {
     console.error('sendMagicLink: Resend error', { email, from: FROM, error })
@@ -450,6 +460,7 @@ export async function sendApprovedWithDigest(
     subject,
     html,
     text,
+    headers: AUTO_HEADERS,
   })
   if (error) {
     console.error('sendApprovedWithDigest: Resend error', { email: user.email, error })
@@ -505,6 +516,7 @@ export async function sendUserDigest(
     subject: 'New matching Whispered Events',
     html,
     text,
+    headers: AUTO_HEADERS,
   })
   if (error) {
     console.error('sendUserDigest: Resend error', { email: user.email, error })

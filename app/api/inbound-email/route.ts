@@ -78,6 +78,26 @@ export async function POST(req: NextRequest) {
   const combined = `${subject}\n\n${text}`
   const url = extractFirstUrl(combined)
 
+  // Loop-breaker #1: bail on machine-generated messages. RFC 3834 says
+  // auto-responders MUST set Auto-Submitted, and most do; bulk/list
+  // mail uses Precedence. Our own outbound mail carries
+  // Auto-Submitted: auto-generated, so a forwarded copy that lands back
+  // here gets dropped immediately instead of triggering another reply.
+  // Resend's receiving payload exposes raw headers as a record.
+  const headersRaw = (fetched.data as { headers?: Record<string, string> }).headers ?? {}
+  const headerLookup = Object.fromEntries(
+    Object.entries(headersRaw).map(([k, v]) => [k.toLowerCase(), String(v).toLowerCase()]),
+  )
+  const autoSubmitted = headerLookup['auto-submitted']
+  const precedence = headerLookup['precedence']
+  if (
+    (autoSubmitted && autoSubmitted !== 'no') ||
+    (precedence && /^(bulk|list|auto[_-]?reply|junk)$/i.test(precedence))
+  ) {
+    console.log('inbound-email: dropping auto-generated message', { autoSubmitted, precedence })
+    return NextResponse.json({ ok: true, reason: 'auto-submitted' })
+  }
+
   // When Google Workspace (or any external alias) forwards an inbound
   // event to Resend, the envelope `from` gets rewritten to the
   // forwarding mailbox — not the original sender. Detect that and
@@ -102,6 +122,15 @@ export async function POST(req: NextRequest) {
         'looks like a forwarder but no original From: found in body',
       )
     }
+  }
+
+  // Loop-breaker #2: if after body recovery the sender is still on our
+  // own domain, this is almost certainly our own mail looping back
+  // through a forwarder. Drop it without replying so we can't fan out
+  // another auto-response.
+  if (isOwnDomain(senderEmail)) {
+    console.warn('inbound-email: dropping self-domain message to prevent loop', senderEmail)
+    return NextResponse.json({ ok: true, reason: 'self-domain' })
   }
 
   console.log('inbound-email: effective sender', senderEmail, 'url', url, 'subject', subject)
@@ -285,6 +314,7 @@ async function sendReply(to: string, subject: string, body: string): Promise<voi
       to,
       subject,
       text: body,
+      headers: { 'Auto-Submitted': 'auto-generated' },
     })
   } catch (e) {
     console.error('inbound-email: sendReply failed', e)
