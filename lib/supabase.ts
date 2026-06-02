@@ -491,6 +491,30 @@ export async function getLastSeenByEmail(): Promise<Map<string, string>> {
   return out
 }
 
+// Returns the set of "eventId:userId" pairs that already have a row in
+// `matches` for any of the given future events. Used by the admin rescore-
+// missing endpoint to skip pairs we've already scored without re-querying
+// per pair.
+export async function getExistingMatchPairs(
+  eventIds: string[],
+): Promise<Set<string>> {
+  if (eventIds.length === 0) return new Set()
+  const supabase = getClient()
+  const { data, error } = await supabase
+    .from('matches')
+    .select('event_id, user_id')
+    .in('event_id', eventIds)
+  if (error) {
+    console.error('getExistingMatchPairs error', error)
+    return new Set()
+  }
+  const out = new Set<string>()
+  for (const row of (data ?? []) as Array<{ event_id: string; user_id: string }>) {
+    if (row.event_id && row.user_id) out.add(`${row.event_id}:${row.user_id}`)
+  }
+  return out
+}
+
 // Returns email -> ISO timestamp of the most recent digest send (max
 // matches.notified_at, grouped by user_email). Mirrors getLastSeenByEmail's
 // shape so the admin overview can pull it in a single query.

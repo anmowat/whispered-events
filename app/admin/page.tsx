@@ -51,6 +51,8 @@ export default function AdminPage() {
   const [showLogin, setShowLogin] = useState(false)
   const [sortBy, setSortBy] = useState<SortKey>('matches')
   const [search, setSearch] = useState('')
+  const [rescoring, setRescoring] = useState(false)
+  const [rescoreResult, setRescoreResult] = useState<string | null>(null)
 
   async function fetchCounts() {
     try {
@@ -81,6 +83,34 @@ export default function AdminPage() {
     const id = setInterval(fetchCounts, POLL_MS)
     return () => clearInterval(id)
   }, [])
+
+  async function rescoreMissing() {
+    if (rescoring) return
+    setRescoring(true)
+    setRescoreResult(null)
+    try {
+      const res = await fetch('/api/admin/rescore-missing', { method: 'POST' })
+      const data = (await res.json().catch(() => ({}))) as {
+        pairsMissing?: number
+        scored?: number
+        failed?: number
+        error?: string
+      }
+      if (!res.ok) {
+        setRescoreResult(`Error: ${data.error || `HTTP ${res.status}`}`)
+      } else {
+        setRescoreResult(
+          `Scored ${data.scored ?? 0} of ${data.pairsMissing ?? 0} missing pairs` +
+            (data.failed ? ` (${data.failed} failed)` : ''),
+        )
+        fetchCounts()
+      }
+    } catch (e) {
+      setRescoreResult(`Error: ${e instanceof Error ? e.message : String(e)}`)
+    } finally {
+      setRescoring(false)
+    }
+  }
 
   function displayName(u: UserRow): string {
     if (u.name && u.name !== 'DEFAULT') return u.name
@@ -178,12 +208,24 @@ export default function AdminPage() {
                   {refreshedAt && ` · refreshed ${refreshedAt.toLocaleTimeString()}`}
                 </p>
               </div>
-              <button
-                onClick={fetchCounts}
-                className="px-3 py-1.5 rounded-lg border border-[#E8DDD0] bg-white text-xs text-gray-700 hover:bg-[#F5EFE6] transition-colors shadow-sm"
-              >
-                Refresh
-              </button>
+              <div className="flex items-center gap-2">
+                {rescoreResult && (
+                  <span className="text-xs text-gray-500">{rescoreResult}</span>
+                )}
+                <button
+                  onClick={rescoreMissing}
+                  disabled={rescoring}
+                  className="px-3 py-1.5 rounded-lg border border-[#E8DDD0] bg-white text-xs text-gray-700 hover:bg-[#F5EFE6] transition-colors shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {rescoring ? 'Rescoring…' : 'Rescore missing matches'}
+                </button>
+                <button
+                  onClick={fetchCounts}
+                  className="px-3 py-1.5 rounded-lg border border-[#E8DDD0] bg-white text-xs text-gray-700 hover:bg-[#F5EFE6] transition-colors shadow-sm"
+                >
+                  Refresh
+                </button>
+              </div>
             </div>
 
             <div className="flex items-center gap-3 mb-4 flex-wrap">

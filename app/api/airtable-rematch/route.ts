@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { waitUntil } from '@vercel/functions'
 import { clearUserMatchCheckbox, refreshUserLatLon } from '@/lib/airtable'
 
 // Webhook target for the Airtable "User Match" automation.
@@ -54,8 +55,10 @@ export async function POST(req: NextRequest) {
   }
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-  fetch(`${appUrl}/api/process-matches?trigger=user&id=${id}`).catch((e) =>
-    console.error('airtable-rematch: process-matches fire-and-forget error:', e),
+  waitUntil(
+    fetch(`${appUrl}/api/process-matches?trigger=user&id=${id}`).catch((e) =>
+      console.error('airtable-rematch: process-matches fire-and-forget error:', e),
+    ),
   )
 
   try {

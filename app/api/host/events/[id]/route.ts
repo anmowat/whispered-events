@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { waitUntil } from '@vercel/functions'
 import { getSessionUser } from '@/lib/host-auth'
 import {
   getEventByIdIfHost,
@@ -119,10 +120,12 @@ export async function PATCH(
   }
 
   // Re-run matching against the updated event so the match list reflects new
-  // targeting. Fire-and-forget so the PATCH response stays snappy.
+  // targeting. waitUntil keeps the background fetch alive past the response.
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.whisperedevents.com'
-  fetch(`${appUrl}/api/process-matches?trigger=event&id=${params.id}`).catch((e) =>
-    console.error('host/events/[id]: process-matches fire-and-forget error', e),
+  waitUntil(
+    fetch(`${appUrl}/api/process-matches?trigger=event&id=${params.id}`).catch((e) =>
+      console.error('host/events/[id]: process-matches fire-and-forget error', e),
+    ),
   )
 
   return NextResponse.json({ ok: true })

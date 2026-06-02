@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { waitUntil } from '@vercel/functions'
 import { addEventHost, getPartnerUserByEmail } from '@/lib/airtable'
 
 // Partner-only "claim me as a host" mutation. Used by the contribute flow
@@ -41,11 +42,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: message }, { status: 500 })
   }
 
-  // Re-run matching so anything host-aware refreshes. Fire-and-forget to
-  // keep the response snappy.
+  // Re-run matching so anything host-aware refreshes. waitUntil keeps the
+  // background fetch alive past the response.
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.whisperedevents.com'
-  fetch(`${appUrl}/api/process-matches?trigger=event&id=${eventId}`).catch((e) =>
-    console.error('claim-host: process-matches fire-and-forget error', e),
+  waitUntil(
+    fetch(`${appUrl}/api/process-matches?trigger=event&id=${eventId}`).catch((e) =>
+      console.error('claim-host: process-matches fire-and-forget error', e),
+    ),
   )
 
   return NextResponse.json({ ok: true })

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { waitUntil } from '@vercel/functions'
 import { Resend, type GetReceivingEmailResponseSuccess } from 'resend'
 import { scrapeUrl } from '@/lib/scraper'
 import { parseEventContent } from '@/lib/claude'
@@ -224,8 +225,10 @@ export async function POST(req: NextRequest) {
   }).catch((e) => console.error('inbound-email: recordContribution error', e))
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.whisperedevents.com'
-  fetch(`${appUrl}/api/process-matches?trigger=event&id=${id}`).catch((e) =>
-    console.error('inbound-email: process-matches fire-and-forget error', e),
+  waitUntil(
+    fetch(`${appUrl}/api/process-matches?trigger=event&id=${id}`).catch((e) =>
+      console.error('inbound-email: process-matches fire-and-forget error', e),
+    ),
   )
 
   try {

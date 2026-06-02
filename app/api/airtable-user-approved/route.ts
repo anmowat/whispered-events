@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { waitUntil } from '@vercel/functions'
 import { getUserById } from '@/lib/airtable'
 import { sendUserApprovedEmail } from '@/lib/email'
 import { linkContributionsToUser } from '@/lib/supabase'
@@ -35,8 +36,10 @@ export async function POST(req: NextRequest) {
 
   // Attribute any prior pre-signup contributions to this user. Belt-and-
   // suspenders alongside createProfile (covers admin-created users).
-  linkContributionsToUser(user.id, user.email).catch((e) =>
-    console.error('airtable-user-approved: linkContributionsToUser failed', e),
+  waitUntil(
+    linkContributionsToUser(user.id, user.email).catch((e) =>
+      console.error('airtable-user-approved: linkContributionsToUser failed', e),
+    ),
   )
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
@@ -51,14 +54,18 @@ export async function POST(req: NextRequest) {
       console.error('airtable-user-approved: sendUserApprovedEmail failed', e)
       return NextResponse.json({ error: 'send failed' }, { status: 500 })
     }
-    fetch(`${appUrl}/api/process-matches?trigger=user&id=${id}&noEmail=1`).catch((e) =>
-      console.error('airtable-user-approved: noEmail process-matches trigger failed', e),
+    waitUntil(
+      fetch(`${appUrl}/api/process-matches?trigger=user&id=${id}&noEmail=1`).catch((e) =>
+        console.error('airtable-user-approved: noEmail process-matches trigger failed', e),
+      ),
     )
   } else {
     // Digest-receiving user: defer the approval email until matching finishes
     // and ship one combined "welcome + first matches" email from there.
-    fetch(`${appUrl}/api/process-matches?trigger=user&id=${id}&welcome=1`).catch((e) =>
-      console.error('airtable-user-approved: welcome process-matches trigger failed', e),
+    waitUntil(
+      fetch(`${appUrl}/api/process-matches?trigger=user&id=${id}&welcome=1`).catch((e) =>
+        console.error('airtable-user-approved: welcome process-matches trigger failed', e),
+      ),
     )
   }
 

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { waitUntil } from '@vercel/functions'
 import { verifySession, markAllMatchesNotifiedForUser } from '@/lib/supabase'
 import { getUserByEmail, updateUserProfile, UserProfileUpdate } from '@/lib/airtable'
 
@@ -54,8 +55,10 @@ export async function POST(req: NextRequest) {
 
     if (updated && matchingInputsChanged) {
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-      fetch(`${appUrl}/api/process-matches?trigger=user&id=${updated.id}&noEmail=1`).catch((e) =>
-        console.error('process-matches fire-and-forget error:', e),
+      waitUntil(
+        fetch(`${appUrl}/api/process-matches?trigger=user&id=${updated.id}&noEmail=1`).catch((e) =>
+          console.error('process-matches fire-and-forget error:', e),
+        ),
       )
     }
     return NextResponse.json({ ok: true })

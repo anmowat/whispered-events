@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { waitUntil } from '@vercel/functions'
 import {
   checkDuplicate,
   createEvent,
@@ -77,15 +78,20 @@ export async function POST(req: NextRequest) {
     }).catch((e) => console.error('recordContribution error:', e))
 
     // Confirmation email to the submitter (BCC'd to MONITOR_BCC inside
-    // sendEventSubmittedEmail so we see every send). Fire-and-forget so
-    // the response stays snappy — failures land in Vercel logs.
-    sendEventSubmittedEmail(event.submitter, event.name).catch((e) =>
-      console.error('submit-event: sendEventSubmittedEmail failed', e),
+    // sendEventSubmittedEmail so we see every send). Wrapped in waitUntil so
+    // Vercel keeps the function alive past the response — a bare
+    // .catch() promise gets killed when the parent returns.
+    waitUntil(
+      sendEventSubmittedEmail(event.submitter, event.name).catch((e) =>
+        console.error('submit-event: sendEventSubmittedEmail failed', e),
+      ),
     )
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-    fetch(`${appUrl}/api/process-matches?trigger=event&id=${id}`).catch((e) =>
-      console.error('process-matches fire-and-forget error:', e)
+    waitUntil(
+      fetch(`${appUrl}/api/process-matches?trigger=event&id=${id}`).catch((e) =>
+        console.error('process-matches fire-and-forget error:', e),
+      ),
     )
 
     return NextResponse.json({ status: 'created', id })
