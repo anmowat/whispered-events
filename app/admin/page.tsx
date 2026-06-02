@@ -9,10 +9,12 @@ interface UserRow {
   name: string
   firstName: string
   location: string
+  frequency: string
   matchCount: number
   totalContributions: number
   lastContribution: string | null
   lastSeen: string | null
+  lastEmailSent: string | null
 }
 
 interface Stats {
@@ -21,7 +23,7 @@ interface Stats {
   generatedAt: string
 }
 
-type SortKey = 'matches' | 'contributions' | 'lastContribution' | 'lastSeen'
+type SortKey = 'matches' | 'contributions' | 'lastContribution' | 'lastSeen' | 'lastEmailSent'
 
 const POLL_MS = 10_000
 
@@ -30,6 +32,7 @@ const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: 'contributions', label: 'Total contributions' },
   { value: 'lastContribution', label: 'Last contribution' },
   { value: 'lastSeen', label: 'Last seen' },
+  { value: 'lastEmailSent', label: 'Last email sent' },
 ]
 
 function formatDate(iso: string | null): string {
@@ -106,6 +109,10 @@ export default function AdminPage() {
       } else if (sortBy === 'lastContribution') {
         const at = a.lastContribution ? new Date(a.lastContribution).getTime() : 0
         const bt = b.lastContribution ? new Date(b.lastContribution).getTime() : 0
+        if (bt !== at) return bt - at
+      } else if (sortBy === 'lastEmailSent') {
+        const at = a.lastEmailSent ? new Date(a.lastEmailSent).getTime() : 0
+        const bt = b.lastEmailSent ? new Date(b.lastEmailSent).getTime() : 0
         if (bt !== at) return bt - at
       } else {
         const at = a.lastSeen ? new Date(a.lastSeen).getTime() : 0
@@ -207,9 +214,11 @@ export default function AdminPage() {
                   <tr>
                     <th className="text-left px-4 py-3 text-xs uppercase tracking-widest text-gold-700 font-medium">Name</th>
                     <th className="text-left px-4 py-3 text-xs uppercase tracking-widest text-gold-700 font-medium">Location</th>
+                    <th className="text-left px-4 py-3 text-xs uppercase tracking-widest text-gold-700 font-medium">Frequency</th>
                     <th className="text-right px-4 py-3 text-xs uppercase tracking-widest text-gold-700 font-medium">Matches</th>
                     <th className="text-right px-4 py-3 text-xs uppercase tracking-widest text-gold-700 font-medium">Contributions</th>
                     <th className="text-right px-4 py-3 text-xs uppercase tracking-widest text-gold-700 font-medium">Last contribution</th>
+                    <th className="text-right px-4 py-3 text-xs uppercase tracking-widest text-gold-700 font-medium">Last email sent</th>
                     <th className="text-right px-4 py-3 text-xs uppercase tracking-widest text-gold-700 font-medium">Last seen</th>
                   </tr>
                 </thead>
@@ -224,6 +233,9 @@ export default function AdminPage() {
                       <td className="px-4 py-3 text-gray-600 truncate max-w-xs">
                         {u.location || <span className="text-gray-400 italic">—</span>}
                       </td>
+                      <td className={`px-4 py-3 ${u.frequency ? 'text-gray-600' : 'text-gray-400'}`}>
+                        {u.frequency || <span className="italic">—</span>}
+                      </td>
                       <td className={`px-4 py-3 text-right tabular-nums font-medium ${u.matchCount === 0 ? 'text-gray-400' : 'text-gray-800'}`}>
                         {u.matchCount}
                       </td>
@@ -232,6 +244,9 @@ export default function AdminPage() {
                       </td>
                       <td className={`px-4 py-3 text-right tabular-nums ${u.lastContribution ? 'text-gray-800' : 'text-gray-400'}`}>
                         {formatDate(u.lastContribution)}
+                      </td>
+                      <td className={`px-4 py-3 text-right tabular-nums ${u.lastEmailSent ? 'text-gray-800' : 'text-gray-400'}`}>
+                        {formatDate(u.lastEmailSent)}
                       </td>
                       <td className={`px-4 py-3 text-right tabular-nums ${u.lastSeen ? 'text-gray-800' : 'text-gray-400'}`}>
                         {formatDate(u.lastSeen)}

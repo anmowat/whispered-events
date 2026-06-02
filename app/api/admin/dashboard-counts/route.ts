@@ -4,6 +4,7 @@ import {
   getMatchCountsByEmail,
   getContributionTotalsByEmail,
   getLastSeenByEmail,
+  getLastEmailSentByEmail,
 } from '@/lib/supabase'
 import { getActiveUsers, getFutureEvents } from '@/lib/airtable'
 
@@ -19,11 +20,12 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const [activeUsers, futureEvents, contribStats, lastSeen] = await Promise.all([
+    const [activeUsers, futureEvents, contribStats, lastSeen, lastEmail] = await Promise.all([
       getActiveUsers(),
       getFutureEvents(),
       getContributionTotalsByEmail(),
       getLastSeenByEmail(),
+      getLastEmailSentByEmail(),
     ])
     const futureEventIds = futureEvents.map((e) => e.id)
     const counts = await getMatchCountsByEmail(futureEventIds)
@@ -39,10 +41,12 @@ export async function GET(req: NextRequest) {
           name: u.name,
           firstName: u.firstName,
           location: u.location,
+          frequency: u.frequency,
           matchCount: counts.get(u.email) ?? 0,
           totalContributions: c?.total ?? 0,
           lastContribution: c?.lastAt ?? null,
           lastSeen: lastSeen.get(key) ?? null,
+          lastEmailSent: lastEmail.get(key) ?? null,
         }
       })
       .sort((a, b) => {

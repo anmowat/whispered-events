@@ -491,6 +491,29 @@ export async function getLastSeenByEmail(): Promise<Map<string, string>> {
   return out
 }
 
+// Returns email -> ISO timestamp of the most recent digest send (max
+// matches.notified_at, grouped by user_email). Mirrors getLastSeenByEmail's
+// shape so the admin overview can pull it in a single query.
+export async function getLastEmailSentByEmail(): Promise<Map<string, string>> {
+  const supabase = getClient()
+  const { data, error } = await supabase
+    .from('matches')
+    .select('user_email, notified_at')
+    .not('notified_at', 'is', null)
+    .order('notified_at', { ascending: false })
+  if (error) {
+    console.error('getLastEmailSentByEmail error', error)
+    return new Map()
+  }
+  const out = new Map<string, string>()
+  for (const row of (data ?? []) as Array<{ user_email: string; notified_at: string | null }>) {
+    const key = (row.user_email || '').trim().toLowerCase()
+    if (!key || !row.notified_at) continue
+    if (!out.has(key)) out.set(key, row.notified_at)
+  }
+  return out
+}
+
 export async function getLastSeenForEmail(email: string): Promise<string | null> {
   const cleaned = (email || '').trim().toLowerCase()
   if (!cleaned) return null
