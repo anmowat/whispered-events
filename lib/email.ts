@@ -132,8 +132,9 @@ function escapeHtml(s: string): string {
 // (preferences / pause) and event-share.
 function digestFooterHtml(): string {
   return `
-<p style="font-family:${SANS};font-size:13px;line-height:1.6;color:${C.ink3};margin:24px 0 0;">
-  Improve your matches / change how often you get emails: <a href="${DASHBOARD_LINK}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">Update on your dashboard</a>. Know an event we should add? Email <a href="${NEW_EVENT_MAILTO}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">event@whisperedevents.com</a>.
+<p style="font-family:${SANS};font-size:13px;line-height:1.7;color:${C.ink3};margin:24px 0 0;">
+  <strong style="color:${C.ink2};">Improve your matches / change how often you get emails:</strong> <a href="${DASHBOARD_LINK}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">Update on your dashboard</a><br>
+  <strong style="color:${C.ink2};">Know an event we should add?</strong> Email <a href="${NEW_EVENT_MAILTO}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">event@whisperedevents.com</a>
 </p>
 `.trim()
 }
