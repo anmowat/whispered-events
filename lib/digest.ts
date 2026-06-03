@@ -182,10 +182,14 @@ export async function sendEachNewEventDigest(
   // email template renders dupes compactly via "see above").
   const topMatchesRows = allUpcoming.slice(0, DIGEST_CAP_PER_SECTION)
 
-  await sendUserDigest(user, {
-    newEvents: [{ event: triggeringEvent, matchPercent: triggeringMatchPercent }],
-    topMatches: toEntries(topMatchesRows, futureById),
-  })
+  await sendUserDigest(
+    user,
+    {
+      newEvents: [{ event: triggeringEvent, matchPercent: triggeringMatchPercent }],
+      topMatches: toEntries(topMatchesRows, futureById),
+    },
+    'per_event',
+  )
 
   await markMatchesNotified([{ eventId: triggeringEvent.id, userId: user.id }])
   return true

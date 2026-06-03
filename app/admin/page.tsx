@@ -14,7 +14,7 @@ interface UserRow {
   totalContributions: number
   lastContribution: string | null
   lastSeen: string | null
-  lastEmailSent: string | null
+  lastDigestSent: string | null
 }
 
 interface Stats {
@@ -23,7 +23,7 @@ interface Stats {
   generatedAt: string
 }
 
-type SortKey = 'matches' | 'contributions' | 'lastContribution' | 'lastSeen' | 'lastEmailSent'
+type SortKey = 'matches' | 'contributions' | 'lastContribution' | 'lastSeen' | 'lastDigestSent'
 
 const POLL_MS = 10_000
 
@@ -32,7 +32,7 @@ const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: 'contributions', label: 'Total contributions' },
   { value: 'lastContribution', label: 'Last contribution' },
   { value: 'lastSeen', label: 'Last seen' },
-  { value: 'lastEmailSent', label: 'Last email sent' },
+  { value: 'lastDigestSent', label: 'Last sent' },
 ]
 
 function formatDate(iso: string | null): string {
@@ -143,9 +143,9 @@ export default function AdminPage() {
         const at = a.lastContribution ? new Date(a.lastContribution).getTime() : 0
         const bt = b.lastContribution ? new Date(b.lastContribution).getTime() : 0
         if (bt !== at) return bt - at
-      } else if (sortBy === 'lastEmailSent') {
-        const at = a.lastEmailSent ? new Date(a.lastEmailSent).getTime() : 0
-        const bt = b.lastEmailSent ? new Date(b.lastEmailSent).getTime() : 0
+      } else if (sortBy === 'lastDigestSent') {
+        const at = a.lastDigestSent ? new Date(a.lastDigestSent).getTime() : 0
+        const bt = b.lastDigestSent ? new Date(b.lastDigestSent).getTime() : 0
         if (bt !== at) return bt - at
       } else {
         const at = a.lastSeen ? new Date(a.lastSeen).getTime() : 0
@@ -263,7 +263,10 @@ export default function AdminPage() {
                     <th className="text-right px-4 py-3 text-xs uppercase tracking-widest text-gold-700 font-medium">Matches</th>
                     <th className="text-right px-4 py-3 text-xs uppercase tracking-widest text-gold-700 font-medium">Contributions</th>
                     <th className="text-right px-4 py-3 text-xs uppercase tracking-widest text-gold-700 font-medium">Last contribution</th>
-                    <th className="text-right px-4 py-3 text-xs uppercase tracking-widest text-gold-700 font-medium">Last email sent</th>
+                    <th
+                      className="text-right px-4 py-3 text-xs uppercase tracking-widest text-gold-700 font-medium"
+                      title="Last time a digest email with events was actually sent to this user"
+                    >Last sent</th>
                     <th className="text-right px-4 py-3 text-xs uppercase tracking-widest text-gold-700 font-medium">Last seen</th>
                   </tr>
                 </thead>
@@ -290,8 +293,8 @@ export default function AdminPage() {
                       <td className={`px-4 py-3 text-right tabular-nums ${u.lastContribution ? 'text-gray-800' : 'text-gray-400'}`}>
                         {formatDate(u.lastContribution)}
                       </td>
-                      <td className={`px-4 py-3 text-right tabular-nums ${u.lastEmailSent ? 'text-gray-800' : 'text-gray-400'}`}>
-                        {formatDate(u.lastEmailSent)}
+                      <td className={`px-4 py-3 text-right tabular-nums ${u.lastDigestSent ? 'text-gray-800' : 'text-gray-400'}`}>
+                        {formatDate(u.lastDigestSent)}
                       </td>
                       <td className={`px-4 py-3 text-right tabular-nums ${u.lastSeen ? 'text-gray-800' : 'text-gray-400'}`}>
                         {formatDate(u.lastSeen)}

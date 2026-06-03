@@ -34,6 +34,19 @@ import { createClient } from '@supabase/supabase-js'
 //   airtable_user_id text NULL,          -- backfilled at signup/approval
 //   source text NOT NULL,                -- 'form' | 'inbound_email' | 'check_event'
 //   submitted_at timestamptz NOT NULL DEFAULT now()
+//
+// digest_sends:
+//   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+//   user_id text NOT NULL,                 -- Airtable user record id
+//   user_email text NOT NULL,
+//   sent_at timestamptz NOT NULL DEFAULT now(),
+//   kind text NOT NULL,                    -- 'per_event' | 'cron' | 'welcome'
+//   event_ids text[] NOT NULL DEFAULT '{}' -- events actually included
+//   Indexed via digest_sends_user_email_sent_at_idx (user_email, sent_at DESC).
+//
+//   Only written for digest emails that contain >=1 event. Distinct from
+//   matches.notified_at, which also gets stamped silently when a user
+//   flips Frequency from non-digest to digest (no email goes out).
 
 function getClient() {
   if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -517,25 +530,48 @@ export async function getExistingMatchHashes(
   return out
 }
 
-// Returns email -> ISO timestamp of the most recent digest send (max
-// matches.notified_at, grouped by user_email). Mirrors getLastSeenByEmail's
-// shape so the admin overview can pull it in a single query.
-export async function getLastEmailSentByEmail(): Promise<Map<string, string>> {
+export interface DigestSendLog {
+  userId: string
+  userEmail: string
+  kind: 'per_event' | 'cron' | 'welcome'
+  eventIds: string[]
+}
+
+// Records a real digest send to the digest_sends log. Only call this from
+// inside lib/email.ts after a digest with >=1 event has actually been
+// dispatched to Resend without error.
+export async function logDigestSend(entry: DigestSendLog): Promise<void> {
+  if (entry.eventIds.length === 0) return
+  const supabase = getClient()
+  const { error } = await supabase.from('digest_sends').insert({
+    user_id: entry.userId,
+    user_email: entry.userEmail,
+    kind: entry.kind,
+    event_ids: entry.eventIds,
+  })
+  if (error) {
+    console.error('logDigestSend error', { entry, error })
+  }
+}
+
+// Returns email -> ISO timestamp of the most recent digest send. Reads from
+// digest_sends so it includes ONLY emails that contained events — never the
+// silent notified_at stamps from a Frequency flip.
+export async function getLastDigestSentByEmail(): Promise<Map<string, string>> {
   const supabase = getClient()
   const { data, error } = await supabase
-    .from('matches')
-    .select('user_email, notified_at')
-    .not('notified_at', 'is', null)
-    .order('notified_at', { ascending: false })
+    .from('digest_sends')
+    .select('user_email, sent_at')
+    .order('sent_at', { ascending: false })
   if (error) {
-    console.error('getLastEmailSentByEmail error', error)
+    console.error('getLastDigestSentByEmail error', error)
     return new Map()
   }
   const out = new Map<string, string>()
-  for (const row of (data ?? []) as Array<{ user_email: string; notified_at: string | null }>) {
+  for (const row of (data ?? []) as Array<{ user_email: string; sent_at: string | null }>) {
     const key = (row.user_email || '').trim().toLowerCase()
-    if (!key || !row.notified_at) continue
-    if (!out.has(key)) out.set(key, row.notified_at)
+    if (!key || !row.sent_at) continue
+    if (!out.has(key)) out.set(key, row.sent_at)
   }
   return out
 }

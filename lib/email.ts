@@ -1,5 +1,6 @@
 import { Resend } from 'resend'
 import { AirtableEvent, AirtableUser } from './airtable'
+import { logDigestSend } from './supabase'
 
 function getResend() {
   if (!process.env.RESEND_API_KEY) throw new Error('RESEND_API_KEY must be set')
@@ -466,11 +467,26 @@ export async function sendApprovedWithDigest(
     console.error('sendApprovedWithDigest: Resend error', { email: user.email, error })
     throw new Error(`Resend send failed: ${error.message ?? JSON.stringify(error)}`)
   }
+  // Only log when the welcome actually carried events — a no-match
+  // approval email is informational, not a digest.
+  if (hasMatches) {
+    const eventIds = [
+      ...annotated.newEvents.map((e) => e.event.id),
+      ...annotated.topMatches.map((e) => e.event.id),
+    ]
+    await logDigestSend({
+      userId: user.id,
+      userEmail: user.email,
+      kind: 'welcome',
+      eventIds: Array.from(new Set(eventIds)),
+    })
+  }
 }
 
 export async function sendUserDigest(
   user: AirtableUser,
   payload: DigestPayload,
+  kind: 'per_event' | 'cron' = 'cron',
 ): Promise<void> {
   if (!payload.newEvents.length) return
   const resend = getResend()
@@ -522,4 +538,14 @@ export async function sendUserDigest(
     console.error('sendUserDigest: Resend error', { email: user.email, error })
     throw new Error(`Resend send failed: ${error.message ?? JSON.stringify(error)}`)
   }
+  const eventIds = [
+    ...annotated.newEvents.map((e) => e.event.id),
+    ...annotated.topMatches.map((e) => e.event.id),
+  ]
+  await logDigestSend({
+    userId: user.id,
+    userEmail: user.email,
+    kind,
+    eventIds: Array.from(new Set(eventIds)),
+  })
 }
