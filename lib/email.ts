@@ -49,8 +49,6 @@ const SANS = `-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica 
 const FONT_LINK = `<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Newsreader:wght@500&display=swap" rel="stylesheet">`
 
 const DASHBOARD_LINK = 'https://www.whisperedevents.com/dashboard'
-const TAG_US_LINK =
-  'https://www.linkedin.com/company/whispered-events/about/?viewAsMember=true'
 const NEW_EVENT_MAILTO = 'mailto:event@whisperedevents.com'
 
 // ----- Shared building blocks -----
@@ -127,24 +125,23 @@ function escapeHtml(s: string): string {
     .replace(/"/g, '&quot;')
 }
 
-// Shared three-line footer used at the bottom of every content email
-// except the pre-approval send. Bold label + colon + single-action
-// link, separated by hairlines.
+// Single-paragraph footer used at the bottom of every content email
+// except the pre-approval send. Inline-styled (no border, no structured
+// label list) so Gmail doesn't treat it as a repeated signature and
+// auto-collapse it under a "..." indicator. Two CTAs: dashboard
+// (preferences / pause) and event-share.
 function digestFooterHtml(): string {
   return `
-<div style="margin-top:28px;padding-top:18px;border-top:1px solid ${C.rule};font-family:${SANS};font-size:13px;line-height:1.7;color:${C.ink2};">
-  <div><strong style="color:${C.ink};">Improve your matches:</strong> Update on <a href="${DASHBOARD_LINK}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">your Dashboard</a></div>
-  <div><strong style="color:${C.ink};">Share Event:</strong> Email <a href="${NEW_EVENT_MAILTO}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">event@whisperedevents.com</a></div>
-  <div><strong style="color:${C.ink};">See more events (help us grow):</strong> Share with others + post on LinkedIn and <a href="${TAG_US_LINK}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">tag us</a></div>
-</div>
+<p style="font-family:${SANS};font-size:13px;line-height:1.6;color:${C.ink3};margin:24px 0 0;">
+  Manage your matches and preferences on <a href="${DASHBOARD_LINK}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">your Dashboard</a>. Know an event we should add? Email <a href="${NEW_EVENT_MAILTO}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">event@whisperedevents.com</a>.
+</p>
 `.trim()
 }
 
 function digestFooterTextLines(): string[] {
   return [
-    `Improve your matches: Update on your Dashboard — ${DASHBOARD_LINK}`,
-    `Share Event: Email event@whisperedevents.com`,
-    `See more events (help us grow): Share with others + post on LinkedIn and tag us — ${TAG_US_LINK}`,
+    `Manage your matches and preferences on your Dashboard: ${DASHBOARD_LINK}`,
+    `Know an event we should add? Email event@whisperedevents.com`,
   ]
 }
 
