@@ -92,6 +92,7 @@ export default function AdminPage() {
       const res = await fetch('/api/admin/rescore-missing', { method: 'POST' })
       const data = (await res.json().catch(() => ({}))) as {
         pairsMissing?: number
+        pairsStale?: number
         scored?: number
         failed?: number
         error?: string
@@ -99,9 +100,11 @@ export default function AdminPage() {
       if (!res.ok) {
         setRescoreResult(`Error: ${data.error || `HTTP ${res.status}`}`)
       } else {
+        const missing = data.pairsMissing ?? 0
+        const stale = data.pairsStale ?? 0
         setRescoreResult(
-          `Scored ${data.scored ?? 0} of ${data.pairsMissing ?? 0} missing pairs` +
-            (data.failed ? ` (${data.failed} failed)` : ''),
+          `Scored ${data.scored ?? 0} pairs (${missing} missing, ${stale} stale)` +
+            (data.failed ? ` — ${data.failed} failed` : ''),
         )
         fetchCounts()
       }
@@ -217,7 +220,7 @@ export default function AdminPage() {
                   disabled={rescoring}
                   className="px-3 py-1.5 rounded-lg border border-[#E8DDD0] bg-white text-xs text-gray-700 hover:bg-[#F5EFE6] transition-colors shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  {rescoring ? 'Rescoring…' : 'Rescore missing matches'}
+                  {rescoring ? 'Rescoring…' : 'Rescore missing + stale matches'}
                 </button>
                 <button
                   onClick={fetchCounts}

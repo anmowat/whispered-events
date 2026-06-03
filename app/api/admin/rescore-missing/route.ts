@@ -6,14 +6,18 @@ import {
   invalidateEventCache,
   invalidateUserCache,
 } from '@/lib/airtable'
-import { isMatchEligible, scoreEventUser } from '@/lib/matching'
-import { getExistingMatchPairs, logMatch } from '@/lib/supabase'
+import { isMatchEligible, scoreEventUser, computeInputsHash } from '@/lib/matching'
+import { getExistingMatchHashes, logMatch } from '@/lib/supabase'
 
 // Backfill endpoint: scores every (eligible user × future event) pair that
-// has no row in `matches` and writes it. Used to recover from missed event
-// triggers (e.g. waitUntil failures, Claude rate limits, transient blips).
-// No emails are sent — this is a pure repair op. The dashboard / cron
-// digest will pick the new rows up on the next user-facing read.
+// is either missing from `matches` OR has a stale inputs_hash (the model
+// version, rubric, or scoring formula has changed since the row was
+// written). No emails are sent — this is a pure repair op. The dashboard
+// and cron digest pick up the new rows on the next read.
+//
+// One button heals two things at once:
+//   - Missed event triggers (waitUntil failure, Claude rate limit, etc.)
+//   - Old-model rows after a MATCHING_VERSION bump
 
 export const maxDuration = 300
 
@@ -24,8 +28,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 
-  // Bust Airtable caches so a missing row from a freshly-created event
-  // doesn't get skipped because the 90s cache is stale.
   invalidateEventCache()
   invalidateUserCache()
 
@@ -34,23 +36,35 @@ export async function POST(req: NextRequest) {
     getFutureEvents(),
   ])
   const users = allUsers.filter(isMatchEligible)
-  const existing = await getExistingMatchPairs(futureEvents.map((e) => e.id))
+  const existing = await getExistingMatchHashes(futureEvents.map((e) => e.id))
 
-  const missing: Array<{ eventIdx: number; userIdx: number }> = []
+  // Pre-compute the current hash for every pair so we can classify
+  // existing rows as fresh (skip) vs stale (re-score) in one pass.
+  const toScore: Array<{ eventIdx: number; userIdx: number; status: 'missing' | 'stale' }> = []
   for (let ei = 0; ei < futureEvents.length; ei++) {
     const event = futureEvents[ei]
     for (let ui = 0; ui < users.length; ui++) {
       const user = users[ui]
-      if (!existing.has(`${event.id}:${user.id}`)) {
-        missing.push({ eventIdx: ei, userIdx: ui })
+      const key = `${event.id}:${user.id}`
+      if (!existing.has(key)) {
+        toScore.push({ eventIdx: ei, userIdx: ui, status: 'missing' })
+        continue
+      }
+      const storedHash = existing.get(key)
+      const currentHash = computeInputsHash(event, user)
+      if (storedHash !== currentHash) {
+        toScore.push({ eventIdx: ei, userIdx: ui, status: 'stale' })
       }
     }
   }
 
+  const missing = toScore.filter((t) => t.status === 'missing').length
+  const stale = toScore.filter((t) => t.status === 'stale').length
+
   let scored = 0
   let failed = 0
-  for (let i = 0; i < missing.length; i += BATCH_SIZE) {
-    const batch = missing.slice(i, i + BATCH_SIZE)
+  for (let i = 0; i < toScore.length; i += BATCH_SIZE) {
+    const batch = toScore.slice(i, i + BATCH_SIZE)
     const settled = await Promise.all(
       batch.map(async ({ eventIdx, userIdx }) => {
         const event = futureEvents[eventIdx]
@@ -89,7 +103,8 @@ export async function POST(req: NextRequest) {
     futureEvents: futureEvents.length,
     pairsTotal: users.length * futureEvents.length,
     pairsExisting: existing.size,
-    pairsMissing: missing.length,
+    pairsMissing: missing,
+    pairsStale: stale,
     scored,
     failed,
   })

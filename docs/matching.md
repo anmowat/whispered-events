@@ -1,7 +1,5 @@
 # How Whispered Events scores matches
 
-> **Status:** describes the proposed scoring model (audience and preferences both 0–1.5, max score 3.375). The code in `lib/matching.ts` still uses the old model (audience 0–1, preferences 0–2, max 3.0) until the change is shipped.
-
 A match score answers one question: *should this user be emailed about this event?* Every (user, event) pair gets a single number between 0 and 3.375. Anything at or above 1.0 (≈ 30%) clears the threshold and enters the user's dashboard + digest pool.
 
 The score is a product of four signals — three deterministic, one judged by an LLM. Multiplicative on purpose: a weak signal anywhere drags the total down, so we never email someone who fails on location, level, or fit.

@@ -491,26 +491,28 @@ export async function getLastSeenByEmail(): Promise<Map<string, string>> {
   return out
 }
 
-// Returns the set of "eventId:userId" pairs that already have a row in
-// `matches` for any of the given future events. Used by the admin rescore-
-// missing endpoint to skip pairs we've already scored without re-querying
-// per pair.
-export async function getExistingMatchPairs(
+// Returns a map of "eventId:userId" -> inputs_hash for every row in
+// `matches` covering the given future events. Used by the admin rescore
+// endpoint to detect missing pairs (key absent) AND stale pairs (key
+// present but hash differs from the current MATCHING_VERSION hash).
+export async function getExistingMatchHashes(
   eventIds: string[],
-): Promise<Set<string>> {
-  if (eventIds.length === 0) return new Set()
+): Promise<Map<string, string | null>> {
+  if (eventIds.length === 0) return new Map()
   const supabase = getClient()
   const { data, error } = await supabase
     .from('matches')
-    .select('event_id, user_id')
+    .select('event_id, user_id, inputs_hash')
     .in('event_id', eventIds)
   if (error) {
-    console.error('getExistingMatchPairs error', error)
-    return new Set()
+    console.error('getExistingMatchHashes error', error)
+    return new Map()
   }
-  const out = new Set<string>()
-  for (const row of (data ?? []) as Array<{ event_id: string; user_id: string }>) {
-    if (row.event_id && row.user_id) out.add(`${row.event_id}:${row.user_id}`)
+  const out = new Map<string, string | null>()
+  for (const row of (data ?? []) as Array<{ event_id: string; user_id: string; inputs_hash: string | null }>) {
+    if (row.event_id && row.user_id) {
+      out.set(`${row.event_id}:${row.user_id}`, row.inputs_hash ?? null)
+    }
   }
   return out
 }

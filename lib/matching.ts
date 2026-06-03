@@ -8,13 +8,19 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 const MAX_MILES = 100
 const FREE_TEXT_CAP = 500
-const MAX_SCORE = 3.0
+// 1 (location) × 1.5 (audience) × 1.5 (quality A) × 1.5 (preferences).
+const MAX_SCORE = 3.375
 const QUALITY_MULTIPLIER: Record<'A' | 'Polish' | 'B' | 'C', number> = {
   A: 1.5,
   Polish: 1.0,
   B: 0.5,
   C: 0.25,
 }
+
+// Bumped any time the scoring rubric / prompt / formula changes so the
+// inputs hash on every cached row turns stale. The admin rescore-missing
+// endpoint then picks them up and refreshes under the new model.
+const MATCHING_VERSION = 2
 
 export type SkippedReason = 'grade_c' | 'location_zero'
 
@@ -36,6 +42,7 @@ export function isMatchEligible(user: AirtableUser): boolean {
 
 export function computeInputsHash(event: AirtableEvent, user: AirtableUser): string {
   const payload = {
+    version: MATCHING_VERSION,
     event: {
       audience: event.audience ?? [],
       type: event.type ?? '',
@@ -129,12 +136,27 @@ async function callLLM(
 - Employment: ${user.employment || 'Not specified — ignore in scoring'}
 - Event interests: ${interest || 'Not stated — return preferences=1.0 (neutral)'}`
 
-  const instructions = `Score how well this event fits this attendee. Return two numbers via the submit_score tool:
+  const instructions = `Score how well this event fits this attendee. Be CALIBRATED — both scores have explicit anchors below. Don't be conservative for safety; the rubric is the floor.
 
-1. "audience" (0.0–1.0): how well the event's stated audience and type aligns with the attendee's role, seniority, and experience.
-2. "preferences" (0.0–2.0): how the event matches the attendee's stated interests. Use 2.0 for a perfect match, 1.0 if interests aren't stated or are neutral, 0.0 if the attendee explicitly said this kind of event doesn't interest them.
+Return three values via the submit_score tool:
 
-Also include a one-sentence "reason".`
+1. "audience" (0.0–1.5): how the event's stated Audience and Type aligns with the attendee's Function and Seniority. Use this rubric — do not invent intermediate logic:
+   • 1.5 — Event audience literally names this attendee's function AND seniority (e.g. event audience "Marketing VP/Directors, CMO" for a C-level Marketing attendee).
+   • 1.2 — Event audience literally names the function OR the seniority, but not both.
+   • 0.9 — Adjacent role/seniority (e.g. CEO at a RevOps-leaders event — same domain, different practitioner level; or VP Marketing at a CMO-only dinner).
+   • 0.5 — Tangential overlap (one shared theme, mostly off-target).
+   • 0.0 — Wrong audience entirely.
+
+   Industry context (SaaS vs VC vs services etc.) cannot drop the score by more than one tier. Function + seniority overlap dominates.
+
+2. "preferences" (0.0–1.5): how the event matches the attendee's stated Event interests. Use this rubric:
+   • 1.5 — Stated interest matches the event name, audience, or description literally or near-literally (e.g. interest "RevOps events" + event "RevOps Leaders Dinner" → 1.5; interest "marketing" + event audience includes "CMO/Marketing VP" → 1.5).
+   • 1.2 — Strong semantic match (interest "GTM" + event for "Sales + Marketing leaders").
+   • 1.0 — Interests not stated OR neutral (no signal either way).
+   • 0.5 — Weak overlap (one tangential keyword).
+   • 0.0 — Attendee explicitly excluded this kind of event.
+
+3. "reason" (one sentence): the dominant factor driving the score — literal overlap, adjacency, or mismatch.`
 
   // Cache the larger fixed-side block so fanout calls hit the cache.
   const systemBlocks = fixedSide === 'event'
@@ -160,8 +182,8 @@ Also include a one-sentence "reason".`
         input_schema: {
           type: 'object',
           properties: {
-            audience: { type: 'number', minimum: 0, maximum: 1 },
-            preferences: { type: 'number', minimum: 0, maximum: 2 },
+            audience: { type: 'number', minimum: 0, maximum: 1.5 },
+            preferences: { type: 'number', minimum: 0, maximum: 1.5 },
             reason: { type: 'string' },
           },
           required: ['audience', 'preferences', 'reason'],
@@ -178,8 +200,8 @@ Also include a one-sentence "reason".`
   }
   const input = toolUse.input as { audience: number; preferences: number; reason: string }
   return {
-    audience: Math.max(0, Math.min(1, Number(input.audience) || 0)),
-    preferences: Math.max(0, Math.min(2, Number(input.preferences) || 0)),
+    audience: Math.max(0, Math.min(1.5, Number(input.audience) || 0)),
+    preferences: Math.max(0, Math.min(1.5, Number(input.preferences) || 0)),
     reason: String(input.reason || ''),
   }
 }
