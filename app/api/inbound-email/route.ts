@@ -80,22 +80,22 @@ export async function POST(req: NextRequest) {
   const url = extractFirstUrl(combined)
 
   // Loop-breaker #1: bail on machine-generated messages. RFC 3834 says
-  // auto-responders MUST set Auto-Submitted, and most do; bulk/list
-  // mail uses Precedence. Our own outbound mail carries
-  // Auto-Submitted: auto-generated, so a forwarded copy that lands back
-  // here gets dropped immediately instead of triggering another reply.
-  // Resend's receiving payload exposes raw headers as a record.
+  // auto-responders MUST set Auto-Submitted; our own outbound mail
+  // carries Auto-Submitted: auto-generated, so a forwarded copy that
+  // lands back here gets dropped without triggering another reply.
+  //
+  // We deliberately do NOT inspect Precedence here — that header was
+  // deprecated decades ago and intermediaries (Gmail SMTP, Resend's
+  // relay, alias forwarders) add Precedence: list to perfectly normal
+  // user-composed mail, which would silently swallow legitimate
+  // submissions.
   const headersRaw = (fetched.data as { headers?: Record<string, string> }).headers ?? {}
   const headerLookup = Object.fromEntries(
     Object.entries(headersRaw).map(([k, v]) => [k.toLowerCase(), String(v).toLowerCase()]),
   )
   const autoSubmitted = headerLookup['auto-submitted']
-  const precedence = headerLookup['precedence']
-  if (
-    (autoSubmitted && autoSubmitted !== 'no') ||
-    (precedence && /^(bulk|list|auto[_-]?reply|junk)$/i.test(precedence))
-  ) {
-    console.log('inbound-email: dropping auto-generated message', { autoSubmitted, precedence })
+  if (autoSubmitted && autoSubmitted !== 'no') {
+    console.log('inbound-email: dropping auto-generated message', { autoSubmitted })
     return NextResponse.json({ ok: true, reason: 'auto-submitted' })
   }
 
