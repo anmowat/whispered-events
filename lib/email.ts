@@ -133,6 +133,7 @@ function escapeHtml(s: string): string {
 function digestFooterHtml(): string {
   return `
 <p style="font-family:${SANS};font-size:13px;line-height:1.7;color:${C.ink3};margin:24px 0 0;">
+  <strong style="color:${C.ink2};">See all matches:</strong> <a href="${DASHBOARD_LINK}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">Visit your dashboard</a><br>
   <strong style="color:${C.ink2};">Improve your matches / change how often you get emails:</strong> <a href="${DASHBOARD_LINK}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">Update on your dashboard</a><br>
   <strong style="color:${C.ink2};">Know an event we should add?</strong> Email <a href="${NEW_EVENT_MAILTO}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">event@whisperedevents.com</a>
 </p>
@@ -141,6 +142,7 @@ function digestFooterHtml(): string {
 
 function digestFooterTextLines(): string[] {
   return [
+    `See all matches: Visit your dashboard — ${DASHBOARD_LINK}`,
     `Improve your matches / change how often you get emails: Update on your dashboard — ${DASHBOARD_LINK}`,
     `Know an event we should add? Email event@whisperedevents.com`,
   ]
