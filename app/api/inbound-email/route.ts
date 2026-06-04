@@ -247,15 +247,17 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ ok: true, id })
 }
 
-// Returns true if `email` is at one of our own / forwarder domains —
-// i.e. it shouldn't be treated as the original submitter when an event
-// is forwarded in through a Google Workspace alias.
+// Returns true if `email` is at one of our own forwarder/system domains —
+// i.e. it shouldn't be treated as the original submitter when an event is
+// forwarded in through a Google Workspace alias, and any message whose
+// effective sender resolves here is almost certainly our own outbound
+// looping back through a forwarder.
+//
+// NOTE: only @whisperedevents.com qualifies. @whispered.com is a personal
+// domain (e.g. andy@whispered.com) and legitimate submissions from there
+// must be treated as normal user mail.
 function isOwnDomain(email: string): boolean {
-  const e = email.toLowerCase()
-  return (
-    e.endsWith('@whisperedevents.com') ||
-    e.endsWith('@whispered.com')
-  )
+  return email.toLowerCase().endsWith('@whisperedevents.com')
 }
 
 // Scans a forwarded email body for the original sender's address.
