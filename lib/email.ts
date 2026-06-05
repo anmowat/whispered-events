@@ -49,7 +49,7 @@ const SANS = `-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica 
 const FONT_LINK = `<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Newsreader:wght@500&display=swap" rel="stylesheet">`
 
 const DASHBOARD_LINK = 'https://www.whisperedevents.com/dashboard'
-const NEW_EVENT_MAILTO = 'mailto:event@whisperedevents.com'
+const NEW_EVENT_MAILTO = 'mailto:event@whispered.com'
 
 // ----- Shared building blocks -----
 
@@ -135,7 +135,7 @@ function digestFooterHtml(): string {
 <p style="font-family:${SANS};font-size:13px;line-height:1.7;color:${C.ink3};margin:24px 0 0;">
   <strong style="color:${C.ink2};">See all matches:</strong> <a href="${DASHBOARD_LINK}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">Visit your dashboard</a><br>
   <strong style="color:${C.ink2};">Improve your matches / change how often you get emails:</strong> <a href="${DASHBOARD_LINK}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">Update on your dashboard</a><br>
-  <strong style="color:${C.ink2};">Know an event we should add?</strong> Email <a href="${NEW_EVENT_MAILTO}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">event@whisperedevents.com</a>
+  <strong style="color:${C.ink2};">Know an event we should add?</strong> Email <a href="${NEW_EVENT_MAILTO}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">event@whispered.com</a> <span style="color:${C.ink3};">(shorter so easier to remember ;)</span>
 </p>
 `.trim()
 }
@@ -144,7 +144,7 @@ function digestFooterTextLines(): string[] {
   return [
     `See all matches: Visit your dashboard — ${DASHBOARD_LINK}`,
     `Improve your matches / change how often you get emails: Update on your dashboard — ${DASHBOARD_LINK}`,
-    `Know an event we should add? Email event@whisperedevents.com`,
+    `Know an event we should add? Email event@whispered.com (shorter so easier to remember ;)`,
   ]
 }
 
@@ -159,7 +159,7 @@ export async function sendUserAppliedEmail(email: string): Promise<void> {
     ${p("We built Whispered Events for one reason: helping great people find the best events — the ones that aren't posted, they're whispered.", { mt: 12 })}
     ${p(`If you love it, amplify <a href="${AMPLIFY_POST_LINK}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">this post</a> on LinkedIn with a comment / repost. We &#10084; feedback and feature ideas.`, { mt: 14 })}
     ${signature()}
-    ${ps('P.S. You can submit events anytime on the site or by emailing event@whisperedevents.com')}
+    ${ps('P.S. You can submit events anytime on the site or by emailing event@whispered.com')}
   `)
   const text = `Application received.
 
@@ -174,7 +174,7 @@ If you love it, amplify this post on LinkedIn with a comment/repost (${AMPLIFY_P
 Andy (${ANDY_LINK})
 Founder, Whispered
 
-P.S. You can submit events anytime on the site or by emailing event@whisperedevents.com`
+P.S. You can submit events anytime on the site or by emailing event@whispered.com`
   const { error } = await resend.emails.send({
     from: TEAM_FROM,
     to: email,
