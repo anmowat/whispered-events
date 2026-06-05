@@ -247,17 +247,26 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ ok: true, id })
 }
 
-// Returns true if `email` is at one of our own forwarder/system domains —
-// i.e. it shouldn't be treated as the original submitter when an event is
-// forwarded in through a Google Workspace alias, and any message whose
-// effective sender resolves here is almost certainly our own outbound
-// looping back through a forwarder.
+// Returns true if `email` is at one of our own forwarder/system addresses
+// — i.e. envelope From here means either a Google Workspace alias
+// rewrite (need body-sender recovery) or our own outbound looping back
+// (need to drop).
 //
-// NOTE: only @whisperedevents.com qualifies. @whispered.com is a personal
-// domain (e.g. andy@whispered.com) and legitimate submissions from there
-// must be treated as normal user mail.
+// All of @whisperedevents.com is system-owned. On @whispered.com we ONLY
+// match specific mailbox addresses we route inbound from
+// (event@whispered.com is a Google Group forwarding to Resend's inbound;
+// events@whispered.com is the legacy variant). andy@whispered.com is
+// Andy's personal mail — must NOT be caught here or his legitimate
+// event submissions get dropped.
+const SYSTEM_WHISPERED_COM_MAILBOXES = new Set([
+  'event@whispered.com',
+  'events@whispered.com',
+])
+
 function isOwnDomain(email: string): boolean {
-  return email.toLowerCase().endsWith('@whisperedevents.com')
+  const e = email.toLowerCase()
+  if (e.endsWith('@whisperedevents.com')) return true
+  return SYSTEM_WHISPERED_COM_MAILBOXES.has(e)
 }
 
 // Scans a forwarded email body for the original sender's address.
