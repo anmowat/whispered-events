@@ -92,6 +92,18 @@ body {
 
 input[type='date']::-webkit-calendar-picker-indicator { filter: none; opacity: 0.5; }
 
+/* iOS auto-zooms any focused form control whose font-size is below 16px.
+   Force at least 16px on mobile so taps on the email/answer/etc. inputs
+   don't blow the layout up. >=sm breakpoints (Tailwind text-[14px] etc.)
+   still apply on desktop where there's no zoom behavior. */
+@media (max-width: 640px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
 /* Native <select> with a custom caret. Add the `salon-select` class to opt-in. */
 select.salon-select {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238A8276' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
