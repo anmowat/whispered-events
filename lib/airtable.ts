@@ -15,6 +15,26 @@ function getBase(): Base {
   return new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base('appK8AqOvtEgIquRT')
 }
 
+// Strips tracking params from a LinkedIn URL before we write it to
+// Airtable. Profile / company URLs don't need any query — every param
+// you see in the wild (utm_*, trk, lipi, miniProfileUrn, viewAsMember,
+// midToken, etc.) is tracking that someone clicked through from an
+// email or share button. Keep host + pathname only. Trailing-slash
+// normalised so the same profile URL doesn't appear twice with and
+// without a slash in admin views.
+export function cleanLinkedinUrl(raw: string): string {
+  const trimmed = (raw || '').trim()
+  if (!trimmed) return ''
+  try {
+    const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`
+    const url = new URL(withScheme)
+    const pathname = url.pathname.replace(/\/+$/, '')
+    return `${url.protocol}//${url.host}${pathname}`
+  } catch {
+    return trimmed
+  }
+}
+
 // 90-second in-memory cache. Many flows (process-matches, cron digest,
 // per-event each-new-event emails) call these multiple times in rapid
 // succession; without this cache each call is a full Airtable scan.
@@ -553,7 +573,7 @@ export async function createProfile(profile: UserProfile): Promise<string> {
   const base = getBase()
   const email = profile.email.trim().toLowerCase()
   const fields: Partial<FieldSet> = {
-    LinkedIn: profile.linkedin,
+    LinkedIn: cleanLinkedinUrl(profile.linkedin),
     Interest: profile.interest,
     Employment: profile.employment,
     'Size': profile.companySize,
@@ -786,7 +806,7 @@ export async function upsertPartnerApplication(
     })
     .all()
 
-  const linkedinValue = app.linkedin.trim()
+  const linkedinValue = cleanLinkedinUrl(app.linkedin)
   // Existing user: don't rewrite Email (preserves casing/history).
   // New user: include Email. 'Partners' is the link field on the Users
   // table pointing back to the Partners table.
