@@ -47,25 +47,10 @@ export function parseInline(text: string): React.ReactNode[] {
   })
 }
 
-export function BotAvatar() {
-  return (
-    <div
-      className="w-7 h-7 rounded-full grid place-items-center shrink-0 mt-1 mr-3"
-      style={{ background: 'var(--accent-soft)' }}
-    >
-      <span
-        className="font-serif"
-        style={{ color: 'var(--accent)', fontSize: 16, lineHeight: 1 }}
-      >
-        W
-      </span>
-    </div>
-  )
-}
-
-// Single chat row. Bot has an avatar to the left, user is right-aligned
-// with no avatar. Children are typically a <ChatBubble> but the row also
-// hosts custom inline elements like the duplicate-event status cards.
+// Single chat row. User bubbles are right-aligned, assistant bubbles
+// left-aligned. The old W avatar has been retired — these flows are
+// question/answer cards rather than a true chat, and the avatar mostly
+// stole horizontal space (especially on mobile).
 export function ChatRow({
   role,
   children,
@@ -77,7 +62,6 @@ export function ChatRow({
     <div
       className={`flex animate-slide-up ${role === 'user' ? 'justify-end' : 'justify-start'}`}
     >
-      {role === 'assistant' && <BotAvatar />}
       {children}
     </div>
   )
@@ -148,12 +132,10 @@ export function MessageList({ messages }: { messages: ChatMessage[] }) {
   )
 }
 
-// Three pulsing dots inside a bot bubble — used as the typing indicator
-// when a network round-trip is in flight.
+// Three pulsing dots — shown while a network round-trip is in flight.
 export function TypingIndicator() {
   return (
     <div className="flex justify-start animate-fade-in">
-      <BotAvatar />
       <div
         className="px-4 py-3 border"
         style={{

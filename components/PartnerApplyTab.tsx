@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState } from 'react'
 import {
   ChatRow,
   ChatBubble,
@@ -8,7 +8,6 @@ import {
   StepIndicator,
   TypingIndicator,
   parseInline,
-  type ChatMessage,
 } from './chat/ChatShell'
 
 type Step =
@@ -28,14 +27,9 @@ type Step =
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const LINKEDIN_RE = /(^|\.)linkedin\.com\/(in|company|pub)\//i
 
-const WELCOME: ChatMessage = {
-  role: 'assistant',
-  content:
-    "Welcome to Whispered Events. Partnering with us is free for people who host great executive events. We'll ask a few quick questions, then our team will review and follow up — typically within 24 hours.\n\n**First, can we get your email?**",
-}
+const FIRST_QUESTION =
+  "Partnering is free for people who host great executive events. We'll ask a few quick questions, then our team reviews — typically within 24 hours.\n\n**First, what's your email?**"
 
-// 1-based step index used by the StepIndicator. Clarify-steps reuse
-// their parent slot so the progress doesn't visually rewind.
 const STEP_INDEX: Partial<Record<Step, number>> = {
   email: 1,
   company: 2,
@@ -71,7 +65,7 @@ function normalizeLinkedin(raw: string): string {
 
 export default function PartnerApplyTab({ onDone }: { onDone?: () => void }) {
   const [step, setStep] = useState<Step>('email')
-  const [messages, setMessages] = useState<ChatMessage[]>([WELCOME])
+  const [assistantContent, setAssistantContent] = useState<string>(FIRST_QUESTION)
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [form, setForm] = useState({
@@ -82,47 +76,32 @@ export default function PartnerApplyTab({ onDone }: { onDone?: () => void }) {
     description: '',
     linkedin: '',
   })
-  const messagesEndRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, step])
-
-  function addAssistant(content: string) {
-    setMessages((prev) => [...prev, { role: 'assistant', content }])
-  }
-  function addUser(content: string) {
-    setMessages((prev) => [...prev, { role: 'user', content }])
-  }
 
   // Single dispatcher consuming the input based on the current step.
-  // Keeps the UI shape constant — one persistent text input at the
-  // bottom — instead of swapping in different forms per step.
+  // Replaces the previous question/answer in place so the user always
+  // sees only the current prompt — no scrolling history.
   async function handleSend() {
     const value = input.trim()
     if (!value) return
+    setInput('')
 
     if (step === 'email') {
       if (!EMAIL_RE.test(value)) {
-        addUser(value)
-        setInput('')
-        addAssistant("That doesn't look like a valid email — please try again.")
+        setAssistantContent(
+          `That doesn't look like a valid email — please try again.\n\n${FIRST_QUESTION}`,
+        )
         return
       }
       setForm((f) => ({ ...f, email: value }))
-      addUser(value)
-      setInput('')
-      addAssistant("Thanks. **What's the name of your company / organization?**")
+      setAssistantContent("Thanks. **What's the name of your company / organization?**")
       setStep('company')
       return
     }
 
     if (step === 'company') {
       setForm((f) => ({ ...f, company: value }))
-      addUser(value)
-      setInput('')
-      addAssistant(
-        "Its great to connect. **To start, can you describe your target audience(s) for your events?** Roles and levels are most useful — e.g. CROs, VPs of Sales, GTM leaders at $50M+ ARR companies.",
+      setAssistantContent(
+        "Great to connect. **To start, can you describe your target audience(s) for your events?** Roles and levels are most useful — e.g. CROs, VPs of Sales, GTM leaders at $50M+ ARR companies.",
       )
       setStep('audience')
       return
@@ -130,8 +109,6 @@ export default function PartnerApplyTab({ onDone }: { onDone?: () => void }) {
 
     if (step === 'audience') {
       setForm((f) => ({ ...f, audience: value }))
-      addUser(value)
-      setInput('')
       setStep('awaiting-ack')
       setIsLoading(true)
       try {
@@ -143,11 +120,11 @@ export default function PartnerApplyTab({ onDone }: { onDone?: () => void }) {
         const data = (await res.json().catch(() => ({}))) as { ack?: string }
         const fallback = `That is great. We have ${value} on our platform and look forward to connecting you with the right ones.`
         const ack = data.ack?.trim() || fallback
-        addAssistant(
+        setAssistantContent(
           `${ack}\n\n**How many events do you host or run each year?** A single number is great — even a rough estimate works.`,
         )
       } catch {
-        addAssistant(
+        setAssistantContent(
           `That is great. We have ${value} on our platform and look forward to connecting you with the right ones.\n\n**How many events do you host or run each year?** A single number is great — even a rough estimate works.`,
         )
       } finally {
@@ -159,11 +136,11 @@ export default function PartnerApplyTab({ onDone }: { onDone?: () => void }) {
 
     if (step === 'volume' || step === 'volume-clarify') {
       const parsed = parseVolume(value)
-      addUser(value)
-      setInput('')
       if (parsed === null) {
         if (step === 'volume') {
-          addAssistant("Could you give me a number? Even a rough estimate works — e.g. 5 or 10-12.")
+          setAssistantContent(
+            "Could you give me a number? Even a rough estimate works — e.g. 5 or 10-12.",
+          )
           setStep('volume-clarify')
           return
         }
@@ -171,7 +148,7 @@ export default function PartnerApplyTab({ onDone }: { onDone?: () => void }) {
       } else {
         setForm((f) => ({ ...f, volume: String(parsed) }))
       }
-      addAssistant(
+      setAssistantContent(
         "If we approve you, we'll list you on our partner directory. **Can you share a short description of what your company does?**",
       )
       setStep('description')
@@ -180,19 +157,15 @@ export default function PartnerApplyTab({ onDone }: { onDone?: () => void }) {
 
     if (step === 'description') {
       setForm((f) => ({ ...f, description: value }))
-      addUser(value)
-      setInput('')
-      addAssistant("Last one — **what's your LinkedIn profile URL?**")
+      setAssistantContent("Last one — **what's your LinkedIn profile URL?**")
       setStep('linkedin')
       return
     }
 
     if (step === 'linkedin' || step === 'linkedin-clarify') {
       const normalized = normalizeLinkedin(value)
-      addUser(value)
-      setInput('')
       if (!LINKEDIN_RE.test(normalized)) {
-        addAssistant(
+        setAssistantContent(
           "That doesn't look like a LinkedIn URL. Please paste a link that starts with linkedin.com/in/ or linkedin.com/company/.",
         )
         setStep('linkedin-clarify')
@@ -210,12 +183,12 @@ export default function PartnerApplyTab({ onDone }: { onDone?: () => void }) {
         })
         const data = (await res.json().catch(() => ({}))) as { error?: string }
         if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
-        addAssistant(
+        setAssistantContent(
           "**Great — your application is in.** Our team will review and follow up within 24 hours.\n\nPartnership is free. While you wait, two things that really help: (a) share events you're hosting or hear about, and (b) tell top execs in your network about Whispered Events.",
         )
         setStep('submitted')
       } catch (err) {
-        addAssistant(
+        setAssistantContent(
           `Something went wrong submitting your application: ${err instanceof Error ? err.message : 'please try again.'}`,
         )
         setStep('error')
@@ -259,29 +232,25 @@ export default function PartnerApplyTab({ onDone }: { onDone?: () => void }) {
         />
       )}
 
-      <div className="flex-1 overflow-y-auto space-y-4 pb-4">
-        {messages.map((msg, i) => (
-          <ChatRow key={i} role={msg.role}>
-            <ChatBubble role={msg.role}>
-              {msg.role === 'assistant' ? (
-                <div className="space-y-1">
-                  {msg.content.split('\n').map((line, j) => (
-                    <p key={j} className="m-0">
-                      {line ? parseInline(line) : ' '}
-                    </p>
-                  ))}
-                </div>
-              ) : (
-                msg.content
-              )}
+      <div className="flex-1 space-y-4 pb-4">
+        {isLoading ? (
+          <TypingIndicator />
+        ) : (
+          <ChatRow role="assistant">
+            <ChatBubble role="assistant">
+              <div className="space-y-1">
+                {assistantContent.split('\n').map((line, j) => (
+                  <p key={j} className="m-0">
+                    {line ? parseInline(line) : ' '}
+                  </p>
+                ))}
+              </div>
             </ChatBubble>
           </ChatRow>
-        ))}
-
-        {isLoading && <TypingIndicator />}
+        )}
 
         {(step === 'submitted' || step === 'error') && (
-          <div className="ml-10 mt-2 animate-slide-up">
+          <div className="mt-2 animate-slide-up">
             <button
               onClick={() => onDone?.()}
               className="w-full py-2.5 rounded-pill text-[13px] font-medium text-white transition-colors"
@@ -293,8 +262,6 @@ export default function PartnerApplyTab({ onDone }: { onDone?: () => void }) {
             </button>
           </div>
         )}
-
-        <div ref={messagesEndRef} />
       </div>
 
       {!inputDisabled && (

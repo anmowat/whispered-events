@@ -254,7 +254,7 @@ export default function ViewEventsTab({
         )}
 
         {step === 'submitted' && onReturnHome && (
-          <div className="ml-10 mt-2 animate-slide-up">
+          <div className="mt-2 animate-slide-up">
             <button
               onClick={onReturnHome}
               className="w-full py-2.5 rounded-pill text-[13px] font-medium text-white transition-colors"
@@ -293,7 +293,7 @@ function ChipRow({
   onPick: (opt: string) => void
 }) {
   return (
-    <div className="ml-10 flex flex-wrap gap-2 animate-slide-up">
+    <div className="flex flex-wrap gap-2 animate-slide-up">
       {options.map((o) => (
         <button
           key={o}
@@ -373,7 +373,7 @@ function ProfileSummary({
   }
 
   return (
-    <div className="ml-10 animate-slide-up">
+    <div className="animate-slide-up">
       <div
         className="rounded-card border overflow-hidden"
         style={{ background: 'var(--paper)', borderColor: 'var(--rule)' }}

@@ -1,14 +1,13 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState } from 'react'
 import { EventRecord, EventType } from '@/lib/types'
 import {
   ChatBubble,
   ChatRow,
-  MessageList,
   StepIndicator,
   TypingIndicator,
-  type ChatMessage,
+  parseInline,
 } from './chat/ChatShell'
 
 type Step =
@@ -27,11 +26,8 @@ type Step =
 
 const EVENT_TYPES: EventType[] = ['Conference', 'Dinner', 'Virtual', 'Other']
 
-const WELCOME_MESSAGE: ChatMessage = {
-  role: 'assistant',
-  content:
-    'Welcome to Whispered Events. To share an event, paste a link to the event page — or type out the event details directly.',
-}
+const WELCOME_TEXT =
+  'Paste a link to the event page — or type out the event details directly.'
 
 // Steps shown in the indicator. Duplicate-event terminal states reuse the
 // same slot as their non-duplicate equivalent so the progress doesn't
@@ -60,7 +56,7 @@ export default function ShareEventTab({
   onShowPartner?: () => void
 }) {
   const [step, setStep] = useState<Step>('input')
-  const [messages, setMessages] = useState<ChatMessage[]>([WELCOME_MESSAGE])
+  const [assistantContent, setAssistantContent] = useState<string>(WELCOME_TEXT)
   const [input, setInput] = useState('')
   const [pendingInput, setPendingInput] = useState('')
   const [submitterEmail, setSubmitterEmail] = useState('')
@@ -79,24 +75,13 @@ export default function ShareEventTab({
   const [existingId, setExistingId] = useState<string | undefined>(undefined)
   const [claimMessage, setClaimMessage] = useState<string>('')
   const [isLoading, setIsLoading] = useState(false)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, step])
-
-  function addMessage(role: 'assistant' | 'user', content: string) {
-    setMessages((prev) => [...prev, { role, content }])
-  }
 
   function handleInputSubmit() {
     if (!input.trim()) return
     const userInput = input.trim()
     setInput('')
     setPendingInput(userInput)
-    addMessage('user', userInput)
-    addMessage(
-      'assistant',
+    setAssistantContent(
       "Got it. **What's your email?** We'll check whether this event is already in our database.",
     )
     setStep('submitter')
@@ -106,12 +91,11 @@ export default function ShareEventTab({
     const email = submitterEmail.trim()
     if (!email) return
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      addMessage('assistant', "That doesn't look like a valid email — please try again.")
+      setAssistantContent("That doesn't look like a valid email — please try again.")
       return
     }
-    addMessage('user', email)
     setStep('parsing')
-    addMessage('assistant', 'Thanks. Let me look this up…')
+    setAssistantContent('Thanks. Let me look this up…')
     setIsLoading(true)
 
     // Kick off the partner check in parallel — we want to know by the
@@ -148,8 +132,7 @@ export default function ShareEventTab({
           host: false,
         })
         setExistingId(undefined)
-        addMessage(
-          'assistant',
+        setAssistantContent(
           "Here's what I found. Review the details below and fill in anything that's missing, then we'll get this submitted.",
         )
         setStep('review')
@@ -174,8 +157,7 @@ export default function ShareEventTab({
       setStep('duplicate-not-host')
     } catch (err) {
       setStep('error')
-      addMessage(
-        'assistant',
+      setAssistantContent(
         `Something went wrong: ${err instanceof Error ? err.message : 'Please try again.'}`,
       )
     } finally {
@@ -198,8 +180,7 @@ export default function ShareEventTab({
       setStep('claim-success')
     } catch (err) {
       setStep('error')
-      addMessage(
-        'assistant',
+      setAssistantContent(
         `Something went wrong: ${err instanceof Error ? err.message : 'Please try again.'}`,
       )
     } finally {
@@ -209,7 +190,7 @@ export default function ShareEventTab({
 
   async function handleReviewContinue() {
     if (!parsed.name || !parsed.link) {
-      addMessage('assistant', 'Please add at least a name and link before continuing.')
+      setAssistantContent('Please add at least a name and link before continuing.')
       return
     }
     setStep('submitting')
@@ -234,14 +215,12 @@ export default function ShareEventTab({
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || data.message || `HTTP ${res.status}`)
       setStep('submitted')
-      addMessage(
-        'assistant',
+      setAssistantContent(
         'Thank you! The event has been added. We appreciate you helping the community discover exclusive events.',
       )
     } catch (err) {
       setStep('error')
-      addMessage(
-        'assistant',
+      setAssistantContent(
         `Something went wrong: ${err instanceof Error ? err.message : 'Please try again.'}`,
       )
     } finally {
@@ -251,7 +230,7 @@ export default function ShareEventTab({
 
   function handleReset() {
     setStep('input')
-    setMessages([WELCOME_MESSAGE])
+    setAssistantContent(WELCOME_TEXT)
     setParsed({ type: 'Other', host: false, audience: [], location: '' })
     setSubmitterEmail('')
     setPendingInput('')
@@ -264,6 +243,10 @@ export default function ShareEventTab({
   const audienceInput = parsed.audience?.join(', ') || ''
   const showStepIndicator = step !== 'submitted' && step !== 'error' && step !== 'claim-success'
 
+  // Bubble width: full on mobile (avatars are gone so we can use the
+  // viewport), capped at 80% on >=sm.
+  const bubbleWidthCls = 'max-w-full sm:max-w-[80%]'
+
   return (
     <div className="flex flex-col h-full max-w-[680px] mx-auto">
       {showStepIndicator && (
@@ -274,14 +257,26 @@ export default function ShareEventTab({
         />
       )}
 
-      <div className="flex-1 overflow-y-auto space-y-4 pb-4">
-        <MessageList messages={messages} />
-
-        {isLoading && <TypingIndicator />}
+      <div className="flex-1 space-y-4 pb-4">
+        {isLoading ? (
+          <TypingIndicator />
+        ) : (
+          <ChatRow role="assistant">
+            <ChatBubble role="assistant">
+              <div className="space-y-1">
+                {assistantContent.split('\n').map((line, j) => (
+                  <p key={j} className="m-0">
+                    {line ? parseInline(line) : ' '}
+                  </p>
+                ))}
+              </div>
+            </ChatBubble>
+          </ChatRow>
+        )}
 
         {step === 'submitter' && !isLoading && (
           <ChatRow role="assistant">
-            <div className="max-w-[80%]">
+            <div className={bubbleWidthCls}>
               <SubmitterForm
                 email={submitterEmail}
                 onEmailChange={setSubmitterEmail}
@@ -293,7 +288,7 @@ export default function ShareEventTab({
 
         {step === 'review' && !isLoading && (
           <ChatRow role="assistant">
-            <div className="max-w-[80%] w-full">
+            <div className={`${bubbleWidthCls} w-full`}>
               <EventReviewForm
                 event={parsed}
                 onChange={setParsed}
@@ -308,7 +303,7 @@ export default function ShareEventTab({
 
         {step === 'duplicate-existing-host' && (
           <ChatRow role="assistant">
-            <div className="max-w-[80%] space-y-3">
+            <div className={`${bubbleWidthCls} space-y-3`}>
               <StatusCard>
                 This event is already in Whispered Events with you listed as a host.
                 <br />
@@ -333,7 +328,7 @@ export default function ShareEventTab({
 
         {step === 'duplicate-claim-available' && !isLoading && (
           <ChatRow role="assistant">
-            <div className="max-w-[80%] space-y-3">
+            <div className={`${bubbleWidthCls} space-y-3`}>
               <StatusCard>
                 This event is already in Whispered Events but doesn&apos;t have a host on
                 file yet.
@@ -342,7 +337,7 @@ export default function ShareEventTab({
                 Are you hosting this event? If so, we can list you as the host so you
                 can edit it and see the matching audience.
               </StatusCard>
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <AccentButton
                   onClick={() =>
                     handleClaimHost(
@@ -360,7 +355,7 @@ export default function ShareEventTab({
 
         {step === 'duplicate-claim-additional' && !isLoading && (
           <ChatRow role="assistant">
-            <div className="max-w-[80%] space-y-3">
+            <div className={`${bubbleWidthCls} space-y-3`}>
               <StatusCard>
                 This event is already in Whispered Events with another host listed.
                 <br />
@@ -368,7 +363,7 @@ export default function ShareEventTab({
                 Are you also a host of this event? If so, we&apos;ll add you as a co-host.
                 Our team will confirm — you&apos;ll be able to edit at /host once we do.
               </StatusCard>
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <AccentButton
                   onClick={() =>
                     handleClaimHost(
@@ -386,9 +381,9 @@ export default function ShareEventTab({
 
         {step === 'claim-success' && (
           <ChatRow role="assistant">
-            <div className="max-w-[80%] space-y-3">
+            <div className={`${bubbleWidthCls} space-y-3`}>
               <StatusCard>{claimMessage}</StatusCard>
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <AccentLink href="/host" full>
                   Go to /host
                 </AccentLink>
@@ -400,7 +395,7 @@ export default function ShareEventTab({
 
         {step === 'duplicate-not-host' && (
           <ChatRow role="assistant">
-            <div className="max-w-[80%] space-y-3">
+            <div className={`${bubbleWidthCls} space-y-3`}>
               <StatusCard>
                 Someone beat you to it — we already have this event in our database.
                 <br />
@@ -416,20 +411,23 @@ export default function ShareEventTab({
         )}
 
         {(step === 'submitted' || step === 'error') && (
-          <div className="ml-10 mt-2 flex gap-2 animate-slide-up">
+          <div className="mt-2 flex flex-col sm:flex-row gap-2 animate-slide-up">
             <AccentButton onClick={() => onDone?.()} full>
               Return home
             </AccentButton>
             <GhostButton onClick={handleReset}>Share another event</GhostButton>
           </div>
         )}
-
-        <div ref={messagesEndRef} />
       </div>
 
       {step === 'input' && (
-        <div className="pt-4 border-t" style={{ borderColor: 'var(--rule-soft)' }}>
-          <div className="flex gap-2.5">
+        <div
+          className="pt-3 sm:pt-4 border-t"
+          style={{ borderColor: 'var(--rule-soft)' }}
+        >
+          {/* Stack textarea + Send vertically on mobile so the button is
+              never clipped; side-by-side on desktop. */}
+          <div className="flex flex-col sm:flex-row gap-2">
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -441,7 +439,7 @@ export default function ShareEventTab({
               }}
               placeholder="Paste a link or type event details…"
               rows={2}
-              className="flex-1 rounded-input border px-3.5 py-2.5 text-[14px] resize-none focus:outline-none transition-colors"
+              className="flex-1 min-w-0 rounded-input border px-3 py-2 sm:px-3.5 sm:py-2.5 text-[14px] resize-none focus:outline-none transition-colors"
               style={{
                 background: 'var(--paper-2)',
                 borderColor: 'var(--rule)',
@@ -451,14 +449,14 @@ export default function ShareEventTab({
             <button
               onClick={handleInputSubmit}
               disabled={!input.trim()}
-              className="self-end rounded-pill px-4 py-2.5 text-[13px] font-medium text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              className="shrink-0 w-full sm:w-auto sm:self-end rounded-pill px-3.5 sm:px-4 py-2.5 text-[13px] font-medium text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               style={{ background: 'var(--accent)' }}
             >
               Send
             </button>
           </div>
           <p
-            className="mt-2 text-center text-[11px]"
+            className="hidden sm:block mt-2 text-center text-[11px]"
             style={{ color: 'var(--ink-3)' }}
           >
             Shift+Enter for new line · Enter to send
@@ -470,7 +468,7 @@ export default function ShareEventTab({
 }
 
 // Status card body — uses the Salon paper+rule chrome, sits inside a
-// ChatRow so it lines up with bot bubbles.
+// ChatRow.
 function StatusCard({ children }: { children: React.ReactNode }) {
   return (
     <div
@@ -599,7 +597,7 @@ function EventReviewForm({
       <div className="eyebrow" style={{ color: 'var(--accent)' }}>
         Event Details · AI-extracted
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Field label="Name *">
           <input
             value={event.name || ''}

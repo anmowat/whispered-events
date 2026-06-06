@@ -68,18 +68,22 @@ export default function Home() {
   const rightSlot = isLoggedIn ? (
     <a
       href="/dashboard"
-      className="text-[13px] transition-colors"
+      aria-label="Dashboard"
+      className="text-[13px] transition-colors inline-flex items-center"
       style={{ color: 'var(--ink-2)' }}
     >
-      Dashboard
+      <UserIcon className="sm:hidden" />
+      <span className="hidden sm:inline">Dashboard</span>
     </a>
   ) : (
     <button
       onClick={() => setShowLogin(true)}
-      className="text-[13px] transition-colors"
+      aria-label="Log in"
+      className="text-[13px] transition-colors inline-flex items-center"
       style={{ color: 'var(--ink-2)' }}
     >
-      Log in
+      <UserIcon className="sm:hidden" />
+      <span className="hidden sm:inline">Log in</span>
     </button>
   )
 
@@ -123,6 +127,26 @@ export default function Home() {
         <span className="font-serif italic">— est. 2026</span>
       </footer>
     </div>
+  )
+}
+
+function UserIcon({ className = '' }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width={22}
+      height={22}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+      className={className}
+    >
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8" />
+    </svg>
   )
 }
 

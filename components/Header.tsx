@@ -38,18 +38,18 @@ export default function Header({
       className="sticky top-0 z-10 border-b"
       style={{ borderColor: 'var(--rule)', background: 'var(--bg)' }}
     >
-      <div className="max-w-[1100px] mx-auto h-16 px-3 sm:px-8 grid grid-cols-[auto_1fr_auto] sm:grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-6">
+      <div className="max-w-[1100px] mx-auto h-16 px-3 sm:px-8 flex sm:grid sm:grid-cols-[1fr_auto_1fr] items-center justify-between gap-2 sm:gap-6">
         <button
           onClick={onLogoClick}
-          className="justify-self-start"
           aria-label="Whispered Events home"
+          className={`${activeTab !== null ? 'hidden sm:block' : 'block'} sm:justify-self-start`}
         >
           <Wordmark size={22} />
         </button>
 
         {activeTab !== null ? (
           <nav
-            className="flex gap-0.5 p-1 rounded-full border justify-self-center min-w-0 max-w-full"
+            className="flex gap-0.5 p-1 rounded-full border min-w-0"
             style={{ background: 'var(--paper)', borderColor: 'var(--rule)' }}
           >
             {TABS.map((t) => {
@@ -58,15 +58,13 @@ export default function Header({
                 <button
                   key={t.id}
                   onClick={() => onTabChange?.(t.id)}
-                  className="px-2 sm:px-4 py-1.5 rounded-full text-[11.5px] sm:text-[13px] font-medium transition-colors whitespace-nowrap"
+                  className="px-2.5 sm:px-4 py-1.5 rounded-full text-[12px] sm:text-[13px] font-medium transition-colors whitespace-nowrap"
                   style={{
                     background: active ? 'var(--ink)' : 'transparent',
                     color: active ? 'var(--paper)' : 'var(--ink-2)',
                   }}
                 >
-                  {/* Shorter labels on mobile so the three pills fit a
-                      narrow viewport without overflowing and pushing the
-                      whole page horizontally. */}
+                  {/* Short labels on mobile so the three pills fit. */}
                   <span className="sm:hidden">{t.label.split(' ')[0]}</span>
                   <span className="hidden sm:inline">{t.label}</span>
                 </button>
@@ -74,10 +72,10 @@ export default function Header({
             })}
           </nav>
         ) : (
-          <div />
+          <div className="hidden sm:block" />
         )}
 
-        <div className="justify-self-end flex items-center gap-4">{rightSlot}</div>
+        <div className="sm:justify-self-end flex items-center gap-4">{rightSlot}</div>
       </div>
     </header>
   )
