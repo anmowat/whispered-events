@@ -236,7 +236,10 @@ export function Composer({
 }) {
   return (
     <div className="pt-3 sm:pt-4 border-t" style={{ borderColor: 'var(--rule-soft)' }}>
-      <div className="flex gap-2">
+      {/* Stack vertically on mobile (Send full-width below input) so the
+          button is never clipped by a narrow viewport. Side-by-side on
+          desktop where there's room. */}
+      <div className="flex flex-col sm:flex-row gap-2">
         <input
           value={value}
           onChange={(e) => onChange(e.target.value)}
@@ -258,7 +261,7 @@ export function Composer({
         <button
           onClick={onSend}
           disabled={disabled || !value.trim()}
-          className="shrink-0 rounded-pill px-3.5 sm:px-4 py-2 sm:py-2.5 text-[13px] font-medium text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="shrink-0 w-full sm:w-auto rounded-pill px-3.5 sm:px-4 py-2.5 text-[13px] font-medium text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           style={{ background: 'var(--accent)' }}
           onMouseEnter={(e) =>
             !disabled && value.trim() && (e.currentTarget.style.background = 'var(--accent-2)')

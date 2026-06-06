@@ -38,7 +38,7 @@ export default function Header({
       className="sticky top-0 z-10 border-b"
       style={{ borderColor: 'var(--rule)', background: 'var(--bg)' }}
     >
-      <div className="max-w-[1100px] mx-auto h-16 px-6 sm:px-8 grid grid-cols-[1fr_auto_1fr] items-center gap-4 sm:gap-6">
+      <div className="max-w-[1100px] mx-auto h-16 px-3 sm:px-8 grid grid-cols-[auto_1fr_auto] sm:grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-6">
         <button
           onClick={onLogoClick}
           className="justify-self-start"
@@ -49,7 +49,7 @@ export default function Header({
 
         {activeTab !== null ? (
           <nav
-            className="flex gap-0.5 p-1 rounded-full border"
+            className="flex gap-0.5 p-1 rounded-full border justify-self-center min-w-0 max-w-full"
             style={{ background: 'var(--paper)', borderColor: 'var(--rule)' }}
           >
             {TABS.map((t) => {
@@ -58,13 +58,17 @@ export default function Header({
                 <button
                   key={t.id}
                   onClick={() => onTabChange?.(t.id)}
-                  className="px-3 sm:px-4 py-1.5 rounded-full text-[12px] sm:text-[13px] font-medium transition-colors whitespace-nowrap"
+                  className="px-2 sm:px-4 py-1.5 rounded-full text-[11.5px] sm:text-[13px] font-medium transition-colors whitespace-nowrap"
                   style={{
                     background: active ? 'var(--ink)' : 'transparent',
                     color: active ? 'var(--paper)' : 'var(--ink-2)',
                   }}
                 >
-                  {t.label}
+                  {/* Shorter labels on mobile so the three pills fit a
+                      narrow viewport without overflowing and pushing the
+                      whole page horizontally. */}
+                  <span className="sm:hidden">{t.label.split(' ')[0]}</span>
+                  <span className="hidden sm:inline">{t.label}</span>
                 </button>
               )
             })}

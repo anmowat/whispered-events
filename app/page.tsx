@@ -84,7 +84,7 @@ export default function Home() {
   )
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col overflow-x-hidden">
       {showLogin && <LoginModal onClose={() => setShowLogin(false)} />}
 
       <Header
