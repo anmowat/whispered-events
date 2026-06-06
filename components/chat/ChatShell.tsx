@@ -235,8 +235,8 @@ export function Composer({
   helper?: string
 }) {
   return (
-    <div className="pt-4 border-t" style={{ borderColor: 'var(--rule-soft)' }}>
-      <div className="flex gap-2.5">
+    <div className="pt-3 sm:pt-4 border-t" style={{ borderColor: 'var(--rule-soft)' }}>
+      <div className="flex gap-2">
         <input
           value={value}
           onChange={(e) => onChange(e.target.value)}
@@ -248,7 +248,7 @@ export function Composer({
           }}
           placeholder={placeholder}
           disabled={disabled}
-          className="flex-1 rounded-input border px-3.5 py-2.5 text-[14px] focus:outline-none transition-colors"
+          className="flex-1 min-w-0 rounded-input border px-3 py-2 sm:px-3.5 sm:py-2.5 text-[14px] focus:outline-none transition-colors"
           style={{
             background: 'var(--paper-2)',
             borderColor: 'var(--rule)',
@@ -258,7 +258,7 @@ export function Composer({
         <button
           onClick={onSend}
           disabled={disabled || !value.trim()}
-          className="rounded-pill px-4 py-2.5 text-[13px] font-medium text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="shrink-0 rounded-pill px-3.5 sm:px-4 py-2 sm:py-2.5 text-[13px] font-medium text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           style={{ background: 'var(--accent)' }}
           onMouseEnter={(e) =>
             !disabled && value.trim() && (e.currentTarget.style.background = 'var(--accent-2)')
@@ -268,7 +268,11 @@ export function Composer({
           Send
         </button>
       </div>
-      <p className="mt-2 text-center text-[11px]" style={{ color: 'var(--ink-3)' }}>
+      {/* Helper text is desktop-only; mobile has no visible Enter key to label. */}
+      <p
+        className="hidden sm:block mt-2 text-center text-[11px]"
+        style={{ color: 'var(--ink-3)' }}
+      >
         {helper.split(/(Enter|Shift\+Enter)/).map((part, i) =>
           part === 'Enter' || part === 'Shift+Enter' ? (
             <kbd

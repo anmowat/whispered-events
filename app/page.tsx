@@ -103,7 +103,7 @@ export default function Home() {
             onCTA={handleCTA}
           />
         ) : (
-          <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
+          <div className="max-w-3xl mx-auto px-4 sm:px-6 py-4 sm:py-8">
             {tab === 'view' && (
               <ViewEventsTab eventCount={eventCount} startAtForm onReturnHome={handleBack} />
             )}

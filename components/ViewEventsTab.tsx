@@ -121,11 +121,12 @@ export default function ViewEventsTab({
   onReturnHome?: () => void
 }) {
   const [step, setStep] = useState<Step>('email')
-  const [assistantContent, setAssistantContent] = useState<string>(
-    `Welcome to Whispered Events — a free, private platform for executives to discover and share exclusive, invitation-only events${
-      eventCount > 0 ? ` (${eventCount} upcoming right now)` : ''
-    }.\n\nAs long as your LinkedIn matches what you share, you're in. We'll ask a few quick things — you can update any answer later.\n\n${QUESTIONS['email']}`,
-  )
+  // No welcome preamble in the first bubble — the landing hero already
+  // explained what this is, and on mobile the extra paragraphs forced
+  // people to scroll just to see the input. The eventCount nudge survives
+  // in the page hero, not here.
+  const _eventCount = eventCount
+  const [assistantContent, setAssistantContent] = useState<string>(QUESTIONS['email'])
   const [input, setInput] = useState('')
   const [profile, setProfile] = useState<UserProfile>(EMPTY_PROFILE)
   const [isSubmitting, setIsSubmitting] = useState(false)
