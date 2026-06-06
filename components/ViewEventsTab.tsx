@@ -130,6 +130,11 @@ export default function ViewEventsTab({
   const [input, setInput] = useState('')
   const [profile, setProfile] = useState<UserProfile>(EMPTY_PROFILE)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  // Stack of steps the user has already passed through. Pushed on every
+  // forward advance, popped on Back. Avoids needing to hard-code which
+  // step precedes which (the employment->skip-size case would otherwise
+  // need its own branch).
+  const [stepHistory, setStepHistory] = useState<Step[]>([])
 
   function advance(currentStep: Step, value: string, prelude?: string) {
     const field = profileField(currentStep)
@@ -149,8 +154,25 @@ export default function ViewEventsTab({
     const withSearchNote = isSearching ? `${SEARCHING_NOTE}\n\n${base}` : base
     const final = prelude ? `${prelude}\n\n${withSearchNote}` : withSearchNote
 
+    setStepHistory((prev) => [...prev, currentStep])
     setStep(next === 'confirm' ? 'confirm' : next)
     setAssistantContent(final)
+  }
+
+  function goBack() {
+    if (stepHistory.length === 0) return
+    const prev = stepHistory[stepHistory.length - 1]
+    setStepHistory((s) => s.slice(0, -1))
+    setStep(prev)
+    setAssistantContent(QUESTIONS[prev])
+    setInput('')
+    // Re-populate the input with their previous typed answer where
+    // applicable (free-text steps). Picklist steps will just re-show
+    // chips so no pre-fill needed.
+    const field = profileField(prev)
+    if (field && profile[field]) {
+      setInput(profile[field])
+    }
   }
 
   async function handleSend(value?: string) {
@@ -215,7 +237,12 @@ export default function ViewEventsTab({
   }
 
   const showStepIndicator = step !== 'submitted' && step !== 'confirm'
-  const showComposer = step !== 'confirm' && step !== 'submitted'
+  // Employment + frequency are picklist-only. A text composer beneath
+  // the chips reads as "you can type here too" and confuses people, even
+  // though we accept anything. Drop it for those two steps.
+  const isPicklistStep = step === 'employment' || step === 'frequency'
+  const showComposer = step !== 'confirm' && step !== 'submitted' && !isPicklistStep
+  const canGoBack = stepHistory.length > 0 && step !== 'submitted'
 
   return (
     <div className="flex flex-col h-full max-w-[680px] mx-auto">
@@ -266,6 +293,18 @@ export default function ViewEventsTab({
             </button>
           </div>
         )}
+
+        {canGoBack && (
+          <button
+            onClick={goBack}
+            className="text-[12px] inline-flex items-center gap-1 transition-colors"
+            style={{ color: 'var(--ink-3)' }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--ink-3)')}
+          >
+            ← Back
+          </button>
+        )}
       </div>
 
       {showComposer && (
@@ -273,11 +312,7 @@ export default function ViewEventsTab({
           value={input}
           onChange={setInput}
           onSend={() => handleSend()}
-          placeholder={
-            step === 'employment' || step === 'frequency'
-              ? 'Or pick an option above…'
-              : 'Type your answer…'
-          }
+          placeholder="Type your answer…"
         />
       )}
     </div>
@@ -395,42 +430,53 @@ function ProfileSummary({
                   <p className="eyebrow" style={{ color: 'var(--accent)' }}>
                     {label}
                   </p>
-                  {editingField === 'frequency' ? (
-                    <select
-                      autoFocus
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Escape') {
-                          setEditingField(null)
-                          setEditError('')
-                        }
-                      }}
-                      className="salon-select w-full rounded-input border px-3 py-2 text-[13px]"
-                      style={{ background: 'var(--paper-2)', borderColor: 'var(--accent)' }}
-                    >
-                      {FREQUENCY_OPTIONS.map((opt) => (
-                        <option key={opt} value={opt}>
-                          {opt}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input
-                      autoFocus
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') saveEdit()
-                        if (e.key === 'Escape') {
-                          setEditingField(null)
-                          setEditError('')
-                        }
-                      }}
-                      className="w-full rounded-input border px-3 py-2 text-[13px]"
-                      style={{ background: 'var(--paper-2)', borderColor: 'var(--accent)' }}
-                    />
-                  )}
+                  {(() => {
+                    const picklist =
+                      editingField === 'frequency'
+                        ? FREQUENCY_OPTIONS
+                        : editingField === 'employment'
+                          ? EMPLOYMENT_OPTIONS
+                          : null
+                    if (picklist) {
+                      return (
+                        <select
+                          autoFocus
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Escape') {
+                              setEditingField(null)
+                              setEditError('')
+                            }
+                          }}
+                          className="salon-select w-full rounded-input border px-3 py-2 text-[13px]"
+                          style={{ background: 'var(--paper-2)', borderColor: 'var(--accent)' }}
+                        >
+                          {picklist.map((opt) => (
+                            <option key={opt} value={opt}>
+                              {opt}
+                            </option>
+                          ))}
+                        </select>
+                      )
+                    }
+                    return (
+                      <input
+                        autoFocus
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') saveEdit()
+                          if (e.key === 'Escape') {
+                            setEditingField(null)
+                            setEditError('')
+                          }
+                        }}
+                        className="w-full rounded-input border px-3 py-2 text-[13px]"
+                        style={{ background: 'var(--paper-2)', borderColor: 'var(--accent)' }}
+                      />
+                    )
+                  })()}
                   {editError && (
                     <p className="text-[11.5px]" style={{ color: 'var(--accent)' }}>
                       {editError}
