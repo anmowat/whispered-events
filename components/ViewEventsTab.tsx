@@ -1,24 +1,22 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState } from 'react'
 import { UserProfile } from '@/lib/types'
 import {
   ChatBubble,
   ChatRow,
   Composer,
-  MessageList,
   StepIndicator,
   parseInline,
-  type ChatMessage,
 } from './chat/ChatShell'
 
 type Step =
   | 'email'
   | 'location'
+  | 'linkedin'
   | 'interest'
   | 'employment'
   | 'size'
-  | 'linkedin'
   | 'frequency'
   | 'confirm'
   | 'submitted'
@@ -39,13 +37,13 @@ const QUESTIONS: Record<Step, string> = {
     "**What's your email address?** We use this only to send you events — nothing else.",
   location:
     "**What city are you based in?**\n\nWe'll send you events within 100 miles of your location (we limit people to one primary city but update your city anytime you travel to see matches for another location).",
+  linkedin: "**What's your LinkedIn profile URL?**",
   interest:
     "**What types of events are you interested in?**\n\nWe'll pull your function and seniority from your LinkedIn, so focus here on anything additional that would help us tailor events to you — industry focus, specific topics, preferred formats, etc.\n\nYou can update these at any time on your profile (Login in top nav).",
   employment:
     "**What is your current work situation?**\n\nWe ask because some events focus on people in specific roles while others are open to anyone.",
   size:
     "**What is the approximate revenue of your current company?**\n\nMany events are run by vendors who want to focus on specific company sizes — this helps us make sure you're only seeing events you'd actually qualify for.",
-  linkedin: "**What's your LinkedIn profile URL?**",
   frequency:
     "Last question — **how often would you like to receive emails with matching events?**\n\nYou can change this anytime on your profile.",
   confirm: '',
@@ -66,10 +64,10 @@ function profileField(step: Step): keyof UserProfile | null {
   const map: Partial<Record<Step, keyof UserProfile>> = {
     email: 'email',
     location: 'location',
+    linkedin: 'linkedin',
     interest: 'interest',
     employment: 'employment',
     size: 'companySize',
-    linkedin: 'linkedin',
     frequency: 'frequency',
   }
   return map[step] ?? null
@@ -79,16 +77,16 @@ function nextStep(current: Step, value: string): Step {
   const order: Step[] = [
     'email',
     'location',
+    'linkedin',
     'interest',
     'employment',
     'size',
-    'linkedin',
     'frequency',
     'confirm',
   ]
   // Non-employed users skip the company-size step.
   if (current === 'employment' && value.toLowerCase() !== 'employed') {
-    return 'linkedin'
+    return 'frequency'
   }
   const idx = order.indexOf(current)
   return idx >= 0 && idx < order.length - 1 ? order[idx + 1] : 'confirm'
@@ -101,10 +99,10 @@ function nextStep(current: Step, value: string): Step {
 const STEP_INDEX: Record<Step, number> = {
   email: 1,
   location: 2,
-  interest: 3,
-  employment: 4,
-  size: 5,
-  linkedin: 6,
+  linkedin: 3,
+  interest: 4,
+  employment: 5,
+  size: 6,
   frequency: 7,
   confirm: 7,
   submitted: 7,
@@ -113,7 +111,9 @@ const TOTAL_STEPS = 7
 
 export default function ViewEventsTab({
   eventCount = 0,
-  startAtForm,
+  // startAtForm kept for API compatibility with callers — the flow now
+  // always starts at the first question, so the flag is a no-op.
+  startAtForm: _startAtForm,
   onReturnHome,
 }: {
   eventCount?: number
@@ -121,66 +121,57 @@ export default function ViewEventsTab({
   onReturnHome?: () => void
 }) {
   const [step, setStep] = useState<Step>('email')
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      role: 'assistant',
-      content: `Welcome to Whispered Events — a free, private platform for executives to discover and share exclusive, invitation-only events${
-        eventCount > 0 ? ` (${eventCount} upcoming right now)` : ''
-      }.\n\nAs long as your LinkedIn matches what you share, you're in. We'll ask a few quick things — you can update any answer later.\n\n${QUESTIONS['email']}`,
-    },
-  ])
+  const [assistantContent, setAssistantContent] = useState<string>(
+    `Welcome to Whispered Events — a free, private platform for executives to discover and share exclusive, invitation-only events${
+      eventCount > 0 ? ` (${eventCount} upcoming right now)` : ''
+    }.\n\nAs long as your LinkedIn matches what you share, you're in. We'll ask a few quick things — you can update any answer later.\n\n${QUESTIONS['email']}`,
+  )
   const [input, setInput] = useState('')
   const [profile, setProfile] = useState<UserProfile>(EMPTY_PROFILE)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, step])
-
-  function addMessage(role: 'assistant' | 'user', content: string) {
-    setMessages((prev) => [...prev, { role, content }])
-  }
-
-  function advance(currentStep: Step, value: string) {
+  function advance(currentStep: Step, value: string, prelude?: string) {
     const field = profileField(currentStep)
     const normalized = ['skip', 'none'].includes(value.toLowerCase().trim())
       ? ''
       : value.trim()
     const updatedProfile = field ? { ...profile, [field]: normalized } : profile
     setProfile(updatedProfile)
-    if (currentStep === 'employment' && normalized.toLowerCase() === 'searching') {
-      addMessage('assistant', SEARCHING_NOTE)
-    }
+
     const next = nextStep(currentStep, normalized)
-    if (next === 'confirm') {
-      setStep('confirm')
-      addMessage(
-        'assistant',
-        "Here's your profile — review each field and edit anything before submitting.",
-      )
-    } else {
-      setStep(next)
-      addMessage('assistant', QUESTIONS[next])
-    }
+    const isSearching =
+      currentStep === 'employment' && normalized.toLowerCase() === 'searching'
+    const base =
+      next === 'confirm'
+        ? "Here's your profile — review each field and edit anything before submitting."
+        : QUESTIONS[next]
+    const withSearchNote = isSearching ? `${SEARCHING_NOTE}\n\n${base}` : base
+    const final = prelude ? `${prelude}\n\n${withSearchNote}` : withSearchNote
+
+    setStep(next === 'confirm' ? 'confirm' : next)
+    setAssistantContent(final)
   }
 
   async function handleSend(value?: string) {
     const val = (value ?? input).trim()
     if (!val) return
     setInput('')
-    addMessage('user', val)
     if (step === 'linkedin' && !val.includes('linkedin.com')) {
-      addMessage('assistant', "Please share your LinkedIn profile URL (e.g. https://linkedin.com/in/yourname).")
+      setAssistantContent(
+        `Please share your LinkedIn profile URL (e.g. https://linkedin.com/in/yourname).\n\n${QUESTIONS['linkedin']}`,
+      )
       return
     }
     if (step === 'frequency' && !FREQUENCY_OPTIONS.includes(val)) {
-      addMessage('assistant', 'Please pick one of the options above.')
+      setAssistantContent(`Please pick one of the options above.\n\n${QUESTIONS['frequency']}`)
       return
     }
+    let prelude: string | undefined
     if (step === 'email') {
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
-        addMessage('assistant', "That doesn't look like a valid email. Please try again.")
+        setAssistantContent(
+          `That doesn't look like a valid email. Please try again.\n\n${QUESTIONS['email']}`,
+        )
         return
       }
       try {
@@ -192,18 +183,14 @@ export default function ViewEventsTab({
         const data = (await res.json()) as { contributions?: number }
         const n = data.contributions ?? 0
         if (n > 0) {
-          addMessage(
-            'assistant',
-            `Welcome back — we see you've already contributed ${n} ${n === 1 ? 'event' : 'events'}. Let's get you activated.`,
-          )
+          prelude = `Welcome back — we see you've already contributed ${n} ${n === 1 ? 'event' : 'events'}. Let's get you activated.`
         }
       } catch {}
     }
-    advance(step, val)
+    advance(step, val, prelude)
   }
 
   async function handleSubmit() {
-    addMessage('user', 'Submit my application')
     setIsSubmitting(true)
     try {
       const res = await fetch('/api/submit-profile', {
@@ -214,13 +201,11 @@ export default function ViewEventsTab({
       const data = (await res.json()) as { status?: string; error?: string }
       if (!res.ok) throw new Error(data.error || 'Submission failed')
       setStep('submitted')
-      addMessage(
-        'assistant',
+      setAssistantContent(
         `You're all set. As long as your LinkedIn checks out, you're approved — we'll send matching events to ${profile.email}.\n\nLove what we are doing? Tag [Whispered Events](https://www.linkedin.com/company/whispered-events/about/?viewAsMember=true) on a LinkedIn post to help us grow.`,
       )
     } catch (err) {
-      addMessage(
-        'assistant',
+      setAssistantContent(
         `Something went wrong: ${err instanceof Error ? err.message : 'Please try again.'}`,
       )
     } finally {
@@ -234,28 +219,28 @@ export default function ViewEventsTab({
   return (
     <div className="flex flex-col h-full max-w-[680px] mx-auto">
       {showStepIndicator && (
-        <StepIndicator
-          label="Find Events"
-          current={STEP_INDEX[step]}
-          total={TOTAL_STEPS}
-        />
+        <StepIndicator label="Sign up" current={STEP_INDEX[step]} total={TOTAL_STEPS} />
       )}
 
-      <div className="flex-1 overflow-y-auto space-y-4 pb-4">
-        <MessageList messages={messages} />
+      <div className="flex-1 space-y-4 pb-4">
+        <ChatRow role="assistant">
+          <ChatBubble role="assistant">
+            <div className="space-y-1">
+              {assistantContent.split('\n').map((line, j) => (
+                <p key={j} className="m-0">
+                  {line ? parseInline(line) : ' '}
+                </p>
+              ))}
+            </div>
+          </ChatBubble>
+        </ChatRow>
 
         {step === 'employment' && (
-          <ChipRow
-            options={EMPLOYMENT_OPTIONS}
-            onPick={(opt) => handleSend(opt)}
-          />
+          <ChipRow options={EMPLOYMENT_OPTIONS} onPick={(opt) => handleSend(opt)} />
         )}
 
         {step === 'frequency' && (
-          <ChipRow
-            options={FREQUENCY_OPTIONS}
-            onPick={(opt) => handleSend(opt)}
-          />
+          <ChipRow options={FREQUENCY_OPTIONS} onPick={(opt) => handleSend(opt)} />
         )}
 
         {step === 'confirm' && (
@@ -280,8 +265,6 @@ export default function ViewEventsTab({
             </button>
           </div>
         )}
-
-        <div ref={messagesEndRef} />
       </div>
 
       {showComposer && (
@@ -357,12 +340,12 @@ function ProfileSummary({
   const fields: { key: keyof UserProfile; label: string }[] = [
     { key: 'email', label: 'Email' },
     { key: 'location', label: 'City' },
+    { key: 'linkedin', label: 'LinkedIn' },
     { key: 'interest', label: 'Interests' },
     { key: 'employment', label: 'Employment' },
     ...(profile.employment.toLowerCase() === 'employed'
       ? [{ key: 'companySize' as keyof UserProfile, label: 'Company size' }]
       : []),
-    { key: 'linkedin', label: 'LinkedIn' },
     { key: 'frequency', label: 'Email frequency' },
   ]
 
@@ -515,7 +498,3 @@ function ProfileSummary({
     </div>
   )
 }
-
-// Re-export for the small chance any consumer was importing parseInline
-// from this file directly (legacy). Safe to drop later.
-export { parseInline, ChatRow, ChatBubble }
