@@ -30,6 +30,7 @@ export const maxDuration = 30
 
 type CheckResponse =
   | { status: 'new'; parsed: ParsedEvent }
+  | { status: 'unparseable' }
   | { status: 'duplicate-not-host' }
   | { status: 'duplicate-existing-host'; existingId: string }
   | { status: 'duplicate-claim-available'; existingId: string }
@@ -46,6 +47,16 @@ export async function POST(req: NextRequest) {
 
     const { parsed, isUrl } = await parseEventInput(input.trim())
     const link = parsed.link || (isUrl ? input.trim() : '')
+
+    // If we couldn't extract a name AND we have no link, there's nothing
+    // for the user to review. Bail with an explicit "couldn't read" so
+    // the chat surfaces a clear retry message instead of dumping them
+    // into an empty form.
+    if (!parsed.name && !link) {
+      const response: CheckResponse = { status: 'unparseable' }
+      return NextResponse.json(response)
+    }
+
     const dup = await checkDuplicate(parsed.name || '', link, parsed.date)
 
     if (!dup.isDuplicate || !dup.existingId) {

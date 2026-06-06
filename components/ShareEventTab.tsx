@@ -139,6 +139,18 @@ export default function ShareEventTab({
         return
       }
 
+      // Nothing extractable in the original input — bounce back to the
+      // input step with a clear explanation instead of dropping the user
+      // into an empty review form.
+      if (data.status === 'unparseable') {
+        setStep('input')
+        setSubmitterEmail('')
+        setAssistantContent(
+          "I couldn't read that as an event. Try pasting a public event link (Luma, Eventbrite, the host's site), or type out the event with at least a name + link.",
+        )
+        return
+      }
+
       // All duplicate-* statuses carry existingId (except duplicate-not-host).
       if (data.existingId) setExistingId(data.existingId)
 
