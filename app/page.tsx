@@ -51,19 +51,25 @@ export default function Home() {
 
   function handleCTA() {
     setMode('active')
-    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   function handleBack() {
     setMode('landing')
-    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   function selectTab(t: HeaderTab) {
     setTab(t)
     setMode('landing')
-    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
+
+  // Scroll the page to the top whenever mode or tab changes. Doing this in
+  // an effect (rather than inside the handler) guarantees the scroll fires
+  // AFTER React renders the new layout — otherwise on mobile Safari the
+  // scroll can race the DOM swap and visually no-op. Instant scroll, not
+  // smooth, so the user lands at top immediately.
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'auto' })
+  }, [mode, tab])
 
   const rightSlot = isLoggedIn ? (
     <a
@@ -164,17 +170,17 @@ function Landing({
   return (
     <div className="flex flex-col items-center px-4 sm:px-6 animate-fade-in">
       {/* Hero */}
-      <section className="max-w-[760px] mx-auto pt-12 sm:pt-[60px] pb-7 text-center w-full">
+      <section className="max-w-[760px] mx-auto pt-8 sm:pt-[60px] pb-7 text-center w-full">
         <h1
-          className="font-serif m-0 text-[44px] sm:text-[54px]"
+          className="font-serif m-0 text-[32px] sm:text-[44px] md:text-[54px]"
           style={{ lineHeight: 1.05, color: 'var(--ink)', letterSpacing: '-0.01em' }}
         >
           The best events aren&apos;t posted<br />
           they&apos;re <span className="italic">whispered</span>
         </h1>
         <p
-          className="font-serif italic mt-3 mb-0 text-[18px] sm:text-[22px]"
-          style={{ color: 'var(--ink-2)', lineHeight: 1.25 }}
+          className="font-serif italic mt-3 mb-0 text-[15px] sm:text-[20px] md:text-[22px]"
+          style={{ color: 'var(--ink-2)', lineHeight: 1.3 }}
         >
           contribute and discover exclusive events — 100% free
         </p>
