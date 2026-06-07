@@ -135,6 +135,10 @@ export default function ViewEventsTab({
   // step precedes which (the employment->skip-size case would otherwise
   // need its own branch).
   const [stepHistory, setStepHistory] = useState<Step[]>([])
+  // Set when the interest-check endpoint rejects the user's answer.
+  // While non-null we render a "keep what you wrote" button so they
+  // can opt out of the coaching nudge without re-typing.
+  const [pendingInterestOverride, setPendingInterestOverride] = useState<string | null>(null)
 
   function advance(currentStep: Step, value: string, prelude?: string) {
     const field = profileField(currentStep)
@@ -157,6 +161,7 @@ export default function ViewEventsTab({
     setStepHistory((prev) => [...prev, currentStep])
     setStep(next === 'confirm' ? 'confirm' : next)
     setAssistantContent(final)
+    setPendingInterestOverride(null)
   }
 
   function goBack() {
@@ -164,6 +169,7 @@ export default function ViewEventsTab({
     const prev = stepHistory[stepHistory.length - 1]
     setStepHistory((s) => s.slice(0, -1))
     setStep(prev)
+    setPendingInterestOverride(null)
     setAssistantContent(QUESTIONS[prev])
     setInput('')
     // Re-populate the input with their previous typed answer where
@@ -189,6 +195,39 @@ export default function ViewEventsTab({
       setAssistantContent(`Please pick one of the options above.\n\n${QUESTIONS['frequency']}`)
       return
     }
+    // Interest evaluation: when the user submits something vague (e.g.
+    // "Flexible", "All types", "Networking") the matching algorithm
+    // won't find much. Pause the flow and coach them on better
+    // keywords before advancing.
+    if (step === 'interest') {
+      try {
+        const res = await fetch('/api/check-interests', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ interest: val }),
+        })
+        const data = (await res.json()) as {
+          ok?: boolean
+          message?: string
+          suggestions?: string[]
+        }
+        if (data.ok === false && data.message) {
+          const suggestionLine =
+            data.suggestions && data.suggestions.length
+              ? `\n\nA few examples that would match more events:\n• ${data.suggestions.join('\n• ')}`
+              : ''
+          setAssistantContent(
+            `${data.message}${suggestionLine}\n\nType a new answer below, or keep what you wrote.`,
+          )
+          setInput(val)
+          setPendingInterestOverride(val)
+          return
+        }
+      } catch {
+        // Fail open — if the check endpoint blips, don't block signup.
+      }
+    }
+
     let prelude: string | undefined
     if (step === 'email') {
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
@@ -262,6 +301,37 @@ export default function ViewEventsTab({
             </div>
           </ChatBubble>
         </ChatRow>
+
+        {step === 'interest' && pendingInterestOverride && (
+          <div className="animate-slide-up">
+            <button
+              onClick={() => {
+                const val = pendingInterestOverride
+                setPendingInterestOverride(null)
+                setInput('')
+                advance('interest', val)
+              }}
+              className="px-3.5 py-1.5 rounded-pill border text-[13px] transition-colors"
+              style={{
+                background: 'var(--paper)',
+                borderColor: 'var(--rule)',
+                color: 'var(--ink-2)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'var(--accent-soft)'
+                e.currentTarget.style.borderColor = 'var(--accent)'
+                e.currentTarget.style.color = 'var(--accent)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'var(--paper)'
+                e.currentTarget.style.borderColor = 'var(--rule)'
+                e.currentTarget.style.color = 'var(--ink-2)'
+              }}
+            >
+              Keep &ldquo;{pendingInterestOverride}&rdquo; →
+            </button>
+          </div>
+        )}
 
         {step === 'employment' && (
           <ChipRow options={EMPLOYMENT_OPTIONS} onPick={(opt) => handleSend(opt)} />
