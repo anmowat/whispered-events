@@ -546,15 +546,6 @@ export default function AdminPage() {
                       title="Contributions — total number of events this user has shared all time (via the contribute chat, by emailing event@whispered.com, or by being recorded as the duplicate-spotter on an existing event)."
                     />
                     <SortHeader
-                      label="Create"
-                      sortKey="created"
-                      align="right"
-                      sortBy={sortBy}
-                      sortDir={sortDir}
-                      onToggle={toggleSort}
-                      title="Created — when this user record was first added to Airtable. Pulled from the record's createdTime."
-                    />
-                    <SortHeader
                       label="LastCont"
                       sortKey="lastContribution"
                       align="right"
@@ -589,6 +580,14 @@ export default function AdminPage() {
                       sortDir={sortDir}
                       onToggle={toggleSort}
                       title="Last seen — last time this user had an active session on the site (refreshed on any page load while logged in, throttled to once per 5 minutes per session). Empty means they've never logged in or sessions have all expired."
+                    <SortHeader
+                      label="Create"
+                      sortKey="created"
+                      align="right"
+                      sortBy={sortBy}
+                      sortDir={sortDir}
+                      onToggle={toggleSort}
+                      title="Created — when this user record was first added to Airtable. Pulled from the record's createdTime."
                     />
                   </tr>
                 </thead>
@@ -645,12 +644,6 @@ export default function AdminPage() {
                         {u.totalContributions}
                       </td>
                       <td
-                        className={`px-4 py-3 text-right tabular-nums whitespace-nowrap ${u.created ? 'text-gray-800' : 'text-gray-400'}`}
-                        title={formatDate(u.created)}
-                      >
-                        {formatDateShort(u.created)}
-                      </td>
-                      <td
                         className={`px-4 py-3 text-right tabular-nums whitespace-nowrap ${u.lastContribution ? 'text-gray-800' : 'text-gray-400'}`}
                         title={formatDate(u.lastContribution)}
                       >
@@ -673,6 +666,12 @@ export default function AdminPage() {
                         title={formatDate(u.lastSeen)}
                       >
                         {formatDateShort(u.lastSeen)}
+                      </td>
+                      <td
+                        className={`px-4 py-3 text-right tabular-nums whitespace-nowrap ${u.created ? 'text-gray-800' : 'text-gray-400'}`}
+                        title={formatDate(u.created)}
+                      >
+                        {formatDateShort(u.created)}
                       </td>
                     </tr>
                   ))}
