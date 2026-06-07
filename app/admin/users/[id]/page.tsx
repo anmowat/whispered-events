@@ -115,6 +115,17 @@ export default function AdminUserDetailPage() {
         : user.email
     : ''
 
+  // Older Airtable rows store LinkedIn without a scheme (just
+  // "linkedin.com/in/foo"), which the browser treats as relative to
+  // the current path. Force https:// when missing so the anchor lands
+  // on the real profile.
+  function absoluteLinkedin(raw: string): string {
+    const trimmed = (raw || '').trim()
+    if (!trimmed) return ''
+    if (/^https?:\/\//i.test(trimmed)) return trimmed
+    return `https://${trimmed}`
+  }
+
   return (
     <div className="min-h-screen bg-[#F5EFE6] flex flex-col">
       {showLogin && <LoginModal onClose={() => { setShowLogin(false); fetchDetail() }} />}
@@ -167,12 +178,12 @@ export default function AdminUserDetailPage() {
             <h1 className="text-2xl font-semibold text-gray-900 mb-1">
               {user.linkedin ? (
                 <a
-                  href={user.linkedin}
+                  href={absoluteLinkedin(user.linkedin)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="hover:underline transition-colors"
                   style={{ color: 'var(--accent)' }}
-                  title={user.linkedin}
+                  title={absoluteLinkedin(user.linkedin)}
                 >
                   {displayName}
                 </a>
