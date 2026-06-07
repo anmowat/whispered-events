@@ -214,7 +214,11 @@ function formatLatLon(geo: { lat: number; lng: number }): string {
   return `${geo.lat},${geo.lng}`
 }
 
-function toAirtableUser(r: { id: string; get: (f: string) => unknown }): AirtableUser {
+function toAirtableUser(r: {
+  id: string
+  get: (f: string) => unknown
+  _rawJson?: { createdTime?: string }
+}): AirtableUser {
   const activeRaw = String(r.get('Active') || '')
   const gradeRaw = String(r.get('Grade') || '').trim()
   const grade = gradeRaw === 'A' || gradeRaw === 'Polish' || gradeRaw === 'B' || gradeRaw === 'C'
@@ -223,6 +227,7 @@ function toAirtableUser(r: { id: string; get: (f: string) => unknown }): Airtabl
   const { lat, lng } = parseLatLon(r.get('LatLon'))
   return {
     id: r.id,
+    created: r._rawJson?.createdTime ?? '',
     email: String(r.get('Email') || ''),
     name: String(r.get('Name') || ''),
     firstName: String(r.get('FirstName') || ''),
@@ -386,6 +391,7 @@ export async function getPartners(): Promise<Partner[]> {
 
 export interface AirtableUser {
   id: string
+  created: string
   email: string
   name: string
   firstName: string

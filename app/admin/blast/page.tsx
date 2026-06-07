@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 interface Recipient {
   id: string
@@ -184,22 +184,19 @@ export default function BlastPage() {
                 />
               </label>
 
-              <label className="block">
-                <span className="text-xs uppercase tracking-widest text-gold-700 font-medium">
+              <div>
+                <span className="block text-xs uppercase tracking-widest text-gray-600 font-medium mb-1">
                   Body
                 </span>
-                <textarea
-                  value={body}
-                  onChange={(e) => setBody(e.target.value)}
-                  placeholder="Write the message. Empty lines become paragraph breaks. Markdown isn't parsed — keep it plain."
-                  rows={10}
-                  className="mt-1 w-full bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:border-gold-400 transition-colors shadow-sm resize-y"
-                />
+                <Wysiwyg value={body} onChange={setBody} />
                 <p className="mt-1 text-[11px] text-gray-500">
                   Each recipient sees their first name where you write{' '}
-                  <code className="bg-[#F5EFE6] px-1 rounded">{'{{firstName}}'}</code>.
+                  <code className="bg-[#F5EFE6] px-1 rounded">{'{{firstName}}'}</code>
+                  . Sent from{' '}
+                  <code className="bg-[#F5EFE6] px-1 rounded">team@whisperedevents.com</code>{' '}
+                  (BCC andy@whisperedevents.com).
                 </p>
-              </label>
+              </div>
             </div>
 
             {error && (
@@ -250,5 +247,103 @@ export default function BlastPage() {
         )}
       </main>
     </div>
+  )
+}
+
+// Inline rich text editor — contenteditable + a small toolbar. Bold,
+// italic, bullet, ordered, link. document.execCommand is deprecated
+// but still works in every shipping browser and avoids adding a
+// dependency (~80kb for Tiptap+StarterKit). Output is HTML stored in
+// the parent's `value` prop and rendered server-side inside the Salon
+// email shell.
+function Wysiwyg({
+  value,
+  onChange,
+}: {
+  value: string
+  onChange: (html: string) => void
+}) {
+  const ref = useRef<HTMLDivElement>(null)
+
+  // Seed innerHTML once on mount. We deliberately don't re-sync from
+  // `value` on every render — that would reset the caret on every
+  // keystroke and prevent typing entirely.
+  useEffect(() => {
+    if (ref.current && ref.current.innerHTML !== value) {
+      ref.current.innerHTML = value
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  function exec(command: string, arg?: string) {
+    document.execCommand(command, false, arg)
+    if (ref.current) onChange(ref.current.innerHTML)
+    ref.current?.focus()
+  }
+
+  function handleLink() {
+    const url = prompt('Link URL', 'https://')
+    if (!url) return
+    const trimmed = url.trim()
+    if (!trimmed) return
+    const normalised = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`
+    exec('createLink', normalised)
+  }
+
+  return (
+    <div className="rounded-lg border border-[#E8DDD0] bg-white overflow-hidden">
+      <div className="flex items-center gap-1 px-2 py-1.5 border-b border-[#E8DDD0] bg-[#FDFAF6]">
+        <ToolbarButton onMouseDown={(e) => { e.preventDefault(); exec('bold') }} title="Bold">
+          <strong>B</strong>
+        </ToolbarButton>
+        <ToolbarButton onMouseDown={(e) => { e.preventDefault(); exec('italic') }} title="Italic">
+          <em>I</em>
+        </ToolbarButton>
+        <span className="w-px h-4 bg-[#E8DDD0] mx-1" />
+        <ToolbarButton onMouseDown={(e) => { e.preventDefault(); exec('insertUnorderedList') }} title="Bullet list">
+          • List
+        </ToolbarButton>
+        <ToolbarButton onMouseDown={(e) => { e.preventDefault(); exec('insertOrderedList') }} title="Numbered list">
+          1. List
+        </ToolbarButton>
+        <span className="w-px h-4 bg-[#E8DDD0] mx-1" />
+        <ToolbarButton onMouseDown={(e) => { e.preventDefault(); handleLink() }} title="Insert link">
+          🔗 Link
+        </ToolbarButton>
+        <ToolbarButton onMouseDown={(e) => { e.preventDefault(); exec('unlink') }} title="Remove link">
+          ✕ Link
+        </ToolbarButton>
+      </div>
+      <div
+        ref={ref}
+        contentEditable
+        suppressContentEditableWarning
+        onInput={(e) => onChange((e.target as HTMLDivElement).innerHTML)}
+        onBlur={(e) => onChange((e.target as HTMLDivElement).innerHTML)}
+        className="px-3 py-3 text-sm text-gray-800 min-h-[220px] focus:outline-none"
+        style={{ lineHeight: 1.6 }}
+      />
+    </div>
+  )
+}
+
+function ToolbarButton({
+  children,
+  onMouseDown,
+  title,
+}: {
+  children: React.ReactNode
+  onMouseDown: (e: React.MouseEvent) => void
+  title?: string
+}) {
+  return (
+    <button
+      type="button"
+      onMouseDown={onMouseDown}
+      title={title}
+      className="px-2 py-1 rounded text-xs text-gray-700 hover:bg-white border border-transparent hover:border-[#E8DDD0] transition-colors"
+    >
+      {children}
+    </button>
   )
 }

@@ -260,35 +260,27 @@ export async function sendEventSubmittedEmail(email: string, eventName: string):
   }
 }
 
-// Admin-composed broadcast. Body is plain text — empty lines become
-// paragraph breaks, {{firstName}} is substituted per recipient. Renders
-// inside the standard Salon shell with the digest footer so unsubscribe
-// path (dashboard frequency = Paused) stays visible.
+// Admin-composed broadcast. Body is HTML produced by the WYSIWYG
+// editor on /admin/blast (paragraphs, lists, links, bold, italic).
+// {{firstName}} is substituted per recipient before rendering. Wraps
+// the body in the Salon shell with the digest footer (unsubscribe path
+// is dashboard frequency=Paused).
 export async function sendBlast(
   user: AirtableUser,
   subject: string,
-  body: string,
+  bodyHtml: string,
 ): Promise<void> {
   const resend = getResend()
   const firstName = firstNameOrThere(user)
-  const substituted = body.replaceAll('{{firstName}}', firstName)
-  const paragraphs = substituted
-    .split(/\n{2,}/)
-    .map((para) => para.trim())
-    .filter(Boolean)
-  const htmlParas = paragraphs
-    .map(
-      (para) =>
-        `<p style="font-family:${SANS};font-size:14.5px;line-height:1.6;color:${C.ink2};margin:0 0 14px;">${escapeHtml(para).replace(/\n/g, '<br>')}</p>`,
-    )
-    .join('')
+  const substituted = bodyHtml.replaceAll('{{firstName}}', escapeHtml(firstName))
 
   const html = shell(`
-    ${htmlParas}
+    <div style="font-family:${SANS};font-size:14.5px;line-height:1.6;color:${C.ink2};">
+      ${substituted}
+    </div>
     ${digestFooterHtml()}
   `)
-  const textLines = [substituted, '', ...digestFooterTextLines()]
-  const text = textLines.join('\n')
+  const text = [htmlToText(substituted), '', ...digestFooterTextLines()].join('\n')
 
   const { error } = await resend.emails.send({
     from: TEAM_FROM,
@@ -303,6 +295,32 @@ export async function sendBlast(
     console.error('sendBlast: Resend error', { email: user.email, error })
     throw new Error(`Resend send failed: ${error.message ?? JSON.stringify(error)}`)
   }
+  await logDigestSend({
+    userId: user.id,
+    userEmail: user.email,
+    kind: 'blast',
+    eventIds: [],
+  })
+}
+
+// Best-effort HTML → plain text for the multipart text/plain part. Keeps
+// list bullets readable and inserts blank lines between paragraphs.
+function htmlToText(html: string): string {
+  return html
+    .replace(/<\s*br\s*\/?\s*>/gi, '\n')
+    .replace(/<\/p\s*>/gi, '\n\n')
+    .replace(/<li[^>]*>/gi, '• ')
+    .replace(/<\/li\s*>/gi, '\n')
+    .replace(/<\/(ul|ol|h[1-6])\s*>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
 }
 
 export async function sendEventCouldNotReadEmail(email: string): Promise<void> {

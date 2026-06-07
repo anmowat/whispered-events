@@ -533,15 +533,17 @@ export async function getExistingMatchHashes(
 export interface DigestSendLog {
   userId: string
   userEmail: string
-  kind: 'per_event' | 'cron' | 'welcome'
+  kind: 'per_event' | 'cron' | 'welcome' | 'blast'
   eventIds: string[]
 }
 
 // Records a real digest send to the digest_sends log. Only call this from
-// inside lib/email.ts after a digest with >=1 event has actually been
-// dispatched to Resend without error.
+// inside lib/email.ts after the email has actually been dispatched to
+// Resend without error. For digest kinds (per_event/cron/welcome) we
+// require >=1 event so 'no matches' welcomes don't pollute the read.
+// Blasts carry no events and are always logged.
 export async function logDigestSend(entry: DigestSendLog): Promise<void> {
-  if (entry.eventIds.length === 0) return
+  if (entry.eventIds.length === 0 && entry.kind !== 'blast') return
   const supabase = getClient()
   const { error } = await supabase.from('digest_sends').insert({
     user_id: entry.userId,
@@ -556,15 +558,40 @@ export async function logDigestSend(entry: DigestSendLog): Promise<void> {
 
 // Returns email -> ISO timestamp of the most recent digest send. Reads from
 // digest_sends so it includes ONLY emails that contained events — never the
-// silent notified_at stamps from a Frequency flip.
+// silent notified_at stamps from a Frequency flip. Excludes admin blast
+// sends (kind='blast') so the admin 'Last sent' column stays semantically
+// "last matching-event digest."
 export async function getLastDigestSentByEmail(): Promise<Map<string, string>> {
   const supabase = getClient()
   const { data, error } = await supabase
     .from('digest_sends')
     .select('user_email, sent_at')
+    .neq('kind', 'blast')
     .order('sent_at', { ascending: false })
   if (error) {
     console.error('getLastDigestSentByEmail error', error)
+    return new Map()
+  }
+  const out = new Map<string, string>()
+  for (const row of (data ?? []) as Array<{ user_email: string; sent_at: string | null }>) {
+    const key = (row.user_email || '').trim().toLowerCase()
+    if (!key || !row.sent_at) continue
+    if (!out.has(key)) out.set(key, row.sent_at)
+  }
+  return out
+}
+
+// Companion reader: last admin blast send per user. Same digest_sends
+// table, filtered to kind='blast'.
+export async function getLastBlastSentByEmail(): Promise<Map<string, string>> {
+  const supabase = getClient()
+  const { data, error } = await supabase
+    .from('digest_sends')
+    .select('user_email, sent_at')
+    .eq('kind', 'blast')
+    .order('sent_at', { ascending: false })
+  if (error) {
+    console.error('getLastBlastSentByEmail error', error)
     return new Map()
   }
   const out = new Map<string, string>()

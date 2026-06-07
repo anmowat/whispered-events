@@ -5,6 +5,7 @@ import LoginModal from '@/components/LoginModal'
 
 interface UserRow {
   id: string
+  created: string | null
   email: string
   name: string
   firstName: string
@@ -15,6 +16,7 @@ interface UserRow {
   lastContribution: string | null
   lastSeen: string | null
   lastDigestSent: string | null
+  lastBlastSent: string | null
 }
 
 interface Stats {
@@ -23,7 +25,34 @@ interface Stats {
   generatedAt: string
 }
 
-type SortKey = 'matches' | 'contributions' | 'lastContribution' | 'lastSeen' | 'lastDigestSent'
+type SortKey =
+  | 'name'
+  | 'location'
+  | 'frequency'
+  | 'matches'
+  | 'contributions'
+  | 'created'
+  | 'lastContribution'
+  | 'lastSeen'
+  | 'lastDigestSent'
+  | 'lastBlastSent'
+
+type SortDir = 'asc' | 'desc'
+
+// Initial direction when switching TO a column. Text columns ascend
+// (A→Z); numeric and date columns descend (highest / newest first).
+const DEFAULT_DIR: Record<SortKey, SortDir> = {
+  name: 'asc',
+  location: 'asc',
+  frequency: 'asc',
+  matches: 'desc',
+  contributions: 'desc',
+  created: 'desc',
+  lastContribution: 'desc',
+  lastSeen: 'desc',
+  lastDigestSent: 'desc',
+  lastBlastSent: 'desc',
+}
 
 const POLL_MS = 10_000
 
@@ -45,8 +74,10 @@ interface Filters {
   frequency: string
   minMatches: string
   minContributions: string
+  created: DateBucket
   lastContribution: DateBucket
   lastSent: DateBucket
+  lastBlast: DateBucket
   lastSeen: DateBucket
 }
 
@@ -55,8 +86,10 @@ function emptyFilters(): Filters {
     frequency: 'All',
     minMatches: '',
     minContributions: '',
+    created: 'any',
     lastContribution: 'any',
     lastSent: 'any',
+    lastBlast: 'any',
     lastSeen: 'any',
   }
 }
@@ -66,8 +99,10 @@ function activeFilterCount(f: Filters): number {
   if (f.frequency !== 'All') n++
   if (f.minMatches.trim() !== '') n++
   if (f.minContributions.trim() !== '') n++
+  if (f.created !== 'any') n++
   if (f.lastContribution !== 'any') n++
   if (f.lastSent !== 'any') n++
+  if (f.lastBlast !== 'any') n++
   if (f.lastSeen !== 'any') n++
   return n
 }
@@ -83,19 +118,41 @@ function passesDateBucket(iso: string | null, choice: DateBucket): boolean {
   return t >= Date.now() - days * 86_400_000
 }
 
-const SORT_OPTIONS: { value: SortKey; label: string }[] = [
-  { value: 'matches', label: 'Match count' },
-  { value: 'contributions', label: 'Total contributions' },
-  { value: 'lastContribution', label: 'Last contribution' },
-  { value: 'lastSeen', label: 'Last seen' },
-  { value: 'lastDigestSent', label: 'Last sent' },
-]
-
+// Long form (with year) for tooltips. Short form for table cells —
+// month + day only fits comfortably in the narrow date columns.
 function formatDate(iso: string | null): string {
   if (!iso) return '—'
   const d = new Date(iso)
   if (isNaN(d.getTime())) return '—'
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+function formatDateShort(iso: string | null): string {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return '—'
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
+function dateMs(iso: string | null): number {
+  if (!iso) return -Infinity
+  const t = new Date(iso).getTime()
+  return Number.isFinite(t) ? t : -Infinity
+}
+
+function compareByKey(a: UserRow, b: UserRow, key: SortKey): number {
+  switch (key) {
+    case 'name': return (a.name || a.email).toLowerCase().localeCompare((b.name || b.email).toLowerCase())
+    case 'location': return (a.location || '').toLowerCase().localeCompare((b.location || '').toLowerCase())
+    case 'frequency': return (a.frequency || '').localeCompare(b.frequency || '')
+    case 'matches': return a.matchCount - b.matchCount
+    case 'contributions': return a.totalContributions - b.totalContributions
+    case 'created': return dateMs(a.created) - dateMs(b.created)
+    case 'lastContribution': return dateMs(a.lastContribution) - dateMs(b.lastContribution)
+    case 'lastSeen': return dateMs(a.lastSeen) - dateMs(b.lastSeen)
+    case 'lastDigestSent': return dateMs(a.lastDigestSent) - dateMs(b.lastDigestSent)
+    case 'lastBlastSent': return dateMs(a.lastBlastSent) - dateMs(b.lastBlastSent)
+  }
 }
 
 export default function AdminPage() {
@@ -106,12 +163,22 @@ export default function AdminPage() {
   const [refreshedAt, setRefreshedAt] = useState<Date | null>(null)
   const [showLogin, setShowLogin] = useState(false)
   const [sortBy, setSortBy] = useState<SortKey>('matches')
+  const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [search, setSearch] = useState('')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [showFilters, setShowFilters] = useState(false)
   const [filters, setFilters] = useState<Filters>(emptyFilters())
   const [rescoring, setRescoring] = useState(false)
   const [rescoreResult, setRescoreResult] = useState<string | null>(null)
+
+  function toggleSort(key: SortKey) {
+    if (sortBy === key) {
+      setSortDir(sortDir === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortBy(key)
+      setSortDir(DEFAULT_DIR[key])
+    }
+  }
 
   async function fetchCounts() {
     try {
@@ -189,8 +256,10 @@ export default function AdminPage() {
       if (filters.frequency !== 'All' && (u.frequency || '') !== filters.frequency) return false
       if (minM !== null && Number.isFinite(minM) && u.matchCount < minM) return false
       if (minC !== null && Number.isFinite(minC) && u.totalContributions < minC) return false
+      if (!passesDateBucket(u.created, filters.created)) return false
       if (!passesDateBucket(u.lastContribution, filters.lastContribution)) return false
       if (!passesDateBucket(u.lastDigestSent, filters.lastSent)) return false
+      if (!passesDateBucket(u.lastBlastSent, filters.lastBlast)) return false
       if (!passesDateBucket(u.lastSeen, filters.lastSeen)) return false
       return true
     })
@@ -202,32 +271,19 @@ export default function AdminPage() {
           return name.includes(q) || firstName.includes(q) || email.includes(q)
         })
       : byFilters
+
+    const dirMul = sortDir === 'asc' ? 1 : -1
     const sorted = [...filtered].sort((a, b) => {
-      if (sortBy === 'matches') {
-        if (b.matchCount !== a.matchCount) return b.matchCount - a.matchCount
-      } else if (sortBy === 'contributions') {
-        if (b.totalContributions !== a.totalContributions) {
-          return b.totalContributions - a.totalContributions
-        }
-      } else if (sortBy === 'lastContribution') {
-        const at = a.lastContribution ? new Date(a.lastContribution).getTime() : 0
-        const bt = b.lastContribution ? new Date(b.lastContribution).getTime() : 0
-        if (bt !== at) return bt - at
-      } else if (sortBy === 'lastDigestSent') {
-        const at = a.lastDigestSent ? new Date(a.lastDigestSent).getTime() : 0
-        const bt = b.lastDigestSent ? new Date(b.lastDigestSent).getTime() : 0
-        if (bt !== at) return bt - at
-      } else {
-        const at = a.lastSeen ? new Date(a.lastSeen).getTime() : 0
-        const bt = b.lastSeen ? new Date(b.lastSeen).getTime() : 0
-        if (bt !== at) return bt - at
-      }
+      const primary = compareByKey(a, b, sortBy) * dirMul
+      if (primary !== 0) return primary
+      // Stable secondary order by name so equal primary keys don't
+      // bounce around between renders.
       const an = (a.name || a.email).toLowerCase()
       const bn = (b.name || b.email).toLowerCase()
       return an.localeCompare(bn)
     })
     return sorted
-  }, [users, search, sortBy, filters])
+  }, [users, search, sortBy, sortDir, filters])
 
   return (
     <div className="min-h-screen bg-[#F5EFE6] flex flex-col">
@@ -338,18 +394,6 @@ export default function AdminPage() {
                 )}
               </div>
 
-              <div className="flex items-center gap-2">
-                <label className="text-xs text-gray-500">Sort by</label>
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as SortKey)}
-                  className="bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none transition-colors shadow-sm"
-                >
-                  {SORT_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
-              </div>
             </div>
 
             {/* Action bar for selected rows. Sticks just above the table
@@ -418,20 +462,40 @@ export default function AdminPage() {
                         style={{ accentColor: '#8E2E3B' }}
                       />
                     </th>
-                    <th className="text-left px-4 py-3 text-xs uppercase tracking-widest text-gold-700 font-medium">Name</th>
-                    <th className="text-left px-4 py-3 text-xs uppercase tracking-widest text-gold-700 font-medium">Location</th>
-                    <th className="text-left px-4 py-3 text-xs uppercase tracking-widest text-gold-700 font-medium">Frequency</th>
-                    <th className="text-right px-4 py-3 text-xs uppercase tracking-widest text-gold-700 font-medium">Matches</th>
-                    <th className="text-right px-4 py-3 text-xs uppercase tracking-widest text-gold-700 font-medium">Contributions</th>
-                    <th className="text-right px-4 py-3 text-xs uppercase tracking-widest text-gold-700 font-medium">Last contribution</th>
-                    <th
-                      className="text-right px-4 py-3 text-xs uppercase tracking-widest text-gold-700 font-medium cursor-help"
+                    <SortHeader label="Name" sortKey="name" align="left" sortBy={sortBy} sortDir={sortDir} onToggle={toggleSort} />
+                    <SortHeader label="Location" sortKey="location" align="left" sortBy={sortBy} sortDir={sortDir} onToggle={toggleSort} />
+                    <SortHeader label="Frequency" sortKey="frequency" align="left" sortBy={sortBy} sortDir={sortDir} onToggle={toggleSort} />
+                    <SortHeader label="Matches" sortKey="matches" align="right" sortBy={sortBy} sortDir={sortDir} onToggle={toggleSort} />
+                    <SortHeader label="Contributions" sortKey="contributions" align="right" sortBy={sortBy} sortDir={sortDir} onToggle={toggleSort} />
+                    <SortHeader label="Created" sortKey="created" align="right" sortBy={sortBy} sortDir={sortDir} onToggle={toggleSort} />
+                    <SortHeader label="Last contribution" sortKey="lastContribution" align="right" sortBy={sortBy} sortDir={sortDir} onToggle={toggleSort} />
+                    <SortHeader
+                      label="Last sent"
+                      sortKey="lastDigestSent"
+                      align="right"
+                      sortBy={sortBy}
+                      sortDir={sortDir}
+                      onToggle={toggleSort}
                       title="Last time we actually sent this user a digest email containing events. Excludes silent stamps from frequency-flip backlog suppression and excludes transactional emails (login link, application received, event-added confirmations)."
-                    >Last sent</th>
-                    <th
-                      className="text-right px-4 py-3 text-xs uppercase tracking-widest text-gold-700 font-medium cursor-help"
+                    />
+                    <SortHeader
+                      label="Last blast"
+                      sortKey="lastBlastSent"
+                      align="right"
+                      sortBy={sortBy}
+                      sortDir={sortDir}
+                      onToggle={toggleSort}
+                      title="Last time this user received an admin-composed broadcast email from /admin/blast. Separate from 'Last sent' so the digest-with-events column stays meaningful."
+                    />
+                    <SortHeader
+                      label="Last seen"
+                      sortKey="lastSeen"
+                      align="right"
+                      sortBy={sortBy}
+                      sortDir={sortDir}
+                      onToggle={toggleSort}
                       title="Last time this user had an active session on the site — refreshed on any page load while logged in (throttled to once per 5 minutes per session). Empty means they've never logged in or sessions have all expired."
-                    >Last seen</th>
+                    />
                   </tr>
                 </thead>
                 <tbody>
@@ -468,14 +532,35 @@ export default function AdminPage() {
                       <td className={`px-4 py-3 text-right tabular-nums ${u.totalContributions === 0 ? 'text-gray-400' : 'text-gray-800'}`}>
                         {u.totalContributions}
                       </td>
-                      <td className={`px-4 py-3 text-right tabular-nums ${u.lastContribution ? 'text-gray-800' : 'text-gray-400'}`}>
-                        {formatDate(u.lastContribution)}
+                      <td
+                        className={`px-4 py-3 text-right tabular-nums whitespace-nowrap ${u.created ? 'text-gray-800' : 'text-gray-400'}`}
+                        title={formatDate(u.created)}
+                      >
+                        {formatDateShort(u.created)}
                       </td>
-                      <td className={`px-4 py-3 text-right tabular-nums ${u.lastDigestSent ? 'text-gray-800' : 'text-gray-400'}`}>
-                        {formatDate(u.lastDigestSent)}
+                      <td
+                        className={`px-4 py-3 text-right tabular-nums whitespace-nowrap ${u.lastContribution ? 'text-gray-800' : 'text-gray-400'}`}
+                        title={formatDate(u.lastContribution)}
+                      >
+                        {formatDateShort(u.lastContribution)}
                       </td>
-                      <td className={`px-4 py-3 text-right tabular-nums ${u.lastSeen ? 'text-gray-800' : 'text-gray-400'}`}>
-                        {formatDate(u.lastSeen)}
+                      <td
+                        className={`px-4 py-3 text-right tabular-nums whitespace-nowrap ${u.lastDigestSent ? 'text-gray-800' : 'text-gray-400'}`}
+                        title={formatDate(u.lastDigestSent)}
+                      >
+                        {formatDateShort(u.lastDigestSent)}
+                      </td>
+                      <td
+                        className={`px-4 py-3 text-right tabular-nums whitespace-nowrap ${u.lastBlastSent ? 'text-gray-800' : 'text-gray-400'}`}
+                        title={formatDate(u.lastBlastSent)}
+                      >
+                        {formatDateShort(u.lastBlastSent)}
+                      </td>
+                      <td
+                        className={`px-4 py-3 text-right tabular-nums whitespace-nowrap ${u.lastSeen ? 'text-gray-800' : 'text-gray-400'}`}
+                        title={formatDate(u.lastSeen)}
+                      >
+                        {formatDateShort(u.lastSeen)}
                       </td>
                     </tr>
                   ))}
@@ -567,6 +652,12 @@ function FilterPopover({
         </FilterField>
       </div>
 
+      <FilterField label="Created">
+        <DateSelect
+          value={filters.created}
+          onChange={(v) => update('created', v)}
+        />
+      </FilterField>
       <FilterField label="Last contribution">
         <DateSelect
           value={filters.lastContribution}
@@ -577,6 +668,12 @@ function FilterPopover({
         <DateSelect
           value={filters.lastSent}
           onChange={(v) => update('lastSent', v)}
+        />
+      </FilterField>
+      <FilterField label="Last blast">
+        <DateSelect
+          value={filters.lastBlast}
+          onChange={(v) => update('lastBlast', v)}
         />
       </FilterField>
       <FilterField label="Last seen">
@@ -604,6 +701,43 @@ function FilterPopover({
         </button>
       </div>
     </div>
+  )
+}
+
+// Sortable column header — clicking toggles asc/desc on the same
+// column, or switches sortBy with the column's default direction.
+function SortHeader({
+  label,
+  sortKey,
+  align,
+  sortBy,
+  sortDir,
+  onToggle,
+  title,
+}: {
+  label: string
+  sortKey: SortKey
+  align: 'left' | 'right'
+  sortBy: SortKey
+  sortDir: SortDir
+  onToggle: (key: SortKey) => void
+  title?: string
+}) {
+  const active = sortBy === sortKey
+  const arrow = active ? (sortDir === 'asc' ? '▲' : '▼') : ''
+  return (
+    <th className={`${align === 'left' ? 'text-left' : 'text-right'} px-4 py-3`}>
+      <button
+        onClick={() => onToggle(sortKey)}
+        title={title}
+        className={`inline-flex items-center gap-1 text-xs uppercase tracking-widest font-medium transition-colors ${
+          active ? 'text-[#6E1F2B]' : 'text-gray-600 hover:text-gray-900'
+        } ${align === 'right' ? 'flex-row-reverse' : ''}`}
+      >
+        <span>{label}</span>
+        <span className="text-[9px] opacity-70">{arrow || '↕'}</span>
+      </button>
+    </th>
   )
 }
 
