@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import LoginModal from '@/components/LoginModal'
 
 interface UserRow {
@@ -27,9 +27,61 @@ type SortKey = 'matches' | 'contributions' | 'lastContribution' | 'lastSeen' | '
 
 const POLL_MS = 10_000
 
-// Filter values match Airtable's Frequency picklist exactly so the
-// dropdown selection compares against u.frequency without normalization.
 const FREQUENCY_FILTERS = ['All', 'As they arrive', 'Weekly', 'Monthly', 'Paused']
+
+// Date filter buckets. 'never' = only show users with no value in that
+// column; numeric strings = within that many days. Stored as strings
+// because that's what <select> hands back.
+type DateBucket = 'any' | '7' | '30' | '90' | 'never'
+const DATE_OPTIONS: { value: DateBucket; label: string }[] = [
+  { value: 'any', label: 'Any' },
+  { value: '7', label: 'Within 7 days' },
+  { value: '30', label: 'Within 30 days' },
+  { value: '90', label: 'Within 90 days' },
+  { value: 'never', label: 'Never' },
+]
+
+interface Filters {
+  frequency: string
+  minMatches: string
+  minContributions: string
+  lastContribution: DateBucket
+  lastSent: DateBucket
+  lastSeen: DateBucket
+}
+
+function emptyFilters(): Filters {
+  return {
+    frequency: 'All',
+    minMatches: '',
+    minContributions: '',
+    lastContribution: 'any',
+    lastSent: 'any',
+    lastSeen: 'any',
+  }
+}
+
+function activeFilterCount(f: Filters): number {
+  let n = 0
+  if (f.frequency !== 'All') n++
+  if (f.minMatches.trim() !== '') n++
+  if (f.minContributions.trim() !== '') n++
+  if (f.lastContribution !== 'any') n++
+  if (f.lastSent !== 'any') n++
+  if (f.lastSeen !== 'any') n++
+  return n
+}
+
+function passesDateBucket(iso: string | null, choice: DateBucket): boolean {
+  if (choice === 'any') return true
+  if (choice === 'never') return !iso
+  if (!iso) return false
+  const days = parseInt(choice, 10)
+  if (!Number.isFinite(days)) return true
+  const t = new Date(iso).getTime()
+  if (!Number.isFinite(t)) return false
+  return t >= Date.now() - days * 86_400_000
+}
 
 const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: 'matches', label: 'Match count' },
@@ -55,8 +107,9 @@ export default function AdminPage() {
   const [showLogin, setShowLogin] = useState(false)
   const [sortBy, setSortBy] = useState<SortKey>('matches')
   const [search, setSearch] = useState('')
-  const [frequencyFilter, setFrequencyFilter] = useState<string>('All')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [showFilters, setShowFilters] = useState(false)
+  const [filters, setFilters] = useState<Filters>(emptyFilters())
   const [rescoring, setRescoring] = useState(false)
   const [rescoreResult, setRescoreResult] = useState<string | null>(null)
 
@@ -130,17 +183,25 @@ export default function AdminPage() {
   const visibleUsers = useMemo(() => {
     if (!users) return []
     const q = search.trim().toLowerCase()
-    const byFreq = frequencyFilter === 'All'
-      ? users
-      : users.filter((u) => (u.frequency || '') === frequencyFilter)
+    const minM = filters.minMatches.trim() === '' ? null : parseInt(filters.minMatches, 10)
+    const minC = filters.minContributions.trim() === '' ? null : parseInt(filters.minContributions, 10)
+    const byFilters = users.filter((u) => {
+      if (filters.frequency !== 'All' && (u.frequency || '') !== filters.frequency) return false
+      if (minM !== null && Number.isFinite(minM) && u.matchCount < minM) return false
+      if (minC !== null && Number.isFinite(minC) && u.totalContributions < minC) return false
+      if (!passesDateBucket(u.lastContribution, filters.lastContribution)) return false
+      if (!passesDateBucket(u.lastDigestSent, filters.lastSent)) return false
+      if (!passesDateBucket(u.lastSeen, filters.lastSeen)) return false
+      return true
+    })
     const filtered = q
-      ? byFreq.filter((u) => {
+      ? byFilters.filter((u) => {
           const name = (u.name && u.name !== 'DEFAULT' ? u.name : '').toLowerCase()
           const firstName = (u.firstName && u.firstName !== 'DEFAULT' ? u.firstName : '').toLowerCase()
           const email = u.email.toLowerCase()
           return name.includes(q) || firstName.includes(q) || email.includes(q)
         })
-      : byFreq
+      : byFilters
     const sorted = [...filtered].sort((a, b) => {
       if (sortBy === 'matches') {
         if (b.matchCount !== a.matchCount) return b.matchCount - a.matchCount
@@ -166,7 +227,7 @@ export default function AdminPage() {
       return an.localeCompare(bn)
     })
     return sorted
-  }, [users, search, sortBy])
+  }, [users, search, sortBy, filters])
 
   return (
     <div className="min-h-screen bg-[#F5EFE6] flex flex-col">
@@ -194,7 +255,10 @@ export default function AdminPage() {
             </p>
             <button
               onClick={() => setShowLogin(true)}
-              className="px-4 py-2 rounded-xl bg-gold-600 hover:bg-gold-500 text-white text-sm font-medium transition-colors"
+              className="px-4 py-2 rounded-xl text-white text-sm font-medium transition-colors"
+              style={{ background: '#6E1F2B' }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = '#8E2E3B')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = '#6E1F2B')}
             >
               Log in
             </button>
@@ -246,26 +310,40 @@ export default function AdminPage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search by name or email…"
-                className="flex-1 min-w-[200px] bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-gold-400 transition-colors shadow-sm"
+                className="flex-1 min-w-[200px] bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-800 placeholder-gray-400 focus:outline-none transition-colors shadow-sm"
               />
-              <div className="flex items-center gap-2">
-                <label className="text-xs text-gray-500">Frequency</label>
-                <select
-                  value={frequencyFilter}
-                  onChange={(e) => setFrequencyFilter(e.target.value)}
-                  className="bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:border-gold-400 transition-colors shadow-sm"
+
+              <div className="relative">
+                <button
+                  onClick={() => setShowFilters((v) => !v)}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-[#E8DDD0] bg-white text-sm text-gray-700 hover:bg-[#F5EFE6] transition-colors shadow-sm"
                 >
-                  {FREQUENCY_FILTERS.map((f) => (
-                    <option key={f} value={f}>{f}</option>
-                  ))}
-                </select>
+                  Filters
+                  {activeFilterCount(filters) > 0 && (
+                    <span
+                      className="inline-flex items-center justify-center rounded-full text-white text-[10px] font-medium w-5 h-5"
+                      style={{ background: '#6E1F2B' }}
+                    >
+                      {activeFilterCount(filters)}
+                    </span>
+                  )}
+                </button>
+                {showFilters && (
+                  <FilterPopover
+                    filters={filters}
+                    onChange={setFilters}
+                    onClear={() => setFilters(emptyFilters())}
+                    onClose={() => setShowFilters(false)}
+                  />
+                )}
               </div>
+
               <div className="flex items-center gap-2">
                 <label className="text-xs text-gray-500">Sort by</label>
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value as SortKey)}
-                  className="bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:border-gold-400 transition-colors shadow-sm"
+                  className="bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none transition-colors shadow-sm"
                 >
                   {SORT_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -297,7 +375,10 @@ export default function AdminPage() {
                       sessionStorage.setItem('blastRecipientIds', JSON.stringify(ids))
                       window.location.href = '/admin/blast'
                     }}
-                    className="px-3 py-1.5 rounded-lg bg-gold-700 hover:bg-gold-600 text-white text-xs font-medium transition-colors"
+                    className="px-3 py-1.5 rounded-lg text-white text-xs font-medium transition-colors"
+                    style={{ background: '#6E1F2B' }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = '#8E2E3B')}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = '#6E1F2B')}
                   >
                     Send blast →
                   </button>
@@ -410,5 +491,149 @@ export default function AdminPage() {
         )}
       </main>
     </div>
+  )
+}
+
+// Floating filter panel anchored under the Filters button. Click-outside
+// dismissal handled here so the parent doesn't need a ref-passing dance.
+function FilterPopover({
+  filters,
+  onChange,
+  onClear,
+  onClose,
+}: {
+  filters: Filters
+  onChange: (f: Filters) => void
+  onClear: () => void
+  onClose: () => void
+}) {
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    function onDown(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose()
+    }
+    function onEsc(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onEsc)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('keydown', onEsc)
+    }
+  }, [onClose])
+
+  function update<K extends keyof Filters>(key: K, value: Filters[K]) {
+    onChange({ ...filters, [key]: value })
+  }
+
+  return (
+    <div
+      ref={ref}
+      className="absolute z-20 mt-2 left-0 sm:left-auto sm:right-0 w-[320px] rounded-xl border border-[#E8DDD0] bg-white shadow-lg p-4 space-y-3"
+    >
+      <FilterField label="Frequency">
+        <select
+          value={filters.frequency}
+          onChange={(e) => update('frequency', e.target.value)}
+          className="w-full bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none transition-colors"
+        >
+          {FREQUENCY_FILTERS.map((f) => (
+            <option key={f} value={f}>{f}</option>
+          ))}
+        </select>
+      </FilterField>
+
+      <div className="grid grid-cols-2 gap-3">
+        <FilterField label="Min matches">
+          <input
+            type="number"
+            min={0}
+            value={filters.minMatches}
+            onChange={(e) => update('minMatches', e.target.value)}
+            placeholder="Any"
+            className="w-full bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none transition-colors"
+          />
+        </FilterField>
+        <FilterField label="Min contributions">
+          <input
+            type="number"
+            min={0}
+            value={filters.minContributions}
+            onChange={(e) => update('minContributions', e.target.value)}
+            placeholder="Any"
+            className="w-full bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none transition-colors"
+          />
+        </FilterField>
+      </div>
+
+      <FilterField label="Last contribution">
+        <DateSelect
+          value={filters.lastContribution}
+          onChange={(v) => update('lastContribution', v)}
+        />
+      </FilterField>
+      <FilterField label="Last sent">
+        <DateSelect
+          value={filters.lastSent}
+          onChange={(v) => update('lastSent', v)}
+        />
+      </FilterField>
+      <FilterField label="Last seen">
+        <DateSelect
+          value={filters.lastSeen}
+          onChange={(v) => update('lastSeen', v)}
+        />
+      </FilterField>
+
+      <div className="flex items-center justify-between pt-2 border-t border-[#F0E8DC]">
+        <button
+          onClick={onClear}
+          className="text-xs text-gray-600 hover:text-gray-900 transition-colors underline"
+        >
+          Clear filters
+        </button>
+        <button
+          onClick={onClose}
+          className="px-3 py-1.5 rounded-lg text-white text-xs font-medium transition-colors"
+          style={{ background: '#6E1F2B' }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = '#8E2E3B')}
+          onMouseLeave={(e) => (e.currentTarget.style.background = '#6E1F2B')}
+        >
+          Done
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function FilterField({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="block">
+      <span className="block text-[11px] uppercase tracking-widest text-gray-500 font-medium mb-1">
+        {label}
+      </span>
+      {children}
+    </label>
+  )
+}
+
+function DateSelect({
+  value,
+  onChange,
+}: {
+  value: DateBucket
+  onChange: (v: DateBucket) => void
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value as DateBucket)}
+      className="w-full bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none transition-colors"
+    >
+      {DATE_OPTIONS.map((opt) => (
+        <option key={opt.value} value={opt.value}>{opt.label}</option>
+      ))}
+    </select>
   )
 }
