@@ -27,6 +27,10 @@ type SortKey = 'matches' | 'contributions' | 'lastContribution' | 'lastSeen' | '
 
 const POLL_MS = 10_000
 
+// Filter values match Airtable's Frequency picklist exactly so the
+// dropdown selection compares against u.frequency without normalization.
+const FREQUENCY_FILTERS = ['All', 'As they arrive', 'Weekly', 'Monthly', 'Paused']
+
 const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: 'matches', label: 'Match count' },
   { value: 'contributions', label: 'Total contributions' },
@@ -51,6 +55,8 @@ export default function AdminPage() {
   const [showLogin, setShowLogin] = useState(false)
   const [sortBy, setSortBy] = useState<SortKey>('matches')
   const [search, setSearch] = useState('')
+  const [frequencyFilter, setFrequencyFilter] = useState<string>('All')
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [rescoring, setRescoring] = useState(false)
   const [rescoreResult, setRescoreResult] = useState<string | null>(null)
 
@@ -124,14 +130,17 @@ export default function AdminPage() {
   const visibleUsers = useMemo(() => {
     if (!users) return []
     const q = search.trim().toLowerCase()
+    const byFreq = frequencyFilter === 'All'
+      ? users
+      : users.filter((u) => (u.frequency || '') === frequencyFilter)
     const filtered = q
-      ? users.filter((u) => {
+      ? byFreq.filter((u) => {
           const name = (u.name && u.name !== 'DEFAULT' ? u.name : '').toLowerCase()
           const firstName = (u.firstName && u.firstName !== 'DEFAULT' ? u.firstName : '').toLowerCase()
           const email = u.email.toLowerCase()
           return name.includes(q) || firstName.includes(q) || email.includes(q)
         })
-      : users
+      : byFreq
     const sorted = [...filtered].sort((a, b) => {
       if (sortBy === 'matches') {
         if (b.matchCount !== a.matchCount) return b.matchCount - a.matchCount
@@ -240,6 +249,18 @@ export default function AdminPage() {
                 className="flex-1 min-w-[200px] bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-gold-400 transition-colors shadow-sm"
               />
               <div className="flex items-center gap-2">
+                <label className="text-xs text-gray-500">Frequency</label>
+                <select
+                  value={frequencyFilter}
+                  onChange={(e) => setFrequencyFilter(e.target.value)}
+                  className="bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:border-gold-400 transition-colors shadow-sm"
+                >
+                  {FREQUENCY_FILTERS.map((f) => (
+                    <option key={f} value={f}>{f}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-center gap-2">
                 <label className="text-xs text-gray-500">Sort by</label>
                 <select
                   value={sortBy}
@@ -253,10 +274,69 @@ export default function AdminPage() {
               </div>
             </div>
 
+            {/* Action bar for selected rows. Sticks just above the table
+                so the count + buttons stay near where you're working. */}
+            {selectedIds.size > 0 && (
+              <div className="sticky top-0 z-10 mb-3 flex items-center justify-between gap-3 rounded-lg border border-[#E8DDD0] bg-white px-4 py-2.5 shadow-sm">
+                <span className="text-sm text-gray-700">
+                  <strong>{selectedIds.size}</strong> selected
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setSelectedIds(new Set())}
+                    className="px-3 py-1.5 rounded-lg border border-[#E8DDD0] bg-white text-xs text-gray-700 hover:bg-[#F5EFE6] transition-colors"
+                  >
+                    Clear selection
+                  </button>
+                  <button
+                    onClick={() => {
+                      const ids = Array.from(selectedIds)
+                      // Stash the chosen recipients for /admin/blast. Using
+                      // sessionStorage instead of a URL param so the list
+                      // can be arbitrarily large without bloating the URL.
+                      sessionStorage.setItem('blastRecipientIds', JSON.stringify(ids))
+                      window.location.href = '/admin/blast'
+                    }}
+                    className="px-3 py-1.5 rounded-lg bg-gold-700 hover:bg-gold-600 text-white text-xs font-medium transition-colors"
+                  >
+                    Send blast →
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="bg-white border border-[#E8DDD0] rounded-2xl overflow-hidden shadow-sm">
               <table className="w-full text-sm">
                 <thead className="bg-[#FDFAF6] border-b border-[#E8DDD0]">
                   <tr>
+                    <th className="px-3 py-3 w-8">
+                      <input
+                        type="checkbox"
+                        aria-label="Select all visible rows"
+                        checked={
+                          visibleUsers.length > 0 &&
+                          visibleUsers.every((u) => selectedIds.has(u.id))
+                        }
+                        ref={(el) => {
+                          if (!el) return
+                          const some = visibleUsers.some((u) => selectedIds.has(u.id))
+                          const all =
+                            visibleUsers.length > 0 &&
+                            visibleUsers.every((u) => selectedIds.has(u.id))
+                          el.indeterminate = some && !all
+                        }}
+                        onChange={(e) => {
+                          const next = new Set(selectedIds)
+                          if (e.target.checked) {
+                            visibleUsers.forEach((u) => next.add(u.id))
+                          } else {
+                            visibleUsers.forEach((u) => next.delete(u.id))
+                          }
+                          setSelectedIds(next)
+                        }}
+                        style={{ accentColor: '#8E2E3B' }}
+                      />
+                    </th>
                     <th className="text-left px-4 py-3 text-xs uppercase tracking-widest text-gold-700 font-medium">Name</th>
                     <th className="text-left px-4 py-3 text-xs uppercase tracking-widest text-gold-700 font-medium">Location</th>
                     <th className="text-left px-4 py-3 text-xs uppercase tracking-widest text-gold-700 font-medium">Frequency</th>
@@ -273,6 +353,20 @@ export default function AdminPage() {
                 <tbody>
                   {visibleUsers.map((u) => (
                     <tr key={u.id} className="border-b border-[#F0E8DC] last:border-b-0 hover:bg-[#FDFAF6] transition-colors">
+                      <td className="px-3 py-3 w-8">
+                        <input
+                          type="checkbox"
+                          aria-label={`Select ${u.email}`}
+                          checked={selectedIds.has(u.id)}
+                          onChange={(e) => {
+                            const next = new Set(selectedIds)
+                            if (e.target.checked) next.add(u.id)
+                            else next.delete(u.id)
+                            setSelectedIds(next)
+                          }}
+                          style={{ accentColor: '#8E2E3B' }}
+                        />
+                      </td>
                       <td className="px-4 py-3">
                         <a href={`/admin/users/${u.id}`} className="text-gold-700 hover:text-gold-600 underline underline-offset-2">
                           {displayName(u)}

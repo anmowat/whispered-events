@@ -260,6 +260,51 @@ export async function sendEventSubmittedEmail(email: string, eventName: string):
   }
 }
 
+// Admin-composed broadcast. Body is plain text — empty lines become
+// paragraph breaks, {{firstName}} is substituted per recipient. Renders
+// inside the standard Salon shell with the digest footer so unsubscribe
+// path (dashboard frequency = Paused) stays visible.
+export async function sendBlast(
+  user: AirtableUser,
+  subject: string,
+  body: string,
+): Promise<void> {
+  const resend = getResend()
+  const firstName = firstNameOrThere(user)
+  const substituted = body.replaceAll('{{firstName}}', firstName)
+  const paragraphs = substituted
+    .split(/\n{2,}/)
+    .map((para) => para.trim())
+    .filter(Boolean)
+  const htmlParas = paragraphs
+    .map(
+      (para) =>
+        `<p style="font-family:${SANS};font-size:14.5px;line-height:1.6;color:${C.ink2};margin:0 0 14px;">${escapeHtml(para).replace(/\n/g, '<br>')}</p>`,
+    )
+    .join('')
+
+  const html = shell(`
+    ${htmlParas}
+    ${digestFooterHtml()}
+  `)
+  const textLines = [substituted, '', ...digestFooterTextLines()]
+  const text = textLines.join('\n')
+
+  const { error } = await resend.emails.send({
+    from: TEAM_FROM,
+    to: user.email,
+    bcc: MONITOR_BCC,
+    subject,
+    html,
+    text,
+    headers: AUTO_HEADERS,
+  })
+  if (error) {
+    console.error('sendBlast: Resend error', { email: user.email, error })
+    throw new Error(`Resend send failed: ${error.message ?? JSON.stringify(error)}`)
+  }
+}
+
 export async function sendEventCouldNotReadEmail(email: string): Promise<void> {
   const resend = getResend()
   const html = shell(`
