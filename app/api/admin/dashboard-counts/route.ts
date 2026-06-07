@@ -73,6 +73,7 @@ export async function GET(req: NextRequest) {
           firstName: u.firstName,
           location: u.location,
           frequency: u.frequency,
+          grade: u.grade ?? null,
           matchCount,
           nearbyEventCount: nearbyCount,
           localMatchPct,

@@ -11,6 +11,7 @@ interface UserRow {
   firstName: string
   location: string
   frequency: string
+  grade: 'A' | 'Polish' | 'B' | 'C' | null
   matchCount: number
   nearbyEventCount: number
   localMatchPct: number | null
@@ -31,6 +32,7 @@ type SortKey =
   | 'name'
   | 'location'
   | 'frequency'
+  | 'grade'
   | 'matches'
   | 'localMatch'
   | 'contributions'
@@ -48,6 +50,7 @@ const DEFAULT_DIR: Record<SortKey, SortDir> = {
   name: 'asc',
   location: 'asc',
   frequency: 'asc',
+  grade: 'asc',
   matches: 'desc',
   localMatch: 'desc',
   contributions: 'desc',
@@ -61,6 +64,23 @@ const DEFAULT_DIR: Record<SortKey, SortDir> = {
 const POLL_MS = 10_000
 
 const FREQUENCY_FILTERS = ['All', 'As they arrive', 'Weekly', 'Monthly', 'Paused']
+
+// Display-only shortening. Keeps backend value 'As they arrive' intact
+// (Airtable picklist relies on the exact string).
+function shortFrequency(f: string): string {
+  return f === 'As they arrive' ? 'Arrive' : f
+}
+
+const GRADE_FILTERS = ['All', 'A', 'Polish', 'B', 'C'] as const
+
+// Quality ordering for sorting Grade asc/desc. Aligns with the quality
+// multiplier in lib/matching.ts — higher rank = better fit.
+const GRADE_RANK: Record<string, number> = {
+  A: 4,
+  Polish: 3,
+  B: 2,
+  C: 1,
+}
 
 // Date filter buckets. 'never' = only show users with no value in that
 // column; numeric strings = within that many days. Stored as strings
@@ -76,8 +96,11 @@ const DATE_OPTIONS: { value: DateBucket; label: string }[] = [
 
 interface Filters {
   frequency: string
+  grade: string
   minMatches: string
   minContributions: string
+  minLocalPct: string
+  maxLocalPct: string
   created: DateBucket
   lastContribution: DateBucket
   lastSent: DateBucket
@@ -88,8 +111,11 @@ interface Filters {
 function emptyFilters(): Filters {
   return {
     frequency: 'All',
+    grade: 'All',
     minMatches: '',
     minContributions: '',
+    minLocalPct: '',
+    maxLocalPct: '',
     created: 'any',
     lastContribution: 'any',
     lastSent: 'any',
@@ -101,8 +127,11 @@ function emptyFilters(): Filters {
 function activeFilterCount(f: Filters): number {
   let n = 0
   if (f.frequency !== 'All') n++
+  if (f.grade !== 'All') n++
   if (f.minMatches.trim() !== '') n++
   if (f.minContributions.trim() !== '') n++
+  if (f.minLocalPct.trim() !== '') n++
+  if (f.maxLocalPct.trim() !== '') n++
   if (f.created !== 'any') n++
   if (f.lastContribution !== 'any') n++
   if (f.lastSent !== 'any') n++
@@ -149,6 +178,7 @@ function compareByKey(a: UserRow, b: UserRow, key: SortKey): number {
     case 'name': return (a.name || a.email).toLowerCase().localeCompare((b.name || b.email).toLowerCase())
     case 'location': return (a.location || '').toLowerCase().localeCompare((b.location || '').toLowerCase())
     case 'frequency': return (a.frequency || '').localeCompare(b.frequency || '')
+    case 'grade': return (GRADE_RANK[a.grade ?? ''] ?? 0) - (GRADE_RANK[b.grade ?? ''] ?? 0)
     case 'matches': return a.matchCount - b.matchCount
     case 'localMatch': {
       // Nulls sort last on desc (effectively -Infinity) so users with
@@ -263,10 +293,19 @@ export default function AdminPage() {
     const q = search.trim().toLowerCase()
     const minM = filters.minMatches.trim() === '' ? null : parseInt(filters.minMatches, 10)
     const minC = filters.minContributions.trim() === '' ? null : parseInt(filters.minContributions, 10)
+    const minPct = filters.minLocalPct.trim() === '' ? null : parseInt(filters.minLocalPct, 10)
+    const maxPct = filters.maxLocalPct.trim() === '' ? null : parseInt(filters.maxLocalPct, 10)
     const byFilters = users.filter((u) => {
       if (filters.frequency !== 'All' && (u.frequency || '') !== filters.frequency) return false
+      if (filters.grade !== 'All' && (u.grade ?? '') !== filters.grade) return false
       if (minM !== null && Number.isFinite(minM) && u.matchCount < minM) return false
       if (minC !== null && Number.isFinite(minC) && u.totalContributions < minC) return false
+      if (minPct !== null && Number.isFinite(minPct)) {
+        if (u.localMatchPct === null || u.localMatchPct < minPct) return false
+      }
+      if (maxPct !== null && Number.isFinite(maxPct)) {
+        if (u.localMatchPct === null || u.localMatchPct > maxPct) return false
+      }
       if (!passesDateBucket(u.created, filters.created)) return false
       if (!passesDateBucket(u.lastContribution, filters.lastContribution)) return false
       if (!passesDateBucket(u.lastDigestSent, filters.lastSent)) return false
@@ -478,6 +517,15 @@ export default function AdminPage() {
                     <SortHeader label="Name" sortKey="name" align="left" sortBy={sortBy} sortDir={sortDir} onToggle={toggleSort} />
                     <SortHeader label="Location" sortKey="location" align="left" sortBy={sortBy} sortDir={sortDir} onToggle={toggleSort} />
                     <SortHeader label="Frequency" sortKey="frequency" align="left" sortBy={sortBy} sortDir={sortDir} onToggle={toggleSort} />
+                    <SortHeader
+                      label="Grade"
+                      sortKey="grade"
+                      align="left"
+                      sortBy={sortBy}
+                      sortDir={sortDir}
+                      onToggle={toggleSort}
+                      title="Vetting grade from Airtable. A = strongest fit (quality multiplier 1.5), Polish = solid baseline (1.0), B = down-weighted (0.5), C = won't reach notify threshold (0.25, short-circuited from scoring)."
+                    />
                     <SortHeader label="Matches" sortKey="matches" align="right" sortBy={sortBy} sortDir={sortDir} onToggle={toggleSort} />
                     <SortHeader
                       label="Local %"
@@ -486,7 +534,7 @@ export default function AdminPage() {
                       sortBy={sortBy}
                       sortDir={sortDir}
                       onToggle={toggleSort}
-                      title="What share of the future events within 100 miles of this user's location they currently match. Computed as matches / events-within-100mi at view time."
+                      title="Matches divided by total future events within 100 miles of this user's location. Hover any cell in this column for the raw N of M breakdown."
                     />
                     <SortHeader label="Contributions" sortKey="contributions" align="right" sortBy={sortBy} sortDir={sortDir} onToggle={toggleSort} />
                     <SortHeader label="Created" sortKey="created" align="right" sortBy={sortBy} sortDir={sortDir} onToggle={toggleSort} />
@@ -545,8 +593,16 @@ export default function AdminPage() {
                       <td className="px-4 py-3 text-gray-600 truncate max-w-xs">
                         {u.location || <span className="text-gray-400 italic">—</span>}
                       </td>
-                      <td className={`px-4 py-3 ${u.frequency ? 'text-gray-600' : 'text-gray-400'}`}>
-                        {u.frequency || <span className="italic">—</span>}
+                      <td
+                        className={`px-4 py-3 whitespace-nowrap ${u.frequency ? 'text-gray-600' : 'text-gray-400'}`}
+                        title={u.frequency || ''}
+                      >
+                        {u.frequency
+                          ? shortFrequency(u.frequency)
+                          : <span className="italic">—</span>}
+                      </td>
+                      <td className={`px-4 py-3 ${u.grade ? 'text-gray-600' : 'text-gray-400'}`}>
+                        {u.grade || <span className="italic">—</span>}
                       </td>
                       <td className={`px-4 py-3 text-right tabular-nums font-medium ${u.matchCount === 0 ? 'text-gray-400' : 'text-gray-800'}`}>
                         {u.matchCount}
@@ -649,17 +705,30 @@ function FilterPopover({
       ref={ref}
       className="absolute z-20 mt-2 left-0 sm:left-auto sm:right-0 w-[320px] rounded-xl border border-[#E8DDD0] bg-white shadow-lg p-4 space-y-3"
     >
-      <FilterField label="Frequency">
-        <select
-          value={filters.frequency}
-          onChange={(e) => update('frequency', e.target.value)}
-          className="w-full bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none transition-colors"
-        >
-          {FREQUENCY_FILTERS.map((f) => (
-            <option key={f} value={f}>{f}</option>
-          ))}
-        </select>
-      </FilterField>
+      <div className="grid grid-cols-2 gap-3">
+        <FilterField label="Frequency">
+          <select
+            value={filters.frequency}
+            onChange={(e) => update('frequency', e.target.value)}
+            className="w-full bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none transition-colors"
+          >
+            {FREQUENCY_FILTERS.map((f) => (
+              <option key={f} value={f}>{f}</option>
+            ))}
+          </select>
+        </FilterField>
+        <FilterField label="Grade">
+          <select
+            value={filters.grade}
+            onChange={(e) => update('grade', e.target.value)}
+            className="w-full bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none transition-colors"
+          >
+            {GRADE_FILTERS.map((g) => (
+              <option key={g} value={g}>{g}</option>
+            ))}
+          </select>
+        </FilterField>
+      </div>
 
       <div className="grid grid-cols-2 gap-3">
         <FilterField label="Min matches">
@@ -678,6 +747,31 @@ function FilterPopover({
             min={0}
             value={filters.minContributions}
             onChange={(e) => update('minContributions', e.target.value)}
+            placeholder="Any"
+            className="w-full bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none transition-colors"
+          />
+        </FilterField>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <FilterField label="Min local %">
+          <input
+            type="number"
+            min={0}
+            max={100}
+            value={filters.minLocalPct}
+            onChange={(e) => update('minLocalPct', e.target.value)}
+            placeholder="Any"
+            className="w-full bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none transition-colors"
+          />
+        </FilterField>
+        <FilterField label="Max local %">
+          <input
+            type="number"
+            min={0}
+            max={100}
+            value={filters.maxLocalPct}
+            onChange={(e) => update('maxLocalPct', e.target.value)}
             placeholder="Any"
             className="w-full bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none transition-colors"
           />
