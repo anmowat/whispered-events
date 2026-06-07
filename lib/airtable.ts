@@ -545,6 +545,15 @@ export async function clearUserMatchCheckbox(userId: string): Promise<void> {
   await base(PROFILES_TABLE).update(userId, { Match: false } as Partial<FieldSet>)
 }
 
+// Same pattern for an Event row's Match checkbox. Used by the admin
+// workflow: edit fields on the Event in Airtable -> tick Match -> the
+// automation pings /api/airtable-rematch?type=event -> we re-score
+// against every eligible user, then uncheck the box.
+export async function clearEventMatchCheckbox(eventId: string): Promise<void> {
+  const base = getBase()
+  await base(EVENTS_TABLE).update(eventId, { Match: false } as Partial<FieldSet>)
+}
+
 // Re-geocode the user's Location and write LatLon. Used when an admin may
 // have edited Location directly in Airtable (no app-side write to trigger
 // geocoding). Safe to call even when Location is unchanged — idempotent.

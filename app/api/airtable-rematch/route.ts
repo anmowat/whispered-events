@@ -1,10 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { waitUntil } from '@vercel/functions'
-import { clearUserMatchCheckbox, refreshUserLatLon } from '@/lib/airtable'
+import {
+  clearEventMatchCheckbox,
+  clearUserMatchCheckbox,
+  refreshUserLatLon,
+} from '@/lib/airtable'
 
-// Webhook target for the Airtable "User Match" automation.
-// When a team member checks the `Match` box on a User row, Airtable POSTs here.
-// We fire a fanout match run, then uncheck the box so the team can re-trigger.
+// Webhook target for the Airtable "Match" automations.
+//
+//   User row Match checked  -> POST ?type=user&id=<recId>  -> rescore one user
+//                              against every future event (sends digest if
+//                              fresh matches above threshold and freq != Paused)
+//   Event row Match checked -> POST ?type=event&id=<recId> -> rescore one event
+//                              against every eligible user (no digest emails;
+//                              admin-triggered, not user-facing).
+//
+// Both paths uncheck the box afterward so the admin can re-trigger.
 function normalize(v: string | null | undefined): string {
   if (!v) return ''
   let s = v.trim()
@@ -42,30 +53,52 @@ export async function POST(req: NextRequest) {
   const type = searchParams.get('type')
   const id = searchParams.get('id')
 
-  if (type !== 'user' || !id) {
-    return NextResponse.json({ error: 'type=user and id are required' }, { status: 400 })
-  }
-
-  // Re-geocode in case an admin edited Location directly. Awaited so the
-  // match fanout below sees the fresh LatLon.
-  try {
-    await refreshUserLatLon(id)
-  } catch (err) {
-    console.error('airtable-rematch: refreshUserLatLon failed:', err)
+  if ((type !== 'user' && type !== 'event') || !id) {
+    return NextResponse.json(
+      { error: 'type=user|event and id are required' },
+      { status: 400 },
+    )
   }
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-  waitUntil(
-    fetch(`${appUrl}/api/process-matches?trigger=user&id=${id}`).catch((e) =>
-      console.error('airtable-rematch: process-matches fire-and-forget error:', e),
-    ),
-  )
 
-  try {
-    await clearUserMatchCheckbox(id)
-  } catch (err) {
-    console.error('airtable-rematch: clearUserMatchCheckbox failed:', err)
+  if (type === 'user') {
+    // Re-geocode in case an admin edited Location directly. Awaited so the
+    // match fanout below sees the fresh LatLon.
+    try {
+      await refreshUserLatLon(id)
+    } catch (err) {
+      console.error('airtable-rematch: refreshUserLatLon failed:', err)
+    }
+    waitUntil(
+      fetch(`${appUrl}/api/process-matches?trigger=user&id=${id}`).catch((e) =>
+        console.error('airtable-rematch: user trigger fire-and-forget error:', e),
+      ),
+    )
+    try {
+      await clearUserMatchCheckbox(id)
+    } catch (err) {
+      console.error('airtable-rematch: clearUserMatchCheckbox failed:', err)
+    }
+    return NextResponse.json({ ok: true })
   }
 
+  // type === 'event'
+  // processEventTrigger invalidates both Airtable caches at entry, so any
+  // field the admin just edited (description / audience / location /
+  // type) is picked up on this rescore. No geocoding step needed here —
+  // updateEvent / processEventTrigger handle that downstream when called
+  // through the host edit path; for direct-Airtable edits, geocoding is
+  // applied lazily when matching reads location.
+  waitUntil(
+    fetch(`${appUrl}/api/process-matches?trigger=event&id=${id}`).catch((e) =>
+      console.error('airtable-rematch: event trigger fire-and-forget error:', e),
+    ),
+  )
+  try {
+    await clearEventMatchCheckbox(id)
+  } catch (err) {
+    console.error('airtable-rematch: clearEventMatchCheckbox failed:', err)
+  }
   return NextResponse.json({ ok: true })
 }
