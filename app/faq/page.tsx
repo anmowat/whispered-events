@@ -109,7 +109,7 @@ export default function FaqPage() {
             className="m-0"
             style={{ fontSize: 14.5, color: 'var(--ink-2)', lineHeight: 1.6 }}
           >
-            <strong style={{ color: 'var(--ink)' }}>Additional questions?</strong>{' '}
+            <strong style={{ color: 'var(--ink)' }}>Questions / suggestions / feedback?</strong>{' '}
             Drop us a note at{' '}
             <Link href="mailto:team@whisperedevents.com">
               team@whisperedevents.com
