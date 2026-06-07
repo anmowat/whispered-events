@@ -587,24 +587,45 @@ ${entries.map(renderEntry).join('')}
 export async function sendApprovedWithDigest(
   user: AirtableUser,
   payload: DigestPayload,
+  nearbyCount?: number,
 ): Promise<void> {
   const resend = getResend()
   const firstName = firstNameOrThere(user)
   const hasMatches = payload.newEvents.length > 0 || payload.topMatches.length > 0
   const annotated = markDuplicates(payload)
 
+  // When the new user has no matches yet but is coaching-eligible
+  // (A/Polish grade — B/C never get coaching, see lib/digest.ts), fold
+  // the coaching CTAs into the welcome itself rather than waiting until
+  // the next Monday cron. nearbyCount steers which variant we use.
+  const isCoachingEligible = user.grade !== 'B' && user.grade !== 'C'
+  const includeCoaching = !hasMatches && isCoachingEligible && nearbyCount !== undefined
+  const coachingHtml = includeCoaching
+    ? renderInlineCoaching(escapeHtml(user.location || ''), nearbyCount)
+    : ''
+  const coachingTextLines = includeCoaching
+    ? inlineCoachingTextLines(user.location || '', nearbyCount)
+    : []
+
+  const introCopy = hasMatches
+    ? "You've been approved for Whispered Events. Here are some upcoming events that match your profile:"
+    : includeCoaching
+      ? "You've been approved for Whispered Events. We don't have matching events for you yet — here are two quick ways to fix that:"
+      : "You've been approved for Whispered Events."
+
   const html = shell(`
     ${h1(`<span style="font-style:italic;">Welcome</span> to the club, ${escapeHtml(firstName)}.`)}
-    ${p(`You've been approved for Whispered Events.${hasMatches ? ' Here are some upcoming events that match your profile:' : ''}`, { mt: 14 })}
+    ${p(introCopy, { mt: 14 })}
     ${renderSection('New', annotated.newEvents)}
     ${renderSection('Top Matches', annotated.topMatches)}
+    ${coachingHtml}
     ${digestFooterHtml()}
   `)
 
   const textLines: string[] = [
     `Welcome to the club, ${firstName}.`,
     '',
-    `You've been approved for Whispered Events.${hasMatches ? ' Here are some upcoming events that match your profile:' : ''}`,
+    introCopy,
     '',
   ]
   const appendSection = (title: string, entries: DigestEventEntry[]) => {
@@ -622,6 +643,9 @@ export async function sendApprovedWithDigest(
   }
   appendSection('New', annotated.newEvents)
   appendSection('Top Matches', annotated.topMatches)
+  if (coachingTextLines.length) {
+    textLines.push(...coachingTextLines, '')
+  }
   textLines.push(...digestFooterTextLines())
   const text = textLines.join('\n')
 
@@ -642,20 +666,64 @@ export async function sendApprovedWithDigest(
     console.error('sendApprovedWithDigest: Resend error', { email: user.email, error })
     throw new Error(`Resend send failed: ${error.message ?? JSON.stringify(error)}`)
   }
-  // Only log when the welcome actually carried events — a no-match
-  // approval email is informational, not a digest.
-  if (hasMatches) {
-    const eventIds = [
-      ...annotated.newEvents.map((e) => e.event.id),
-      ...annotated.topMatches.map((e) => e.event.id),
-    ]
-    await logDigestSend({
-      userId: user.id,
-      userEmail: user.email,
-      kind: 'welcome',
-      eventIds: Array.from(new Set(eventIds)),
-    })
+  // Log every welcome send — even no-match welcomes — so the 28-day
+  // coaching floor (lib/digest.ts) knows we just touched this user.
+  const eventIds = hasMatches
+    ? Array.from(
+        new Set([
+          ...annotated.newEvents.map((e) => e.event.id),
+          ...annotated.topMatches.map((e) => e.event.id),
+        ]),
+      )
+    : []
+  await logDigestSend({
+    userId: user.id,
+    userEmail: user.email,
+    kind: 'welcome',
+    eventIds,
+  })
+}
+
+// Inline coaching block reused inside the welcome email. Mirrors the
+// standalone sendCoaching templates so a new user with no matches sees
+// the same guidance the Monday cron would send them later.
+function renderInlineCoaching(safeLocation: string, nearbyCount: number): string {
+  if (nearbyCount === 0) {
+    const locationPhrase = safeLocation || 'your area'
+    return `
+<ol style="font-family:${SANS};font-size:14.5px;line-height:1.6;color:${C.ink2};margin:14px 0 0;padding-left:20px;">
+  <li style="margin-bottom:8px;"><strong style="color:${C.ink};">Share events you see</strong> — email any link to <a href="${NEW_EVENT_MAILTO}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">event@whispered.com</a> to help us start building a presence in ${locationPhrase}.</li>
+  <li><strong style="color:${C.ink};">Update your location</strong> on your <a href="${DASHBOARD_LINK}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">dashboard</a> if you've moved or are traveling — your matches will re-run automatically.</li>
+</ol>
+`.trim()
   }
+  const locationPhrase = safeLocation || 'you'
+  const noun = nearbyCount === 1 ? 'event' : 'events'
+  return `
+<p style="font-family:${SANS};font-size:14.5px;line-height:1.6;color:${C.ink2};margin:14px 0 0;">We do have ${nearbyCount} upcoming ${noun} within 100 miles of ${locationPhrase} — your profile just isn't matching them yet.</p>
+<ol style="font-family:${SANS};font-size:14.5px;line-height:1.6;color:${C.ink2};margin:10px 0 0;padding-left:20px;">
+  <li style="margin-bottom:8px;"><strong style="color:${C.ink};">Update your interests</strong> on your <a href="${DASHBOARD_LINK}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">dashboard</a> — add functions or topics you'd like to see (e.g. "RevOps", "GTM", "AI", specific industries).</li>
+  <li><strong style="color:${C.ink};">Share events in your area of interest</strong> — email any link to <a href="${NEW_EVENT_MAILTO}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">event@whispered.com</a> to help build momentum.</li>
+</ol>
+`.trim()
+}
+
+function inlineCoachingTextLines(location: string, nearbyCount: number): string[] {
+  if (nearbyCount === 0) {
+    const locationPhrase = location || 'your area'
+    return [
+      `1. Share events you see — email any link to event@whispered.com to help us start building a presence in ${locationPhrase}.`,
+      `2. Update your location on your dashboard if you've moved or are traveling — your matches will re-run automatically.`,
+    ]
+  }
+  const locationPhrase = location || 'you'
+  const noun = nearbyCount === 1 ? 'event' : 'events'
+  return [
+    `We do have ${nearbyCount} upcoming ${noun} within 100 miles of ${locationPhrase} — your profile just isn't matching them yet.`,
+    '',
+    `1. Update your interests on your dashboard — add functions or topics you'd like to see (e.g. "RevOps", "GTM", "AI", specific industries).`,
+    `2. Share events in your area of interest — email any link to event@whispered.com to help build momentum.`,
+  ]
 }
 
 export async function sendUserDigest(

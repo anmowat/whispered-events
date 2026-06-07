@@ -539,15 +539,16 @@ export interface DigestSendLog {
 
 // Records a real digest send to the digest_sends log. Only call this from
 // inside lib/email.ts after the email has actually been dispatched to
-// Resend without error. For event-bearing digest kinds (per_event/cron/
-// welcome) we require >=1 event so 'no matches' welcomes don't pollute
-// the read. Blasts and coaching emails carry no events and are always
-// logged so the 'last sent' clock includes them.
+// Resend without error. We log every send except per_event/cron with no
+// events (those should never reach this function — sendUserDigest early-
+// returns when the digest is empty). Welcome / blast / coaching always
+// log, even with empty eventIds, so the 'Last sent' clock catches them.
 export async function logDigestSend(entry: DigestSendLog): Promise<void> {
   if (
     entry.eventIds.length === 0 &&
     entry.kind !== 'blast' &&
-    entry.kind !== 'coaching'
+    entry.kind !== 'coaching' &&
+    entry.kind !== 'welcome'
   ) {
     return
   }

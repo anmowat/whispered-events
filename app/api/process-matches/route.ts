@@ -8,6 +8,7 @@ import {
   AirtableEvent,
   AirtableUser,
 } from '@/lib/airtable'
+import { withinMiles } from '@/lib/geocode'
 import {
   scoreEventUser,
   isMatchEligible,
@@ -26,6 +27,22 @@ const SCORE_THRESHOLD = 1.0
 // set of matches their dashboard shows.
 const DIGEST_THRESHOLD = 1.0
 const BATCH_SIZE = 50
+const NEARBY_RADIUS_MILES = 100
+
+// How many future events are within 100mi of the user. Used to pick
+// which inline coaching variant the no-match welcome should carry
+// (variant A when 0, variant B when >=1). Returns 0 when the user has
+// no geocoded location, which is the safe fallback (variant A).
+function countNearbyEvents(user: AirtableUser, events: AirtableEvent[]): number {
+  if (typeof user.lat !== 'number' || typeof user.lng !== 'number') return 0
+  const userPoint = { lat: user.lat, lng: user.lng }
+  let n = 0
+  for (const e of events) {
+    if (typeof e.lat !== 'number' || typeof e.lng !== 'number') continue
+    if (withinMiles(userPoint, { lat: e.lat, lng: e.lng }, NEARBY_RADIUS_MILES)) n++
+  }
+  return n
+}
 
 async function processEventTrigger(eventId: string) {
   // Bust both caches at the entry to a new-event flow. The 90s in-memory
@@ -168,8 +185,12 @@ async function processUserTrigger(
     // First email since approval: combined "welcome + your first matches".
     // Falls back to a plain approval email when no matches qualify so the
     // user still hears they're in.
+    // For no-match cases we also pass nearbyCount so the welcome can
+    // inline the appropriate coaching CTAs (variant A vs B) instead of
+    // waiting for next Monday's cron.
+    const nearbyCount = countNearbyEvents(targetUser, events)
     try {
-      await sendApprovedWithDigest(targetUser, { newEvents, topMatches })
+      await sendApprovedWithDigest(targetUser, { newEvents, topMatches }, nearbyCount)
     } catch (e) {
       console.error(`process-matches: sendApprovedWithDigest failed for ${targetUser.email}, falling back to plain approval:`, e)
       try {
