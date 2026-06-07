@@ -39,7 +39,7 @@ const QUESTIONS: Record<Step, string> = {
     "**What city are you based in?**\n\nWe'll send you events within 100 miles of your location (we limit people to one primary city but update your city anytime you travel to see matches for another location).",
   linkedin: "**What's your LinkedIn profile URL?**",
   interest:
-    "**What types of events are you interested in?**\n\nWe'll pull your function and seniority from your LinkedIn, so focus here on anything additional that would help us tailor events to you — industry focus, specific topics, preferred formats, etc.\n\nYou can update these at any time on your profile (Login in top nav).",
+    "**What types of events are you interested in?**\n\nWe'll pull your function and seniority from your LinkedIn, so use this field to target matches based on keywords:\n\n• **Effective Keywords:** Sales, AI, GTM, Marketing...\n• **Ineffective Keywords** (you will get LESS matches): Networking, dinners, all types...",
   employment:
     "**What is your current work situation?**\n\nWe ask because some events focus on people in specific roles while others are open to anyone.",
   size:
