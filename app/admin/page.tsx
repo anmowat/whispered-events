@@ -536,35 +536,59 @@ export default function AdminPage() {
                       onToggle={toggleSort}
                       title="Matches divided by total future events within 100 miles of this user's location. Hover any cell in this column for the raw N of M breakdown."
                     />
-                    <SortHeader label="Contributions" sortKey="contributions" align="right" sortBy={sortBy} sortDir={sortDir} onToggle={toggleSort} />
-                    <SortHeader label="Created" sortKey="created" align="right" sortBy={sortBy} sortDir={sortDir} onToggle={toggleSort} />
-                    <SortHeader label="Last contribution" sortKey="lastContribution" align="right" sortBy={sortBy} sortDir={sortDir} onToggle={toggleSort} />
                     <SortHeader
-                      label="Last sent"
+                      label="Cont"
+                      sortKey="contributions"
+                      align="right"
+                      sortBy={sortBy}
+                      sortDir={sortDir}
+                      onToggle={toggleSort}
+                      title="Contributions — total number of events this user has shared all time (via the contribute chat, by emailing event@whispered.com, or by being recorded as the duplicate-spotter on an existing event)."
+                    />
+                    <SortHeader
+                      label="Create"
+                      sortKey="created"
+                      align="right"
+                      sortBy={sortBy}
+                      sortDir={sortDir}
+                      onToggle={toggleSort}
+                      title="Created — when this user record was first added to Airtable. Pulled from the record's createdTime."
+                    />
+                    <SortHeader
+                      label="LastCont"
+                      sortKey="lastContribution"
+                      align="right"
+                      sortBy={sortBy}
+                      sortDir={sortDir}
+                      onToggle={toggleSort}
+                      title="Last contribution — date the user most recently shared / spotted an event (whichever is more recent)."
+                    />
+                    <SortHeader
+                      label="Sent"
                       sortKey="lastDigestSent"
                       align="right"
                       sortBy={sortBy}
                       sortDir={sortDir}
                       onToggle={toggleSort}
-                      title="Last time we actually sent this user a digest email containing events. Excludes silent stamps from frequency-flip backlog suppression and excludes transactional emails (login link, application received, event-added confirmations)."
+                      title="Last sent — last time we actually sent this user a digest email containing events. Excludes silent stamps from frequency-flip backlog suppression and excludes transactional emails (login link, application received, event-added confirmations)."
                     />
                     <SortHeader
-                      label="Last blast"
+                      label="Blast"
                       sortKey="lastBlastSent"
                       align="right"
                       sortBy={sortBy}
                       sortDir={sortDir}
                       onToggle={toggleSort}
-                      title="Last time this user received an admin-composed broadcast email from /admin/blast. Separate from 'Last sent' so the digest-with-events column stays meaningful."
+                      title="Last blast — last time this user received an admin-composed broadcast email from /admin/blast. Separate from Sent so the digest-with-events column stays meaningful."
                     />
                     <SortHeader
-                      label="Last seen"
+                      label="Seen"
                       sortKey="lastSeen"
                       align="right"
                       sortBy={sortBy}
                       sortDir={sortDir}
                       onToggle={toggleSort}
-                      title="Last time this user had an active session on the site — refreshed on any page load while logged in (throttled to once per 5 minutes per session). Empty means they've never logged in or sessions have all expired."
+                      title="Last seen — last time this user had an active session on the site (refreshed on any page load while logged in, throttled to once per 5 minutes per session). Empty means they've never logged in or sessions have all expired."
                     />
                   </tr>
                 </thead>
