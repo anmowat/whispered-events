@@ -11,6 +11,7 @@ interface UserDetail {
   firstName: string
   function: string
   seniority: string
+  linkedin: string
   fullExp: string
   grade: string
   interest: string
@@ -163,7 +164,22 @@ export default function AdminUserDetailPage() {
 
         {authState === 'authorized' && user && events && (
           <>
-            <h1 className="text-2xl font-semibold text-gray-900 mb-1">{displayName}</h1>
+            <h1 className="text-2xl font-semibold text-gray-900 mb-1">
+              {user.linkedin ? (
+                <a
+                  href={user.linkedin}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:underline transition-colors"
+                  style={{ color: 'var(--accent)' }}
+                  title={user.linkedin}
+                >
+                  {displayName}
+                </a>
+              ) : (
+                displayName
+              )}
+            </h1>
             <p className="text-sm text-gray-500 mb-6">{user.email}</p>
 
             {/* Profile fields */}
