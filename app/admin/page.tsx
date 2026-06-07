@@ -561,7 +561,7 @@ export default function AdminPage() {
                       sortBy={sortBy}
                       sortDir={sortDir}
                       onToggle={toggleSort}
-                      title="Last sent — last time we actually emailed this user a digest containing events OR a coaching nudge (the Monday cron fires coaching to dormant users with no matches; counts the same as a digest for cadence purposes). Excludes admin blasts, silent stamps from frequency-flip backlog suppression, and transactional emails (login link, application received, event-added confirmations)."
+                      title="Last sent — last time we actually emailed this user a digest containing events OR a coaching nudge (the Monday cron fires coaching to dormant users with no matches; counts the same as a digest for cadence purposes). The Monday cron skips any Weekly/Monthly user whose Sent value is within the last 7 days, so a manual re-run mid-week won't be piled on top of by Sunday's cron. Excludes admin blasts, silent stamps from frequency-flip backlog suppression, and transactional emails (login link, application received, event-added confirmations)."
                     />
                     <SortHeader
                       label="Blast"

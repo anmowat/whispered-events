@@ -120,6 +120,13 @@ async function processUser(
 // (B/C never get coached — they couldn't clear the threshold anyway)
 // and a 28-day floor since their last digest/coaching send.
 const COACHING_FLOOR_DAYS = 28
+// Suppress Weekly/Monthly cron sends for anyone we've already emailed
+// in the last week. Stops the cron from dropping a second digest on
+// users whose matches were just re-run manually (via the Airtable
+// Match checkbox) or who got a per-event 'As they arrive' digest mid-
+// week. 'As they arrive' is unaffected — it already has its own 28-day
+// coaching floor.
+const CRON_RECENT_TOUCH_DAYS = 7
 const NEARBY_RADIUS_MILES = 100
 
 function isCoachingEligible(
@@ -133,6 +140,17 @@ function isCoachingEligible(
   const cutoff = now.getTime() - COACHING_FLOOR_DAYS * 86_400_000
   const t = new Date(lastSentIso).getTime()
   return Number.isFinite(t) && t < cutoff
+}
+
+function recentlyTouched(
+  lastSentIso: string | null,
+  now: Date,
+  daysFloor: number,
+): boolean {
+  if (!lastSentIso) return false
+  const cutoff = now.getTime() - daysFloor * 86_400_000
+  const t = new Date(lastSentIso).getTime()
+  return Number.isFinite(t) && t >= cutoff
 }
 
 // Reused inline pattern from app/api/admin/dashboard-counts/route.ts —
@@ -166,6 +184,7 @@ interface FrequencyStats {
   processed: number
   sent: number
   coached: number
+  skippedRecent: number
 }
 
 export async function runDigests(now: Date): Promise<{
@@ -180,15 +199,23 @@ export async function runDigests(now: Date): Promise<{
   const lastSentByEmail = await getLastDigestSentByEmail()
   const nearbyByUserId = buildNearbyCountMap(allUsers, futureEvents)
 
-  const weekly: FrequencyStats = { processed: 0, sent: 0, coached: 0 }
-  const monthly: FrequencyStats = { processed: 0, sent: 0, coached: 0 }
+  const weekly: FrequencyStats = { processed: 0, sent: 0, coached: 0, skippedRecent: 0 }
+  const monthly: FrequencyStats = { processed: 0, sent: 0, coached: 0, skippedRecent: 0 }
   let arriveCoached = 0
 
   for (const user of allUsers) {
     const lastSent = lastSentByEmail.get(user.email.trim().toLowerCase()) ?? null
     const nearbyCount = nearbyByUserId.get(user.id) ?? 0
+    // 7-day floor blocks cron from piling on top of a recent manual
+    // re-run or mid-week per-event send. We don't touch their Monthly
+    // due date when we skip — they re-enter next Monday.
+    const wasRecentlyTouched = recentlyTouched(lastSent, now, CRON_RECENT_TOUCH_DAYS)
 
     if (user.frequency === 'Weekly') {
+      if (wasRecentlyTouched) {
+        weekly.skippedRecent += 1
+        continue
+      }
       weekly.processed += 1
       const result = await processUser(user, futureById)
       if (result.sent) {
@@ -203,6 +230,12 @@ export async function runDigests(now: Date): Promise<{
       // pre-existing users, and seed a row going forward.
       const dueDate = state?.next_monthly_digest_at ?? todayPT
       if (dueDate <= todayPT) {
+        if (wasRecentlyTouched) {
+          // Don't bump next_monthly_digest_at — we want to re-evaluate
+          // them next Monday once the 7-day window has cleared.
+          monthly.skippedRecent += 1
+          continue
+        }
         monthly.processed += 1
         const result = await processUser(user, futureById)
         let touched = result.sent
