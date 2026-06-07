@@ -75,12 +75,15 @@ export default function FaqPage() {
             We match events on three dimensions:
           </p>
 
-          <ul className="mt-4 m-0 p-0 list-none space-y-4">
+          <ul
+            className="mt-4 m-0 pl-5 list-disc space-y-3"
+            style={{ color: 'var(--ink-2)' }}
+          >
             <Dimension label="Location">
-              Binary — we send you events within 100 miles of your location.
-              Update your location anytime in your{' '}
+              We match you to events within 100 miles of your location. You can
+              update your location anytime in your{' '}
               <Link href="/dashboard">dashboard</Link> (e.g. if you&apos;re
-              traveling for work) to have your matches re-run.
+              traveling to a city for work) to have your matches re-run.
             </Dimension>
             <Dimension label="Audience">
               The match between the event&apos;s target audience and information
@@ -88,9 +91,8 @@ export default function FaqPage() {
               plus info you provide (e.g. employment status).
             </Dimension>
             <Dimension label="Interests">
-              The match between the event description and your stated
-              interests. Update these anytime in your{' '}
-              <Link href="/dashboard">dashboard</Link>.
+              The match between the event description and your stated interests.
+              Update these anytime in your <Link href="/dashboard">dashboard</Link>.
             </Dimension>
           </ul>
         </section>
@@ -124,20 +126,9 @@ function Dimension({
   children: React.ReactNode
 }) {
   return (
-    <li className="flex flex-col gap-1">
-      <span
-        style={{
-          fontSize: 14,
-          color: 'var(--ink)',
-          fontWeight: 600,
-          letterSpacing: '-0.005em',
-        }}
-      >
-        {label}
-      </span>
-      <span style={{ fontSize: 14.5, color: 'var(--ink-2)', lineHeight: 1.6 }}>
-        {children}
-      </span>
+    <li style={{ fontSize: 14.5, lineHeight: 1.6 }}>
+      <strong style={{ color: 'var(--ink)', fontWeight: 600 }}>{label}:</strong>{' '}
+      {children}
     </li>
   )
 }
