@@ -704,19 +704,18 @@ function FilterPopover({
   onClear: () => void
   onClose: () => void
 }) {
-  const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
-    function onDown(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) onClose()
-    }
     function onEsc(e: KeyboardEvent) {
       if (e.key === 'Escape') onClose()
     }
-    document.addEventListener('mousedown', onDown)
     document.addEventListener('keydown', onEsc)
+    // Lock body scroll while the modal is open so the page underneath
+    // doesn't jitter when the user wheels over a select.
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
     return () => {
-      document.removeEventListener('mousedown', onDown)
       document.removeEventListener('keydown', onEsc)
+      document.body.style.overflow = prevOverflow
     }
   }, [onClose])
 
@@ -726,129 +725,143 @@ function FilterPopover({
 
   return (
     <div
-      ref={ref}
-      className="absolute z-20 mt-2 left-0 sm:left-auto sm:right-0 w-[320px] rounded-xl border border-[#E8DDD0] bg-white shadow-lg p-4 space-y-3"
+      className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6"
+      style={{ background: 'rgba(27, 24, 20, 0.45)' }}
+      onClick={onClose}
     >
-      <div className="grid grid-cols-2 gap-3">
-        <FilterField label="Frequency">
-          <select
-            value={filters.frequency}
-            onChange={(e) => update('frequency', e.target.value)}
-            className="w-full bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none transition-colors"
-          >
-            {FREQUENCY_FILTERS.map((f) => (
-              <option key={f} value={f}>{f}</option>
-            ))}
-          </select>
-        </FilterField>
-        <FilterField label="Grade">
-          <select
-            value={filters.grade}
-            onChange={(e) => update('grade', e.target.value)}
-            className="w-full bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none transition-colors"
-          >
-            {GRADE_FILTERS.map((g) => (
-              <option key={g} value={g}>{g}</option>
-            ))}
-          </select>
-        </FilterField>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <FilterField label="Min matches">
-          <input
-            type="number"
-            min={0}
-            value={filters.minMatches}
-            onChange={(e) => update('minMatches', e.target.value)}
-            placeholder="Any"
-            className="w-full bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none transition-colors"
-          />
-        </FilterField>
-        <FilterField label="Min contributions">
-          <input
-            type="number"
-            min={0}
-            value={filters.minContributions}
-            onChange={(e) => update('minContributions', e.target.value)}
-            placeholder="Any"
-            className="w-full bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none transition-colors"
-          />
-        </FilterField>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <FilterField label="Min local %">
-          <input
-            type="number"
-            min={0}
-            max={100}
-            value={filters.minLocalPct}
-            onChange={(e) => update('minLocalPct', e.target.value)}
-            placeholder="Any"
-            className="w-full bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none transition-colors"
-          />
-        </FilterField>
-        <FilterField label="Max local %">
-          <input
-            type="number"
-            min={0}
-            max={100}
-            value={filters.maxLocalPct}
-            onChange={(e) => update('maxLocalPct', e.target.value)}
-            placeholder="Any"
-            className="w-full bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none transition-colors"
-          />
-        </FilterField>
-      </div>
-
-      <FilterField label="Created">
-        <DateSelect
-          value={filters.created}
-          onChange={(v) => update('created', v)}
-        />
-      </FilterField>
-      <FilterField label="Last contribution">
-        <DateSelect
-          value={filters.lastContribution}
-          onChange={(v) => update('lastContribution', v)}
-        />
-      </FilterField>
-      <FilterField label="Last sent">
-        <DateSelect
-          value={filters.lastSent}
-          onChange={(v) => update('lastSent', v)}
-        />
-      </FilterField>
-      <FilterField label="Last blast">
-        <DateSelect
-          value={filters.lastBlast}
-          onChange={(v) => update('lastBlast', v)}
-        />
-      </FilterField>
-      <FilterField label="Last seen">
-        <DateSelect
-          value={filters.lastSeen}
-          onChange={(v) => update('lastSeen', v)}
-        />
-      </FilterField>
-
-      <div className="flex items-center justify-between pt-2 border-t border-[#F0E8DC]">
-        <button
-          onClick={onClear}
-          className="text-xs text-gray-600 hover:text-gray-900 transition-colors underline"
+      <div
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-[640px] max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Sticky header so the close + section label stay anchored when
+            the modal's tall enough to need scrolling. */}
+        <div
+          className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 border-b border-[#E8DDD0] bg-white"
         >
-          Clear filters
-        </button>
-        <button
-          onClick={onClose}
-          className="px-3 py-1.5 rounded-lg text-white text-xs font-medium transition-colors"
-          style={{ background: '#6E1F2B' }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = '#8E2E3B')}
-          onMouseLeave={(e) => (e.currentTarget.style.background = '#6E1F2B')}
-        >
-          Done
-        </button>
+          <h2 className="text-base font-semibold text-gray-900">Filters</h2>
+          <button
+            onClick={onClose}
+            aria-label="Close filters"
+            className="w-8 h-8 rounded-full text-gray-500 hover:bg-[#F5EFE6] hover:text-gray-900 transition-colors text-lg leading-none"
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="px-6 py-5 space-y-6">
+          <FilterSection title="User">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <FilterField label="Frequency">
+                <select
+                  value={filters.frequency}
+                  onChange={(e) => update('frequency', e.target.value)}
+                  className="w-full bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none transition-colors"
+                >
+                  {FREQUENCY_FILTERS.map((f) => (
+                    <option key={f} value={f}>{f}</option>
+                  ))}
+                </select>
+              </FilterField>
+              <FilterField label="Grade">
+                <select
+                  value={filters.grade}
+                  onChange={(e) => update('grade', e.target.value)}
+                  className="w-full bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none transition-colors"
+                >
+                  {GRADE_FILTERS.map((g) => (
+                    <option key={g} value={g}>{g}</option>
+                  ))}
+                </select>
+              </FilterField>
+            </div>
+          </FilterSection>
+
+          <FilterSection title="Activity">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <FilterField label="Min matches">
+                <input
+                  type="number"
+                  min={0}
+                  value={filters.minMatches}
+                  onChange={(e) => update('minMatches', e.target.value)}
+                  placeholder="Any"
+                  className="w-full bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none transition-colors"
+                />
+              </FilterField>
+              <FilterField label="Min contributions">
+                <input
+                  type="number"
+                  min={0}
+                  value={filters.minContributions}
+                  onChange={(e) => update('minContributions', e.target.value)}
+                  placeholder="Any"
+                  className="w-full bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none transition-colors"
+                />
+              </FilterField>
+              <FilterField label="Min local %">
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={filters.minLocalPct}
+                  onChange={(e) => update('minLocalPct', e.target.value)}
+                  placeholder="Any"
+                  className="w-full bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none transition-colors"
+                />
+              </FilterField>
+              <FilterField label="Max local %">
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={filters.maxLocalPct}
+                  onChange={(e) => update('maxLocalPct', e.target.value)}
+                  placeholder="Any"
+                  className="w-full bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none transition-colors"
+                />
+              </FilterField>
+            </div>
+          </FilterSection>
+
+          <FilterSection title="Dates">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <FilterField label="Created">
+                <DateSelect value={filters.created} onChange={(v) => update('created', v)} />
+              </FilterField>
+              <FilterField label="Last contribution">
+                <DateSelect value={filters.lastContribution} onChange={(v) => update('lastContribution', v)} />
+              </FilterField>
+              <FilterField label="Last sent">
+                <DateSelect value={filters.lastSent} onChange={(v) => update('lastSent', v)} />
+              </FilterField>
+              <FilterField label="Last blast">
+                <DateSelect value={filters.lastBlast} onChange={(v) => update('lastBlast', v)} />
+              </FilterField>
+              <FilterField label="Last seen">
+                <DateSelect value={filters.lastSeen} onChange={(v) => update('lastSeen', v)} />
+              </FilterField>
+            </div>
+          </FilterSection>
+        </div>
+
+        {/* Sticky footer mirrors the sticky header for the same reason. */}
+        <div className="sticky bottom-0 flex items-center justify-between px-6 py-4 border-t border-[#E8DDD0] bg-white">
+          <button
+            onClick={onClear}
+            className="text-sm text-gray-600 hover:text-gray-900 transition-colors underline"
+          >
+            Clear filters
+          </button>
+          <button
+            onClick={onClose}
+            className="px-5 py-2 rounded-lg text-white text-sm font-medium transition-colors"
+            style={{ background: '#6E1F2B' }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = '#8E2E3B')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = '#6E1F2B')}
+          >
+            Done
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -888,6 +901,17 @@ function SortHeader({
         <span className="text-[9px] opacity-70">{arrow || '↕'}</span>
       </button>
     </th>
+  )
+}
+
+function FilterSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <h3 className="text-[11px] uppercase tracking-widest text-gray-500 font-semibold mb-3">
+        {title}
+      </h3>
+      {children}
+    </div>
   )
 }
 
