@@ -130,6 +130,15 @@ export default function Home() {
         style={{ borderColor: 'var(--rule-soft)', color: 'var(--ink-3)' }}
       >
         <span>Whispered Events — for executives</span>
+        <a
+          href="/faq"
+          className="transition-colors"
+          style={{ color: 'var(--ink-3)' }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
+          onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--ink-3)')}
+        >
+          FAQ
+        </a>
         <span className="font-serif italic">— est. 2026</span>
       </footer>
     </div>
@@ -429,7 +438,7 @@ function PartnerCard({
         items={[
           'Share (and update) events you are running',
           'Customize targeting for your events',
-          'See execs who match your audience',
+          'Get a customized widget/feed of events for your community',
         ]}
       />
       <AccentButton onClick={onCTA}>
