@@ -66,12 +66,16 @@ export default function FaqPage() {
               letterSpacing: '-0.01em',
             }}
           >
+            <span style={{ color: 'var(--ink-3)', marginRight: 8 }}>Q:</span>
             How are matches determined?
           </h2>
           <p
             className="mt-3 mb-0"
             style={{ fontSize: 15, color: 'var(--ink-2)', lineHeight: 1.6 }}
           >
+            <strong style={{ color: 'var(--ink-3)', fontWeight: 600, marginRight: 6 }}>
+              A:
+            </strong>
             We match events on three dimensions:
           </p>
 
