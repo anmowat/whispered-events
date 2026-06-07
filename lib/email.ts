@@ -328,6 +328,115 @@ function htmlToText(html: string): string {
     .trim()
 }
 
+// Cron-fired nudge for dormant users — those with no matching events in
+// their pipeline. Branches on whether they have ANY future events within
+// 100 miles of their location:
+//   nearbyCount === 0 → Variant A (we have nothing in their area)
+//   nearbyCount >= 1 → Variant B (we have events nearby but their
+//                                 interests / profile aren't matching)
+// Caller (lib/digest.ts) is responsible for the eligibility check
+// (grade != B/C, frequency != Paused, 28-day floor). BCC andy on every
+// send, log to digest_sends with kind='coaching' so the floor includes
+// past coaching nudges.
+export async function sendCoaching(
+  user: AirtableUser,
+  nearbyCount: number,
+): Promise<void> {
+  const resend = getResend()
+  const firstName = firstNameOrThere(user)
+  const safeName = escapeHtml(firstName)
+  const safeLocation = escapeHtml(user.location || '')
+
+  const { subject, html, text } =
+    nearbyCount === 0
+      ? renderCoachingNoNearby(safeName, safeLocation)
+      : renderCoachingNoMatches(safeName, safeLocation, nearbyCount)
+
+  const { error } = await resend.emails.send({
+    from: TEAM_FROM,
+    to: user.email,
+    bcc: MONITOR_BCC,
+    subject,
+    html,
+    text,
+    headers: AUTO_HEADERS,
+  })
+  if (error) {
+    console.error('sendCoaching: Resend error', { email: user.email, error })
+    throw new Error(`Resend send failed: ${error.message ?? JSON.stringify(error)}`)
+  }
+  await logDigestSend({
+    userId: user.id,
+    userEmail: user.email,
+    kind: 'coaching',
+    eventIds: [],
+  })
+}
+
+function renderCoachingNoNearby(
+  safeName: string,
+  safeLocation: string,
+): { subject: string; html: string; text: string } {
+  const locationPhrase = safeLocation || 'your area'
+  const subject = `No Whispered Events near you yet — let's change that`
+  const html = shell(`
+    ${h1(`Hi <span style="font-style:italic;">${safeName}</span>.`)}
+    ${p(
+      `We don't have any upcoming Whispered Events within 100 miles of ${locationPhrase} yet. Two quick ways to change that:`,
+      { mt: 14 },
+    )}
+    <ol style="font-family:${SANS};font-size:14.5px;line-height:1.6;color:${C.ink2};margin:14px 0 0;padding-left:20px;">
+      <li style="margin-bottom:8px;"><strong style="color:${C.ink};">Share events you see</strong> — email any link to <a href="${NEW_EVENT_MAILTO}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">event@whispered.com</a> and we'll add it.</li>
+      <li><strong style="color:${C.ink};">Update your location</strong> on your <a href="${DASHBOARD_LINK}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">dashboard</a> if you've moved or are traveling — your matches will re-run automatically.</li>
+    </ol>
+    ${digestFooterHtml()}
+  `)
+  const text = [
+    `Hi ${safeName}.`,
+    '',
+    `We don't have any upcoming Whispered Events within 100 miles of ${locationPhrase} yet. Two quick ways to change that:`,
+    '',
+    `1. Share events you see — email any link to event@whispered.com and we'll add it.`,
+    `2. Update your location on your dashboard if you've moved or are traveling — your matches will re-run automatically.`,
+    '',
+    ...digestFooterTextLines(),
+  ].join('\n')
+  return { subject, html, text }
+}
+
+function renderCoachingNoMatches(
+  safeName: string,
+  safeLocation: string,
+  nearbyCount: number,
+): { subject: string; html: string; text: string } {
+  const locationPhrase = safeLocation || 'you'
+  const noun = nearbyCount === 1 ? 'event' : 'events'
+  const subject = `${nearbyCount} ${noun} near you — let's tune your matches`
+  const html = shell(`
+    ${h1(`Hi <span style="font-style:italic;">${safeName}</span>.`)}
+    ${p(
+      `We have ${nearbyCount} upcoming ${noun} within 100 miles of ${locationPhrase}, but none are matching your profile yet. Two ways to fix that:`,
+      { mt: 14 },
+    )}
+    <ol style="font-family:${SANS};font-size:14.5px;line-height:1.6;color:${C.ink2};margin:14px 0 0;padding-left:20px;">
+      <li style="margin-bottom:8px;"><strong style="color:${C.ink};">Update your interests</strong> on your <a href="${DASHBOARD_LINK}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">dashboard</a> — add functions or topics you'd like to see (e.g. "RevOps", "GTM", "AI", specific industries).</li>
+      <li><strong style="color:${C.ink};">Share events in your area of interest</strong> — email any link to <a href="${NEW_EVENT_MAILTO}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">event@whispered.com</a> to help build momentum.</li>
+    </ol>
+    ${digestFooterHtml()}
+  `)
+  const text = [
+    `Hi ${safeName}.`,
+    '',
+    `We have ${nearbyCount} upcoming ${noun} within 100 miles of ${locationPhrase}, but none are matching your profile yet. Two ways to fix that:`,
+    '',
+    `1. Update your interests on your dashboard — add functions or topics you'd like to see (e.g. "RevOps", "GTM", "AI", specific industries).`,
+    `2. Share events in your area of interest — email any link to event@whispered.com to help build momentum.`,
+    '',
+    ...digestFooterTextLines(),
+  ].join('\n')
+  return { subject, html, text }
+}
+
 export async function sendEventCouldNotReadEmail(email: string): Promise<void> {
   const resend = getResend()
   const html = shell(`

@@ -533,17 +533,24 @@ export async function getExistingMatchHashes(
 export interface DigestSendLog {
   userId: string
   userEmail: string
-  kind: 'per_event' | 'cron' | 'welcome' | 'blast'
+  kind: 'per_event' | 'cron' | 'welcome' | 'blast' | 'coaching'
   eventIds: string[]
 }
 
 // Records a real digest send to the digest_sends log. Only call this from
 // inside lib/email.ts after the email has actually been dispatched to
-// Resend without error. For digest kinds (per_event/cron/welcome) we
-// require >=1 event so 'no matches' welcomes don't pollute the read.
-// Blasts carry no events and are always logged.
+// Resend without error. For event-bearing digest kinds (per_event/cron/
+// welcome) we require >=1 event so 'no matches' welcomes don't pollute
+// the read. Blasts and coaching emails carry no events and are always
+// logged so the 'last sent' clock includes them.
 export async function logDigestSend(entry: DigestSendLog): Promise<void> {
-  if (entry.eventIds.length === 0 && entry.kind !== 'blast') return
+  if (
+    entry.eventIds.length === 0 &&
+    entry.kind !== 'blast' &&
+    entry.kind !== 'coaching'
+  ) {
+    return
+  }
   const supabase = getClient()
   const { error } = await supabase.from('digest_sends').insert({
     user_id: entry.userId,

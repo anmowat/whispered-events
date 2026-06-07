@@ -5,12 +5,14 @@ import {
   getFutureEvents,
 } from './airtable'
 import { isMatchEligible } from './matching'
-import { sendUserDigest } from './email'
+import { sendUserDigest, sendCoaching } from './email'
 import type { DigestEventEntry } from './email'
+import { withinMiles } from './geocode'
 import {
   DigestMatchRow,
   getUnnotifiedMatchesForUser,
   getUpcomingMatchesForUser,
+  getLastDigestSentByEmail,
   markMatchesNotified,
   getDigestState,
   upsertDigestState,
@@ -114,48 +116,141 @@ async function processUser(
   return { sent: true }
 }
 
+// Coaching = nudge for users with nothing to send. Gated by grade
+// (B/C never get coached — they couldn't clear the threshold anyway)
+// and a 28-day floor since their last digest/coaching send.
+const COACHING_FLOOR_DAYS = 28
+const NEARBY_RADIUS_MILES = 100
+
+function isCoachingEligible(
+  user: AirtableUser,
+  lastSentIso: string | null,
+  now: Date,
+): boolean {
+  if (user.grade === 'B' || user.grade === 'C') return false
+  if (user.frequency === 'Paused') return false
+  if (!lastSentIso) return true
+  const cutoff = now.getTime() - COACHING_FLOOR_DAYS * 86_400_000
+  const t = new Date(lastSentIso).getTime()
+  return Number.isFinite(t) && t < cutoff
+}
+
+// Reused inline pattern from app/api/admin/dashboard-counts/route.ts —
+// count future events within 100mi of each user's geocoded location.
+// Users with no lat/lng get 0 (which routes them to Variant A copy).
+function buildNearbyCountMap(
+  users: AirtableUser[],
+  futureEvents: AirtableEvent[],
+): Map<string, number> {
+  const geocodedEvents = futureEvents.filter(
+    (e): e is AirtableEvent & { lat: number; lng: number } =>
+      typeof e.lat === 'number' && typeof e.lng === 'number',
+  )
+  const out = new Map<string, number>()
+  for (const u of users) {
+    if (typeof u.lat !== 'number' || typeof u.lng !== 'number') {
+      out.set(u.id, 0)
+      continue
+    }
+    const userPoint = { lat: u.lat, lng: u.lng }
+    let n = 0
+    for (const e of geocodedEvents) {
+      if (withinMiles(userPoint, { lat: e.lat, lng: e.lng }, NEARBY_RADIUS_MILES)) n++
+    }
+    out.set(u.id, n)
+  }
+  return out
+}
+
+interface FrequencyStats {
+  processed: number
+  sent: number
+  coached: number
+}
+
 export async function runDigests(now: Date): Promise<{
-  weekly: { processed: number; sent: number }
-  monthly: { processed: number; sent: number }
+  weekly: FrequencyStats
+  monthly: FrequencyStats
+  arrive: { coached: number }
 }> {
   const todayPT = ymdInPT(now)
   const allUsers = (await getActiveUsers()).filter(isMatchEligible)
   const futureEvents = await getFutureEvents()
   const futureById = new Map(futureEvents.map((e) => [e.id, e]))
+  const lastSentByEmail = await getLastDigestSentByEmail()
+  const nearbyByUserId = buildNearbyCountMap(allUsers, futureEvents)
 
-  let weeklyProcessed = 0
-  let weeklySent = 0
-  let monthlyProcessed = 0
-  let monthlySent = 0
+  const weekly: FrequencyStats = { processed: 0, sent: 0, coached: 0 }
+  const monthly: FrequencyStats = { processed: 0, sent: 0, coached: 0 }
+  let arriveCoached = 0
 
   for (const user of allUsers) {
+    const lastSent = lastSentByEmail.get(user.email.trim().toLowerCase()) ?? null
+    const nearbyCount = nearbyByUserId.get(user.id) ?? 0
+
     if (user.frequency === 'Weekly') {
-      weeklyProcessed += 1
+      weekly.processed += 1
       const result = await processUser(user, futureById)
-      if (result.sent) weeklySent += 1
+      if (result.sent) {
+        weekly.sent += 1
+      } else if (isCoachingEligible(user, lastSent, now)) {
+        await safelySendCoaching(user, nearbyCount)
+        weekly.coached += 1
+      }
     } else if (user.frequency === 'Monthly') {
       const state = await getDigestState(user.id)
-      // Missing state row: treat as due today so we don't strand pre-existing
-      // users, and seed a row going forward.
+      // Missing state row: treat as due today so we don't strand
+      // pre-existing users, and seed a row going forward.
       const dueDate = state?.next_monthly_digest_at ?? todayPT
       if (dueDate <= todayPT) {
-        monthlyProcessed += 1
+        monthly.processed += 1
         const result = await processUser(user, futureById)
-        if (result.sent) monthlySent += 1
+        let touched = result.sent
+        if (!result.sent && isCoachingEligible(user, lastSent, now)) {
+          await safelySendCoaching(user, nearbyCount)
+          monthly.coached += 1
+          touched = true
+        } else if (result.sent) {
+          monthly.sent += 1
+        }
         await upsertDigestState(user.id, {
-          nextMonthly: addDays(todayPT, 28),
-          lastSent: result.sent
+          nextMonthly: addDays(todayPT, COACHING_FLOOR_DAYS),
+          // Stamp last-sent for both digest and coaching outcomes so the
+          // 28-day floor reflects when the user was most recently
+          // touched, not just when a digest with events went out.
+          lastSent: touched
             ? now.toISOString()
             : state?.last_monthly_digest_sent_at ?? null,
         })
       }
+    } else if (user.frequency === 'As they arrive') {
+      // Per-event scoring path already handles their digests. Cron only
+      // handles their coaching nudge.
+      if (isCoachingEligible(user, lastSent, now)) {
+        await safelySendCoaching(user, nearbyCount)
+        arriveCoached += 1
+      }
     }
-    // 'As they arrive' and 'Paused' are not processed by cron.
+    // 'Paused' is intentionally skipped.
   }
 
-  return {
-    weekly: { processed: weeklyProcessed, sent: weeklySent },
-    monthly: { processed: monthlyProcessed, sent: monthlySent },
+  return { weekly, monthly, arrive: { coached: arriveCoached } }
+}
+
+// One failed coaching send (Resend hiccup, transient Supabase error)
+// shouldn't fail the whole cron and leave subsequent users unprocessed.
+// Mirrors the per-user try/catch pattern used in processEventTrigger.
+async function safelySendCoaching(
+  user: AirtableUser,
+  nearbyCount: number,
+): Promise<void> {
+  try {
+    await sendCoaching(user, nearbyCount)
+  } catch (err) {
+    console.error(
+      `runDigests: sendCoaching failed for ${user.email}`,
+      err instanceof Error ? err.message : String(err),
+    )
   }
 }
 
