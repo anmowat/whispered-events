@@ -344,10 +344,13 @@ export default function AdminPage() {
                     <th className="text-right px-4 py-3 text-xs uppercase tracking-widest text-gold-700 font-medium">Contributions</th>
                     <th className="text-right px-4 py-3 text-xs uppercase tracking-widest text-gold-700 font-medium">Last contribution</th>
                     <th
-                      className="text-right px-4 py-3 text-xs uppercase tracking-widest text-gold-700 font-medium"
-                      title="Last time a digest email with events was actually sent to this user"
+                      className="text-right px-4 py-3 text-xs uppercase tracking-widest text-gold-700 font-medium cursor-help"
+                      title="Last time we actually sent this user a digest email containing events. Excludes silent stamps from frequency-flip backlog suppression and excludes transactional emails (login link, application received, event-added confirmations)."
                     >Last sent</th>
-                    <th className="text-right px-4 py-3 text-xs uppercase tracking-widest text-gold-700 font-medium">Last seen</th>
+                    <th
+                      className="text-right px-4 py-3 text-xs uppercase tracking-widest text-gold-700 font-medium cursor-help"
+                      title="Last time this user had an active session on the site — refreshed on any page load while logged in (throttled to once per 5 minutes per session). Empty means they've never logged in or sessions have all expired."
+                    >Last seen</th>
                   </tr>
                 </thead>
                 <tbody>
