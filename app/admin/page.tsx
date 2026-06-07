@@ -399,7 +399,7 @@ export default function AdminPage() {
             {/* Action bar for selected rows. Sticks just above the table
                 so the count + buttons stay near where you're working. */}
             {selectedIds.size > 0 && (
-              <div className="sticky top-0 z-10 mb-3 flex items-center justify-between gap-3 rounded-lg border border-[#E8DDD0] bg-white px-4 py-2.5 shadow-sm">
+              <div className="mb-3 flex items-center justify-between gap-3 rounded-lg border border-[#E8DDD0] bg-white px-4 py-2.5 shadow-sm">
                 <span className="text-sm text-gray-700">
                   <strong>{selectedIds.size}</strong> selected
                 </span>
@@ -430,9 +430,11 @@ export default function AdminPage() {
               </div>
             )}
 
-            <div className="bg-white border border-[#E8DDD0] rounded-2xl overflow-x-auto shadow-sm">
+            <div className="bg-white border border-[#E8DDD0] rounded-2xl shadow-sm">
               <table className="w-full text-sm">
-                <thead className="bg-[#FDFAF6] border-b border-[#E8DDD0]">
+                <thead
+                  className="bg-[#FDFAF6] border-b border-[#E8DDD0] sticky top-0 z-20 shadow-[0_1px_0_0_#E8DDD0]"
+                >
                   <tr>
                     <th className="px-3 py-3 w-8">
                       <input
