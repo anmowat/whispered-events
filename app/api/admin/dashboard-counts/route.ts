@@ -8,6 +8,9 @@ import {
   getLastBlastSentByEmail,
 } from '@/lib/supabase'
 import { getActiveUsers, getFutureEvents } from '@/lib/airtable'
+import { withinMiles } from '@/lib/geocode'
+
+const NEARBY_RADIUS_MILES = 100
 
 // Admin overview: each active user's id/name/email/location + match count for
 // events on their dashboard + contribution totals + last-seen timestamp.
@@ -32,11 +35,36 @@ export async function GET(req: NextRequest) {
     const futureEventIds = futureEvents.map((e) => e.id)
     const counts = await getMatchCountsByEmail(futureEventIds)
 
+    // For each user, count future events within 100mi of their location.
+    // 53 users × 21 events ≈ 1k cheap distance calcs — fine to do inline.
+    const geocodedEvents = futureEvents.filter(
+      (e): e is typeof e & { lat: number; lng: number } =>
+        typeof e.lat === 'number' && typeof e.lng === 'number',
+    )
+    const nearbyByUserId = new Map<string, number>()
+    for (const u of activeUsers) {
+      if (typeof u.lat !== 'number' || typeof u.lng !== 'number') {
+        nearbyByUserId.set(u.id, 0)
+        continue
+      }
+      const userPoint = { lat: u.lat, lng: u.lng }
+      let n = 0
+      for (const e of geocodedEvents) {
+        if (withinMiles(userPoint, { lat: e.lat, lng: e.lng }, NEARBY_RADIUS_MILES)) n++
+      }
+      nearbyByUserId.set(u.id, n)
+    }
+
     const users = activeUsers
       .filter((u) => u.email)
       .map((u) => {
         const key = u.email.trim().toLowerCase()
         const c = contribStats.get(key)
+        const matchCount = counts.get(u.email) ?? 0
+        const nearbyCount = nearbyByUserId.get(u.id) ?? 0
+        const localMatchPct = nearbyCount > 0
+          ? Math.round((matchCount / nearbyCount) * 100)
+          : null
         return {
           id: u.id,
           created: u.created || null,
@@ -45,7 +73,9 @@ export async function GET(req: NextRequest) {
           firstName: u.firstName,
           location: u.location,
           frequency: u.frequency,
-          matchCount: counts.get(u.email) ?? 0,
+          matchCount,
+          nearbyEventCount: nearbyCount,
+          localMatchPct,
           totalContributions: c?.total ?? 0,
           lastContribution: c?.lastAt ?? null,
           lastSeen: lastSeen.get(key) ?? null,

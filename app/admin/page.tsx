@@ -12,6 +12,8 @@ interface UserRow {
   location: string
   frequency: string
   matchCount: number
+  nearbyEventCount: number
+  localMatchPct: number | null
   totalContributions: number
   lastContribution: string | null
   lastSeen: string | null
@@ -30,6 +32,7 @@ type SortKey =
   | 'location'
   | 'frequency'
   | 'matches'
+  | 'localMatch'
   | 'contributions'
   | 'created'
   | 'lastContribution'
@@ -46,6 +49,7 @@ const DEFAULT_DIR: Record<SortKey, SortDir> = {
   location: 'asc',
   frequency: 'asc',
   matches: 'desc',
+  localMatch: 'desc',
   contributions: 'desc',
   created: 'desc',
   lastContribution: 'desc',
@@ -146,6 +150,13 @@ function compareByKey(a: UserRow, b: UserRow, key: SortKey): number {
     case 'location': return (a.location || '').toLowerCase().localeCompare((b.location || '').toLowerCase())
     case 'frequency': return (a.frequency || '').localeCompare(b.frequency || '')
     case 'matches': return a.matchCount - b.matchCount
+    case 'localMatch': {
+      // Nulls sort last on desc (effectively -Infinity) so users with
+      // no nearby events drop to the bottom when sorting "best %" first.
+      const ap = a.localMatchPct ?? -1
+      const bp = b.localMatchPct ?? -1
+      return ap - bp
+    }
     case 'contributions': return a.totalContributions - b.totalContributions
     case 'created': return dateMs(a.created) - dateMs(b.created)
     case 'lastContribution': return dateMs(a.lastContribution) - dateMs(b.lastContribution)
@@ -468,6 +479,15 @@ export default function AdminPage() {
                     <SortHeader label="Location" sortKey="location" align="left" sortBy={sortBy} sortDir={sortDir} onToggle={toggleSort} />
                     <SortHeader label="Frequency" sortKey="frequency" align="left" sortBy={sortBy} sortDir={sortDir} onToggle={toggleSort} />
                     <SortHeader label="Matches" sortKey="matches" align="right" sortBy={sortBy} sortDir={sortDir} onToggle={toggleSort} />
+                    <SortHeader
+                      label="Local %"
+                      sortKey="localMatch"
+                      align="right"
+                      sortBy={sortBy}
+                      sortDir={sortDir}
+                      onToggle={toggleSort}
+                      title="What share of the future events within 100 miles of this user's location they currently match. Computed as matches / events-within-100mi at view time."
+                    />
                     <SortHeader label="Contributions" sortKey="contributions" align="right" sortBy={sortBy} sortDir={sortDir} onToggle={toggleSort} />
                     <SortHeader label="Created" sortKey="created" align="right" sortBy={sortBy} sortDir={sortDir} onToggle={toggleSort} />
                     <SortHeader label="Last contribution" sortKey="lastContribution" align="right" sortBy={sortBy} sortDir={sortDir} onToggle={toggleSort} />
@@ -530,6 +550,16 @@ export default function AdminPage() {
                       </td>
                       <td className={`px-4 py-3 text-right tabular-nums font-medium ${u.matchCount === 0 ? 'text-gray-400' : 'text-gray-800'}`}>
                         {u.matchCount}
+                      </td>
+                      <td
+                        className={`px-4 py-3 text-right tabular-nums whitespace-nowrap ${u.localMatchPct === null ? 'text-gray-400' : 'text-gray-800'}`}
+                        title={
+                          u.localMatchPct === null
+                            ? 'No nearby events (or user has no geocoded location)'
+                            : `${u.matchCount} of ${u.nearbyEventCount} events within 100mi`
+                        }
+                      >
+                        {u.localMatchPct === null ? '—' : `${u.localMatchPct}%`}
                       </td>
                       <td className={`px-4 py-3 text-right tabular-nums ${u.totalContributions === 0 ? 'text-gray-400' : 'text-gray-800'}`}>
                         {u.totalContributions}

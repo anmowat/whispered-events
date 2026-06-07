@@ -190,9 +190,12 @@ export default function BlastPage() {
                 </span>
                 <Wysiwyg value={body} onChange={setBody} />
                 <p className="mt-1 text-[11px] text-gray-500">
-                  Each recipient sees their first name where you write{' '}
-                  <code className="bg-[#F5EFE6] px-1 rounded">{'{{firstName}}'}</code>
-                  . Sent from{' '}
+                  Tokens get substituted per recipient at send time. Use the
+                  Token menu in the toolbar to insert{' '}
+                  <code className="bg-[#F5EFE6] px-1 rounded">{'{{firstName}}'}</code>,{' '}
+                  <code className="bg-[#F5EFE6] px-1 rounded">{'{{location}}'}</code>, or{' '}
+                  <code className="bg-[#F5EFE6] px-1 rounded">{'{{interests}}'}</code> at
+                  your cursor position. Sent from{' '}
                   <code className="bg-[#F5EFE6] px-1 rounded">team@whisperedevents.com</code>
                   . No BCC — view the audit in the Resend dashboard.
                 </p>
@@ -259,6 +262,15 @@ export default function BlastPage() {
 // dependency (~80kb for Tiptap+StarterKit). Output is HTML stored in
 // the parent's `value` prop and rendered server-side inside the Salon
 // email shell.
+// Personalization tokens. Backend substitutes per-recipient at send time
+// (see lib/email.ts sendBlast). The dropdown inserts the raw token at
+// the cursor so the admin doesn't have to remember the exact syntax.
+const TOKENS: { token: string; label: string; preview: string }[] = [
+  { token: '{{firstName}}', label: 'First name', preview: 'Andy' },
+  { token: '{{location}}', label: 'Location', preview: 'San Francisco' },
+  { token: '{{interests}}', label: 'Interests', preview: 'RevOps events' },
+]
+
 function Wysiwyg({
   value,
   onChange,
@@ -267,6 +279,7 @@ function Wysiwyg({
   onChange: (html: string) => void
 }) {
   const ref = useRef<HTMLDivElement>(null)
+  const [showTokens, setShowTokens] = useState(false)
 
   // Seed innerHTML once on mount. We deliberately don't re-sync from
   // `value` on every render — that would reset the caret on every
@@ -293,6 +306,15 @@ function Wysiwyg({
     exec('createLink', normalised)
   }
 
+  function insertToken(token: string) {
+    // Restore focus to the editor before inserting so the token lands
+    // at the previous cursor position rather than at the end.
+    ref.current?.focus()
+    document.execCommand('insertText', false, token)
+    if (ref.current) onChange(ref.current.innerHTML)
+    setShowTokens(false)
+  }
+
   return (
     <div className="rounded-lg border border-[#E8DDD0] bg-white overflow-hidden">
       <div className="flex items-center gap-1 px-2 py-1.5 border-b border-[#E8DDD0] bg-[#FDFAF6]">
@@ -316,6 +338,34 @@ function Wysiwyg({
         <ToolbarButton onMouseDown={(e) => { e.preventDefault(); exec('unlink') }} title="Remove link">
           ✕ Link
         </ToolbarButton>
+        <span className="w-px h-4 bg-[#E8DDD0] mx-1" />
+        <div className="relative">
+          <ToolbarButton
+            onMouseDown={(e) => { e.preventDefault(); setShowTokens((v) => !v) }}
+            title="Insert personalization token"
+          >
+            {'{{ }}'} Token ▾
+          </ToolbarButton>
+          {showTokens && (
+            <div
+              className="absolute z-10 mt-1 left-0 w-[260px] rounded-lg border border-[#E8DDD0] bg-white shadow-lg py-1"
+            >
+              {TOKENS.map((t) => (
+                <button
+                  key={t.token}
+                  type="button"
+                  onMouseDown={(e) => { e.preventDefault(); insertToken(t.token) }}
+                  className="block w-full text-left px-3 py-2 hover:bg-[#FDFAF6] transition-colors"
+                >
+                  <div className="text-sm text-gray-800">{t.label}</div>
+                  <div className="text-[11px] text-gray-500">
+                    <code>{t.token}</code> · e.g. "{t.preview}"
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
       <div
         ref={ref}

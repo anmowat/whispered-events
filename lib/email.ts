@@ -272,7 +272,10 @@ export async function sendBlast(
 ): Promise<void> {
   const resend = getResend()
   const firstName = firstNameOrThere(user)
-  const substituted = bodyHtml.replaceAll('{{firstName}}', escapeHtml(firstName))
+  const substituted = bodyHtml
+    .replaceAll('{{firstName}}', escapeHtml(firstName))
+    .replaceAll('{{location}}', escapeHtml(user.location || ''))
+    .replaceAll('{{interests}}', escapeHtml(user.interest || ''))
 
   const html = shell(`
     <div style="font-family:${SANS};font-size:14.5px;line-height:1.6;color:${C.ink2};">
