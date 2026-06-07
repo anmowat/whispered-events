@@ -572,6 +572,25 @@ export async function refreshUserLatLon(userId: string): Promise<void> {
   await base(PROFILES_TABLE).update(userId, { LatLon: fresh } as Partial<FieldSet>)
 }
 
+// Companion for an Event row — admin may edit Location directly without
+// going through the host/event update endpoint, leaving LatLon stale.
+// Same shape as refreshUserLatLon: idempotent, skips write when geocode
+// result is unchanged.
+export async function refreshEventLatLon(eventId: string): Promise<void> {
+  const base = getBase()
+  const record = await base(EVENTS_TABLE).find(eventId)
+  const location = String(record.get('Location') || '').trim()
+  if (!location) return
+  const geo = await geocodeLocation(location)
+  if (!geo) {
+    console.warn(`refreshEventLatLon: could not geocode "${location}" for ${eventId}`)
+    return
+  }
+  const fresh = formatLatLon(geo)
+  if (String(record.get('LatLon') || '') === fresh) return
+  await base(EVENTS_TABLE).update(eventId, { LatLon: fresh } as Partial<FieldSet>)
+}
+
 export async function getUserById(userId: string): Promise<AirtableUser | null> {
   const base = getBase()
   try {

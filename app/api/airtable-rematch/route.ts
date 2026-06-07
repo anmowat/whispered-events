@@ -3,6 +3,7 @@ import { waitUntil } from '@vercel/functions'
 import {
   clearEventMatchCheckbox,
   clearUserMatchCheckbox,
+  refreshEventLatLon,
   refreshUserLatLon,
 } from '@/lib/airtable'
 
@@ -84,12 +85,16 @@ export async function POST(req: NextRequest) {
   }
 
   // type === 'event'
-  // processEventTrigger invalidates both Airtable caches at entry, so any
-  // field the admin just edited (description / audience / location /
-  // type) is picked up on this rescore. No geocoding step needed here —
-  // updateEvent / processEventTrigger handle that downstream when called
-  // through the host edit path; for direct-Airtable edits, geocoding is
-  // applied lazily when matching reads location.
+  // Re-geocode in case an admin edited Location directly on the event
+  // row. Awaited so the match fanout below picks up fresh LatLon.
+  try {
+    await refreshEventLatLon(id)
+  } catch (err) {
+    console.error('airtable-rematch: refreshEventLatLon failed:', err)
+  }
+  // processEventTrigger invalidates both Airtable caches at entry, so
+  // any field the admin just edited (description / audience / location
+  // / type) is picked up on this rescore.
   waitUntil(
     fetch(`${appUrl}/api/process-matches?trigger=event&id=${id}`).catch((e) =>
       console.error('airtable-rematch: event trigger fire-and-forget error:', e),
