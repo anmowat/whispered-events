@@ -290,7 +290,7 @@ export default function AdminPage() {
       {showLogin && <LoginModal onClose={() => { setShowLogin(false); fetchCounts() }} />}
 
       <header className="border-b border-[#E8DDD0] bg-[#F5EFE6]/90 backdrop-blur-sm">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <a href="/" className="flex items-center">
             <img src="/logo.svg" alt="Whispered Events" className="h-7 w-auto" />
           </a>
@@ -298,7 +298,7 @@ export default function AdminPage() {
         </div>
       </header>
 
-      <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-8">
+      <main className="flex-1 max-w-[1400px] w-full mx-auto px-4 sm:px-6 py-8">
         {authState === 'unknown' && (
           <p className="text-sm text-gray-500">Loading…</p>
         )}
@@ -430,7 +430,7 @@ export default function AdminPage() {
               </div>
             )}
 
-            <div className="bg-white border border-[#E8DDD0] rounded-2xl overflow-hidden shadow-sm">
+            <div className="bg-white border border-[#E8DDD0] rounded-2xl overflow-x-auto shadow-sm">
               <table className="w-full text-sm">
                 <thead className="bg-[#FDFAF6] border-b border-[#E8DDD0]">
                   <tr>
