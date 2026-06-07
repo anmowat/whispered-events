@@ -251,6 +251,14 @@ async function scoreAndNotify(
     //   - Weekly / Monthly: leave notified_at NULL; cron will pick it up
     //   - Paused: never email
     if (user.frequency === 'As they arrive') {
+      // Suppress re-sends. If notified_at was already set on the prior
+      // match row, this user has already received this event via SOME
+      // digest path (per-event, weekly cron, monthly cron, or welcome).
+      // An admin-triggered rescore that moved them above threshold
+      // again shouldn't fire a second copy.
+      if (outcome.previousNotifiedAt) {
+        return 'scored'
+      }
       try {
         await sendEachNewEventDigest(user, event, result.matchPercent)
       } catch (e) {
@@ -267,6 +275,12 @@ async function scoreAndNotify(
 interface ScoreOutcome {
   cached: boolean
   result: ScoreResult
+  // notified_at on the (event, user) match row BEFORE the upsert
+  // re-stamps anything. Used by the 'As they arrive' delivery decision
+  // — if the user was already told about this event, we don't fire a
+  // fresh per-event digest just because the rescore moved their score
+  // around.
+  previousNotifiedAt: string | null
 }
 
 async function scoreOrReuse(
@@ -276,9 +290,11 @@ async function scoreOrReuse(
 ): Promise<ScoreOutcome> {
   const hash = computeInputsHash(event, user)
   const existing = await getExistingMatch(event.id, user.id)
+  const previousNotifiedAt = existing?.notified_at ?? null
   if (existing && existing.inputs_hash === hash) {
     return {
       cached: true,
+      previousNotifiedAt,
       result: {
         score: existing.score,
         matchPercent:
@@ -295,7 +311,7 @@ async function scoreOrReuse(
     }
   }
   const result = await scoreEventUser(event, user, fixedSide)
-  return { cached: false, result }
+  return { cached: false, previousNotifiedAt, result }
 }
 
 export async function GET(req: NextRequest) {

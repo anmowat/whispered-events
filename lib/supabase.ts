@@ -70,6 +70,11 @@ export interface MatchRow {
   score: number
   inputs_hash: string | null
   match_percent: number | null
+  // Null when this user hasn't been told about this event yet via any
+  // digest/per-event path. process-matches uses this to decide whether
+  // a rescore (e.g. admin-triggered event re-match) should fire a fresh
+  // 'As they arrive' digest, or whether the user has already heard.
+  notified_at: string | null
 }
 
 export async function getExistingMatch(
@@ -79,7 +84,7 @@ export async function getExistingMatch(
   const supabase = getClient()
   const { data } = await supabase
     .from('matches')
-    .select('score, inputs_hash, match_percent')
+    .select('score, inputs_hash, match_percent, notified_at')
     .eq('event_id', eventId)
     .eq('user_id', userId)
     .maybeSingle()
