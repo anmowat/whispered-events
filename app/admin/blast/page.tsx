@@ -193,8 +193,8 @@ export default function BlastPage() {
                   Each recipient sees their first name where you write{' '}
                   <code className="bg-[#F5EFE6] px-1 rounded">{'{{firstName}}'}</code>
                   . Sent from{' '}
-                  <code className="bg-[#F5EFE6] px-1 rounded">team@whisperedevents.com</code>{' '}
-                  (BCC andy@whisperedevents.com).
+                  <code className="bg-[#F5EFE6] px-1 rounded">team@whisperedevents.com</code>
+                  . No BCC — view the audit in the Resend dashboard.
                 </p>
               </div>
             </div>
@@ -217,7 +217,10 @@ export default function BlastPage() {
                 <button
                   onClick={() => setConfirming(true)}
                   disabled={!subject.trim() || !body.trim() || sending}
-                  className="ml-auto px-5 py-2 rounded-lg bg-gold-700 hover:bg-gold-600 text-white text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="ml-auto px-5 py-2 rounded-lg text-white text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  style={{ background: '#6E1F2B' }}
+                  onMouseEnter={(e) => !e.currentTarget.disabled && (e.currentTarget.style.background = '#8E2E3B')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = '#6E1F2B')}
                 >
                   Send to {recipientIds.length} user{recipientIds.length === 1 ? '' : 's'}
                 </button>

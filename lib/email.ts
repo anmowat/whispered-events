@@ -282,10 +282,12 @@ export async function sendBlast(
   `)
   const text = [htmlToText(substituted), '', ...digestFooterTextLines()].join('\n')
 
+  // Blasts deliberately skip the MONITOR_BCC. Sends fan out to dozens
+  // of users at a time and Andy's inbox doesn't need a duplicate of
+  // each. Resend's dashboard is the audit trail.
   const { error } = await resend.emails.send({
     from: TEAM_FROM,
     to: user.email,
-    bcc: MONITOR_BCC,
     subject,
     html,
     text,
