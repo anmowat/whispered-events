@@ -528,13 +528,13 @@ export default function AdminPage() {
                     />
                     <SortHeader label="Matches" sortKey="matches" align="right" sortBy={sortBy} sortDir={sortDir} onToggle={toggleSort} />
                     <SortHeader
-                      label="Local %"
+                      label="Local"
                       sortKey="localMatch"
                       align="right"
                       sortBy={sortBy}
                       sortDir={sortDir}
                       onToggle={toggleSort}
-                      title="Matches divided by total future events within 100 miles of this user's location. Hover any cell in this column for the raw N of M breakdown."
+                      title="Matches divided by total future events within 100 miles of this user's location, as a percentage. Hover any cell in this column for the raw N of M breakdown."
                     />
                     <SortHeader
                       label="Cont"
@@ -570,7 +570,7 @@ export default function AdminPage() {
                       sortBy={sortBy}
                       sortDir={sortDir}
                       onToggle={toggleSort}
-                      title="Last sent — last time we actually sent this user a digest email containing events. Excludes silent stamps from frequency-flip backlog suppression and excludes transactional emails (login link, application received, event-added confirmations)."
+                      title="Last sent — last time we actually emailed this user a digest containing events OR a coaching nudge (the Monday cron fires coaching to dormant users with no matches; counts the same as a digest for cadence purposes). Excludes admin blasts, silent stamps from frequency-flip backlog suppression, and transactional emails (login link, application received, event-added confirmations)."
                     />
                     <SortHeader
                       label="Blast"
