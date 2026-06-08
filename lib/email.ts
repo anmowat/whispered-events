@@ -379,16 +379,22 @@ function renderCoachingNoNearby(
 ): { subject: string; html: string; text: string } {
   const locationPhrase = safeLocation || 'your area'
   const subject = `No Whispered Events near you yet — let's change that`
+  // Gmail was collapsing the body behind a '...' indicator when the
+  // CTAs were inside an <ol>. Splitting them into discrete <p>
+  // elements with manual numbering keeps the look but flat content
+  // doesn't trigger the quoted-content heuristic.
   const html = shell(`
     ${h1(`Hi <span style="font-style:italic;">${safeName}</span>.`)}
     ${p(
       `We don't have any upcoming Whispered Events within 100 miles of ${locationPhrase} yet. Two quick ways to change that:`,
       { mt: 14 },
     )}
-    <ol style="font-family:${SANS};font-size:14.5px;line-height:1.6;color:${C.ink2};margin:14px 0 0;padding-left:20px;">
-      <li style="margin-bottom:8px;"><strong style="color:${C.ink};">Share events you see</strong> — email any link to <a href="${NEW_EVENT_MAILTO}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">event@whispered.com</a> and we'll add it.</li>
-      <li><strong style="color:${C.ink};">Update your location</strong> on your <a href="${DASHBOARD_LINK}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">dashboard</a> if you've moved or are traveling — your matches will re-run automatically.</li>
-    </ol>
+    <p style="font-family:${SANS};font-size:14.5px;line-height:1.6;color:${C.ink2};margin:14px 0 0;">
+      <strong style="color:${C.ink};">1. Help us build a presence in ${locationPhrase}</strong> — share events you see, email any link to <a href="${NEW_EVENT_MAILTO}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">event@whispered.com</a> and we'll add it in!
+    </p>
+    <p style="font-family:${SANS};font-size:14.5px;line-height:1.6;color:${C.ink2};margin:10px 0 0;">
+      <strong style="color:${C.ink};">2. Update your location</strong> on your <a href="${DASHBOARD_LINK}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">dashboard</a> if you've moved or are traveling — your matches will re-run automatically.
+    </p>
     ${digestFooterHtml()}
   `)
   const text = [
@@ -396,7 +402,7 @@ function renderCoachingNoNearby(
     '',
     `We don't have any upcoming Whispered Events within 100 miles of ${locationPhrase} yet. Two quick ways to change that:`,
     '',
-    `1. Share events you see — email any link to event@whispered.com and we'll add it.`,
+    `1. Help us build a presence in ${locationPhrase} — share events you see, email any link to event@whispered.com and we'll add it in!`,
     `2. Update your location on your dashboard if you've moved or are traveling — your matches will re-run automatically.`,
     '',
     ...digestFooterTextLines(),
@@ -412,16 +418,20 @@ function renderCoachingNoMatches(
   const locationPhrase = safeLocation || 'you'
   const noun = nearbyCount === 1 ? 'event' : 'events'
   const subject = `${nearbyCount} ${noun} near you — let's tune your matches`
+  // Same anti-collapse rewrite as Variant A: discrete <p> elements
+  // instead of <ol>/<li> so Gmail doesn't hide the CTAs behind '...'.
   const html = shell(`
     ${h1(`Hi <span style="font-style:italic;">${safeName}</span>.`)}
     ${p(
       `We have ${nearbyCount} upcoming ${noun} within 100 miles of ${locationPhrase}, but none are matching your profile yet. Two ways to fix that:`,
       { mt: 14 },
     )}
-    <ol style="font-family:${SANS};font-size:14.5px;line-height:1.6;color:${C.ink2};margin:14px 0 0;padding-left:20px;">
-      <li style="margin-bottom:8px;"><strong style="color:${C.ink};">Update your interests</strong> on your <a href="${DASHBOARD_LINK}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">dashboard</a> — add functions or topics you'd like to see (e.g. "RevOps", "GTM", "AI", specific industries).</li>
-      <li><strong style="color:${C.ink};">Share events in your area of interest</strong> — email any link to <a href="${NEW_EVENT_MAILTO}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">event@whispered.com</a> to help build momentum.</li>
-    </ol>
+    <p style="font-family:${SANS};font-size:14.5px;line-height:1.6;color:${C.ink2};margin:14px 0 0;">
+      <strong style="color:${C.ink};">1. Update your interests</strong> on your <a href="${DASHBOARD_LINK}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">dashboard</a> — add functions or topics you'd like to see (e.g. "RevOps", "GTM", "AI", specific industries).
+    </p>
+    <p style="font-family:${SANS};font-size:14.5px;line-height:1.6;color:${C.ink2};margin:10px 0 0;">
+      <strong style="color:${C.ink};">2. Share events in your area of interest</strong> — email any link to <a href="${NEW_EVENT_MAILTO}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">event@whispered.com</a> to help build momentum.
+    </p>
     ${digestFooterHtml()}
   `)
   const text = [
@@ -783,20 +793,24 @@ function renderInlineCoaching(safeLocation: string, nearbyCount: number): string
   if (nearbyCount === 0) {
     const locationPhrase = safeLocation || 'your area'
     return `
-<ol style="font-family:${SANS};font-size:14.5px;line-height:1.6;color:${C.ink2};margin:14px 0 0;padding-left:20px;">
-  <li style="margin-bottom:8px;"><strong style="color:${C.ink};">Share events you see</strong> — email any link to <a href="${NEW_EVENT_MAILTO}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">event@whispered.com</a> to help us start building a presence in ${locationPhrase}.</li>
-  <li><strong style="color:${C.ink};">Update your location</strong> on your <a href="${DASHBOARD_LINK}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">dashboard</a> if you've moved or are traveling — your matches will re-run automatically.</li>
-</ol>
+<p style="font-family:${SANS};font-size:14.5px;line-height:1.6;color:${C.ink2};margin:14px 0 0;">
+  <strong style="color:${C.ink};">1. Help us build a presence in ${locationPhrase}</strong> — share events you see, email any link to <a href="${NEW_EVENT_MAILTO}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">event@whispered.com</a> and we'll add it in!
+</p>
+<p style="font-family:${SANS};font-size:14.5px;line-height:1.6;color:${C.ink2};margin:10px 0 0;">
+  <strong style="color:${C.ink};">2. Update your location</strong> on your <a href="${DASHBOARD_LINK}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">dashboard</a> if you've moved or are traveling — your matches will re-run automatically.
+</p>
 `.trim()
   }
   const locationPhrase = safeLocation || 'you'
   const noun = nearbyCount === 1 ? 'event' : 'events'
   return `
 <p style="font-family:${SANS};font-size:14.5px;line-height:1.6;color:${C.ink2};margin:14px 0 0;">We do have ${nearbyCount} upcoming ${noun} within 100 miles of ${locationPhrase} — your profile just isn't matching them yet.</p>
-<ol style="font-family:${SANS};font-size:14.5px;line-height:1.6;color:${C.ink2};margin:10px 0 0;padding-left:20px;">
-  <li style="margin-bottom:8px;"><strong style="color:${C.ink};">Update your interests</strong> on your <a href="${DASHBOARD_LINK}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">dashboard</a> — add functions or topics you'd like to see (e.g. "RevOps", "GTM", "AI", specific industries).</li>
-  <li><strong style="color:${C.ink};">Share events in your area of interest</strong> — email any link to <a href="${NEW_EVENT_MAILTO}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">event@whispered.com</a> to help build momentum.</li>
-</ol>
+<p style="font-family:${SANS};font-size:14.5px;line-height:1.6;color:${C.ink2};margin:10px 0 0;">
+  <strong style="color:${C.ink};">1. Update your interests</strong> on your <a href="${DASHBOARD_LINK}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">dashboard</a> — add functions or topics you'd like to see (e.g. "RevOps", "GTM", "AI", specific industries).
+</p>
+<p style="font-family:${SANS};font-size:14.5px;line-height:1.6;color:${C.ink2};margin:10px 0 0;">
+  <strong style="color:${C.ink};">2. Share events in your area of interest</strong> — email any link to <a href="${NEW_EVENT_MAILTO}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">event@whispered.com</a> to help build momentum.
+</p>
 `.trim()
 }
 
@@ -804,7 +818,7 @@ function inlineCoachingTextLines(location: string, nearbyCount: number): string[
   if (nearbyCount === 0) {
     const locationPhrase = location || 'your area'
     return [
-      `1. Share events you see — email any link to event@whispered.com to help us start building a presence in ${locationPhrase}.`,
+      `1. Help us build a presence in ${locationPhrase} — share events you see, email any link to event@whispered.com and we'll add it in!`,
       `2. Update your location on your dashboard if you've moved or are traveling — your matches will re-run automatically.`,
     ]
   }
