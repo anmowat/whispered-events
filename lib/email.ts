@@ -437,6 +437,93 @@ function renderCoachingNoMatches(
   return { subject, html, text }
 }
 
+// Recap nudge for users who DO match events but don't have anything
+// new for us to tell them about (already notified on every match).
+// Same 28-day floor as coaching applies — the caller in lib/digest.ts
+// gates this via isCoachingEligible. The recap shows the top 3 of
+// their already-matched events plus the nearby/match counts so they
+// have context for why they aren't hearing more.
+export async function sendRecap(
+  user: AirtableUser,
+  topMatches: DigestEventEntry[],
+  nearbyCount: number,
+  totalMatchCount: number,
+): Promise<void> {
+  if (topMatches.length === 0) return
+  const resend = getResend()
+  const firstName = firstNameOrThere(user)
+  const safeName = escapeHtml(firstName)
+  const safeLocation = escapeHtml(user.location || '')
+  const locationPhrase = safeLocation || 'your area'
+  const matchNoun = totalMatchCount === 1 ? 'event' : 'events'
+  const matchVerb = totalMatchCount === 1 ? 'matches' : 'match'
+  const nearbyNoun = nearbyCount === 1 ? 'event' : 'events'
+
+  const subject = `Your top Whispered Events ${totalMatchCount === 1 ? 'match' : 'matches'}`
+
+  // The 'New' section is omitted because none of these are new — it's
+  // a recap of already-notified rows. We use the Top Matches section
+  // styling so the layout reads as a normal digest body.
+  const annotated = markDuplicates({ newEvents: [], topMatches })
+
+  const html = shell(`
+    ${h1(`Hi <span style="font-style:italic;">${safeName}</span>.`)}
+    ${p(
+      `Quick recap — we have ${nearbyCount} upcoming ${nearbyNoun} within 100 miles of ${locationPhrase}, and your profile ${matchVerb} ${totalMatchCount} of them. Here are your top ${matchNoun}:`,
+      { mt: 14 },
+    )}
+    ${renderSection('Top Matches', annotated.topMatches)}
+    ${p(
+      `Want to see more? Update your interests on your <a href="${DASHBOARD_LINK}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">dashboard</a> — add functions or topics you'd like to see (e.g. "RevOps", "GTM", "AI", specific industries).`,
+      { mt: 14 },
+    )}
+    ${digestFooterHtml()}
+  `)
+
+  const textLines: string[] = [
+    `Hi ${firstName}.`,
+    '',
+    `Quick recap — we have ${nearbyCount} upcoming ${nearbyNoun} within 100 miles of ${user.location || 'your area'}, and your profile ${matchVerb} ${totalMatchCount} of them. Here are your top ${matchNoun}:`,
+    '',
+    'Top Matches',
+    '',
+  ]
+  for (const entry of annotated.topMatches) {
+    const { event, matchPercent, isDuplicate } = entry
+    const date = shortDate(event.date)
+    const datePart = date ? ` (${date})` : ''
+    const body = isDuplicate ? ' see above' : event.description ? ` ${event.description}` : ''
+    textLines.push(`${event.name}${datePart}${body} (Match ${Math.round(matchPercent)}%)`)
+    textLines.push(event.link)
+    textLines.push('')
+  }
+  textLines.push(
+    `Want to see more? Update your interests on your dashboard — ${DASHBOARD_LINK}`,
+    '',
+    ...digestFooterTextLines(),
+  )
+
+  const { error } = await resend.emails.send({
+    from: TEAM_FROM,
+    to: user.email,
+    bcc: MONITOR_BCC,
+    subject,
+    html,
+    text: textLines.join('\n'),
+    headers: AUTO_HEADERS,
+  })
+  if (error) {
+    console.error('sendRecap: Resend error', { email: user.email, error })
+    throw new Error(`Resend send failed: ${error.message ?? JSON.stringify(error)}`)
+  }
+  await logDigestSend({
+    userId: user.id,
+    userEmail: user.email,
+    kind: 'recap',
+    eventIds: topMatches.map((e) => e.event.id),
+  })
+}
+
 export async function sendEventCouldNotReadEmail(email: string): Promise<void> {
   const resend = getResend()
   const html = shell(`

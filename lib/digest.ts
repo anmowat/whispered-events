@@ -5,11 +5,12 @@ import {
   getFutureEvents,
 } from './airtable'
 import { isMatchEligible } from './matching'
-import { sendUserDigest, sendCoaching } from './email'
+import { sendUserDigest, sendCoaching, sendRecap } from './email'
 import type { DigestEventEntry } from './email'
 import { withinMiles } from './geocode'
 import {
   DigestMatchRow,
+  getMatchCountsByEmail,
   getUnnotifiedMatchesForUser,
   getUpcomingMatchesForUser,
   getLastDigestSentByEmail,
@@ -183,6 +184,7 @@ function buildNearbyCountMap(
 interface FrequencyStats {
   processed: number
   sent: number
+  recapped: number
   coached: number
   skippedRecent: number
 }
@@ -190,22 +192,32 @@ interface FrequencyStats {
 export async function runDigests(now: Date): Promise<{
   weekly: FrequencyStats
   monthly: FrequencyStats
-  arrive: { coached: number }
+  arrive: { recapped: number; coached: number }
 }> {
   const todayPT = ymdInPT(now)
   const allUsers = (await getActiveUsers()).filter(isMatchEligible)
   const futureEvents = await getFutureEvents()
   const futureById = new Map(futureEvents.map((e) => [e.id, e]))
+  const futureIds = futureEvents.map((e) => e.id)
   const lastSentByEmail = await getLastDigestSentByEmail()
   const nearbyByUserId = buildNearbyCountMap(allUsers, futureEvents)
+  // Total above-threshold match count per user — used to distinguish
+  // 'no matches at all' (true coaching path) from 'has matches but
+  // none unnotified' (recap path). Single bulk query covers everyone.
+  const matchCountByEmail = await getMatchCountsByEmail(futureIds)
 
-  const weekly: FrequencyStats = { processed: 0, sent: 0, coached: 0, skippedRecent: 0 }
-  const monthly: FrequencyStats = { processed: 0, sent: 0, coached: 0, skippedRecent: 0 }
+  const weekly: FrequencyStats = { processed: 0, sent: 0, recapped: 0, coached: 0, skippedRecent: 0 }
+  const monthly: FrequencyStats = { processed: 0, sent: 0, recapped: 0, coached: 0, skippedRecent: 0 }
+  let arriveRecapped = 0
   let arriveCoached = 0
 
   for (const user of allUsers) {
     const lastSent = lastSentByEmail.get(user.email.trim().toLowerCase()) ?? null
     const nearbyCount = nearbyByUserId.get(user.id) ?? 0
+    // matchCount uses the raw email key (matches the lookup pattern in
+    // admin/dashboard-counts). Total events at-or-above NOTIFY_THRESHOLD
+    // for this user, future events only, skipped rows excluded.
+    const matchCount = matchCountByEmail.get(user.email) ?? 0
     // 7-day floor blocks cron from piling on top of a recent manual
     // re-run or mid-week per-event send. We don't touch their Monthly
     // due date when we skip — they re-enter next Monday.
@@ -220,7 +232,13 @@ export async function runDigests(now: Date): Promise<{
       const result = await processUser(user, futureById)
       if (result.sent) {
         weekly.sent += 1
-      } else if (isCoachingEligible(user, lastSent, now)) {
+        continue
+      }
+      if (!isCoachingEligible(user, lastSent, now)) continue
+      if (matchCount > 0) {
+        await safelySendRecap(user, futureById, futureIds, nearbyCount, matchCount)
+        weekly.recapped += 1
+      } else {
         await safelySendCoaching(user, nearbyCount)
         weekly.coached += 1
       }
@@ -239,17 +257,22 @@ export async function runDigests(now: Date): Promise<{
         monthly.processed += 1
         const result = await processUser(user, futureById)
         let touched = result.sent
-        if (!result.sent && isCoachingEligible(user, lastSent, now)) {
-          await safelySendCoaching(user, nearbyCount)
-          monthly.coached += 1
-          touched = true
-        } else if (result.sent) {
+        if (result.sent) {
           monthly.sent += 1
+        } else if (isCoachingEligible(user, lastSent, now)) {
+          if (matchCount > 0) {
+            await safelySendRecap(user, futureById, futureIds, nearbyCount, matchCount)
+            monthly.recapped += 1
+          } else {
+            await safelySendCoaching(user, nearbyCount)
+            monthly.coached += 1
+          }
+          touched = true
         }
         await upsertDigestState(user.id, {
           nextMonthly: addDays(todayPT, COACHING_FLOOR_DAYS),
-          // Stamp last-sent for both digest and coaching outcomes so the
-          // 28-day floor reflects when the user was most recently
+          // Stamp last-sent for digest / recap / coaching outcomes so
+          // the 28-day floor reflects when the user was most recently
           // touched, not just when a digest with events went out.
           lastSent: touched
             ? now.toISOString()
@@ -258,8 +281,13 @@ export async function runDigests(now: Date): Promise<{
       }
     } else if (user.frequency === 'As they arrive') {
       // Per-event scoring path already handles their digests. Cron only
-      // handles their coaching nudge.
-      if (isCoachingEligible(user, lastSent, now)) {
+      // handles the dormancy nudge — recap if they have matches,
+      // coaching if they don't.
+      if (!isCoachingEligible(user, lastSent, now)) continue
+      if (matchCount > 0) {
+        await safelySendRecap(user, futureById, futureIds, nearbyCount, matchCount)
+        arriveRecapped += 1
+      } else {
         await safelySendCoaching(user, nearbyCount)
         arriveCoached += 1
       }
@@ -267,7 +295,44 @@ export async function runDigests(now: Date): Promise<{
     // 'Paused' is intentionally skipped.
   }
 
-  return { weekly, monthly, arrive: { coached: arriveCoached } }
+  return {
+    weekly,
+    monthly,
+    arrive: { recapped: arriveRecapped, coached: arriveCoached },
+  }
+}
+
+// Recap path: user has matching events but nothing new to tell them.
+// Fetches the top 3 upcoming matches and hands them to sendRecap.
+// Wrapped in try/catch so a single Resend hiccup doesn't tank the
+// whole cron run (mirrors safelySendCoaching).
+async function safelySendRecap(
+  user: AirtableUser,
+  futureById: Map<string, AirtableEvent>,
+  futureIds: string[],
+  nearbyCount: number,
+  totalMatchCount: number,
+): Promise<void> {
+  try {
+    const upcoming = await getUpcomingMatchesForUser(
+      user.id,
+      futureIds,
+      DIGEST_SCORE_THRESHOLD,
+    )
+    const top = upcoming.slice(0, DIGEST_CAP_PER_SECTION)
+    const topEntries = toEntries(top, futureById)
+    // If the join against futureById comes up empty (e.g. all the
+    // user's matched events were just removed), skip — no recap to
+    // send. We don't fall back to a no-event variant because the
+    // matchCount precondition implies the rows exist.
+    if (topEntries.length === 0) return
+    await sendRecap(user, topEntries, nearbyCount, totalMatchCount)
+  } catch (err) {
+    console.error(
+      `runDigests: sendRecap failed for ${user.email}`,
+      err instanceof Error ? err.message : String(err),
+    )
+  }
 }
 
 // One failed coaching send (Resend hiccup, transient Supabase error)

@@ -538,7 +538,7 @@ export async function getExistingMatchHashes(
 export interface DigestSendLog {
   userId: string
   userEmail: string
-  kind: 'per_event' | 'cron' | 'welcome' | 'blast' | 'coaching'
+  kind: 'per_event' | 'cron' | 'welcome' | 'blast' | 'coaching' | 'recap'
   eventIds: string[]
 }
 
