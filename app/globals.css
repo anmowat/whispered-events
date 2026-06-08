@@ -115,8 +115,8 @@ select.salon-select {
 }
 
 /* Event link with hover-arrow used on dashboard event cards. */
-.event-link        { color: var(--ink); text-decoration: none; display: inline-flex; align-items: baseline; gap: 6px; }
-.event-link:hover  { color: var(--accent); }
+.event-link        { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; display: inline-flex; align-items: baseline; gap: 6px; }
+.event-link:hover  { color: var(--accent-2); }
 .event-link .arrow { opacity: 0; transform: translateX(-2px); transition: opacity 0.15s, transform 0.15s; display: inline-block; }
 .event-link:hover .arrow { opacity: 1; transform: translateX(0); }
 
