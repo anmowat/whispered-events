@@ -397,7 +397,7 @@ function ContributeCard({
     <LandingCard title="Contribute an event in seconds.">
       <HowItWorks
         items={[
-          'Share an event link or paste in details',
+          'Share an event link',
           'Our AI extracts the information for you to confirm',
           'Event shared just with executives whose profiles fit',
         ]}
@@ -405,21 +405,19 @@ function ContributeCard({
       <AccentButton onClick={onCTA}>
         Share Event <ArrowIcon />
       </AccentButton>
-      <div className="text-center mt-3 space-y-1.5">
-        <p className="leading-relaxed" style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>
-          Share an event you are running or just one you are aware of.
-        </p>
-        <p className="leading-relaxed" style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>
-          Share above or email link to{' '}
-          <a
-            href="mailto:event@whisperedevents.com"
-            className="underline"
-            style={{ color: 'var(--accent)', textUnderlineOffset: 3 }}
-          >
-            event@whisperedevents.com
-          </a>
-        </p>
-      </div>
+      <p
+        className="text-center mt-3 leading-relaxed"
+        style={{ fontSize: 13, color: 'var(--ink-3)' }}
+      >
+        OR just email event link to{' '}
+        <a
+          href="mailto:event@whisperedevents.com"
+          className="underline"
+          style={{ color: 'var(--accent)', textUnderlineOffset: 3 }}
+        >
+          event@whisperedevents.com
+        </a>
+      </p>
       <FeaturedEventsCarousel events={featuredEvents} />
     </LandingCard>
   )
