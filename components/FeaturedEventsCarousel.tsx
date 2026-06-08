@@ -5,17 +5,17 @@ import { FeaturedEvent } from '@/lib/airtable'
 
 interface Props {
   events: FeaturedEvent[]
-  /** Section label shown in the eyebrow. Defaults to 'Featured Events';
-   *  the Partner landing card overrides this to 'Recent partner events'. */
+  /** Section label shown in the eyebrow. Defaults to the conferences
+   *  pitch; the Partner landing card overrides this to 'Recent partner
+   *  events'. */
   label?: string
 }
 
 // Featured-events block embedded inside each landing card. Auto-advances
-// every 4s, pauses on hover. Numbered "1 / 4" indicator on the right,
-// paging dots below.
+// every 4s, pauses on hover. Paging dots below, date on the right.
 export default function FeaturedEventsCarousel({
   events,
-  label = 'Featured Events',
+  label = 'Featured Conference(s) (intimate events are always whispered ;)',
 }: Props) {
   const [idx, setIdx] = useState(0)
   const [fade, setFade] = useState(true)
@@ -55,11 +55,8 @@ export default function FeaturedEventsCarousel({
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
-      <div className="flex items-center justify-between mb-2">
+      <div className="mb-2">
         <span className="eyebrow">{label}</span>
-        <span className="eyebrow num" style={{ color: 'var(--ink-3)' }}>
-          {idx + 1} / {events.length}
-        </span>
       </div>
 
       <div
@@ -71,8 +68,13 @@ export default function FeaturedEventsCarousel({
             href={event.link}
             target="_blank"
             rel="noopener noreferrer"
-            className="font-serif block leading-tight"
-            style={{ fontSize: 17, color: 'var(--ink)' }}
+            className="font-serif block leading-tight hover:opacity-90 transition-opacity"
+            style={{
+              fontSize: 17,
+              color: 'var(--accent)',
+              textDecoration: 'underline',
+              textUnderlineOffset: 3,
+            }}
           >
             {event.name}
           </a>
