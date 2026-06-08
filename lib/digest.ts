@@ -121,6 +121,11 @@ async function processUser(
 // (B/C never get coached — they couldn't clear the threshold anyway)
 // and a 28-day floor since their last digest/coaching send.
 const COACHING_FLOOR_DAYS = 28
+// Resend's free tier allows 5 req/sec. Pause this long between any two
+// outbound emails so we stay safely under and don't 429. At ~50 users
+// per cron run with ~half getting sends, this adds ~6 seconds total —
+// trivial against the 300s maxDuration.
+const RESEND_THROTTLE_MS = 250
 // Suppress Weekly/Monthly cron sends for anyone we've already emailed
 // in the last week. Stops the cron from dropping a second digest on
 // users whose matches were just re-run manually (via the Airtable
@@ -152,6 +157,10 @@ function recentlyTouched(
   const cutoff = now.getTime() - daysFloor * 86_400_000
   const t = new Date(lastSentIso).getTime()
   return Number.isFinite(t) && t >= cutoff
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
 // Reused inline pattern from app/api/admin/dashboard-counts/route.ts —
@@ -223,6 +232,8 @@ export async function runDigests(now: Date): Promise<{
     // due date when we skip — they re-enter next Monday.
     const wasRecentlyTouched = recentlyTouched(lastSent, now, CRON_RECENT_TOUCH_DAYS)
 
+    let didSend = false
+
     if (user.frequency === 'Weekly') {
       if (wasRecentlyTouched) {
         weekly.skippedRecent += 1
@@ -232,15 +243,17 @@ export async function runDigests(now: Date): Promise<{
       const result = await processUser(user, futureById)
       if (result.sent) {
         weekly.sent += 1
-        continue
-      }
-      if (!isCoachingEligible(user, lastSent, now)) continue
-      if (matchCount > 0) {
-        await safelySendRecap(user, futureById, futureIds, nearbyCount, matchCount)
-        weekly.recapped += 1
-      } else {
-        await safelySendCoaching(user, nearbyCount)
-        weekly.coached += 1
+        didSend = true
+      } else if (isCoachingEligible(user, lastSent, now)) {
+        if (matchCount > 0) {
+          await safelySendRecap(user, futureById, futureIds, nearbyCount, matchCount)
+          weekly.recapped += 1
+          didSend = true
+        } else {
+          await safelySendCoaching(user, nearbyCount)
+          weekly.coached += 1
+          didSend = true
+        }
       }
     } else if (user.frequency === 'Monthly') {
       const state = await getDigestState(user.id)
@@ -259,6 +272,7 @@ export async function runDigests(now: Date): Promise<{
         let touched = result.sent
         if (result.sent) {
           monthly.sent += 1
+          didSend = true
         } else if (isCoachingEligible(user, lastSent, now)) {
           if (matchCount > 0) {
             await safelySendRecap(user, futureById, futureIds, nearbyCount, matchCount)
@@ -268,6 +282,7 @@ export async function runDigests(now: Date): Promise<{
             monthly.coached += 1
           }
           touched = true
+          didSend = true
         }
         await upsertDigestState(user.id, {
           nextMonthly: addDays(todayPT, COACHING_FLOOR_DAYS),
@@ -287,12 +302,19 @@ export async function runDigests(now: Date): Promise<{
       if (matchCount > 0) {
         await safelySendRecap(user, futureById, futureIds, nearbyCount, matchCount)
         arriveRecapped += 1
+        didSend = true
       } else {
         await safelySendCoaching(user, nearbyCount)
         arriveCoached += 1
+        didSend = true
       }
     }
     // 'Paused' is intentionally skipped.
+
+    // Stay under Resend's 5/sec rate limit. Skipped/no-op iterations
+    // pay no delay; only iterations that fired a Resend call wait
+    // before the next user is processed.
+    if (didSend) await sleep(RESEND_THROTTLE_MS)
   }
 
   return {

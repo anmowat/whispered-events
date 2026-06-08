@@ -14,7 +14,10 @@ import { sendBlast } from '@/lib/email'
 
 export const maxDuration = 300
 
-const RATE_LIMIT_DELAY_MS = 75
+// Resend's free tier allows 5 req/sec. Pause this long between sends
+// so we stay safely under (4/sec). 250 chosen to match the cron-digest
+// throttle in lib/digest.ts for one consistent number to tune.
+const RATE_LIMIT_DELAY_MS = 250
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
