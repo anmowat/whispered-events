@@ -411,11 +411,11 @@ function ContributeCard({
       >
         OR just email event link to{' '}
         <a
-          href="mailto:event@whisperedevents.com"
+          href="mailto:event@whispered.com"
           className="underline"
           style={{ color: 'var(--accent)', textUnderlineOffset: 3 }}
         >
-          event@whisperedevents.com
+          event@whispered.com
         </a>
       </p>
       <FeaturedEventsCarousel events={featuredEvents} />

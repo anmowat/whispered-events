@@ -15,7 +15,7 @@ interface Props {
 // every 4s, pauses on hover. Paging dots below, date on the right.
 export default function FeaturedEventsCarousel({
   events,
-  label = 'Featured Conference(s) (intimate events are always whispered ;)',
+  label = 'Featured Conference(s)',
 }: Props) {
   const [idx, setIdx] = useState(0)
   const [fade, setFade] = useState(true)
@@ -63,29 +63,39 @@ export default function FeaturedEventsCarousel({
         className="min-h-[64px] transition-opacity duration-200"
         style={{ opacity: fade ? 1 : 0 }}
       >
-        {event.link ? (
-          <a
-            href={event.link}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-serif block leading-tight hover:opacity-90 transition-opacity"
-            style={{
-              fontSize: 17,
-              color: 'var(--accent)',
-              textDecoration: 'underline',
-              textUnderlineOffset: 3,
-            }}
-          >
-            {event.name}
-          </a>
-        ) : (
-          <p
-            className="font-serif m-0 leading-tight"
-            style={{ fontSize: 17, color: 'var(--ink)' }}
-          >
-            {event.name}
-          </p>
-        )}
+        <div className="flex items-baseline justify-between gap-3">
+          {event.link ? (
+            <a
+              href={event.link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-serif leading-tight hover:opacity-90 transition-opacity min-w-0 flex-1"
+              style={{
+                fontSize: 17,
+                color: 'var(--accent)',
+                textDecoration: 'underline',
+                textUnderlineOffset: 3,
+              }}
+            >
+              {event.name}
+            </a>
+          ) : (
+            <p
+              className="font-serif m-0 leading-tight min-w-0 flex-1"
+              style={{ fontSize: 17, color: 'var(--ink)' }}
+            >
+              {event.name}
+            </p>
+          )}
+          {dateText && (
+            <span
+              className="eyebrow num shrink-0"
+              style={{ color: 'var(--accent)' }}
+            >
+              {dateText}
+            </span>
+          )}
+        </div>
         {event.description && (
           <p
             className="mt-1 leading-relaxed line-clamp-2"
@@ -101,32 +111,23 @@ export default function FeaturedEventsCarousel({
         )}
       </div>
 
-      <div className="flex items-center justify-between mt-2">
-        {events.length > 1 ? (
-          <div className="flex gap-1.5">
-            {events.map((_, i) => (
-              <button
-                key={i}
-                onClick={() => goTo(i)}
-                aria-label={`Show featured event ${i + 1}`}
-                className="rounded-full transition-all"
-                style={{
-                  width: i === idx ? 18 : 6,
-                  height: 6,
-                  background: i === idx ? 'var(--accent)' : 'var(--rule)',
-                }}
-              />
-            ))}
-          </div>
-        ) : (
-          <div />
-        )}
-        {dateText && (
-          <span className="eyebrow num" style={{ color: 'var(--accent)' }}>
-            {dateText}
-          </span>
-        )}
-      </div>
+      {events.length > 1 && (
+        <div className="flex gap-1.5 mt-2">
+          {events.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => goTo(i)}
+              aria-label={`Show featured event ${i + 1}`}
+              className="rounded-full transition-all"
+              style={{
+                width: i === idx ? 18 : 6,
+                height: 6,
+                background: i === idx ? 'var(--accent)' : 'var(--rule)',
+              }}
+            />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
