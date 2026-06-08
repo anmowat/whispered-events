@@ -207,14 +207,13 @@ export default function DashboardPage() {
         <section className="mb-8">
           <div className="eyebrow mb-2.5">Email updates</div>
           <div
-            className="rounded-card border px-5 py-3.5 grid items-center gap-4"
+            className="rounded-card border px-5 py-3.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4"
             style={{
               background: 'var(--paper)',
               borderColor: 'var(--rule)',
-              gridTemplateColumns: 'minmax(0, 1fr) auto',
             }}
           >
-            <div>
+            <div className="min-w-0">
               <p className="m-0 font-medium" style={{ fontSize: 13.5, color: 'var(--ink)' }}>
                 How often should we whisper to you?
               </p>
