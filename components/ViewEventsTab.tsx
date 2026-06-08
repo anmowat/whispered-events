@@ -45,7 +45,7 @@ const QUESTIONS: Record<Step, string> = {
   size:
     "**What is the approximate revenue of your current company?**\n\nMany events are run by vendors who want to focus on specific company sizes — this helps us make sure you're only seeing events you'd actually qualify for.",
   frequency:
-    "Last question — **how often would you like to receive emails with matching events?**\n\nYou can change this anytime on your profile.",
+    "Last question — **how often would you like to receive emails with matching events?**",
   confirm: '',
   submitted: '',
 }
