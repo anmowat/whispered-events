@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Inter, Instrument_Serif, Newsreader } from 'next/font/google'
+import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 
 // Three Google fonts loaded as CSS variables so Tailwind's font-{family}
@@ -90,6 +91,7 @@ export default function RootLayout({
     >
       <body className="min-h-screen bg-bg text-ink antialiased font-sans">
         {children}
+        <Analytics />
       </body>
     </html>
   )
