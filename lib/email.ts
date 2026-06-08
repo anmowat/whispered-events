@@ -547,8 +547,10 @@ function shortDate(iso: string): string {
 function renderEntry(entry: DigestEventEntry): string {
   const { event, matchPercent, isDuplicate } = entry
   const date = shortDate(event.date)
+  // Dates: bold but neutral (ink-2) — readers used to ignore them
+  // when they were oxblood because the link itself wasn't tinted.
   const datePart = date
-    ? `<strong style="color:${C.accent};font-variant-numeric:tabular-nums;"> (${date})</strong> `
+    ? `<strong style="color:${C.ink2};font-variant-numeric:tabular-nums;"> (${date})</strong> `
     : ' '
   const match = `<strong style="color:${C.ink};">(Match ${Math.round(matchPercent)}%)</strong>`
   const body = isDuplicate
@@ -556,9 +558,12 @@ function renderEntry(entry: DigestEventEntry): string {
     : event.description
       ? `<span style="color:${C.ink2};">${escapeHtml(event.description)}</span> `
       : ''
+  // Event title: oxblood + underlined so the click affordance is
+  // obvious. text-underline-offset matches the rest of the email's
+  // link treatment.
   return `
 <p style="font-family:${SANS};margin:0 0 14px;font-size:14.5px;line-height:1.55;">
-  <a href="${event.link}" style="font-family:${SERIF};font-size:17px;color:${C.ink};text-decoration:none;font-weight:400;letter-spacing:-0.01em;">${escapeHtml(event.name)}</a>${datePart}${body}${match}
+  <a href="${event.link}" style="font-family:${SERIF};font-size:17px;color:${C.accent};text-decoration:underline;text-underline-offset:3px;font-weight:400;letter-spacing:-0.01em;">${escapeHtml(event.name)}</a>${datePart}${body}${match}
 </p>
 `.trim()
 }
