@@ -40,7 +40,8 @@ const QUESTIONS: Record<Step, string> = {
     "👀 **How did you learn about Whispered events?**\n\nKnowing who pointed you our way — the community, partner, post or friend — helps us connect more people with great events.",
   location:
     "**What city are you based in?**\n\nWe'll send events within 100 miles. Pick one primary city — you can change it anytime you travel.",
-  linkedin: "**What's your LinkedIn profile URL?**",
+  linkedin:
+    "**What's your LinkedIn profile URL?**\n\nWe'll use your profile to automatically enrich your function and seniority.",
   interest:
     "**What types of events are you interested in?**\n\nWe'll pull your function and seniority from your LinkedIn, so use this field to target matches based on keywords:\n\n• **Example Effective Keywords** (specific keywords): Sales, AI, GTM, Marketing...\n• **Example Ineffective Keywords** (you get LESS matches as these are generic): Networking, dinners",
   employment:
