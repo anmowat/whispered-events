@@ -37,7 +37,7 @@ const QUESTIONS: Record<Step, string> = {
   email:
     "**What's your email address?** We use this only to send you events — nothing else.",
   learn:
-    "**How did you learn about Whispered events?**\n\nKnowing which community / partner / person ... introduced you to us is valuable as we grow to help more people connect with great events.",
+    "👀 **How did you learn about Whispered events?**\n\nKnowing who pointed you our way — the community, partner, post or friend — helps us connect more people with great events.",
   location:
     "**What city are you based in?**\n\nWe'll send you events within 100 miles of your location (we limit people to one primary city but update your city anytime you travel to see matches for another location).",
   linkedin: "**What's your LinkedIn profile URL?**",
