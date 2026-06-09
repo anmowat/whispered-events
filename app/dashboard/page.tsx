@@ -26,6 +26,13 @@ interface DashboardUser {
 // is active.
 const FREQUENCY_OPTIONS = ['As they arrive', 'Weekly', 'Monthly', 'Paused']
 
+// Display-only relabel of 'Paused' → 'Dashboard Only'. Same intent as
+// the matching helper in ViewEventsTab — the backend value stays
+// 'Paused' so the digest cron's frequency check keeps working.
+function displayFrequency(value: string): string {
+  return value === 'Paused' ? 'Dashboard Only' : value
+}
+
 type DashboardEvent = AirtableEvent & {
   matchScore: number | null
   matchPercent: number | null
@@ -396,7 +403,7 @@ function FrequencyControl({
               color: active ? 'var(--paper)' : 'var(--ink-2)',
             }}
           >
-            {opt}
+            {displayFrequency(opt)}
           </button>
         )
       })}

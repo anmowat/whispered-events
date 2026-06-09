@@ -30,6 +30,14 @@ const EMPLOYMENT_OPTIONS = ['Employed', 'Searching', 'Fractional', 'Other']
 const FREQUENCY_OPTIONS = ['As they arrive', 'Weekly', 'Monthly', 'Paused']
 const DEFAULT_FREQUENCY = 'Monthly'
 
+// Display-only relabel for 'Paused'. The value we save (Airtable
+// picklist, every backend lookup, the digest cron's frequency check)
+// keeps 'Paused' — we just show users a friendlier label that hints
+// at the actual behavior (no email; dashboard still shows matches).
+function displayFrequency(value: string): string {
+  return value === 'Paused' ? 'Dashboard Only' : value
+}
+
 const SEARCHING_NOTE =
   "The job market is changing fast — AI is reshaping everything.\n\nFor senior leaders, many of the best roles aren't posted. They're whispered.\n\nFor free playbooks, career strategies, and access to unposted GTM roles + the network to get them, visit [whispered.com](https://www.whispered.com/)."
 
@@ -357,7 +365,11 @@ export default function ViewEventsTab({
         )}
 
         {step === 'frequency' && (
-          <ChipRow options={FREQUENCY_OPTIONS} onPick={(opt) => handleSend(opt)} />
+          <ChipRow
+            options={FREQUENCY_OPTIONS}
+            labelOf={displayFrequency}
+            onPick={(opt) => handleSend(opt)}
+          />
         )}
 
         {step === 'confirm' && (
@@ -408,13 +420,17 @@ export default function ViewEventsTab({
   )
 }
 
-// Inline chip row used for employment + frequency steps.
+// Inline chip row used for employment + frequency steps. labelOf lets
+// us display a friendly label (e.g. 'Dashboard Only') while still
+// passing the underlying value (e.g. 'Paused') to onPick.
 function ChipRow({
   options,
   onPick,
+  labelOf,
 }: {
   options: string[]
   onPick: (opt: string) => void
+  labelOf?: (opt: string) => string
 }) {
   return (
     <div className="flex flex-wrap gap-2 animate-slide-up">
@@ -439,7 +455,7 @@ function ChipRow({
             e.currentTarget.style.color = 'var(--ink-2)'
           }}
         >
-          {o}
+          {labelOf ? labelOf(o) : o}
         </button>
       ))}
     </div>
@@ -548,7 +564,7 @@ function ProfileSummary({
                         >
                           {picklist.map((opt) => (
                             <option key={opt} value={opt}>
-                              {opt}
+                              {editingField === 'frequency' ? displayFrequency(opt) : opt}
                             </option>
                           ))}
                         </select>
@@ -606,7 +622,9 @@ function ProfileSummary({
                       className="text-[13.5px] truncate"
                       style={{ color: 'var(--ink)' }}
                     >
-                      {value || (
+                      {value ? (
+                        key === 'frequency' ? displayFrequency(value) : value
+                      ) : (
                         <span className="italic" style={{ color: 'var(--ink-3)' }}>
                           not provided
                         </span>
