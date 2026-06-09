@@ -15,6 +15,7 @@ interface UserDetail {
   fullExp: string
   grade: string
   interest: string
+  learn: string
   employment: string
   companySize: string
   location: string
@@ -207,6 +208,7 @@ export default function AdminUserDetailPage() {
                 <Field label="Employment" value={user.employment} />
                 <Field label="Company Size" value={user.companySize} />
                 <Field label="Interest" value={user.interest} multiline />
+                <Field label="How they heard" value={user.learn} multiline />
                 <Field label="Full Experience" value={user.fullExp} multiline />
                 <Field
                   label="Last Contribution"

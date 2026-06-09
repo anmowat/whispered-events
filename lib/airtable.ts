@@ -196,6 +196,7 @@ const USER_FIELDS = [
   'Active',
   'Frequency',
   'LinkedIn',
+  'Learn',
 ] as const
 
 // LatLon is stored as a single text field "lat,lng" on both Users and Events.
@@ -245,6 +246,7 @@ function toAirtableUser(r: {
     status: activeRaw,
     frequency: String(r.get('Frequency') || ''),
     linkedin: String(r.get('LinkedIn') || ''),
+    learn: String(r.get('Learn') || ''),
   }
 }
 
@@ -409,6 +411,7 @@ export interface AirtableUser {
   status: string
   frequency: string
   linkedin: string
+  learn: string
 }
 
 export interface AirtableEvent {
@@ -613,6 +616,7 @@ export async function createProfile(profile: UserProfile): Promise<string> {
     'Size': profile.companySize,
     Email: email,
     Location: profile.location,
+    Learn: profile.learn,
   }
   if (profile.location) {
     const geo = await geocodeLocation(profile.location)

@@ -82,6 +82,7 @@ export async function GET(
         fullExp: user.fullExp,
         grade: user.grade ?? '',
         interest: user.interest,
+        learn: user.learn,
         employment: user.employment,
         companySize: user.companySize,
         location: user.location,

@@ -12,6 +12,7 @@ import {
 
 type Step =
   | 'email'
+  | 'learn'
   | 'location'
   | 'linkedin'
   | 'interest'
@@ -35,6 +36,8 @@ const SEARCHING_NOTE =
 const QUESTIONS: Record<Step, string> = {
   email:
     "**What's your email address?** We use this only to send you events — nothing else.",
+  learn:
+    "**How did you learn about Whispered events?**\n\nKnowing which community / partner / person ... introduced you to us is valuable as we grow to help more people connect with great events.",
   location:
     "**What city are you based in?**\n\nWe'll send you events within 100 miles of your location (we limit people to one primary city but update your city anytime you travel to see matches for another location).",
   linkedin: "**What's your LinkedIn profile URL?**",
@@ -57,12 +60,14 @@ const EMPTY_PROFILE: UserProfile = {
   companySize: '',
   email: '',
   location: '',
+  learn: '',
   frequency: DEFAULT_FREQUENCY,
 }
 
 function profileField(step: Step): keyof UserProfile | null {
   const map: Partial<Record<Step, keyof UserProfile>> = {
     email: 'email',
+    learn: 'learn',
     location: 'location',
     linkedin: 'linkedin',
     interest: 'interest',
@@ -76,6 +81,7 @@ function profileField(step: Step): keyof UserProfile | null {
 function nextStep(current: Step, value: string): Step {
   const order: Step[] = [
     'email',
+    'learn',
     'location',
     'linkedin',
     'interest',
@@ -92,16 +98,16 @@ function nextStep(current: Step, value: string): Step {
   return idx >= 0 && idx < order.length - 1 ? order[idx + 1] : 'confirm'
 }
 
-// Map each step to a 1-based index used by the StepIndicator. We use the
-// total step count assuming the size step is included (worst case 7
-// distinct user-answered steps before confirm); skipping size early
-// just means the progress jumps a slot — acceptable.
+// Map each step to a 1-based index used by the StepIndicator. Employment
+// (#6) and its conditional follow-up Size share the same slot so the
+// progress reads as one logical step regardless of whether Size shows.
 const STEP_INDEX: Record<Step, number> = {
   email: 1,
-  location: 2,
-  linkedin: 3,
-  interest: 4,
-  employment: 5,
+  learn: 2,
+  location: 3,
+  linkedin: 4,
+  interest: 5,
+  employment: 6,
   size: 6,
   frequency: 7,
   confirm: 7,
@@ -185,6 +191,18 @@ export default function ViewEventsTab({
     const val = (value ?? input).trim()
     if (!val) return
     setInput('')
+    if (step === 'learn') {
+      // Required field — we want this for attribution. Reject empties
+      // and the typical 'skip'/'none' bypass we accept everywhere else.
+      const lower = val.toLowerCase()
+      if (!val || lower === 'skip' || lower === 'none') {
+        setAssistantContent(
+          `Please share how you heard about us — even a few words is enough.\n\n${QUESTIONS['learn']}`,
+        )
+        setInput(val)
+        return
+      }
+    }
     if (step === 'linkedin' && !val.includes('linkedin.com')) {
       setAssistantContent(
         `Please share your LinkedIn profile URL (e.g. https://linkedin.com/in/yourname).\n\n${QUESTIONS['linkedin']}`,
@@ -445,6 +463,7 @@ function ProfileSummary({
 
   const fields: { key: keyof UserProfile; label: string }[] = [
     { key: 'email', label: 'Email' },
+    { key: 'learn', label: 'How you heard about us' },
     { key: 'location', label: 'City' },
     { key: 'linkedin', label: 'LinkedIn' },
     { key: 'interest', label: 'Interests' },
@@ -470,6 +489,10 @@ function ProfileSummary({
     }
     if (editingField === 'linkedin' && val && !val.includes('linkedin.com')) {
       setEditError('Please enter a valid LinkedIn URL.')
+      return
+    }
+    if (editingField === 'learn' && !val) {
+      setEditError('This field is required — even a few words is enough.')
       return
     }
     onUpdate(editingField, val)
