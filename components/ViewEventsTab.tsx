@@ -43,7 +43,7 @@ const QUESTIONS: Record<Step, string> = {
   linkedin:
     "**What's your LinkedIn profile URL?**\n\nWe'll use your profile to automatically enrich your function and seniority.",
   interest:
-    "**What types of events are you interested in?**\n\nWe'll pull your function and seniority from your LinkedIn, so use this field to target matches based on keywords:\n\n• **Example Effective Keywords** (specific keywords): Sales, AI, GTM, Marketing...\n• **Example Ineffective Keywords** (you get LESS matches as these are generic): Networking, dinners",
+    "**What types of events are you interested in?**\n\nAdd keywords to sharpen your matches — specific beats generic.\n\n• **Works well**: Sales, AI, GTM, Marketing\n• **Too broad**: Networking, dinners",
   employment:
     "**What is your current work situation?**\n\nWe ask because some events focus on people in specific roles while others are open to anyone.",
   size:
