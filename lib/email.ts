@@ -719,7 +719,6 @@ export async function sendApprovedWithDigest(
     ${h1(`<span style="font-style:italic;">Welcome</span> to the club, ${escapeHtml(firstName)}.`)}
     ${p(introCopy, { mt: 14 })}
     ${renderSection('New', annotated.newEvents)}
-    ${renderSection('Top Matches', annotated.topMatches)}
     ${coachingHtml}
     ${digestFooterHtml()}
   `)
@@ -744,7 +743,6 @@ export async function sendApprovedWithDigest(
     }
   }
   appendSection('New', annotated.newEvents)
-  appendSection('Top Matches', annotated.topMatches)
   if (coachingTextLines.length) {
     textLines.push(...coachingTextLines, '')
   }
@@ -771,12 +769,7 @@ export async function sendApprovedWithDigest(
   // Log every welcome send — even no-match welcomes — so the 28-day
   // coaching floor (lib/digest.ts) knows we just touched this user.
   const eventIds = hasMatches
-    ? Array.from(
-        new Set([
-          ...annotated.newEvents.map((e) => e.event.id),
-          ...annotated.topMatches.map((e) => e.event.id),
-        ]),
-      )
+    ? Array.from(new Set(annotated.newEvents.map((e) => e.event.id)))
     : []
   await logDigestSend({
     userId: user.id,
@@ -846,7 +839,6 @@ export async function sendUserDigest(
     ${h1(`New <span style="font-style:italic;">whispers</span> for ${escapeHtml(firstName)}.`)}
     ${p('We have some new matching Whispered Events for you.', { mt: 12 })}
     ${renderSection('New', annotated.newEvents)}
-    ${renderSection('Top Matches', annotated.topMatches)}
     ${digestFooterHtml()}
   `)
 
@@ -870,7 +862,6 @@ export async function sendUserDigest(
     }
   }
   appendSection('New', annotated.newEvents)
-  appendSection('Top Matches', annotated.topMatches)
   textLines.push(...digestFooterTextLines())
   const text = textLines.join('\n')
 
@@ -887,10 +878,7 @@ export async function sendUserDigest(
     console.error('sendUserDigest: Resend error', { email: user.email, error })
     throw new Error(`Resend send failed: ${error.message ?? JSON.stringify(error)}`)
   }
-  const eventIds = [
-    ...annotated.newEvents.map((e) => e.event.id),
-    ...annotated.topMatches.map((e) => e.event.id),
-  ]
+  const eventIds = annotated.newEvents.map((e) => e.event.id)
   await logDigestSend({
     userId: user.id,
     userEmail: user.email,
