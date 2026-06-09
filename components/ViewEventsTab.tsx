@@ -35,7 +35,7 @@ const SEARCHING_NOTE =
 
 const QUESTIONS: Record<Step, string> = {
   email:
-    "**What's your email address?** We use this only to send you events — nothing else.",
+    "Welcome! Let's get started.\n\n**What's your email address?**\n\nWe use this only to send you events — nothing else.",
   learn:
     "👀 **How did you learn about Whispered events?**\n\nKnowing who pointed you our way — the community, partner, post or friend — helps us connect more people with great events.",
   location:
