@@ -136,13 +136,37 @@ function WelcomePageInner() {
               aren&apos;t widely posted. We match them to your role, location,
               and interests.
             </p>
-            <p
-              className="mt-3 mb-0"
-              style={{ fontSize: 15.5, color: 'var(--ink-2)', lineHeight: 1.6 }}
-            >
-              Quickly answer the questions below and we&apos;ll create your free
-              Whispered Events account.
-            </p>
+
+            {!needsEmail ? (
+              <div
+                className="mt-7 rounded-card border p-4"
+                style={{
+                  background: 'var(--paper)',
+                  borderColor: 'var(--rule)',
+                }}
+              >
+                <p
+                  className="m-0"
+                  style={{ fontSize: 13.5, color: 'var(--ink-2)', lineHeight: 1.55 }}
+                >
+                  We already have your function and level attached to your
+                  email{' '}
+                  <strong style={{ color: 'var(--ink)' }}>
+                    <em>{email}</em>
+                  </strong>
+                  . Answer the questions below and we&apos;ll create your free
+                  Whispered Events account.
+                </p>
+              </div>
+            ) : (
+              <p
+                className="mt-3 mb-0"
+                style={{ fontSize: 15.5, color: 'var(--ink-2)', lineHeight: 1.6 }}
+              >
+                Quickly answer the questions below and we&apos;ll create your
+                free Whispered Events account.
+              </p>
+            )}
 
             <form className="mt-7 space-y-5" onSubmit={handleSubmit}>
               {needsEmail && (
