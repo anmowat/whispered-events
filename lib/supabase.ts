@@ -284,6 +284,10 @@ export interface EventMatchRow {
   user_email: string
   score: number
   match_percent: number | null
+  location_score: number | null
+  audience_score: number | null
+  quality_score: number | null
+  preference_score: number | null
 }
 
 // All matches above NOTIFY_THRESHOLD for an event (skipped excluded), ordered
@@ -293,7 +297,7 @@ export async function getMatchesForEvent(eventId: string): Promise<EventMatchRow
   const supabase = getClient()
   const { data, error } = await supabase
     .from('matches')
-    .select('user_id, user_email, score, match_percent')
+    .select('user_id, user_email, score, match_percent, location_score, audience_score, quality_score, preference_score')
     .eq('event_id', eventId)
     .gte('score', NOTIFY_THRESHOLD)
     .is('skipped_reason', null)

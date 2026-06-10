@@ -59,6 +59,11 @@ export async function GET(
         seniority: u.seniority,
         interest: u.interest,
         matchPercent: m.match_percent ?? Math.round((m.score / 3.0) * 100),
+        score: m.score,
+        locationScore: m.location_score,
+        audienceScore: m.audience_score,
+        qualityScore: m.quality_score,
+        preferenceScore: m.preference_score,
       })
     }
 

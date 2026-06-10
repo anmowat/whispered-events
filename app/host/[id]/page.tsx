@@ -24,6 +24,26 @@ interface HostMatch {
   seniority: string
   interest: string
   matchPercent: number
+  score: number | null
+  locationScore: number | null
+  audienceScore: number | null
+  qualityScore: number | null
+  preferenceScore: number | null
+}
+
+function fmtNum(n: number | null): string {
+  if (n === null || n === undefined) return '—'
+  return n.toFixed(2)
+}
+
+function scoreTooltip(m: HostMatch): string {
+  return [
+    `Location: ${fmtNum(m.locationScore)}`,
+    `Audience: ${fmtNum(m.audienceScore)}`,
+    `Quality:  ${fmtNum(m.qualityScore)}`,
+    `Prefs:    ${fmtNum(m.preferenceScore)}`,
+    `Total:    ${fmtNum(m.score)}`,
+  ].join('\n')
 }
 
 // Same options as ShareEventTab — must match the Airtable Type single-select.
@@ -269,10 +289,11 @@ export default function HostEventDetailPage() {
                         {m.interest || <span className="italic" style={{ color: 'var(--ink-3)' }}>—</span>}
                       </td>
                       <td
-                        className="px-4 py-3 text-right num font-medium"
+                        className="px-4 py-3 text-right num font-medium cursor-help"
                         style={{
                           color: m.matchPercent >= 33 ? 'var(--positive)' : 'var(--ink-3)',
                         }}
+                        title={scoreTooltip(m)}
                       >
                         {m.matchPercent}%
                       </td>
