@@ -130,20 +130,42 @@ function escapeHtml(s: string): string {
 // label list) so Gmail doesn't treat it as a repeated signature and
 // auto-collapse it under a "..." indicator. Two CTAs: dashboard
 // (preferences / pause) and event-share.
-function digestFooterHtml(): string {
+function digestFooterHtml(firstName: string): string {
+  const safe = escapeHtml(firstName || 'there')
   return `
 <p style="font-family:${SANS};font-size:13px;line-height:1.7;color:${C.ink3};margin:24px 0 0;">
-  <strong style="color:${C.ink2};">Use <a href="${DASHBOARD_LINK}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">your dashboard</a> to</strong> view matches, update your profile, and control match frequency<br>
+  <strong style="color:${C.ink2};">${safe} — use <a href="${DASHBOARD_LINK}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">your dashboard</a> to</strong> view matches, update your profile, and control match frequency<br>
   <strong style="color:${C.ink2};">Know an event we should add?</strong> Email <a href="${NEW_EVENT_MAILTO}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">event@whispered.com</a>
 </p>
 `.trim()
 }
 
-function digestFooterTextLines(): string[] {
+function digestFooterTextLines(firstName: string): string[] {
+  const name = firstName || 'there'
   return [
-    `Use your dashboard to view matches, update your profile, and control match frequency — ${DASHBOARD_LINK}`,
+    `${name} — use your dashboard to view matches, update your profile, and control match frequency — ${DASHBOARD_LINK}`,
     `Know an event we should add? Email event@whispered.com`,
   ]
+}
+
+// Per-send eyebrow date stamp (Mon DD in PT). Sits above the h1 so
+// consecutive emails from us never share a byte-identical visible
+// header zone — defeats Gmail's '...' trimmed-content collapse, which
+// pattern-matches the above-the-fold chrome of recurring sends.
+function todayEyebrow(): string {
+  const d = new Date()
+  const month = d.toLocaleString('en-US', { month: 'short', timeZone: 'America/Los_Angeles' })
+  const day = d.toLocaleString('en-US', { day: 'numeric', timeZone: 'America/Los_Angeles' })
+  return `${month} ${day}`
+}
+
+// First-name-ish token for footers when only an email is available
+// (event submission acks). Falls back to 'there'.
+function firstNameFromEmail(email: string): string {
+  const local = (email || '').split('@')[0] || ''
+  const token = local.split(/[._-]/)[0] || ''
+  if (!token) return 'there'
+  return token.charAt(0).toUpperCase() + token.slice(1).toLowerCase()
 }
 
 // ----- Transactional sends -----
@@ -191,14 +213,18 @@ P.S. You can submit events anytime on the site or by emailing event@whispered.co
 export async function sendUserApprovedEmail(user: AirtableUser): Promise<void> {
   const resend = getResend()
   const firstName = firstNameOrThere(user)
+  const eb = todayEyebrow()
   const html = shell(`
+    ${eyebrow(`Welcome · ${eb}`)}
     ${h1(`<span style="font-style:italic;">Welcome</span> to the club, ${escapeHtml(firstName)}.`)}
     ${p("You've been approved for Whispered Events. Login via the top right of the site to see your matches — matches typically appear within ~5 minutes of approval.", { mt: 14 })}
     ${p("You can update your profile anytime to refine your matches — and we &#10084; feedback and feature ideas.", { mt: 12 })}
     ${p("Whispered Events is 100% free, built to help executives discover great events — the ones that aren't posted, they're whispered.", { mt: 12 })}
-    ${digestFooterHtml()}
+    ${digestFooterHtml(firstName)}
   `)
   const text = [
+    `Welcome · ${eb}`,
+    '',
     `Welcome to the club, ${firstName}.`,
     '',
     "You've been approved for Whispered Events. Login via the top right of the site to see your matches — matches typically appear within ~5 minutes of approval.",
@@ -207,7 +233,7 @@ export async function sendUserApprovedEmail(user: AirtableUser): Promise<void> {
     '',
     "Whispered Events is 100% free, built to help executives discover great events — the ones that aren't posted, they're whispered.",
     '',
-    ...digestFooterTextLines(),
+    ...digestFooterTextLines(firstName),
   ].join('\n')
   const { error } = await resend.emails.send({
     from: TEAM_FROM,
@@ -227,12 +253,13 @@ export async function sendUserApprovedEmail(user: AirtableUser): Promise<void> {
 export async function sendEventSubmittedEmail(email: string, eventName: string): Promise<void> {
   const resend = getResend()
   const safeName = escapeHtml(eventName)
+  const firstName = firstNameFromEmail(email)
   const html = shell(`
     ${h1(`Event <span style="font-style:italic;">added</span>.`)}
     ${p('Thanks for contributing an event to Whispered Events — the platform is powered by contributions like yours.', { mt: 14 })}
     ${p(`<strong style="color:${C.ink};">"${safeName}"</strong> has been added, and we've updated your contributions.`, { mt: 12 })}
     ${p('Have a great time at your next event, and keep sharing Whispered Events with your network so more great people can discover the right events.', { mt: 12 })}
-    ${digestFooterHtml()}
+    ${digestFooterHtml(firstName)}
   `)
   const text = [
     'Event added.',
@@ -243,7 +270,7 @@ export async function sendEventSubmittedEmail(email: string, eventName: string):
     '',
     'Have a great time at your next event, and keep sharing Whispered Events with your network so more great people can discover the right events.',
     '',
-    ...digestFooterTextLines(),
+    ...digestFooterTextLines(firstName),
   ].join('\n')
   const { error } = await resend.emails.send({
     from: EVENT_FROM,
@@ -281,9 +308,9 @@ export async function sendBlast(
     <div style="font-family:${SANS};font-size:14.5px;line-height:1.6;color:${C.ink2};">
       ${substituted}
     </div>
-    ${digestFooterHtml()}
+    ${digestFooterHtml(firstName)}
   `)
-  const text = [htmlToText(substituted), '', ...digestFooterTextLines()].join('\n')
+  const text = [htmlToText(substituted), '', ...digestFooterTextLines(firstName)].join('\n')
 
   // Blasts deliberately skip the MONITOR_BCC. Sends fan out to dozens
   // of users at a time and Andy's inbox doesn't need a duplicate of
@@ -349,8 +376,8 @@ export async function sendCoaching(
 
   const { subject, html, text } =
     nearbyCount === 0
-      ? renderCoachingNoNearby(safeName, safeLocation)
-      : renderCoachingNoMatches(safeName, safeLocation, nearbyCount)
+      ? renderCoachingNoNearby(safeName, safeLocation, firstName)
+      : renderCoachingNoMatches(safeName, safeLocation, nearbyCount, firstName)
 
   const { error } = await resend.emails.send({
     from: TEAM_FROM,
@@ -376,14 +403,17 @@ export async function sendCoaching(
 function renderCoachingNoNearby(
   safeName: string,
   safeLocation: string,
+  firstName: string,
 ): { subject: string; html: string; text: string } {
   const locationPhrase = safeLocation || 'your area'
   const subject = `No Whispered Events near you yet — let's change that`
+  const eb = todayEyebrow()
   // Gmail was collapsing the body behind a '...' indicator when the
   // CTAs were inside an <ol>. Splitting them into discrete <p>
   // elements with manual numbering keeps the look but flat content
   // doesn't trigger the quoted-content heuristic.
   const html = shell(`
+    ${eyebrow(`A nudge · ${eb}`)}
     ${h1(`Hi <span style="font-style:italic;">${safeName}</span>.`)}
     ${p(
       `We don't have any upcoming Whispered Events within 100 miles of ${locationPhrase} yet. Two quick ways to change that:`,
@@ -395,9 +425,11 @@ function renderCoachingNoNearby(
     <p style="font-family:${SANS};font-size:14.5px;line-height:1.6;color:${C.ink2};margin:10px 0 0;">
       <strong style="color:${C.ink};">2. Update your location</strong> on your <a href="${DASHBOARD_LINK}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">dashboard</a> if you've moved or are traveling — your matches will re-run automatically.
     </p>
-    ${digestFooterHtml()}
+    ${digestFooterHtml(firstName)}
   `)
   const text = [
+    `A nudge · ${eb}`,
+    '',
     `Hi ${safeName}.`,
     '',
     `We don't have any upcoming Whispered Events within 100 miles of ${locationPhrase} yet. Two quick ways to change that:`,
@@ -405,7 +437,7 @@ function renderCoachingNoNearby(
     `1. Help us build a presence in ${locationPhrase} — share events you see, email any link to event@whispered.com and we'll add it in!`,
     `2. Update your location on your dashboard if you've moved or are traveling — your matches will re-run automatically.`,
     '',
-    ...digestFooterTextLines(),
+    ...digestFooterTextLines(firstName),
   ].join('\n')
   return { subject, html, text }
 }
@@ -414,13 +446,16 @@ function renderCoachingNoMatches(
   safeName: string,
   safeLocation: string,
   nearbyCount: number,
+  firstName: string,
 ): { subject: string; html: string; text: string } {
   const locationPhrase = safeLocation || 'you'
   const noun = nearbyCount === 1 ? 'event' : 'events'
   const subject = `${nearbyCount} ${noun} near you — let's tune your matches`
+  const eb = todayEyebrow()
   // Same anti-collapse rewrite as Variant A: discrete <p> elements
   // instead of <ol>/<li> so Gmail doesn't hide the CTAs behind '...'.
   const html = shell(`
+    ${eyebrow(`A nudge · ${eb}`)}
     ${h1(`Hi <span style="font-style:italic;">${safeName}</span>.`)}
     ${p(
       `We have ${nearbyCount} upcoming ${noun} within 100 miles of ${locationPhrase}, but none are matching your profile yet. Two ways to fix that:`,
@@ -432,9 +467,11 @@ function renderCoachingNoMatches(
     <p style="font-family:${SANS};font-size:14.5px;line-height:1.6;color:${C.ink2};margin:10px 0 0;">
       <strong style="color:${C.ink};">2. Share events in your area of interest</strong> — email any link to <a href="${NEW_EVENT_MAILTO}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">event@whispered.com</a> to help build momentum.
     </p>
-    ${digestFooterHtml()}
+    ${digestFooterHtml(firstName)}
   `)
   const text = [
+    `A nudge · ${eb}`,
+    '',
     `Hi ${safeName}.`,
     '',
     `We have ${nearbyCount} upcoming ${noun} within 100 miles of ${locationPhrase}, but none are matching your profile yet. Two ways to fix that:`,
@@ -442,7 +479,7 @@ function renderCoachingNoMatches(
     `1. Update your interests on your dashboard — add functions or topics you'd like to see (e.g. "RevOps", "GTM", "AI", specific industries).`,
     `2. Share events in your area of interest — email any link to event@whispered.com to help build momentum.`,
     '',
-    ...digestFooterTextLines(),
+    ...digestFooterTextLines(firstName),
   ].join('\n')
   return { subject, html, text }
 }
@@ -470,6 +507,7 @@ export async function sendRecap(
   const nearbyNoun = nearbyCount === 1 ? 'event' : 'events'
 
   const subject = `Your top Whispered Events ${totalMatchCount === 1 ? 'match' : 'matches'}`
+  const eb = todayEyebrow()
 
   // The 'New' section is omitted because none of these are new — it's
   // a recap of already-notified rows. We use the Top Matches section
@@ -477,6 +515,7 @@ export async function sendRecap(
   const annotated = markDuplicates({ newEvents: [], topMatches })
 
   const html = shell(`
+    ${eyebrow(`Quick recap · ${eb}`)}
     ${h1(`Hi <span style="font-style:italic;">${safeName}</span>.`)}
     ${p(
       `Quick recap — we have ${nearbyCount} upcoming ${nearbyNoun} within 100 miles of ${locationPhrase}, and your profile ${matchVerb} ${totalMatchCount} of them. Here are your top ${matchNoun}:`,
@@ -487,10 +526,12 @@ export async function sendRecap(
       `Want to see more? Update your interests on your <a href="${DASHBOARD_LINK}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">dashboard</a> — add functions or topics you'd like to see (e.g. "RevOps", "GTM", "AI", specific industries).`,
       { mt: 14 },
     )}
-    ${digestFooterHtml()}
+    ${digestFooterHtml(firstName)}
   `)
 
   const textLines: string[] = [
+    `Quick recap · ${eb}`,
+    '',
     `Hi ${firstName}.`,
     '',
     `Quick recap — we have ${nearbyCount} upcoming ${nearbyNoun} within 100 miles of ${user.location || 'your area'}, and your profile ${matchVerb} ${totalMatchCount} of them. Here are your top ${matchNoun}:`,
@@ -508,7 +549,7 @@ export async function sendRecap(
   textLines.push(
     `Want to see more? Update your interests on your dashboard — ${DASHBOARD_LINK}`,
     '',
-    ...digestFooterTextLines(),
+    ...digestFooterTextLines(firstName),
   )
 
   const { error } = await resend.emails.send({
@@ -534,12 +575,13 @@ export async function sendRecap(
 
 export async function sendEventCouldNotReadEmail(email: string): Promise<void> {
   const resend = getResend()
+  const firstName = firstNameFromEmail(email)
   const html = shell(`
     ${h1(`We couldn't <span style="font-style:italic;">read</span> your event.`)}
     ${p('Thanks for sending an event to Whispered Events — the platform is powered by contributions like yours.', { mt: 14 })}
     ${p("We weren't able to extract the event details.", { mt: 12 })}
     ${p("If you have a public event link (Luma, Eventbrite, the host's site, etc.), send it over and we'll try again.", { mt: 12 })}
-    ${digestFooterHtml()}
+    ${digestFooterHtml(firstName)}
   `)
   const text = [
     "We couldn't read your event.",
@@ -550,7 +592,7 @@ export async function sendEventCouldNotReadEmail(email: string): Promise<void> {
     '',
     "If you have a public event link (Luma, Eventbrite, the host's site, etc.), send it over and we'll try again.",
     '',
-    ...digestFooterTextLines(),
+    ...digestFooterTextLines(firstName),
   ].join('\n')
   const { error } = await resend.emails.send({
     from: EVENT_FROM,
@@ -710,15 +752,19 @@ export async function sendApprovedWithDigest(
       ? "You've been approved for Whispered Events. We don't have matching events for you yet — here are two quick ways to fix that:"
       : "You've been approved for Whispered Events."
 
+  const eb = todayEyebrow()
   const html = shell(`
+    ${eyebrow(`Welcome · ${eb}`)}
     ${h1(`<span style="font-style:italic;">Welcome</span> to the club, ${escapeHtml(firstName)}.`)}
     ${p(introCopy, { mt: 14 })}
     ${renderEntries(annotated.newEvents)}
     ${coachingHtml}
-    ${digestFooterHtml()}
+    ${digestFooterHtml(firstName)}
   `)
 
   const textLines: string[] = [
+    `Welcome · ${eb}`,
+    '',
     `Welcome to the club, ${firstName}.`,
     '',
     introCopy,
@@ -740,7 +786,7 @@ export async function sendApprovedWithDigest(
   if (coachingTextLines.length) {
     textLines.push(...coachingTextLines, '')
   }
-  textLines.push(...digestFooterTextLines())
+  textLines.push(...digestFooterTextLines(firstName))
   const text = textLines.join('\n')
 
   const subject = hasMatches
@@ -829,14 +875,18 @@ export async function sendUserDigest(
   const firstName = firstNameOrThere(user)
   const annotated = markDuplicates(payload)
 
+  const eb = todayEyebrow()
   const html = shell(`
+    ${eyebrow(`Week of ${eb}`)}
     ${h1(`New <span style="font-style:italic;">whispers</span> for ${escapeHtml(firstName)}.`)}
     ${p('We have some new matching Whispered Events for you.', { mt: 12 })}
     ${renderEntries(annotated.newEvents)}
-    ${digestFooterHtml()}
+    ${digestFooterHtml(firstName)}
   `)
 
   const textLines: string[] = [
+    `Week of ${eb}`,
+    '',
     `New whispers for ${firstName}.`,
     '',
     'We have some new matching Whispered Events for you.',
@@ -855,7 +905,7 @@ export async function sendUserDigest(
     }
   }
   appendEntries(annotated.newEvents)
-  textLines.push(...digestFooterTextLines())
+  textLines.push(...digestFooterTextLines(firstName))
   const text = textLines.join('\n')
 
   const { error } = await resend.emails.send({
