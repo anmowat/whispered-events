@@ -62,7 +62,7 @@ function shell(inner: string): string {
   ${FONT_LINK}
   <div style="max-width:600px;margin:0 auto;background:${C.paper};border:1px solid ${C.rule};border-radius:6px;padding:32px 32px 28px;">
     ${wordmark()}
-    <div style="height:1px;background:${C.rule};margin:18px 0 24px;"></div>
+    <div style="height:18px;line-height:18px;font-size:0;">&nbsp;</div>
     ${inner}
   </div>
 </div>
@@ -482,7 +482,7 @@ export async function sendRecap(
       `Quick recap — we have ${nearbyCount} upcoming ${nearbyNoun} within 100 miles of ${locationPhrase}, and your profile ${matchVerb} ${totalMatchCount} of them. Here are your top ${matchNoun}:`,
       { mt: 14 },
     )}
-    ${renderSection('Top Matches', annotated.topMatches)}
+    ${renderEntries(annotated.topMatches)}
     ${p(
       `Want to see more? Update your interests on your <a href="${DASHBOARD_LINK}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">dashboard</a> — add functions or topics you'd like to see (e.g. "RevOps", "GTM", "AI", specific industries).`,
       { mt: 14 },
@@ -494,8 +494,6 @@ export async function sendRecap(
     `Hi ${firstName}.`,
     '',
     `Quick recap — we have ${nearbyCount} upcoming ${nearbyNoun} within 100 miles of ${user.location || 'your area'}, and your profile ${matchVerb} ${totalMatchCount} of them. Here are your top ${matchNoun}:`,
-    '',
-    'Top Matches',
     '',
   ]
   for (const entry of annotated.topMatches) {
@@ -678,12 +676,9 @@ function markDuplicates(payload: DigestPayload): DigestPayload {
   }
 }
 
-function renderSection(title: string, entries: DigestEventEntry[]): string {
+function renderEntries(entries: DigestEventEntry[]): string {
   if (!entries.length) return ''
-  return `
-<h2 style="font-family:${SERIF};margin:24px 0 12px;font-size:22px;font-weight:400;color:${C.ink};letter-spacing:-0.01em;">${title}</h2>
-${entries.map(renderEntry).join('')}
-`.trim()
+  return `<div style="margin-top:22px;">${entries.map(renderEntry).join('')}</div>`
 }
 
 export async function sendApprovedWithDigest(
@@ -718,7 +713,7 @@ export async function sendApprovedWithDigest(
   const html = shell(`
     ${h1(`<span style="font-style:italic;">Welcome</span> to the club, ${escapeHtml(firstName)}.`)}
     ${p(introCopy, { mt: 14 })}
-    ${renderSection('New', annotated.newEvents)}
+    ${renderEntries(annotated.newEvents)}
     ${coachingHtml}
     ${digestFooterHtml()}
   `)
@@ -729,9 +724,8 @@ export async function sendApprovedWithDigest(
     introCopy,
     '',
   ]
-  const appendSection = (title: string, entries: DigestEventEntry[]) => {
+  const appendEntries = (entries: DigestEventEntry[]) => {
     if (!entries.length) return
-    textLines.push(title, '')
     for (const entry of entries) {
       const { event, matchPercent, isDuplicate } = entry
       const date = shortDate(event.date)
@@ -742,7 +736,7 @@ export async function sendApprovedWithDigest(
       textLines.push('')
     }
   }
-  appendSection('New', annotated.newEvents)
+  appendEntries(annotated.newEvents)
   if (coachingTextLines.length) {
     textLines.push(...coachingTextLines, '')
   }
@@ -838,7 +832,7 @@ export async function sendUserDigest(
   const html = shell(`
     ${h1(`New <span style="font-style:italic;">whispers</span> for ${escapeHtml(firstName)}.`)}
     ${p('We have some new matching Whispered Events for you.', { mt: 12 })}
-    ${renderSection('New', annotated.newEvents)}
+    ${renderEntries(annotated.newEvents)}
     ${digestFooterHtml()}
   `)
 
@@ -848,9 +842,8 @@ export async function sendUserDigest(
     'We have some new matching Whispered Events for you.',
     '',
   ]
-  const appendSection = (title: string, entries: DigestEventEntry[]) => {
+  const appendEntries = (entries: DigestEventEntry[]) => {
     if (!entries.length) return
-    textLines.push(title, '')
     for (const entry of entries) {
       const { event, matchPercent, isDuplicate } = entry
       const date = shortDate(event.date)
@@ -861,7 +854,7 @@ export async function sendUserDigest(
       textLines.push('')
     }
   }
-  appendSection('New', annotated.newEvents)
+  appendEntries(annotated.newEvents)
   textLines.push(...digestFooterTextLines())
   const text = textLines.join('\n')
 
