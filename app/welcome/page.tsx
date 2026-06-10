@@ -32,6 +32,7 @@ function WelcomePageInner() {
   const params = useSearchParams()
   const email = (params?.get('email') || '').trim()
   const linkedin = (params?.get('linkedin') || '').trim()
+  const learn = (params?.get('learn') || '').trim()
 
   const [interest, setInterest] = useState('')
   const [city, setCity] = useState('')
@@ -64,7 +65,7 @@ function WelcomePageInner() {
         interest: interest.trim(),
         location: city.trim(),
         frequency,
-        learn: 'Sage',
+        learn: learn || '',
         employment: 'Searching',
         companySize: '',
       }
@@ -108,8 +109,8 @@ function WelcomePageInner() {
               className="mt-4 mb-0"
               style={{ fontSize: 15.5, color: 'var(--ink-2)', lineHeight: 1.6 }}
             >
-              This page lets Whispered users sign up in under a minute.
-              Whispered curates the best in-person dinners, conferences, and
+              You are pre-approved for a Whispered Events account. Whispered
+              Events curates the best in-person dinners, conferences, and
               gatherings for senior operators and execs — the ones that
               aren&apos;t widely posted. We match them to your role, location,
               and interests. 100% free.
