@@ -131,7 +131,14 @@ function WelcomePageInner() {
               className="mt-3 mb-0"
               style={{ fontSize: 15.5, color: 'var(--ink-2)', lineHeight: 1.6 }}
             >
-              Whispered Events curates the best in-person dinners, conferences,
+              <a
+                href="/"
+                className="underline"
+                style={{ color: 'var(--accent)', textUnderlineOffset: 3 }}
+              >
+                Whispered Events
+              </a>{' '}
+              curates the best in-person dinners, conferences,
               and gatherings for senior operators and execs — the ones that
               aren&apos;t widely posted. We match them to your role, location,
               and interests.
