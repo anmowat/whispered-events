@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { verifySession, getMatchScoresForUser } from '@/lib/supabase'
 import { getFutureEvents } from '@/lib/airtable'
 
-const NOTIFY_THRESHOLD = 1.0
+const NOTIFY_THRESHOLD = 1.35
 
 // Returns upcoming events that have a persisted match score >= NOTIFY_THRESHOLD
 // for the logged-in user. Pass ?all=1 to bypass the filter (admin/debug).

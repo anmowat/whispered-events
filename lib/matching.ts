@@ -20,7 +20,7 @@ const QUALITY_MULTIPLIER: Record<'A' | 'Polish' | 'B' | 'C', number> = {
 // Bumped any time the scoring rubric / prompt / formula changes so the
 // inputs hash on every cached row turns stale. The admin rescore-missing
 // endpoint then picks them up and refreshes under the new model.
-const MATCHING_VERSION = 2
+const MATCHING_VERSION = 3
 
 export type SkippedReason = 'grade_c' | 'location_zero'
 
@@ -141,11 +141,13 @@ async function callLLM(
 Return three values via the submit_score tool:
 
 1. "audience" (0.0–1.5): how the event's stated Audience and Type aligns with the attendee's Function and Seniority. Use this rubric — do not invent intermediate logic:
-   • 1.5 — Event audience literally names this attendee's function AND seniority (e.g. event audience "Marketing VP/Directors, CMO" for a C-level Marketing attendee).
+   • 1.5 — Event audience literally names this attendee's function AND seniority (e.g. event audience "Marketing VP/Directors, CMO" for a C-level Marketing attendee). Treat "Founder" as synonymous with "CEO" for the function-family check.
    • 1.2 — Event audience literally names the function OR the seniority, but not both.
-   • 0.9 — Adjacent role/seniority (e.g. CEO at a RevOps-leaders event — same domain, different practitioner level; or VP Marketing at a CMO-only dinner).
-   • 0.5 — Tangential overlap (one shared theme, mostly off-target).
+   • 0.9 — Same function family, adjacent seniority only (e.g. VP Sales at a CRO dinner; Director Marketing at a CMO event; Founder at a CEO-only dinner since Founder/CEO share a function family). Different functions at the same seniority level do NOT count as adjacent.
+   • 0.5 — Tangential overlap. This is the right tier when the audience names a SPECIFIC C-suite role (CEOs, CMOs, CROs, CFOs, GCs) and the attendee holds a DIFFERENT C-suite role (e.g. a CMO at a CEOs-only dinner; a VP Sales at a CMO event). Cross-function executive overlap is tangential, not adjacent.
    • 0.0 — Wrong audience entirely.
+
+   Hard rule: when the event audience names a specific C-suite role (CEOs, CMOs, CROs, CFOs, GCs, etc.), only attendees in that exact role family — plus Founders for CEO events — qualify for ≥0.9. Every other C-suite function is 0.5 (tangential), not 0.9.
 
    Industry context (SaaS vs VC vs services etc.) cannot drop the score by more than one tier. Function + seniority overlap dominates.
 

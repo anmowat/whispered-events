@@ -25,7 +25,7 @@ const SCORE_THRESHOLD = 1.0
 // Align welcome digest threshold with everywhere else (dashboard, cron digest,
 // each-new-event email) so the first email a new user gets contains the same
 // set of matches their dashboard shows.
-const DIGEST_THRESHOLD = 1.0
+const DIGEST_THRESHOLD = 1.35
 const BATCH_SIZE = 50
 const NEARBY_RADIUS_MILES = 100
 

@@ -229,7 +229,7 @@ export default function HostEventDetailPage() {
             <div className="flex items-end justify-between mt-10 mb-3.5 flex-wrap gap-2">
               <div className="eyebrow">Matches · {matches.length}</div>
               <p style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>
-                Execs whose profile fits this event (≥ 33% match)
+                Execs whose profile fits this event (≥ 40% match)
               </p>
             </div>
 
@@ -291,7 +291,7 @@ export default function HostEventDetailPage() {
                       <td
                         className="px-4 py-3 text-right num font-medium cursor-help"
                         style={{
-                          color: m.matchPercent >= 33 ? 'var(--positive)' : 'var(--ink-3)',
+                          color: m.matchPercent >= 40 ? 'var(--positive)' : 'var(--ink-3)',
                         }}
                         title={scoreTooltip(m)}
                       >
@@ -306,7 +306,7 @@ export default function HostEventDetailPage() {
                   className="px-4 py-6 text-center"
                   style={{ fontSize: 13, color: 'var(--ink-3)' }}
                 >
-                  No matches above 33% yet.
+                  No matches above 40% yet.
                 </p>
               )}
             </div>

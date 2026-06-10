@@ -129,7 +129,7 @@ export async function logMatch(entry: MatchLog): Promise<void> {
   }
 }
 
-const NOTIFY_THRESHOLD = 1.0
+const NOTIFY_THRESHOLD = 1.35
 
 export async function getMatchedEventIds(userEmail: string): Promise<Set<string>> {
   const supabase = getClient()
