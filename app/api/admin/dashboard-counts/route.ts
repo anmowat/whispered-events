@@ -6,6 +6,7 @@ import {
   getLastSeenByEmail,
   getLastDigestSentByEmail,
   getLastBlastSentByEmail,
+  getMatchesForEvent,
 } from '@/lib/supabase'
 import { getActiveUsers, getFutureEvents } from '@/lib/airtable'
 import { withinMiles } from '@/lib/geocode'
@@ -23,6 +24,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 
+  // Optional ?eventId= filter — when set, the response is restricted to
+  // users whose match for that event is above the notify threshold. Used
+  // by the admin filter popover to slice the list by "matched event".
+  const eventIdFilter = req.nextUrl.searchParams.get('eventId') || ''
+
   try {
     const [activeUsers, futureEvents, contribStats, lastSeen, lastDigest, lastBlast] = await Promise.all([
       getActiveUsers(),
@@ -34,6 +40,14 @@ export async function GET(req: NextRequest) {
     ])
     const futureEventIds = futureEvents.map((e) => e.id)
     const counts = await getMatchCountsByEmail(futureEventIds)
+
+    // When eventId is set, intersect users against the match set for
+    // that event (already-threshold-filtered by getMatchesForEvent).
+    let matchedEmails: Set<string> | null = null
+    if (eventIdFilter) {
+      const rows = await getMatchesForEvent(eventIdFilter)
+      matchedEmails = new Set(rows.map((r) => r.user_email.trim().toLowerCase()))
+    }
 
     // For each user, count future events within 100mi of their location.
     // 53 users × 21 events ≈ 1k cheap distance calcs — fine to do inline.
@@ -57,6 +71,7 @@ export async function GET(req: NextRequest) {
 
     const users = activeUsers
       .filter((u) => u.email)
+      .filter((u) => !matchedEmails || matchedEmails.has(u.email.trim().toLowerCase()))
       .map((u) => {
         const key = u.email.trim().toLowerCase()
         const c = contribStats.get(key)
@@ -91,8 +106,15 @@ export async function GET(req: NextRequest) {
         return an.localeCompare(bn)
       })
 
+    // Lightweight events list for the matched-event picklist on the
+    // admin page. Sorted by date asc so the dropdown reads naturally.
+    const events = [...futureEvents]
+      .sort((a, b) => (a.date || '').localeCompare(b.date || ''))
+      .map((e) => ({ id: e.id, name: e.name, date: e.date }))
+
     return NextResponse.json({
       users,
+      events,
       stats: {
         activeUserCount: users.length,
         futureEventCount: futureEvents.length,

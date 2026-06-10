@@ -94,9 +94,16 @@ const DATE_OPTIONS: { value: DateBucket; label: string }[] = [
   { value: 'never', label: 'Never' },
 ]
 
+interface EventOption {
+  id: string
+  name: string
+  date: string
+}
+
 interface Filters {
   frequency: string
   grade: string
+  matchedEventId: string
   minMatches: string
   minContributions: string
   minLocalPct: string
@@ -112,6 +119,7 @@ function emptyFilters(): Filters {
   return {
     frequency: 'All',
     grade: 'All',
+    matchedEventId: '',
     minMatches: '',
     minContributions: '',
     minLocalPct: '',
@@ -128,6 +136,7 @@ function activeFilterCount(f: Filters): number {
   let n = 0
   if (f.frequency !== 'All') n++
   if (f.grade !== 'All') n++
+  if (f.matchedEventId !== '') n++
   if (f.minMatches.trim() !== '') n++
   if (f.minContributions.trim() !== '') n++
   if (f.minLocalPct.trim() !== '') n++
@@ -198,6 +207,7 @@ function compareByKey(a: UserRow, b: UserRow, key: SortKey): number {
 
 export default function AdminPage() {
   const [users, setUsers] = useState<UserRow[] | null>(null)
+  const [events, setEvents] = useState<EventOption[]>([])
   const [stats, setStats] = useState<Stats | null>(null)
   const [authState, setAuthState] = useState<'unknown' | 'authorized' | 'unauthorized' | 'error'>('unknown')
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
@@ -223,7 +233,10 @@ export default function AdminPage() {
 
   async function fetchCounts() {
     try {
-      const res = await fetch('/api/admin/dashboard-counts', { cache: 'no-store' })
+      const qs = filters.matchedEventId
+        ? `?eventId=${encodeURIComponent(filters.matchedEventId)}`
+        : ''
+      const res = await fetch(`/api/admin/dashboard-counts${qs}`, { cache: 'no-store' })
       if (res.status === 401) {
         setAuthState('unauthorized')
         return
@@ -234,8 +247,13 @@ export default function AdminPage() {
         setErrorMsg(data.error || `HTTP ${res.status}`)
         return
       }
-      const data = (await res.json()) as { users: UserRow[]; stats: Stats }
+      const data = (await res.json()) as {
+        users: UserRow[]
+        events?: EventOption[]
+        stats: Stats
+      }
       setUsers(data.users)
+      if (data.events) setEvents(data.events)
       setStats(data.stats)
       setAuthState('authorized')
       setRefreshedAt(new Date())
@@ -249,7 +267,8 @@ export default function AdminPage() {
     fetchCounts()
     const id = setInterval(fetchCounts, POLL_MS)
     return () => clearInterval(id)
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.matchedEventId])
 
   async function rescoreMissing() {
     if (rescoring) return
@@ -437,6 +456,7 @@ export default function AdminPage() {
                 {showFilters && (
                   <FilterPopover
                     filters={filters}
+                    events={events}
                     onChange={setFilters}
                     onClear={() => setFilters(emptyFilters())}
                     onClose={() => setShowFilters(false)}
@@ -695,11 +715,13 @@ export default function AdminPage() {
 // dismissal handled here so the parent doesn't need a ref-passing dance.
 function FilterPopover({
   filters,
+  events,
   onChange,
   onClear,
   onClose,
 }: {
   filters: Filters
+  events: EventOption[]
   onChange: (f: Filters) => void
   onClear: () => void
   onClose: () => void
@@ -774,6 +796,16 @@ function FilterPopover({
                 </select>
               </FilterField>
             </div>
+          </FilterSection>
+
+          <FilterSection title="Matched event">
+            <FilterField label="Event">
+              <EventPicker
+                events={events}
+                selectedId={filters.matchedEventId}
+                onChange={(id) => update('matchedEventId', id)}
+              />
+            </FilterField>
           </FilterSection>
 
           <FilterSection title="Activity">
@@ -943,5 +975,101 @@ function DateSelect({
         <option key={opt.value} value={opt.value}>{opt.label}</option>
       ))}
     </select>
+  )
+}
+
+// Searchable single-select for the matched-event filter. Typing in the
+// box narrows the dropdown to events whose name contains the query
+// (case-insensitive). Clicking a row commits the id; the "× Clear"
+// affordance resets the filter back to all users.
+function EventPicker({
+  events,
+  selectedId,
+  onChange,
+}: {
+  events: EventOption[]
+  selectedId: string
+  onChange: (id: string) => void
+}) {
+  const selected = events.find((e) => e.id === selectedId) || null
+  const [query, setQuery] = useState('')
+  const [open, setOpen] = useState(false)
+  const containerRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    function onDown(e: MouseEvent) {
+      if (!containerRef.current) return
+      if (!containerRef.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [])
+
+  const q = query.trim().toLowerCase()
+  const filtered = q
+    ? events.filter((e) => e.name.toLowerCase().includes(q))
+    : events
+  const shown = filtered.slice(0, 50)
+
+  function pick(id: string) {
+    onChange(id)
+    setQuery('')
+    setOpen(false)
+  }
+
+  return (
+    <div ref={containerRef} className="relative">
+      {selected ? (
+        <div className="flex items-center justify-between gap-2 bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm">
+          <span className="truncate text-gray-800">
+            {selected.name}
+            {selected.date && (
+              <span className="text-gray-400 ml-2">· {formatDate(selected.date)}</span>
+            )}
+          </span>
+          <button
+            type="button"
+            onClick={() => pick('')}
+            className="text-xs text-gray-500 hover:text-gray-900 transition-colors shrink-0"
+            aria-label="Clear matched-event filter"
+          >
+            × Clear
+          </button>
+        </div>
+      ) : (
+        <>
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => { setQuery(e.target.value); setOpen(true) }}
+            onFocus={() => setOpen(true)}
+            placeholder="Type to search events…"
+            className="w-full bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none transition-colors"
+          />
+          {open && shown.length > 0 && (
+            <div className="absolute z-10 left-0 right-0 mt-1 max-h-64 overflow-y-auto bg-white border border-[#E8DDD0] rounded-lg shadow-lg">
+              {shown.map((e) => (
+                <button
+                  type="button"
+                  key={e.id}
+                  onClick={() => pick(e.id)}
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-[#F5EFE6] transition-colors border-b border-[#F0E8DC] last:border-b-0"
+                >
+                  <div className="text-gray-800 truncate">{e.name}</div>
+                  {e.date && (
+                    <div className="text-[11px] text-gray-400">{formatDate(e.date)}</div>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+          {open && shown.length === 0 && (
+            <div className="absolute z-10 left-0 right-0 mt-1 px-3 py-2 bg-white border border-[#E8DDD0] rounded-lg shadow-lg text-xs text-gray-500">
+              No events match.
+            </div>
+          )}
+        </>
+      )}
+    </div>
   )
 }
