@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Header from '@/components/Header'
 import { UserProfile } from '@/lib/types'
@@ -47,6 +47,34 @@ function WelcomePageInner() {
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // 'checking' covers the initial existence check when email arrives in
+  // the URL. Existing users get bounced to the homepage so they don't
+  // re-submit and trigger a duplicate Airtable record. Failures fall
+  // through to 'ready' (fail-open).
+  const [checkState, setCheckState] = useState<'checking' | 'ready'>(
+    emailFromUrl ? 'checking' : 'ready',
+  )
+
+  useEffect(() => {
+    if (!emailFromUrl) return
+    let cancelled = false
+    fetch(`/api/check-email?email=${encodeURIComponent(emailFromUrl)}`, { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d: { exists?: boolean }) => {
+        if (cancelled) return
+        if (d.exists) {
+          window.location.replace('/')
+        } else {
+          setCheckState('ready')
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setCheckState('ready')
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [emailFromUrl])
 
   const needsEmail = !emailFromUrl
   const needsLinkedin = !linkedinFromUrl
@@ -106,7 +134,9 @@ function WelcomePageInner() {
       />
 
       <main className="flex-1 max-w-[640px] w-full mx-auto px-6 sm:px-8 py-10 pb-20">
-        {submitted ? (
+        {checkState === 'checking' ? (
+          <p style={{ fontSize: 14, color: 'var(--ink-3)' }}>Loading…</p>
+        ) : submitted ? (
           <ThankYou />
         ) : (
           <>
