@@ -109,11 +109,17 @@ function WelcomePageInner() {
               className="mt-4 mb-0"
               style={{ fontSize: 15.5, color: 'var(--ink-2)', lineHeight: 1.6 }}
             >
-              You are pre-approved for a Whispered Events account. Whispered
-              Events curates the best in-person dinners, conferences, and
-              gatherings for senior operators and execs — the ones that
+              This page lets {learn || 'Whispered'} users sign up in seconds
+              for free.
+            </p>
+            <p
+              className="mt-3 mb-0"
+              style={{ fontSize: 15.5, color: 'var(--ink-2)', lineHeight: 1.6 }}
+            >
+              Whispered Events curates the best in-person dinners, conferences,
+              and gatherings for senior operators and execs — the ones that
               aren&apos;t widely posted. We match them to your role, location,
-              and interests. 100% free.
+              and interests.
             </p>
 
             <div
