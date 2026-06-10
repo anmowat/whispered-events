@@ -5,13 +5,16 @@ import { useSearchParams } from 'next/navigation'
 import Header from '@/components/Header'
 import { UserProfile } from '@/lib/types'
 
-// Invite-style quick-signup landing. Email + LinkedIn arrive in the URL
-// (?email=...&linkedin=...) — the visitor only fills Interest, City,
-// Frequency. Learn defaults to "Sage", Employment to "Searching"
-// (referral-channel attribution + a sensible neutral). On success we
-// hit the same /api/submit-profile endpoint the chat flow uses, so the
-// downstream pipeline (Resend welcome, digest seeding, Airtable enrich)
-// is identical.
+// Invite-style quick-signup landing. Email + LinkedIn + Learn arrive in
+// the URL (?email=...&linkedin=...&learn=...) — the visitor only fills
+// Interest, City, Frequency. When the URL is missing email or LinkedIn
+// we surface the fields so the form still works.
+//
+// Defaults written to Airtable: Employment='Searching', Learn from the
+// URL (falls back to '' if absent). On success we hit the same
+// /api/submit-profile endpoint the chat flow uses, so the downstream
+// pipeline (Resend welcome, digest seeding, Airtable enrich) is
+// identical.
 
 // Frequency display mirrors ViewEventsTab: backend stores 'Paused',
 // users see 'Dashboard Only'.
@@ -30,10 +33,14 @@ export default function WelcomePage() {
 
 function WelcomePageInner() {
   const params = useSearchParams()
-  const email = (params?.get('email') || '').trim()
-  const linkedin = (params?.get('linkedin') || '').trim()
+  const emailFromUrl = (params?.get('email') || '').trim()
+  const linkedinFromUrl = (params?.get('linkedin') || '').trim()
   const learn = (params?.get('learn') || '').trim()
 
+  // URL values seed the inputs so the user can edit if needed. The
+  // fields render only when the URL didn't carry the value.
+  const [email, setEmail] = useState(emailFromUrl)
+  const [linkedin, setLinkedin] = useState(linkedinFromUrl)
   const [interest, setInterest] = useState('')
   const [city, setCity] = useState('')
   const [frequency, setFrequency] = useState<string>('Weekly')
@@ -41,15 +48,20 @@ function WelcomePageInner() {
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const hasEmail = Boolean(email)
+  const needsEmail = !emailFromUrl
+  const needsLinkedin = !linkedinFromUrl
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (submitting) return
     setError(null)
 
-    if (!email) {
-      setError("We didn't receive your email in the invite link. Please ask for a fresh invite.")
+    if (!email.trim()) {
+      setError('Please enter your email.')
+      return
+    }
+    if (!linkedin.trim()) {
+      setError('Please enter your LinkedIn URL.')
       return
     }
     if (!interest.trim() || !city.trim()) {
@@ -60,12 +72,12 @@ function WelcomePageInner() {
     setSubmitting(true)
     try {
       const profile: UserProfile = {
-        email,
-        linkedin,
+        email: email.trim(),
+        linkedin: linkedin.trim(),
         interest: interest.trim(),
         location: city.trim(),
         frequency,
-        learn: learn || '',
+        learn,
         employment: 'Searching',
         companySize: '',
       }
@@ -109,8 +121,11 @@ function WelcomePageInner() {
               className="mt-4 mb-0"
               style={{ fontSize: 15.5, color: 'var(--ink-2)', lineHeight: 1.6 }}
             >
-              This page lets {learn || 'Whispered'} users sign up in seconds
-              for free.
+              This page lets{' '}
+              <strong style={{ color: 'var(--ink)', fontWeight: 600 }}>
+                {learn || 'Whispered'}
+              </strong>{' '}
+              users sign up in seconds for free.
             </p>
             <p
               className="mt-3 mb-0"
@@ -121,26 +136,41 @@ function WelcomePageInner() {
               aren&apos;t widely posted. We match them to your role, location,
               and interests.
             </p>
-
-            <div
-              className="mt-7 rounded-card border p-4"
-              style={{
-                background: 'var(--paper)',
-                borderColor: 'var(--rule)',
-              }}
+            <p
+              className="mt-3 mb-0"
+              style={{ fontSize: 15.5, color: 'var(--ink-2)', lineHeight: 1.6 }}
             >
-              <p
-                className="m-0"
-                style={{ fontSize: 13.5, color: 'var(--ink-2)', lineHeight: 1.55 }}
-              >
-                We already have your function and level attached to{' '}
-                <strong style={{ color: 'var(--ink)' }}>{email || 'your email'}</strong>.
-                Share the three below and we&apos;ll create your free
-                Whispered Events account.
-              </p>
-            </div>
+              Quickly answer the questions below and we&apos;ll create your free
+              Whispered Events account.
+            </p>
 
             <form className="mt-7 space-y-5" onSubmit={handleSubmit}>
+              {needsEmail && (
+                <Field label="What's your email?">
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@company.com"
+                    className={inputCls}
+                    required
+                  />
+                </Field>
+              )}
+
+              {needsLinkedin && (
+                <Field label="What's your LinkedIn profile URL?" hint="We'll use your profile to automatically enrich your function and seniority.">
+                  <input
+                    type="url"
+                    value={linkedin}
+                    onChange={(e) => setLinkedin(e.target.value)}
+                    placeholder="https://www.linkedin.com/in/your-handle"
+                    className={inputCls}
+                    required
+                  />
+                </Field>
+              )}
+
               <Field label="What types of events are you interested in?" hint="Add keywords to sharpen your matches — specific beats generic. Works well: Sales, AI, GTM, Marketing. Too broad: networking, dinners.">
                 <textarea
                   value={interest}
@@ -191,21 +221,15 @@ function WelcomePageInner() {
               <div className="pt-1">
                 <button
                   type="submit"
-                  disabled={submitting || !hasEmail}
+                  disabled={submitting}
                   className="px-6 py-2.5 rounded-pill text-[14px] font-medium text-white transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                   style={{ background: 'var(--accent)' }}
-                  onMouseEnter={(e) => !submitting && hasEmail && (e.currentTarget.style.background = 'var(--accent-2)')}
+                  onMouseEnter={(e) => !submitting && (e.currentTarget.style.background = 'var(--accent-2)')}
                   onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--accent)')}
                 >
                   {submitting ? 'Submitting…' : 'Create my account'}
                 </button>
               </div>
-
-              {!hasEmail && (
-                <p className="mt-2" style={{ fontSize: 12, color: 'var(--ink-3)' }}>
-                  Your invite link is missing the email. Please ask for a fresh link.
-                </p>
-              )}
             </form>
           </>
         )}
