@@ -101,6 +101,33 @@ export default function FaqPage() {
           </ul>
         </section>
 
+        <section className="mt-12">
+          <h2
+            className="font-serif m-0"
+            style={{
+              fontSize: 22,
+              lineHeight: 1.2,
+              color: 'var(--accent)',
+              letterSpacing: '-0.01em',
+            }}
+          >
+            <span style={{ color: 'var(--ink-3)', marginRight: 8 }}>Q:</span>
+            What data do you collect, and how is it used?
+          </h2>
+          <p
+            className="mt-3 mb-0"
+            style={{ fontSize: 15, color: 'var(--ink-2)', lineHeight: 1.6 }}
+          >
+            <strong style={{ color: 'var(--ink-3)', fontWeight: 600, marginRight: 6 }}>
+              A:
+            </strong>
+            At signup, we collect your LinkedIn profile, email, employment
+            status, interests, and location. We never share your email or
+            employment status. We may share your name, interests, and location
+            with partners running events you match for.
+          </p>
+        </section>
+
         <section
           className="mt-14 pt-8 border-t"
           style={{ borderColor: 'var(--rule-soft)' }}
