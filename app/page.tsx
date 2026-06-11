@@ -1,22 +1,80 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import Header, { HeaderTab } from '@/components/Header'
+import { HeaderTab } from '@/components/Header'
 import ShareEventTab from '@/components/ShareEventTab'
 import PartnerApplyTab from '@/components/PartnerApplyTab'
 import ViewEventsTab from '@/components/ViewEventsTab'
-import FeaturedEventsCarousel from '@/components/FeaturedEventsCarousel'
 import LoginModal from '@/components/LoginModal'
-import Coverage from '@/components/Coverage'
 import PartnerMarquee from '@/components/PartnerMarquee'
 import { Partner, FeaturedEvent } from '@/lib/airtable'
 
 type Mode = 'landing' | 'active'
 
-// "The Salon" landing. Tab in the header swaps which of three cards
-// renders below the hero. The three active-mode tabs route to the
-// existing chat components (PartnerApplyTab + ShareEventTab +
-// ViewEventsTab) — unchanged behavior, restyled outer chrome only.
+// "After Hours" homepage. Warm near-black background, champagne accent.
+// The Header / right-slot / chat state machine carries forward — only
+// the visual chrome is new. Body gets the `theme-after-hours` class so
+// the chat surfaces (ViewEventsTab / ShareEventTab / PartnerApplyTab),
+// LoginModal, PartnerMarquee, etc. re-theme via CSS-var overrides
+// defined in globals.css.
+
+const SERIF = `'Cormorant Garamond', Georgia, 'Times New Roman', serif`
+
+interface TabContent {
+  subhead: React.ReactNode
+  cta: string
+  steps: string[]
+  featuredNote?: string
+}
+
+const TAB_CONTENT: Record<HeaderTab, TabContent> = {
+  view: {
+    subhead: (
+      <>
+        Share and get matched<br />
+        with exclusive in-person events and conferences — for free.
+      </>
+    ),
+    cta: 'Create Profile',
+    steps: [
+      'Share your profile and event interests',
+      'Get notified of new matching events',
+      'Update your profile to improve matches',
+    ],
+    featuredNote:
+      '* To see exclusive dinners / intimate events, create a profile to see which you match.',
+  },
+  contribute: {
+    subhead: (
+      <>
+        Contribute an event in seconds —<br />
+        we share it with the executives whose profile fits.
+      </>
+    ),
+    cta: 'Share Event',
+    steps: [
+      'Share an event link',
+      'Our AI extracts the information for you to confirm',
+      'Event shared just with executives whose profiles fit',
+    ],
+    featuredNote: '* Or just email any event link to event@whispered.com — same flow.',
+  },
+  partner: {
+    subhead: (
+      <>
+        Promote your event to the right execs —<br />
+        the people whose profile fits, not a generic blast.
+      </>
+    ),
+    cta: 'Apply to Partner',
+    steps: [
+      'Share (and update) events you are running',
+      'Customize targeting for your events',
+      'Get a customized widget/feed of events for your community',
+    ],
+    featuredNote: '* Recent events from communities & firms we partner with.',
+  },
+}
 
 export default function Home() {
   const [tab, setTab] = useState<HeaderTab>('view')
@@ -49,400 +107,519 @@ export default function Home() {
       .catch(() => {})
   }, [])
 
+  // Body class scopes the dark theme to this page only. Removed on
+  // unmount so client-side navigation to /dashboard, /faq, etc. doesn't
+  // carry the After Hours palette into Salon surfaces.
+  useEffect(() => {
+    document.body.classList.add('theme-after-hours')
+    return () => document.body.classList.remove('theme-after-hours')
+  }, [])
+
   function handleCTA() {
     setMode('active')
   }
-
   function handleBack() {
     setMode('landing')
   }
-
   function selectTab(t: HeaderTab) {
     setTab(t)
     setMode('landing')
   }
 
-  // Scroll the page to the top whenever mode or tab changes. Doing this in
-  // an effect (rather than inside the handler) guarantees the scroll fires
-  // AFTER React renders the new layout — otherwise on mobile Safari the
-  // scroll can race the DOM swap and visually no-op. Instant scroll, not
-  // smooth, so the user lands at top immediately.
+  // Scroll to top on tab / mode change — instant, not smooth, so mobile
+  // Safari doesn't race the DOM swap.
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'auto' })
   }, [mode, tab])
 
-  const rightSlot = isLoggedIn ? (
+  const content = TAB_CONTENT[tab]
+  const headerRight = isLoggedIn ? (
     <a
       href="/dashboard"
-      aria-label="Dashboard"
-      className="text-[13px] transition-colors inline-flex items-center"
-      style={{ color: 'var(--ink-2)' }}
+      className="text-[13px] transition-colors"
+      style={{ color: 'rgba(236,230,218,.62)' }}
+      onMouseEnter={(e) => (e.currentTarget.style.color = '#ece6da')}
+      onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(236,230,218,.62)')}
     >
-      <UserIcon className="sm:hidden" />
-      <span className="hidden sm:inline">Dashboard</span>
+      Dashboard
     </a>
   ) : (
     <button
       onClick={() => setShowLogin(true)}
-      aria-label="Log in"
-      className="text-[13px] transition-colors inline-flex items-center"
-      style={{ color: 'var(--ink-2)' }}
+      className="text-[13px] transition-colors"
+      style={{ color: 'rgba(236,230,218,.62)' }}
+      onMouseEnter={(e) => (e.currentTarget.style.color = '#ece6da')}
+      onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(236,230,218,.62)')}
     >
-      <UserIcon className="sm:hidden" />
-      <span className="hidden sm:inline">Log in</span>
+      Log in
     </button>
   )
 
   return (
-    <div className="min-h-screen flex flex-col overflow-x-hidden">
+    <div
+      className="min-h-screen flex flex-col overflow-x-hidden"
+      style={{ background: '#1b1814', color: '#ece6da' }}
+    >
       {showLogin && <LoginModal onClose={() => setShowLogin(false)} />}
 
-      <Header
+      <AfterHoursHeader
         activeTab={tab}
         onTabChange={selectTab}
-        rightSlot={rightSlot}
-        onLogoClick={handleBack}
+        onLogoClick={() => setMode('landing')}
+        rightSlot={headerRight}
       />
 
-      <main className="flex-1 w-full">
+      <main className="flex-1 flex flex-col">
         {mode === 'landing' ? (
           <Landing
             tab={tab}
+            content={content}
             partners={partners}
             featuredEvents={featuredEvents}
             onCTA={handleCTA}
           />
         ) : (
-          <div className="max-w-3xl mx-auto px-4 sm:px-6 py-4 sm:py-8">
-            {tab === 'view' && (
-              <ViewEventsTab eventCount={eventCount} startAtForm onReturnHome={handleBack} />
-            )}
-            {tab === 'contribute' && (
-              <ShareEventTab onDone={handleBack} onShowPartner={() => selectTab('partner')} />
-            )}
-            {tab === 'partner' && <PartnerApplyTab onDone={handleBack} />}
-          </div>
+          <ActiveMode tab={tab} eventCount={eventCount} onBack={handleBack} onShowPartner={() => selectTab('partner')} />
         )}
       </main>
 
-      <footer
-        className="max-w-[1040px] mx-auto w-full px-6 sm:px-8 py-5 pb-7 flex justify-between items-center text-[12px] border-t mt-14"
-        style={{ borderColor: 'var(--rule-soft)', color: 'var(--ink-3)' }}
-      >
-        <span>Whispered Events — for executives</span>
-        <a
-          href="/faq"
-          className="transition-colors"
-          style={{ color: 'var(--ink-3)' }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
-          onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--ink-3)')}
-        >
-          FAQ
-        </a>
-        <span className="font-serif italic">— est. 2026</span>
-      </footer>
+      <Footer />
     </div>
   )
 }
 
-function UserIcon({ className = '' }: { className?: string }) {
+// ---------------- Header ----------------
+
+function AfterHoursHeader({
+  activeTab,
+  onTabChange,
+  onLogoClick,
+  rightSlot,
+}: {
+  activeTab: HeaderTab
+  onTabChange: (t: HeaderTab) => void
+  onLogoClick: () => void
+  rightSlot: React.ReactNode
+}) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      width={22}
-      height={22}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.6"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-      className={className}
+    <div
+      style={{
+        borderBottom: '1px solid rgba(236,230,218,.13)',
+      }}
     >
-      <circle cx="12" cy="8" r="4" />
-      <path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8" />
-    </svg>
+      <div className="max-w-[1200px] mx-auto px-4 sm:px-11 py-4 sm:py-5 flex sm:grid sm:grid-cols-[1fr_auto_1fr] items-center justify-between gap-3">
+        <button
+          onClick={onLogoClick}
+          aria-label="Whispered Events home"
+          className="hidden sm:flex items-center gap-2.5 sm:justify-self-start"
+        >
+          <DiamondMark />
+          <span
+            style={{
+              fontFamily: SERIF,
+              fontSize: 22,
+              fontWeight: 600,
+              letterSpacing: '.01em',
+              color: '#ece6da',
+            }}
+          >
+            Whispered <span style={{ fontStyle: 'italic', color: '#c9a86a' }}>Events</span>
+          </span>
+        </button>
+
+        <SegmentedToggle activeTab={activeTab} onChange={onTabChange} />
+
+        <div className="sm:justify-self-end flex items-center gap-3 sm:gap-4">
+          {rightSlot}
+        </div>
+      </div>
+    </div>
   )
 }
 
+function DiamondMark() {
+  return (
+    <span
+      aria-hidden
+      style={{
+        width: 7,
+        height: 7,
+        background: '#c9a86a',
+        transform: 'rotate(45deg)',
+        display: 'inline-block',
+      }}
+    />
+  )
+}
+
+function SegmentedToggle({
+  activeTab,
+  onChange,
+}: {
+  activeTab: HeaderTab
+  onChange: (t: HeaderTab) => void
+}) {
+  const tabs: { id: HeaderTab; label: string; short: string }[] = [
+    { id: 'view', label: 'Find Events', short: 'Find' },
+    { id: 'contribute', label: 'Contribute', short: 'Share' },
+    { id: 'partner', label: 'Partner', short: 'Partner' },
+  ]
+  return (
+    <nav
+      className="flex gap-1 p-1 rounded-full border min-w-0"
+      style={{
+        background: 'rgba(236,230,218,.05)',
+        borderColor: 'rgba(236,230,218,.13)',
+      }}
+    >
+      {tabs.map((t) => {
+        const active = activeTab === t.id
+        return (
+          <button
+            key={t.id}
+            onClick={() => onChange(t.id)}
+            className="px-3 sm:px-[17px] py-[7px] rounded-full text-[12px] sm:text-[13px] font-semibold whitespace-nowrap transition-colors"
+            style={{
+              background: active ? '#c9a86a' : 'transparent',
+              color: active ? '#1b1814' : 'rgba(236,230,218,.58)',
+              letterSpacing: '.02em',
+            }}
+            onMouseEnter={(e) => {
+              if (!active) e.currentTarget.style.color = '#ece6da'
+            }}
+            onMouseLeave={(e) => {
+              if (!active) e.currentTarget.style.color = 'rgba(236,230,218,.58)'
+            }}
+          >
+            <span className="sm:hidden">{t.short}</span>
+            <span className="hidden sm:inline">{t.label}</span>
+          </button>
+        )
+      })}
+    </nav>
+  )
+}
+
+// ---------------- Landing ----------------
+
 function Landing({
   tab,
+  content,
   partners,
   featuredEvents,
   onCTA,
 }: {
   tab: HeaderTab
+  content: TabContent
   partners: Partner[]
   featuredEvents: FeaturedEvent[]
   onCTA: () => void
 }) {
+  const featured = featuredEvents.slice(0, 3)
+  const featuredLabel = tab === 'partner' ? 'Recent partner events' : 'Featured Events'
+
   return (
-    <div className="flex flex-col items-center px-4 sm:px-6 animate-fade-in">
+    <div className="animate-fade-in" key={tab}>
       {/* Hero */}
-      <section className="max-w-[760px] mx-auto pt-8 sm:pt-[60px] pb-7 text-center w-full">
+      <section className="text-center px-5 sm:px-10 pt-16 sm:pt-[108px] pb-16 sm:pb-[86px] max-w-[880px] mx-auto">
         <h1
-          className="font-serif m-0 text-[32px] sm:text-[44px] md:text-[54px]"
-          style={{ lineHeight: 1.05, color: 'var(--ink)', letterSpacing: '-0.01em' }}
+          style={{
+            fontFamily: SERIF,
+            fontWeight: 500,
+            fontSize: 'clamp(40px, 7vw, 64px)',
+            lineHeight: 1.04,
+            margin: 0,
+            letterSpacing: '.005em',
+            color: '#ece6da',
+          }}
         >
-          The best events aren&apos;t posted<br />
-          they&apos;re <span className="italic">whispered</span>
+          The best events aren&rsquo;t posted.
+          <br />
+          <span style={{ fontStyle: 'italic', color: '#c9a86a' }}>
+            They&rsquo;re whispered.
+          </span>
         </h1>
         <p
-          className="font-serif italic mt-3 mb-0 text-[15px] sm:text-[20px] md:text-[22px]"
-          style={{ color: 'var(--ink-2)', lineHeight: 1.3 }}
+          className="text-[15px] sm:text-[17px]"
+          style={{
+            lineHeight: 1.65,
+            color: 'rgba(236,230,218,.6)',
+            maxWidth: 560,
+            margin: '28px auto 0',
+          }}
         >
-          contribute and discover exclusive events — 100% free
+          {content.subhead}
         </p>
-      </section>
 
-      {/* Active card driven by the header tab */}
-      <section className="max-w-[520px] w-full mt-5" key={tab}>
-        {tab === 'view' && <ViewCard onCTA={onCTA} featuredEvents={featuredEvents} />}
-        {tab === 'contribute' && <ContributeCard onCTA={onCTA} featuredEvents={featuredEvents} />}
-        {tab === 'partner' && <PartnerCard onCTA={onCTA} featuredEvents={featuredEvents} />}
-      </section>
-
-      {/* Coverage */}
-      <section className="max-w-[640px] w-full mt-16">
-        <Coverage />
-      </section>
-
-      {/* Partner marquee */}
-      {partners.some((p) => p.featured) && (
-        <section className="max-w-[1040px] w-full mt-16">
-          <div className="hairline mb-5" />
-          <div className="eyebrow text-center mb-4">
-            Partnered with the best communities &amp; firms
-          </div>
-          <PartnerMarquee partners={partners} />
-          <div className="flex justify-center mt-6">
-            <a
-              href="/partners"
-              className="rounded-pill text-[12px] font-medium px-4 py-2 transition-colors border"
+        {/* Partner row */}
+        {partners.some((p) => p.featured) && (
+          <div className="mt-10">
+            <div
+              className="mb-[18px]"
               style={{
-                background: 'var(--paper)',
-                color: 'var(--ink-2)',
-                borderColor: 'var(--rule)',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'var(--paper-2)'
-                e.currentTarget.style.color = 'var(--ink)'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'var(--paper)'
-                e.currentTarget.style.color = 'var(--ink-2)'
+                fontSize: 11,
+                letterSpacing: '.26em',
+                textTransform: 'uppercase',
+                color: 'rgba(236,230,218,.38)',
               }}
             >
-              See all partners →
-            </a>
+              Partnered with the best communities &amp; companies
+            </div>
+            <PartnerMarquee partners={partners} />
           </div>
+        )}
+
+        {/* CTAs */}
+        <div className="mt-9 flex gap-3.5 justify-center items-center flex-wrap">
+          <button
+            onClick={onCTA}
+            className="rounded-pill text-[14px] font-semibold transition-colors"
+            style={{
+              background: '#c9a86a',
+              color: '#1b1814',
+              padding: '14px 28px',
+              letterSpacing: '.01em',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = '#d5b87c')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = '#c9a86a')}
+          >
+            {content.cta}
+          </button>
+          <a
+            href="#how-it-works"
+            className="text-[14px]"
+            style={{
+              color: 'rgba(236,230,218,.7)',
+              textDecoration: 'underline',
+              textUnderlineOffset: 4,
+              textDecorationColor: 'rgba(236,230,218,.3)',
+            }}
+          >
+            How it works &rarr;
+          </a>
+        </div>
+      </section>
+
+      {/* How it works */}
+      <section
+        id="how-it-works"
+        className="max-w-[1080px] mx-auto px-5 sm:px-11 py-12 sm:py-16"
+        style={{ borderTop: '1px solid rgba(236,230,218,.13)' }}
+      >
+        <div
+          className="text-center mb-9 sm:mb-11"
+          style={{
+            fontSize: 11,
+            letterSpacing: '.3em',
+            textTransform: 'uppercase',
+            color: 'rgba(236,230,218,.4)',
+          }}
+        >
+          How it works
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-9 sm:gap-[46px]">
+          {content.steps.map((step, i) => (
+            <div key={i}>
+              <div
+                style={{
+                  fontFamily: SERIF,
+                  fontSize: 38,
+                  color: '#c9a86a',
+                  lineHeight: 1,
+                  marginBottom: 16,
+                }}
+              >
+                {String(i + 1).padStart(2, '0')}
+              </div>
+              <div
+                style={{
+                  fontSize: 16,
+                  lineHeight: 1.55,
+                  color: 'rgba(236,230,218,.82)',
+                }}
+              >
+                {step}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Featured */}
+      {featured.length > 0 && (
+        <section className="max-w-[1080px] mx-auto px-5 sm:px-11 pb-16 sm:pb-[66px]">
+          <div
+            className="mb-[18px]"
+            style={{
+              fontSize: 11,
+              letterSpacing: '.3em',
+              textTransform: 'uppercase',
+              color: 'rgba(236,230,218,.4)',
+            }}
+          >
+            {featuredLabel}
+          </div>
+          <div className="flex flex-col gap-3">
+            {featured.map((e) => (
+              <FeaturedRow key={e.id} event={e} />
+            ))}
+          </div>
+          {content.featuredNote && (
+            <div
+              className="mt-3.5"
+              style={{
+                fontSize: 12,
+                lineHeight: 1.6,
+                color: 'rgba(236,230,218,.4)',
+                maxWidth: 640,
+              }}
+            >
+              {content.featuredNote}
+            </div>
+          )}
         </section>
       )}
     </div>
   )
 }
 
-// ----- Landing card primitives -----
-
-function LandingCard({
-  title,
-  children,
-}: {
-  title: string
-  children: React.ReactNode
-}) {
-  return (
+function FeaturedRow({ event }: { event: FeaturedEvent }) {
+  const dateText = event.date
+    ? new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase()
+    : ''
+  const body = (
     <div
-      className="rounded-card border"
+      className="flex items-center justify-between gap-5 sm:gap-6 rounded-[14px] border px-5 sm:px-[30px] py-5 sm:py-[26px] transition-colors"
       style={{
-        borderColor: 'var(--accent)',
-        background: 'var(--paper)',
-        boxShadow: '0 8px 30px -18px rgba(110,31,43,0.5)',
-        padding: '28px 28px 26px',
+        borderColor: 'rgba(236,230,218,.16)',
+        background: 'transparent',
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = 'rgba(201,168,106,.5)'
+        e.currentTarget.style.background = 'rgba(201,168,106,.04)'
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = 'rgba(236,230,218,.16)'
+        e.currentTarget.style.background = 'transparent'
       }}
     >
-      <h3
-        className="font-serif mt-0 mb-4 m-0"
-        style={{
-          fontSize: 30,
-          lineHeight: 1.15,
-          color: 'var(--ink)',
-          letterSpacing: '-0.01em',
-        }}
+      <div className="min-w-0">
+        <div
+          style={{
+            fontFamily: SERIF,
+            fontSize: 'clamp(19px, 2.6vw, 25px)',
+            lineHeight: 1.2,
+            color: '#ece6da',
+          }}
+          className="truncate"
+        >
+          {event.name}
+        </div>
+        <div
+          className="mt-1.5"
+          style={{
+            fontSize: 13,
+            color: 'rgba(236,230,218,.5)',
+          }}
+        >
+          {event.location || 'Location TBD'}
+        </div>
+      </div>
+      <div className="text-right shrink-0">
+        {dateText && (
+          <div
+            style={{
+              fontSize: 13,
+              color: '#c9a86a',
+              letterSpacing: '.04em',
+            }}
+          >
+            {dateText}
+          </div>
+        )}
+        <div
+          className="mt-1"
+          style={{
+            fontSize: 12,
+            color: 'rgba(236,230,218,.45)',
+          }}
+        >
+          View details &rarr;
+        </div>
+      </div>
+    </div>
+  )
+  if (!event.link) return body
+  return (
+    <a href={event.link} target="_blank" rel="noopener noreferrer" className="block">
+      {body}
+    </a>
+  )
+}
+
+// ---------------- Active mode (chat surface) ----------------
+
+function ActiveMode({
+  tab,
+  eventCount,
+  onBack,
+  onShowPartner,
+}: {
+  tab: HeaderTab
+  eventCount: number
+  onBack: () => void
+  onShowPartner: () => void
+}) {
+  return (
+    <div className="max-w-3xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-10">
+      <button
+        onClick={onBack}
+        className="text-[12px] mb-5 transition-colors"
+        style={{ color: 'rgba(236,230,218,.5)' }}
+        onMouseEnter={(e) => (e.currentTarget.style.color = '#c9a86a')}
+        onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(236,230,218,.5)')}
       >
-        {title}
-      </h3>
-      {children}
+        ← Back
+      </button>
+      {tab === 'view' && (
+        <ViewEventsTab eventCount={eventCount} startAtForm onReturnHome={onBack} />
+      )}
+      {tab === 'contribute' && (
+        <ShareEventTab onDone={onBack} onShowPartner={onShowPartner} />
+      )}
+      {tab === 'partner' && <PartnerApplyTab onDone={onBack} />}
     </div>
   )
 }
 
-function HowItWorks({ items }: { items: string[] }) {
-  return (
-    <ol className="m-0 p-0 list-none flex flex-col gap-3">
-      {items.map((text, i) => (
-        <li key={i} className="flex items-start gap-3">
-          <span
-            className="font-serif shrink-0 grid place-items-center rounded-full"
-            style={{
-              width: 24,
-              height: 24,
-              border: '1px solid var(--accent)',
-              color: 'var(--accent)',
-              background: 'var(--accent-soft)',
-              fontSize: 14,
-              lineHeight: 1,
-              marginTop: 1,
-            }}
-          >
-            {i + 1}
-          </span>
-          <span style={{ fontSize: 13.5, color: 'var(--ink-2)', lineHeight: 1.55 }}>
-            {text}
-          </span>
-        </li>
-      ))}
-    </ol>
-  )
-}
+// ---------------- Footer ----------------
 
-function AccentButton({
-  children,
-  onClick,
-}: {
-  children: React.ReactNode
-  onClick: () => void
-}) {
+function Footer() {
   return (
-    <button
-      onClick={onClick}
-      className="w-full mt-5 rounded-pill text-white font-medium transition-colors flex items-center justify-center gap-2"
+    <div
+      className="flex items-center justify-between px-4 sm:px-11 py-5 sm:py-[26px]"
       style={{
-        padding: '10px 16px',
-        background: 'var(--accent)',
-        fontSize: 13,
+        borderTop: '1px solid rgba(236,230,218,.13)',
+        fontSize: 12,
+        color: 'rgba(236,230,218,.4)',
       }}
-      onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--accent-2)')}
-      onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--accent)')}
     >
-      {children}
-    </button>
-  )
-}
-
-function ArrowIcon() {
-  return (
-    <svg
-      viewBox="0 0 16 16"
-      width={14}
-      height={14}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      aria-hidden
-    >
-      <path d="M3 8h10M9 4l4 4-4 4" />
-    </svg>
-  )
-}
-
-function ViewCard({
-  onCTA,
-  featuredEvents,
-}: {
-  onCTA: () => void
-  featuredEvents: FeaturedEvent[]
-}) {
-  return (
-    <LandingCard title="Get matching exec events emailed - for free">
-      <HowItWorks
-        items={[
-          'Share your profile and event interests',
-          'Get notified of new matching events',
-          'Update your profile to improve matches',
-        ]}
-      />
-      <AccentButton onClick={onCTA}>
-        Create Profile <ArrowIcon />
-      </AccentButton>
-      <p
-        className="text-center mt-3 leading-relaxed"
-        style={{ fontSize: 11.5, color: 'var(--ink-3)' }}
+      <span>Whispered Events - Copyright 2026</span>
+      <a
+        href="/faq"
+        className="transition-colors"
+        style={{
+          letterSpacing: '.08em',
+          textDecoration: 'underline',
+          textUnderlineOffset: 3,
+          textDecorationColor: 'rgba(236,230,218,.25)',
+          color: 'rgba(236,230,218,.4)',
+        }}
+        onMouseEnter={(e) => (e.currentTarget.style.color = '#c9a86a')}
+        onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(236,230,218,.4)')}
       >
-        Love what we are doing? Tag{' '}
-        <a
-          href="https://www.linkedin.com/company/whispered-events/about/?viewAsMember=true"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="underline"
-          style={{ color: 'var(--accent)', textUnderlineOffset: 3 }}
-        >
-          Whispered Events
-        </a>{' '}
-        on a LinkedIn post
-      </p>
-      <FeaturedEventsCarousel events={featuredEvents} />
-    </LandingCard>
-  )
-}
-
-function ContributeCard({
-  onCTA,
-  featuredEvents,
-}: {
-  onCTA: () => void
-  featuredEvents: FeaturedEvent[]
-}) {
-  return (
-    <LandingCard title="Contribute an event in seconds.">
-      <HowItWorks
-        items={[
-          'Share an event link',
-          'Our AI extracts the information for you to confirm',
-          'Event shared just with executives whose profiles fit',
-        ]}
-      />
-      <AccentButton onClick={onCTA}>
-        Share Event <ArrowIcon />
-      </AccentButton>
-      <p
-        className="text-center mt-3 leading-relaxed"
-        style={{ fontSize: 13, color: 'var(--ink-3)' }}
-      >
-        OR just email event link to{' '}
-        <a
-          href="mailto:event@whispered.com"
-          className="underline"
-          style={{ color: 'var(--accent)', textUnderlineOffset: 3 }}
-        >
-          event@whispered.com
-        </a>
-      </p>
-      <FeaturedEventsCarousel events={featuredEvents} />
-    </LandingCard>
-  )
-}
-
-function PartnerCard({
-  onCTA,
-  featuredEvents,
-}: {
-  onCTA: () => void
-  featuredEvents: FeaturedEvent[]
-}) {
-  return (
-    <LandingCard title="Promote your event to the right execs">
-      <HowItWorks
-        items={[
-          'Share (and update) events you are running',
-          'Customize targeting for your events',
-          'Get a customized widget/feed of events for your community',
-        ]}
-      />
-      <AccentButton onClick={onCTA}>
-        Apply <ArrowIcon />
-      </AccentButton>
-      <FeaturedEventsCarousel events={featuredEvents} />
-    </LandingCard>
+        FAQ
+      </a>
+    </div>
   )
 }

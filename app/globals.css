@@ -20,6 +20,55 @@
   --positive:    #2E5D3A;
 }
 
+/* "After Hours" dark theme — applied to <body> on the homepage only.
+   Every chat surface, modal, marquee, etc. consumes the same CSS vars,
+   so overriding them here re-themes the whole reachable subtree without
+   touching individual components. */
+body.theme-after-hours {
+  --bg:          #1b1814;
+  --paper:       #252220;
+  --paper-2:     #2c2825;
+  --ink:         #ece6da;
+  --ink-2:       rgba(236, 230, 218, 0.78);
+  --ink-3:       rgba(236, 230, 218, 0.5);
+  --rule:        rgba(236, 230, 218, 0.16);
+  --rule-soft:   rgba(236, 230, 218, 0.08);
+  --accent:      #c9a86a;
+  --accent-2:    #d5b87c;
+  --accent-soft: rgba(201, 168, 106, 0.16);
+  background-color: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-hanken), -apple-system, BlinkMacSystemFont,
+               'Segoe UI', Roboto, sans-serif;
+}
+
+/* Display headlines inside the dark theme reach for Cormorant Garamond.
+   .font-serif and .font-display are the two ways inline serif text gets
+   wrapped across the codebase. */
+body.theme-after-hours .font-serif,
+body.theme-after-hours .font-display {
+  font-family: var(--font-cormorant), Georgia, 'Times New Roman', serif;
+}
+
+/* Tailwind text-white sprinkled across chat buttons + LoginModal is
+   white-on-oxblood in Salon; on the champagne accent it'd wash out.
+   Force near-black text inside the dark theme. */
+body.theme-after-hours .text-white {
+  color: #1b1814;
+}
+
+/* Partner marquee logos were drawn for cream backgrounds — render
+   mono-white in the dark hero so they sit on the same visual register
+   as the champagne CTA. */
+body.theme-after-hours .partner-marquee img {
+  filter: brightness(0) invert(1);
+  opacity: 0.55;
+  transition: opacity 0.2s;
+}
+body.theme-after-hours .partner-marquee a:hover img {
+  opacity: 1;
+}
+
 * { box-sizing: border-box; }
 
 html,

@@ -41,7 +41,7 @@ export default function PartnerMarquee({ partners }: PartnerMarqueeProps) {
 
   return (
     <div
-      className="relative overflow-hidden"
+      className="partner-marquee relative overflow-hidden"
       style={{
         maskImage: 'linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent)',
         WebkitMaskImage:

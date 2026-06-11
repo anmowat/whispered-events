@@ -1,17 +1,24 @@
 import type { Metadata } from 'next'
-import { Inter, Instrument_Serif, Newsreader } from 'next/font/google'
+import {
+  Inter,
+  Instrument_Serif,
+  Newsreader,
+  Cormorant_Garamond,
+  Hanken_Grotesk,
+} from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 
-// Three Google fonts loaded as CSS variables so Tailwind's font-{family}
-// utilities + raw inline styles can both reach them.
+// Fonts loaded as CSS variables so Tailwind's font-{family} utilities +
+// raw inline styles can both reach them.
 //   --font-geist             body / UI (sans) — Inter substitutes for Geist
 //                            since Next 14.2.5's next/font/google catalog
-//                            doesn't include Geist. Visually close enough
-//                            for the Salon brand; can swap to the
-//                            standalone 'geist' npm package later.
-//   --font-instrument-serif  display / headlines / italic emphasis
-//   --font-newsreader        wordmark only
+//                            doesn't include Geist.
+//   --font-instrument-serif  display / headlines / italic emphasis (Salon)
+//   --font-newsreader        Salon wordmark
+//   --font-cormorant         After Hours display serif (homepage hero +
+//                            wordmark + section numerals)
+//   --font-hanken            After Hours body sans
 const geist = Inter({
   subsets: ['latin'],
   variable: '--font-geist',
@@ -33,6 +40,22 @@ const newsreader = Newsreader({
   variable: '--font-newsreader',
   display: 'swap',
   adjustFontFallback: false,
+})
+
+const cormorantGaramond = Cormorant_Garamond({
+  weight: ['400', '500', '600'],
+  style: ['normal', 'italic'],
+  subsets: ['latin'],
+  variable: '--font-cormorant',
+  display: 'swap',
+  adjustFontFallback: false,
+})
+
+const hankenGrotesk = Hanken_Grotesk({
+  weight: ['400', '500', '600', '700'],
+  subsets: ['latin'],
+  variable: '--font-hanken',
+  display: 'swap',
 })
 
 export const metadata: Metadata = {
@@ -87,7 +110,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geist.variable} ${instrumentSerif.variable} ${newsreader.variable}`}
+      className={`${geist.variable} ${instrumentSerif.variable} ${newsreader.variable} ${cormorantGaramond.variable} ${hankenGrotesk.variable}`}
     >
       <body className="min-h-screen bg-bg text-ink antialiased font-sans">
         {children}
