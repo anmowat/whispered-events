@@ -155,7 +155,7 @@ function WelcomePageInner() {
               <strong style={{ color: 'var(--ink)', fontWeight: 600 }}>
                 {learn || 'Whispered'}
               </strong>{' '}
-              users sign up in seconds for free.
+              users sign up in seconds.
             </p>
             <p
               className="mt-3 mb-0"
@@ -170,8 +170,14 @@ function WelcomePageInner() {
               </a>{' '}
               curates the best in-person dinners, conferences,
               and gatherings for senior operators and execs — the ones that
-              aren&apos;t widely posted. We match them to your role, location,
-              and interests.
+              aren&apos;t widely posted.
+            </p>
+            <p
+              className="mt-3 mb-0"
+              style={{ fontSize: 15.5, color: 'var(--ink-2)', lineHeight: 1.6 }}
+            >
+              We email you events matching your role, location, and interests —
+              all for free.
             </p>
 
             {!needsEmail ? (
