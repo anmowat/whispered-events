@@ -321,12 +321,12 @@ function Landing({
   return (
     <div className="animate-fade-in" key={tab}>
       {/* Hero */}
-      <section className="text-center px-5 sm:px-10 pt-16 sm:pt-[108px] pb-16 sm:pb-[86px] max-w-[880px] mx-auto">
+      <section className="text-center px-5 sm:px-10 pt-10 sm:pt-[64px] pb-7 sm:pb-7 max-w-[880px] mx-auto">
         <h1
           style={{
             fontFamily: SERIF,
             fontWeight: 500,
-            fontSize: 'clamp(40px, 7vw, 64px)',
+            fontSize: 'clamp(34px, 5.5vw, 52px)',
             lineHeight: 1.04,
             margin: 0,
             letterSpacing: '.005em',
@@ -400,11 +400,11 @@ function Landing({
         </div>
       </section>
 
-      {/* How it works */}
+      {/* How it works — the uppercase eyebrow itself reads as the
+          separator; no hairline above. */}
       <section
         id="how-it-works"
-        className="max-w-[1080px] mx-auto px-5 sm:px-11 py-12 sm:py-16"
-        style={{ borderTop: '1px solid rgba(236,230,218,.13)' }}
+        className="max-w-[1080px] mx-auto px-5 sm:px-11 pt-3 pb-12 sm:pt-4 sm:pb-16"
       >
         <div
           className="text-center mb-9 sm:mb-11"
