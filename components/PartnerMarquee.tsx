@@ -19,7 +19,7 @@ interface PartnerMarqueeProps {
 // screens without ever showing blank space.
 const ITEM_GAP = 56
 const MIN_COPIES = 3 // hard floor so the animation looks busy even on narrow screens
-const CYCLE_SECONDS = 32 // base scroll speed of one row width
+const CYCLE_SECONDS = 24 // base scroll speed of one row width (25% faster than the original 32s)
 const MAX_COPIES = 12
 
 export default function PartnerMarquee({ partners }: PartnerMarqueeProps) {
