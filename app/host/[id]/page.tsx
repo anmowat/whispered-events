@@ -101,6 +101,12 @@ export default function HostEventDetailPage() {
     fetchDetail()
   }, [eventId])
 
+  // After Hours palette for the host event detail page.
+  useEffect(() => {
+    document.body.classList.add('theme-after-hours')
+    return () => document.body.classList.remove('theme-after-hours')
+  }, [])
+
   return (
     <div className="min-h-screen flex flex-col">
       {showLogin && <LoginModal onClose={() => { setShowLogin(false); fetchDetail() }} />}

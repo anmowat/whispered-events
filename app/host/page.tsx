@@ -56,6 +56,12 @@ export default function HostPage() {
     fetchEvents()
   }, [])
 
+  // After Hours palette for the partner-facing host index.
+  useEffect(() => {
+    document.body.classList.add('theme-after-hours')
+    return () => document.body.classList.remove('theme-after-hours')
+  }, [])
+
   const visible = useMemo(() => {
     if (!events) return []
     const q = search.trim().toLowerCase()

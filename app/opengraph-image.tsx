@@ -6,6 +6,9 @@ import { ImageResponse } from 'next/og'
 // sharp preview thumbnail. Underlying aspect ratio is the canonical
 // 1.91:1 social card.
 //
+// After Hours palette: warm near-black background, champagne accent,
+// italic-champagne 'whispered' echoing the homepage hero.
+//
 // Every element with multiple direct children has display:flex —
 // Satori's strict layout rules require it.
 
@@ -16,11 +19,12 @@ export const size = { width: 2400, height: 1260 }
 export const contentType = 'image/png'
 
 const C = {
-  bg: '#F1ECE2',
-  inkMuted: 'rgba(0,0,0,0.30)',
-  ink: '#1B1814',
-  ink2: '#4A433B',
-  accent: '#6E1F2B',
+  bg: '#1b1814',
+  ink: '#ece6da',
+  inkMuted: 'rgba(236,230,218,0.6)',
+  inkFaint: 'rgba(236,230,218,0.38)',
+  accent: '#c9a86a',
+  rule: 'rgba(236,230,218,0.16)',
 }
 
 export default async function OpenGraphImage() {
@@ -37,20 +41,20 @@ export default async function OpenGraphImage() {
           color: C.ink,
         }}
       >
-        {/* Wordmark + pulse-dot anchor */}
+        {/* Wordmark — diamond mark + ink Whispered + italic-champagne Events */}
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <div
             style={{
-              width: 24,
-              height: 24,
-              borderRadius: 999,
+              width: 28,
+              height: 28,
               background: C.accent,
-              marginRight: 32,
+              transform: 'rotate(45deg)',
+              marginRight: 36,
             }}
           />
-          <div style={{ display: 'flex', fontSize: 80, lineHeight: 1 }}>
-            <span style={{ color: C.inkMuted, marginRight: 20 }}>Whispered</span>
-            <span style={{ color: C.ink }}>Events</span>
+          <div style={{ display: 'flex', fontSize: 80, lineHeight: 1, letterSpacing: '0.01em' }}>
+            <span style={{ color: C.ink, marginRight: 20 }}>Whispered</span>
+            <span style={{ color: C.accent, fontStyle: 'italic' }}>Events</span>
           </div>
         </div>
 
@@ -58,10 +62,11 @@ export default async function OpenGraphImage() {
         <div
           style={{
             display: 'flex',
-            fontSize: 120,
-            lineHeight: 1.1,
+            fontSize: 128,
+            lineHeight: 1.04,
             letterSpacing: '-0.01em',
-            marginTop: 160,
+            marginTop: 168,
+            color: C.ink,
           }}
         >
           The best events aren&apos;t posted.
@@ -70,34 +75,34 @@ export default async function OpenGraphImage() {
           style={{
             display: 'flex',
             fontSize: 208,
-            lineHeight: 1.05,
+            lineHeight: 1.02,
             letterSpacing: '-0.02em',
             fontStyle: 'italic',
+            color: C.accent,
             marginTop: 16,
           }}
         >
           They&apos;re whispered.
         </div>
 
-        {/* Oxblood hairline */}
+        {/* Hairline + subtext */}
         <div
           style={{
             width: 280,
-            height: 8,
+            height: 4,
             background: C.accent,
-            marginTop: 72,
+            marginTop: 88,
+            opacity: 0.7,
           }}
         />
-
-        {/* Subtext */}
         <div
           style={{
             display: 'flex',
-            fontSize: 76,
+            fontSize: 56,
             lineHeight: 1.3,
-            fontStyle: 'italic',
-            color: C.ink2,
+            color: C.inkMuted,
             marginTop: 56,
+            letterSpacing: '-0.005em',
           }}
         >
           Share and discover exclusive events.
