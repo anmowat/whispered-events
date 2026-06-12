@@ -12,6 +12,12 @@ export default function FaqPage() {
   const [showLogin, setShowLogin] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
 
+  // After Hours palette for the public FAQ.
+  useEffect(() => {
+    document.body.classList.add('theme-after-hours')
+    return () => document.body.classList.remove('theme-after-hours')
+  }, [])
+
   useEffect(() => {
     fetch('/api/auth/me')
       .then((r) => r.json())

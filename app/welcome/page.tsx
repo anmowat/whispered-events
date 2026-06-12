@@ -55,6 +55,12 @@ function WelcomePageInner() {
     emailFromUrl ? 'checking' : 'ready',
   )
 
+  // Apply After Hours dark palette to the invite landing.
+  useEffect(() => {
+    document.body.classList.add('theme-after-hours')
+    return () => document.body.classList.remove('theme-after-hours')
+  }, [])
+
   useEffect(() => {
     if (!emailFromUrl) return
     let cancelled = false

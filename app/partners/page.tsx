@@ -14,6 +14,12 @@ export default function PartnersPage() {
   const [showLogin, setShowLogin] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
 
+  // After Hours palette for the public partner directory.
+  useEffect(() => {
+    document.body.classList.add('theme-after-hours')
+    return () => document.body.classList.remove('theme-after-hours')
+  }, [])
+
   useEffect(() => {
     fetch('/api/partners')
       .then((r) => r.json())
@@ -142,7 +148,7 @@ function PartnerCard({ partner }: { partner: Partner }) {
           <img
             src={partner.logoUrl}
             alt={partner.name}
-            className="h-full w-auto object-contain max-w-[140px]"
+            className="partner-logo h-full w-auto object-contain max-w-[140px]"
           />
         </div>
       )}
