@@ -369,8 +369,8 @@ function Landing({
           </div>
         )}
 
-        {/* CTAs */}
-        <div className="mt-9 flex gap-3.5 justify-center items-center flex-wrap">
+        {/* CTA */}
+        <div className="mt-9 flex justify-center">
           <button
             onClick={onCTA}
             className="rounded-pill text-[14px] font-semibold transition-colors"
@@ -385,19 +385,35 @@ function Landing({
           >
             {content.cta}
           </button>
-          <a
-            href="#how-it-works"
-            className="text-[14px]"
+        </div>
+
+        {/* Contribute tab: prominent alternative to the form for people
+            who'd rather just fire off an email with the link. */}
+        {tab === 'contribute' && (
+          <p
+            className="mt-7 text-center"
             style={{
-              color: 'rgba(236,230,218,.7)',
-              textDecoration: 'underline',
-              textUnderlineOffset: 4,
-              textDecorationColor: 'rgba(236,230,218,.3)',
+              fontFamily: SERIF,
+              fontSize: 'clamp(20px, 2.6vw, 26px)',
+              fontWeight: 500,
+              color: '#ece6da',
+              lineHeight: 1.3,
             }}
           >
-            How it works &rarr;
-          </a>
-        </div>
+            OR email event link to{' '}
+            <a
+              href="mailto:event@whispered.com"
+              style={{
+                color: '#c9a86a',
+                textDecoration: 'underline',
+                textUnderlineOffset: 4,
+                textDecorationColor: 'rgba(201,168,106,.5)',
+              }}
+            >
+              event@whispered.com
+            </a>
+          </p>
+        )}
       </section>
 
       {/* How it works — the uppercase eyebrow itself reads as the
