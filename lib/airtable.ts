@@ -804,6 +804,7 @@ export async function getEventByIdIfHost(
       audience: String(r.get('Audience') || '').split(',').map((s) => s.trim()).filter(Boolean),
       lat,
       lng,
+      created: r._rawJson?.createdTime ?? '',
     }
   } catch {
     return null
@@ -829,6 +830,7 @@ export async function getEventById(eventId: string): Promise<AirtableEvent | nul
       audience: String(r.get('Audience') || '').split(',').map((s) => s.trim()).filter(Boolean),
       lat,
       lng,
+      created: r._rawJson?.createdTime ?? '',
     }
   } catch {
     return null
