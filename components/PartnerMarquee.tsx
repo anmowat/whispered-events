@@ -29,6 +29,9 @@ export default function PartnerMarquee({ partners }: PartnerMarqueeProps) {
 
   // Build one flat list of links per track. flatMap so React keys stay
   // unique across the duplicated copies.
+  // Each logo sits on a small cream plate. We can't rely on the
+  // mono-white inversion filter — partners with opaque-background
+  // PNGs get blocked out to solid rectangles by brightness(0).
   const track = (trackIdx: number) =>
     Array.from({ length: COPIES_PER_TRACK }).flatMap((_, copyIdx) =>
       featured.map((p, i) => (
@@ -37,15 +40,22 @@ export default function PartnerMarquee({ partners }: PartnerMarqueeProps) {
           href={p.website || '#'}
           target="_blank"
           rel="noopener noreferrer"
-          className="shrink-0 flex items-center justify-center h-10 opacity-75 hover:opacity-100 transition-opacity"
+          className="shrink-0 flex items-center justify-center opacity-80 hover:opacity-100 transition-opacity"
           aria-label={trackIdx === 0 && copyIdx === 0 ? p.name : undefined}
           tabIndex={trackIdx === 0 && copyIdx === 0 ? 0 : -1}
-          style={{ marginRight: ITEM_GAP }}
+          style={{
+            marginRight: ITEM_GAP,
+            background: '#F1ECE2',
+            height: 44,
+            padding: '0 16px',
+            borderRadius: 5,
+            border: '1px solid rgba(0,0,0,0.05)',
+          }}
         >
           <img
             src={p.logoUrl}
             alt={p.name}
-            className="h-full w-auto object-contain max-w-[140px]"
+            className="h-7 w-auto object-contain max-w-[130px]"
           />
         </a>
       )),

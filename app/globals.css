@@ -57,23 +57,11 @@ body.theme-after-hours .text-white {
   color: #1b1814;
 }
 
-/* Homepage marquee: mono-white inversion works because the featured
-   partners' source logos all carry transparent backgrounds, so the
-   filter only repaints the marks themselves. */
-body.theme-after-hours .partner-marquee img {
-  filter: brightness(0) invert(1);
-  opacity: 0.55;
-  transition: opacity 0.2s;
-}
-body.theme-after-hours .partner-marquee a:hover img {
-  opacity: 1;
-}
-
-/* /partners grid: PartnerCard wraps each logo in a cream plate via
-   .partner-logo-plate (see app/partners/page.tsx). No filter — the
-   plate lets multi-color or opaque-background source PNGs render as
-   originally designed without the brightness(0) inversion blocking
-   them out to solid rectangles. */
+/* Partner logos render on cream plates in both the homepage marquee
+   (see components/PartnerMarquee.tsx) and the /partners grid (see
+   app/partners/page.tsx). No CSS filter — the plate lets multi-color
+   and opaque-background source PNGs render as designed instead of
+   the brightness(0) inversion blocking them out to solid rectangles. */
 
 * { box-sizing: border-box; }
 
