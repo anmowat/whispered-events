@@ -388,27 +388,41 @@ function Landing({
           </button>
         </div>
 
-        {/* Contribute tab: prominent alternative to the form for people
-            who'd rather just fire off an email with the link. */}
+        {/* Contribute tab: subtler alternative under the CTA. Uppercase
+            eyebrow OR, body in sans, email in italic-champagne Cormorant
+            to echo the headline's 'They're whispered' moment. */}
         {tab === 'contribute' && (
           <p
-            className="mt-7 text-center"
+            className="mt-5 text-center"
             style={{
-              fontFamily: SERIF,
-              fontSize: 'clamp(20px, 2.6vw, 26px)',
-              fontWeight: 500,
-              color: '#ece6da',
-              lineHeight: 1.3,
+              fontSize: 14,
+              lineHeight: 1.5,
+              color: 'rgba(236,230,218,.7)',
             }}
           >
-            OR email event link to{' '}
+            <span
+              style={{
+                fontSize: 11,
+                letterSpacing: '.26em',
+                textTransform: 'uppercase',
+                color: 'rgba(236,230,218,.42)',
+                marginRight: 10,
+              }}
+            >
+              Or
+            </span>
+            email event link to{' '}
             <a
               href="mailto:event@whispered.com"
               style={{
+                fontFamily: SERIF,
+                fontStyle: 'italic',
+                fontSize: 18,
                 color: '#c9a86a',
                 textDecoration: 'underline',
                 textUnderlineOffset: 4,
-                textDecorationColor: 'rgba(201,168,106,.5)',
+                textDecorationColor: 'rgba(201,168,106,.4)',
+                marginLeft: 2,
               }}
             >
               event@whispered.com
