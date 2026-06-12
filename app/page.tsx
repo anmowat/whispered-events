@@ -424,7 +424,7 @@ function Landing({
             >
               {matches30.toLocaleString()}
             </span>
-            event matches in the last 30 days
+            event matches in past 30 days
           </p>
         )}
 
