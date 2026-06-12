@@ -69,7 +69,6 @@ export default function AdminEventDetailPage() {
   const [authState, setAuthState] = useState<'unknown' | 'authorized' | 'unauthorized' | 'not_found' | 'error'>('unknown')
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [showLogin, setShowLogin] = useState(false)
-  const [showAllUsers, setShowAllUsers] = useState(false)
 
   async function fetchDetail() {
     if (!eventId) return
@@ -104,11 +103,7 @@ export default function AdminEventDetailPage() {
   }, [eventId])
 
   const matched = users?.filter((u) => u.matchPercent !== null && u.matchPercent >= 40) ?? []
-  const visible = users
-    ? showAllUsers
-      ? users
-      : users.filter((u) => u.matchPercent !== null && u.matchPercent >= 40)
-    : []
+  const visible = users ?? []
 
   return (
     <div className="min-h-screen bg-[#F5EFE6] flex flex-col">
@@ -191,20 +186,12 @@ export default function AdminEventDetailPage() {
               </dl>
             </div>
 
-            <div className="flex items-end justify-between mb-3 flex-wrap gap-2">
+            <div className="mb-3">
               <h3 className="text-xs uppercase tracking-widest font-medium" style={{ color: '#6E1F2B' }}>
                 Users within 100mi · {users.length}
                 {' · '}
                 {matched.length} matched ({users.length > 0 ? Math.round((matched.length / users.length) * 100) : 0}%)
               </h3>
-              <div className="flex items-center gap-2 text-xs text-gray-500">
-                <button
-                  onClick={() => setShowAllUsers((v) => !v)}
-                  className="px-3 py-1.5 rounded-lg border border-[#E8DDD0] bg-white text-xs text-gray-700 hover:bg-[#F5EFE6] transition-colors shadow-sm"
-                >
-                  {showAllUsers ? 'Hide unmatched' : 'Show all in range'}
-                </button>
-              </div>
             </div>
 
             <div className="bg-white border border-[#E8DDD0] rounded-2xl overflow-hidden shadow-sm">
@@ -262,7 +249,7 @@ export default function AdminEventDetailPage() {
               </table>
               {visible.length === 0 && (
                 <p className="px-4 py-6 text-sm text-gray-500 text-center">
-                  {showAllUsers ? 'No users within 100mi.' : 'No matches above 40% yet — click "Show all in range" to see why.'}
+                  No users within 100mi.
                 </p>
               )}
             </div>
