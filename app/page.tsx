@@ -84,6 +84,7 @@ export default function Home() {
   const [partners, setPartners] = useState<Partner[]>([])
   const [featuredEvents, setFeaturedEvents] = useState<FeaturedEvent[]>([])
   const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [matches30, setMatches30] = useState<number | null>(null)
 
   useEffect(() => {
     fetch('/api/events-count')
@@ -99,6 +100,11 @@ export default function Home() {
     fetch('/api/featured-events')
       .then((r) => r.json())
       .then((d: { events: FeaturedEvent[] }) => setFeaturedEvents(d.events ?? []))
+      .catch(() => {})
+
+    fetch('/api/match-stats')
+      .then((r) => r.json())
+      .then((d: { matches30: number }) => setMatches30(d.matches30 ?? 0))
       .catch(() => {})
 
     fetch('/api/auth/me')
@@ -176,6 +182,7 @@ export default function Home() {
             content={content}
             partners={partners}
             featuredEvents={featuredEvents}
+            matches30={matches30}
             onCTA={handleCTA}
           />
         ) : (
@@ -307,12 +314,14 @@ function Landing({
   content,
   partners,
   featuredEvents,
+  matches30,
   onCTA,
 }: {
   tab: HeaderTab
   content: TabContent
   partners: Partner[]
   featuredEvents: FeaturedEvent[]
+  matches30: number | null
   onCTA: () => void
 }) {
   const featured = featuredEvents.slice(0, 3)
@@ -387,6 +396,37 @@ function Landing({
             {content.cta}
           </button>
         </div>
+
+        {/* Find Events tab: live counter of matches notified in the
+            last 30 days. Number rendered in italic-champagne Cormorant
+            with the same underline treatment as the Contribute /
+            Partner tab links — visually a sibling, not a CTA. */}
+        {tab === 'view' && matches30 !== null && matches30 > 0 && (
+          <p
+            className="mt-5 text-center"
+            style={{
+              fontSize: 14,
+              lineHeight: 1.5,
+              color: 'rgba(236,230,218,.7)',
+            }}
+          >
+            <span
+              style={{
+                fontFamily: SERIF,
+                fontStyle: 'italic',
+                fontSize: 18,
+                color: '#c9a86a',
+                textDecoration: 'underline',
+                textUnderlineOffset: 4,
+                textDecorationColor: 'rgba(201,168,106,.4)',
+                marginRight: 6,
+              }}
+            >
+              {matches30.toLocaleString()}
+            </span>
+            event matches in the last 30 days
+          </p>
+        )}
 
         {/* Contribute tab: subtler alternative under the CTA. Uppercase
             eyebrow OR, body in sans, email in italic-champagne Cormorant

@@ -325,6 +325,24 @@ export async function markAllMatchesNotifiedForUser(userId: string): Promise<voi
   }
 }
 
+// Count of (user, event) matches we've notified about in the last N
+// days. Powers the public "X event matches last 30 days" counter under
+// the Find Events CTA on the homepage. count='exact' + head=true means
+// Supabase returns just the number, not the row data.
+export async function getRecentNotifiedMatchCount(days: number): Promise<number> {
+  const supabase = getClient()
+  const cutoff = new Date(Date.now() - days * 86_400_000).toISOString()
+  const { count, error } = await supabase
+    .from('matches')
+    .select('*', { count: 'exact', head: true })
+    .gte('notified_at', cutoff)
+  if (error) {
+    console.error('getRecentNotifiedMatchCount error', { days, error })
+    return 0
+  }
+  return count ?? 0
+}
+
 export async function markMatchesNotified(
   pairs: Array<{ eventId: string; userId: string }>,
 ): Promise<void> {
