@@ -451,7 +451,7 @@ function Landing({
             >
               Or
             </span>
-            email event link to{' '}
+            email link to{' '}
             <a
               href="mailto:event@whispered.com"
               style={{
