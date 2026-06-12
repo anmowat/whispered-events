@@ -288,6 +288,26 @@ export interface EventMatchRow {
   audience_score: number | null
   quality_score: number | null
   preference_score: number | null
+  skipped_reason: string | null
+}
+
+// EVERY match row for an event, including below-threshold and skipped
+// rows. Used by the admin event-detail page so we can show why each
+// in-range user didn't match (and their score breakdown when scored).
+export async function getAllMatchesForEvent(eventId: string): Promise<EventMatchRow[]> {
+  if (!eventId) return []
+  const supabase = getClient()
+  const { data, error } = await supabase
+    .from('matches')
+    .select(
+      'user_id, user_email, score, match_percent, location_score, audience_score, quality_score, preference_score, skipped_reason',
+    )
+    .eq('event_id', eventId)
+  if (error) {
+    console.error('getAllMatchesForEvent error', error)
+    return []
+  }
+  return (data ?? []) as EventMatchRow[]
 }
 
 // All matches above NOTIFY_THRESHOLD for an event (skipped excluded), ordered

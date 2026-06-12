@@ -806,6 +806,31 @@ export async function getEventByIdIfHost(
   }
 }
 
+// Admin-side single-event fetch (no host check). Used by
+// /api/admin/events/[id] so an admin can drill into any event.
+export async function getEventById(eventId: string): Promise<AirtableEvent | null> {
+  if (!eventId) return null
+  const base = getBase()
+  try {
+    const r = await base(EVENTS_TABLE).find(eventId)
+    const { lat, lng } = parseLatLon(r.get('LatLon'))
+    return {
+      id: r.id,
+      name: String(r.get('Name') || ''),
+      type: String(r.get('Type') || ''),
+      date: String(r.get('Date') || ''),
+      location: String(r.get('Location') || ''),
+      description: String(r.get('Description') || ''),
+      link: String(r.get('Link') || ''),
+      audience: String(r.get('Audience') || '').split(',').map((s) => s.trim()).filter(Boolean),
+      lat,
+      lng,
+    }
+  } catch {
+    return null
+  }
+}
+
 // Single-shot mutation used by /api/submit-partner. Owns the dedupe rules
 // for both tables so the route stays thin:
 //   - Partners: match by case-insensitive Name. If found, overwrite the

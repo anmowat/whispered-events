@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import LoginModal from '@/components/LoginModal'
+import { AdminTabs } from '@/components/AdminTabs'
 
 interface UserRow {
   id: string
@@ -395,6 +396,8 @@ export default function AdminPage() {
       </header>
 
       <main className="flex-1 max-w-[1400px] w-full mx-auto px-4 sm:px-6 py-8">
+        <AdminTabs active="users" />
+
         {authState === 'unknown' && (
           <p className="text-sm text-gray-500">Loading…</p>
         )}
