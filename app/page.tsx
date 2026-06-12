@@ -430,9 +430,10 @@ function Landing({
           </p>
         )}
 
-        {/* Partner tab: mirrors the Contribute under-CTA line —
-            eyebrow OR, sans body, italic-champagne link. Routes to the
-            full /partners directory. */}
+        {/* Partner tab: under-CTA link to the full /partners directory.
+            Same sans + italic-champagne treatment as the Contribute
+            tab's email line, minus the OR eyebrow (no alternative
+            being offered — just a way to browse). */}
         {tab === 'partner' && (
           <p
             className="mt-5 text-center"
@@ -442,17 +443,6 @@ function Landing({
               color: 'rgba(236,230,218,.7)',
             }}
           >
-            <span
-              style={{
-                fontSize: 11,
-                letterSpacing: '.26em',
-                textTransform: 'uppercase',
-                color: 'rgba(236,230,218,.42)',
-                marginRight: 10,
-              }}
-            >
-              Or
-            </span>
             see{' '}
             <a
               href="/partners"
