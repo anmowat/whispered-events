@@ -53,6 +53,7 @@ export async function GET(req: NextRequest) {
         name: e.name,
         type: e.type,
         date: e.date,
+        created: e.created || null,
         location: e.location,
         audience: e.audience,
         lat: e.lat ?? null,

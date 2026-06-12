@@ -498,6 +498,8 @@ export interface AirtableEvent {
   audience: string[]
   lat?: number
   lng?: number
+  /** Airtable record createdTime — when the event row was first added. */
+  created: string
 }
 
 export async function getActiveUsers(): Promise<AirtableUser[]> {
@@ -546,6 +548,7 @@ export async function getFutureEvents(): Promise<AirtableEvent[]> {
         audience: String(r.get('Audience') || '').split(',').map((s) => s.trim()).filter(Boolean),
         lat,
         lng,
+        created: r._rawJson?.createdTime ?? '',
       }
     })
     .filter((e) => e.name)
@@ -771,6 +774,7 @@ export async function getEventsHostedBy(userId: string): Promise<AirtableEvent[]
         audience: String(r.get('Audience') || '').split(',').map((s) => s.trim()).filter(Boolean),
         lat,
         lng,
+        created: r._rawJson?.createdTime ?? '',
       }
     })
     .filter((e) => e.name)
