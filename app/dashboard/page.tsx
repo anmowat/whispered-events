@@ -520,6 +520,7 @@ function ProfileModal({
               onChange={(e) => setLocation(e.target.value)}
               placeholder="e.g. San Francisco, CA"
               className={modalInputCls}
+              style={modalInputStyle}
             />
           </ModalField>
 
@@ -530,6 +531,7 @@ function ProfileModal({
               placeholder="e.g. RevOps, AI/ML, founder-led dinners — not pure SaaS pitch fests"
               rows={3}
               className={`${modalInputCls} resize-none`}
+              style={modalInputStyle}
             />
           </ModalField>
 
@@ -538,6 +540,7 @@ function ProfileModal({
               value={employment}
               onChange={(e) => setEmployment(e.target.value)}
               className={`salon-select ${modalInputCls}`}
+              style={modalInputStyle}
             >
               <option value="">Select…</option>
               {EMPLOYMENT_OPTIONS.map((opt) => (
@@ -555,6 +558,7 @@ function ProfileModal({
                 onChange={(e) => setCompanySize(e.target.value)}
                 placeholder="e.g. $4 million"
                 className={modalInputCls}
+                style={modalInputStyle}
               />
             </ModalField>
           )}
@@ -603,6 +607,16 @@ function ModalField({ label, children }: { label: string; children: React.ReactN
 
 const modalInputCls =
   'w-full rounded-input border px-3 py-2 text-[13px] focus:outline-none transition-colors'
+
+// Inline style co-applied to every modal input so the colors track the
+// active theme via CSS vars. Tailwind's `border` adds width only; we
+// pin border-color, background, and text color explicitly so the form
+// is legible on both Salon (cream) and After Hours (dark).
+const modalInputStyle: React.CSSProperties = {
+  background: 'var(--paper-2)',
+  borderColor: 'var(--rule)',
+  color: 'var(--ink)',
+}
 
 function EventCard({ event }: { event: DashboardEvent }) {
   const dateFormatted = event.date
