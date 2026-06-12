@@ -339,21 +339,10 @@ function Landing({
             They&rsquo;re whispered.
           </span>
         </h1>
-        <p
-          className="text-[15px] sm:text-[17px]"
-          style={{
-            lineHeight: 1.65,
-            color: 'rgba(236,230,218,.6)',
-            maxWidth: 560,
-            margin: '28px auto 0',
-          }}
-        >
-          {content.subhead}
-        </p>
-
-        {/* Partner row */}
+        {/* Partner row — leads under the headline so the social proof
+            lands first, then the per-tab value prop below it. */}
         {partners.some((p) => p.featured) && (
-          <div className="mt-10">
+          <div className="mt-9">
             <div
               className="mb-[18px]"
               style={{
@@ -368,6 +357,18 @@ function Landing({
             <PartnerMarquee partners={partners} />
           </div>
         )}
+
+        <p
+          className="text-[15px] sm:text-[17px]"
+          style={{
+            lineHeight: 1.65,
+            color: 'rgba(236,230,218,.6)',
+            maxWidth: 560,
+            margin: '32px auto 0',
+          }}
+        >
+          {content.subhead}
+        </p>
 
         {/* CTA */}
         <div className="mt-9 flex justify-center">
