@@ -35,6 +35,76 @@ export function cleanLinkedinUrl(raw: string): string {
   }
 }
 
+// Tracking params to drop from inbound event URLs before we store or
+// dedupe. Keeps everything case-insensitive — some sources send
+// UTM_SOURCE etc. Anything starting with `utm_` is removed
+// unconditionally; the named entries cover the rest of the analytics
+// pipelines we've seen in inbound submissions.
+const EVENT_TRACKING_PARAMS = new Set([
+  // HubSpot
+  '_hsenc',
+  '_hsmi',
+  '_hsfp',
+  'hsctatracking',
+  // Mailchimp
+  'mc_cid',
+  'mc_eid',
+  // Click IDs (Google / Microsoft / Meta / LinkedIn / TikTok / X)
+  'fbclid',
+  'gclid',
+  'dclid',
+  'msclkid',
+  'yclid',
+  'twclid',
+  'li_fat_id',
+  'igshid',
+  'ttclid',
+  'wbraid',
+  'gbraid',
+  // Marketo
+  'mkt_tok',
+  // Luma share/invite key
+  'isk',
+  // Vero
+  'vero_id',
+  'vero_conv',
+  // Eventbrite affiliate / referral
+  'aff',
+  'eshowcase',
+  // Generic referral wrappers
+  'ref_src',
+  'ref_url',
+  'oref',
+])
+
+// Strip analytics tracking parameters from an inbound event URL.
+// Applied at both the duplicate-check boundary (so different tracked
+// copies of the same link match) and at create time (so the stored URL
+// is the canonical, share-clean version). Returns the input untouched
+// when it isn't a parseable URL.
+export function cleanEventLink(raw: string): string {
+  const trimmed = (raw || '').trim()
+  if (!trimmed) return ''
+  let url: URL
+  try {
+    url = new URL(trimmed)
+  } catch {
+    return trimmed
+  }
+  const params = url.searchParams
+  const toRemove: string[] = []
+  for (const key of Array.from(params.keys())) {
+    const lower = key.toLowerCase()
+    if (lower.startsWith('utm_') || EVENT_TRACKING_PARAMS.has(lower)) {
+      toRemove.push(key)
+    }
+  }
+  toRemove.forEach((k) => params.delete(k))
+  // URL.toString() drops the trailing '?' automatically when no params
+  // remain — handy for canonical equality on the dedupe path.
+  return url.toString()
+}
+
 // 90-second in-memory cache. Many flows (process-matches, cron digest,
 // per-event each-new-event emails) call these multiple times in rapid
 // succession; without this cache each call is a full Airtable scan.
@@ -78,11 +148,14 @@ export async function checkDuplicate(
 ): Promise<DuplicateCheckResult> {
   const base = getBase()
 
-  // Exact link match wins — short-circuit before any fuzzy scan.
-  if (link) {
+  // Exact link match wins — short-circuit before any fuzzy scan. Clean
+  // tracking params off the inbound link first so a UTM-tagged copy
+  // matches the canonical stored URL.
+  const cleanedLink = cleanEventLink(link)
+  if (cleanedLink) {
     const linkRecords = await base(EVENTS_TABLE)
       .select({
-        filterByFormula: `{Link} = '${link.replace(/'/g, "\\'")}'`,
+        filterByFormula: `{Link} = '${cleanedLink.replace(/'/g, "\\'")}'`,
         fields: ['Name', 'Link', 'Date', 'Location', 'Description', 'Audience', 'Type'],
         maxRecords: 1,
       })
@@ -274,7 +347,7 @@ export async function createEvent(event: EventRecord, hostUserId?: string): Prom
   const fields: Partial<FieldSet> = {
     Name: event.name,
     Type: event.type,
-    Link: event.link,
+    Link: cleanEventLink(event.link),
     Submitter: event.submitter,
   }
   if (event.date) fields['Date'] = event.date
