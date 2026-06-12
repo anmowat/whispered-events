@@ -221,6 +221,8 @@ export default function AdminPage() {
   const [filters, setFilters] = useState<Filters>(emptyFilters())
   const [rescoring, setRescoring] = useState(false)
   const [rescoreResult, setRescoreResult] = useState<string | null>(null)
+  const [refreshingCache, setRefreshingCache] = useState(false)
+  const [cacheResult, setCacheResult] = useState<string | null>(null)
 
   function toggleSort(key: SortKey) {
     if (sortBy === key) {
@@ -298,6 +300,31 @@ export default function AdminPage() {
       setRescoreResult(`Error: ${e instanceof Error ? e.message : String(e)}`)
     } finally {
       setRescoring(false)
+    }
+  }
+
+  // Manual cache flush. The three public homepage endpoints
+  // (/api/partners, /api/events-count, /api/featured-events) each cache
+  // for 24h, so Airtable edits don't show up live until this fires.
+  async function refreshCache() {
+    if (refreshingCache) return
+    setRefreshingCache(true)
+    setCacheResult(null)
+    try {
+      const res = await fetch('/api/admin/refresh-cache', { method: 'POST' })
+      const data = (await res.json().catch(() => ({}))) as {
+        revalidated?: string[]
+        error?: string
+      }
+      if (!res.ok) {
+        setCacheResult(`Error: ${data.error || `HTTP ${res.status}`}`)
+      } else {
+        setCacheResult(`Refreshed ${(data.revalidated ?? []).length} endpoints`)
+      }
+    } catch (e) {
+      setCacheResult(`Error: ${e instanceof Error ? e.message : String(e)}`)
+    } finally {
+      setRefreshingCache(false)
     }
   }
 
@@ -409,7 +436,18 @@ export default function AdminPage() {
                   {refreshedAt && ` · refreshed ${refreshedAt.toLocaleTimeString()}`}
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                {cacheResult && (
+                  <span className="text-xs text-gray-500">{cacheResult}</span>
+                )}
+                <button
+                  onClick={refreshCache}
+                  disabled={refreshingCache}
+                  className="px-3 py-1.5 rounded-lg border border-[#E8DDD0] bg-white text-xs text-gray-700 hover:bg-[#F5EFE6] transition-colors shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                  title="Bust the 24h cache on /api/partners, /api/featured-events, and /api/events-count so Airtable edits show on the homepage immediately."
+                >
+                  {refreshingCache ? 'Refreshing…' : 'Refresh from Airtable'}
+                </button>
                 {rescoreResult && (
                   <span className="text-xs text-gray-500">{rescoreResult}</span>
                 )}
