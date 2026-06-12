@@ -25,7 +25,14 @@ const MONITOR_BCC = 'andy@whisperedevents.com'
 // don't auto-reply / re-forward back into us and create a loop.
 const AUTO_HEADERS = { 'Auto-Submitted': 'auto-generated' as const }
 
-// ----- Salon palette (inlined; CSS vars don't work in email clients) -----
+// ----- After Hours email palette (inlined; CSS vars don't work in
+// email clients). Subtler than the dark homepage: light cream body so
+// Gmail / Outlook color-correction doesn't fight us, but the accent
+// shifts from Salon oxblood (#6E1F2B) to a contrast-safe bronzed
+// champagne (#8a6c2c) — the WCAG-AA-on-cream darker variant of the
+// homepage's champagne (#c9a86a). Headlines move to Cormorant Garamond
+// to match the homepage display serif. The diamond mark in the
+// wordmark carries brand continuity.
 const C = {
   bg:           '#F1ECE2',
   paper:        '#FBF8F1',
@@ -35,18 +42,18 @@ const C = {
   ink3:         '#8A8276',
   rule:         '#DDD3C0',
   ruleSoft:     '#E9E2D2',
-  accent:       '#6E1F2B',
-  accent2:      '#8A2A38',
-  accentSoft:   '#F2DDD9',
+  accent:       '#8a6c2c',
+  accent2:      '#a0823a',
+  accentSoft:   '#f3ecd9',
+  diamond:      '#c9a86a',
 }
 
-// Serif stack used for headlines + the wordmark. Web fonts via Google
-// link work in Gmail/Apple Mail; everything else falls back to Georgia.
-const SERIF = `'Instrument Serif', Georgia, 'Times New Roman', serif`
-const WORDMARK = `'Newsreader', Georgia, 'Times New Roman', serif`
+// Cormorant Garamond display serif (homepage + emails). Sans stack is
+// the system family — emails do not load the homepage's Hanken Grotesk.
+const SERIF = `'Cormorant Garamond', Georgia, 'Times New Roman', serif`
 const SANS = `-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif`
 
-const FONT_LINK = `<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Newsreader:wght@500&display=swap" rel="stylesheet">`
+const FONT_LINK = `<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500;1,600&display=swap" rel="stylesheet">`
 
 const DASHBOARD_LINK = 'https://www.whisperedevents.com/dashboard'
 const NEW_EVENT_MAILTO = 'mailto:event@whispered.com'
@@ -69,13 +76,22 @@ function shell(inner: string): string {
 `.trim()
 }
 
-// "Whispered Events" wordmark — Newsreader 500, color contrast only.
+// Wordmark with diamond mark — matches the After Hours homepage
+// header: champagne ♦, ink "Whispered", italic ink "Events". Cormorant
+// 22 px so the wordmark reads as the brand stamp at the top of every
+// transactional email.
 function wordmark(): string {
   return `
-<div style="line-height:1;">
-  <span style="font-family:${WORDMARK};font-size:20px;font-weight:500;color:rgba(0,0,0,0.30);letter-spacing:-0.012em;">Whispered</span>
-  <span style="font-family:${WORDMARK};font-size:20px;font-weight:500;color:${C.ink};letter-spacing:-0.012em;margin-left:6px;">Events</span>
-</div>
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;line-height:1;">
+  <tr>
+    <td style="vertical-align:middle;padding:0 9px 0 0;">
+      <span style="display:inline-block;width:7px;height:7px;background:${C.diamond};transform:rotate(45deg);"></span>
+    </td>
+    <td style="vertical-align:middle;font-family:${SERIF};font-size:22px;font-weight:600;color:${C.ink};letter-spacing:.01em;">
+      Whispered <span style="font-style:italic;color:${C.diamond};">Events</span>
+    </td>
+  </tr>
+</table>
 `.trim()
 }
 

@@ -65,6 +65,15 @@ export default function DashboardPage() {
   const [dateRange, setDateRange] = useState<'' | '30' | '60' | '90'>('')
   const [sortBy, setSortBy] = useState<'match' | 'date-asc' | 'date-desc'>('match')
 
+  // Apply the After Hours dark palette to the dashboard. CSS-var
+  // overrides defined in globals.css re-theme every component on this
+  // page (Header, MultiSelect, cards) automatically. Removed on unmount
+  // so client navigation doesn't carry the palette to /admin.
+  useEffect(() => {
+    document.body.classList.add('theme-after-hours')
+    return () => document.body.classList.remove('theme-after-hours')
+  }, [])
+
   useEffect(() => {
     async function load() {
       const meRes = await fetch('/api/auth/me')

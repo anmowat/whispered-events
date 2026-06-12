@@ -19,7 +19,9 @@ export function Wordmark({ size = 22, className = '' }: WordmarkProps) {
       <span
         style={{
           fontSize: size,
-          color: 'rgba(0,0,0,0.30)',
+          // ink-3 resolves to medium gray in Salon and translucent
+          // cream in After Hours — readable on both palettes.
+          color: 'var(--ink-3)',
           fontWeight: 500,
           letterSpacing: '-0.012em',
         }}
