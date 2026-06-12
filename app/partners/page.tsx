@@ -144,11 +144,19 @@ function PartnerCard({ partner }: { partner: Partner }) {
       style={{ background: 'var(--paper)', borderColor: 'var(--rule)' }}
     >
       {partner.logoUrl && (
-        <div className="h-10 flex items-center">
+        <div
+          className="partner-logo-plate flex items-center justify-center rounded-[6px] mb-1"
+          style={{
+            background: '#F1ECE2',
+            height: 56,
+            padding: '0 14px',
+            border: '1px solid rgba(0,0,0,0.05)',
+          }}
+        >
           <img
             src={partner.logoUrl}
             alt={partner.name}
-            className="partner-logo h-full w-auto object-contain max-w-[140px]"
+            className="h-9 w-auto object-contain max-w-[160px]"
           />
         </div>
       )}

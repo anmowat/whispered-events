@@ -57,19 +57,23 @@ body.theme-after-hours .text-white {
   color: #1b1814;
 }
 
-/* Partner logos were drawn for cream backgrounds — render mono-white
-   on dark surfaces (homepage marquee + /partners grid cards) so they
-   sit on the same visual register as the champagne CTA. */
-body.theme-after-hours .partner-marquee img,
-body.theme-after-hours .partner-logo {
+/* Homepage marquee: mono-white inversion works because the featured
+   partners' source logos all carry transparent backgrounds, so the
+   filter only repaints the marks themselves. */
+body.theme-after-hours .partner-marquee img {
   filter: brightness(0) invert(1);
   opacity: 0.55;
   transition: opacity 0.2s;
 }
-body.theme-after-hours .partner-marquee a:hover img,
-body.theme-after-hours article:hover .partner-logo {
+body.theme-after-hours .partner-marquee a:hover img {
   opacity: 1;
 }
+
+/* /partners grid: PartnerCard wraps each logo in a cream plate via
+   .partner-logo-plate (see app/partners/page.tsx). No filter — the
+   plate lets multi-color or opaque-background source PNGs render as
+   originally designed without the brightness(0) inversion blocking
+   them out to solid rectangles. */
 
 * { box-sizing: border-box; }
 

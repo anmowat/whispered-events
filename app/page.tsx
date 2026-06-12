@@ -429,6 +429,48 @@ function Landing({
             </a>
           </p>
         )}
+
+        {/* Partner tab: mirrors the Contribute under-CTA line —
+            eyebrow OR, sans body, italic-champagne link. Routes to the
+            full /partners directory. */}
+        {tab === 'partner' && (
+          <p
+            className="mt-5 text-center"
+            style={{
+              fontSize: 14,
+              lineHeight: 1.5,
+              color: 'rgba(236,230,218,.7)',
+            }}
+          >
+            <span
+              style={{
+                fontSize: 11,
+                letterSpacing: '.26em',
+                textTransform: 'uppercase',
+                color: 'rgba(236,230,218,.42)',
+                marginRight: 10,
+              }}
+            >
+              Or
+            </span>
+            see{' '}
+            <a
+              href="/partners"
+              style={{
+                fontFamily: SERIF,
+                fontStyle: 'italic',
+                fontSize: 18,
+                color: '#c9a86a',
+                textDecoration: 'underline',
+                textUnderlineOffset: 4,
+                textDecorationColor: 'rgba(201,168,106,.4)',
+                marginLeft: 2,
+              }}
+            >
+              all our partners
+            </a>
+          </p>
+        )}
       </section>
 
       {/* How it works — the uppercase eyebrow itself reads as the
