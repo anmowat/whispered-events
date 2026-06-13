@@ -146,20 +146,18 @@ function escapeHtml(s: string): string {
 // label list) so Gmail doesn't treat it as a repeated signature and
 // auto-collapse it under a "..." indicator. Two CTAs: dashboard
 // (preferences / pause) and event-share.
-function digestFooterHtml(firstName: string): string {
-  const safe = escapeHtml(firstName || 'there')
+function digestFooterHtml(_firstName: string): string {
   return `
 <p style="font-family:${SANS};font-size:13px;line-height:1.7;color:${C.ink3};margin:24px 0 0;">
-  <strong style="color:${C.ink2};">${safe} — use <a href="${DASHBOARD_LINK}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">your dashboard</a> to</strong> view matches, update your profile, and control match frequency<br>
+  <strong style="color:${C.ink2};">Use <a href="${DASHBOARD_LINK}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">your dashboard</a> to</strong> view matches, update your profile, and control match frequency<br>
   <strong style="color:${C.ink2};">Know an event we should add?</strong> Email <a href="${NEW_EVENT_MAILTO}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">event@whispered.com</a>
 </p>
 `.trim()
 }
 
-function digestFooterTextLines(firstName: string): string[] {
-  const name = firstName || 'there'
+function digestFooterTextLines(_firstName: string): string[] {
   return [
-    `${name} — use your dashboard to view matches, update your profile, and control match frequency — ${DASHBOARD_LINK}`,
+    `Use your dashboard to view matches, update your profile, and control match frequency — ${DASHBOARD_LINK}`,
     `Know an event we should add? Email event@whispered.com`,
   ]
 }
@@ -891,23 +889,35 @@ export async function sendUserDigest(
   const firstName = firstNameOrThere(user)
   const annotated = markDuplicates(payload)
 
+  // Per-event ('as they arrive') sends carry a single fresh event and
+  // fire near-real-time — there's no 'week of X' framing and the
+  // 'some matches' plural reads wrong. Cron digests bundle multiple
+  // events on a weekly clock, where both make sense.
+  const isPerEvent = kind === 'per_event'
   const eb = todayEyebrow()
+  const eyebrowMarkup = isPerEvent ? '' : eyebrow(`Week of ${eb}`)
+  const introCopy = isPerEvent
+    ? 'We have a new matching event for you.'
+    : 'We have some new matching Whispered Events for you.'
+
   const html = shell(`
-    ${eyebrow(`Week of ${eb}`)}
+    ${eyebrowMarkup}
     ${h1(`New <span style="font-style:italic;">whispers</span> for ${escapeHtml(firstName)}.`)}
-    ${p('We have some new matching Whispered Events for you.', { mt: 12 })}
+    ${p(introCopy, { mt: 12 })}
     ${renderEntries(annotated.newEvents)}
     ${digestFooterHtml(firstName)}
   `)
 
-  const textLines: string[] = [
-    `Week of ${eb}`,
-    '',
+  const textLines: string[] = []
+  if (!isPerEvent) {
+    textLines.push(`Week of ${eb}`, '')
+  }
+  textLines.push(
     `New whispers for ${firstName}.`,
     '',
-    'We have some new matching Whispered Events for you.',
+    introCopy,
     '',
-  ]
+  )
   const appendEntries = (entries: DigestEventEntry[]) => {
     if (!entries.length) return
     for (const entry of entries) {
