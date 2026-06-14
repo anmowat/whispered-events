@@ -1,13 +1,31 @@
 'use client'
 
-import { TOPIC_TAXONOMY, TopicGroup, hasTopic, parseTopics, toggleTopic } from '@/lib/topics'
+import { useEffect, useState } from 'react'
+import {
+  DEFAULT_TOPICS,
+  TAXONOMY_GROUPS,
+  TaxonomyLabel,
+  hasTopic,
+  parseTopics,
+  toggleTopic,
+} from '@/lib/topics'
 
 // Colored chip picker shown above any topics-input field. Clicking a
 // chip toggles it into/out of `value` (comma-separated). Free text is
 // still allowed in the underlying textarea — chips are an additive UX.
 //
+// Live chip data is fetched from /api/topics on mount; until the fetch
+// resolves we render the in-code DEFAULT_TOPICS so the cloud appears
+// immediately on cold loads (no flash of empty content).
+//
 // Color palette resolves to soft tint background + brand-toned border
 // for the resting state, and full-fill + white text when selected.
+
+interface ChipGroup {
+  label: TaxonomyLabel
+  color: 'burgundy' | 'sage' | 'slate' | 'gold'
+  topics: string[]
+}
 
 interface ColorTokens {
   border: string
@@ -18,7 +36,7 @@ interface ColorTokens {
   textActive: string
 }
 
-const PALETTE: Record<TopicGroup['color'], ColorTokens> = {
+const PALETTE: Record<ChipGroup['color'], ColorTokens> = {
   burgundy: {
     border: '#D9BFC2',
     borderActive: '#6E1F2B',
@@ -53,6 +71,14 @@ const PALETTE: Record<TopicGroup['color'], ColorTokens> = {
   },
 }
 
+function buildFallbackGroups(): ChipGroup[] {
+  return TAXONOMY_GROUPS.map((g) => ({
+    label: g.label,
+    color: g.color,
+    topics: DEFAULT_TOPICS.filter((t) => t.taxonomy === g.label).map((t) => t.name),
+  }))
+}
+
 export default function TopicChips({
   value,
   onChange,
@@ -60,10 +86,33 @@ export default function TopicChips({
   value: string
   onChange: (next: string) => void
 }) {
+  const [groups, setGroups] = useState<ChipGroup[]>(() => buildFallbackGroups())
+
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/topics', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { groups?: ChipGroup[] } | null) => {
+        if (cancelled || !data?.groups) return
+        // Only swap if the server actually returned a non-empty topic
+        // set — otherwise we'd flash from defaults to an empty cloud.
+        const hasAny = data.groups.some((g) => g.topics.length > 0)
+        if (hasAny) setGroups(data.groups)
+      })
+      .catch(() => {
+        // Network blip — leave defaults rendered.
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   const selected = parseTopics(value)
+
   return (
     <div className="space-y-3">
-      {TOPIC_TAXONOMY.map((group) => {
+      {groups.map((group) => {
+        if (group.topics.length === 0) return null
         const c = PALETTE[group.color]
         return (
           <div key={group.label}>

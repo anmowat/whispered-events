@@ -3,12 +3,13 @@
 // Tab nav shared between the two admin top-level pages (/admin and
 // /admin/events). Lives in components/ so the pages don't have to
 // cross-import each other.
-type AdminTabId = 'users' | 'events'
+type AdminTabId = 'users' | 'events' | 'topics'
 
 export function AdminTabs({ active }: { active: AdminTabId }) {
   const tabs: Array<{ id: AdminTabId; label: string; href: string }> = [
     { id: 'users', label: 'Users', href: '/admin' },
     { id: 'events', label: 'Events', href: '/admin/events' },
+    { id: 'topics', label: 'Topics', href: '/admin/topics' },
   ]
   return (
     <nav className="flex gap-1 mb-6 border-b border-[#E8DDD0]">

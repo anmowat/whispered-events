@@ -47,6 +47,21 @@ import { createClient } from '@supabase/supabase-js'
 //   Only written for digest emails that contain >=1 event. Distinct from
 //   matches.notified_at, which also gets stamped silently when a user
 //   flips Frequency from non-digest to digest (no email goes out).
+//
+// topics:
+//   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+//   name text UNIQUE NOT NULL,             -- chip label shown in signup
+//   taxonomy text NOT NULL DEFAULT 'Functions',
+//                                          -- one of 'Industries' | 'Functions'
+//                                          --        | 'Themes' | 'Communities'
+//                                          --        (anything else hides the row from the
+//                                          --        chip picker but admin can still edit it)
+//   sort_order integer NOT NULL DEFAULT 0, -- ascending within taxonomy
+//   created_at timestamptz NOT NULL DEFAULT now()
+//   Used by the signup chip picker (via the public GET /api/topics
+//   endpoint) and by admin via /admin/topics. Admin is the only writer.
+//   Migration to add taxonomy column on an existing topics table:
+//     ALTER TABLE topics ADD COLUMN IF NOT EXISTS taxonomy text NOT NULL DEFAULT 'Functions';
 
 function getClient() {
   if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -838,3 +853,166 @@ export async function getRecentContributions(opts: {
   return (data ?? []) as ContributionRow[]
 }
 
+
+// ---------------- Topics ----------------
+// Curated chip-picker tags. Admin owns these via /admin/topics. The
+// chip picker reads via the public GET /api/topics endpoint.
+
+import type { TaxonomyLabel, DefaultTopic } from './topics'
+
+export interface Topic {
+  id: string
+  name: string
+  taxonomy: TaxonomyLabel | string
+  sortOrder: number
+  createdAt: string
+}
+
+interface TopicRow {
+  id: string
+  name: string
+  taxonomy: string
+  sort_order: number
+  created_at: string
+}
+
+function rowToTopic(r: TopicRow): Topic {
+  return {
+    id: r.id,
+    name: r.name,
+    taxonomy: r.taxonomy,
+    sortOrder: r.sort_order,
+    createdAt: r.created_at,
+  }
+}
+
+export async function getTopics(): Promise<Topic[]> {
+  const supabase = getClient()
+  const { data, error } = await supabase
+    .from('topics')
+    .select('id, name, taxonomy, sort_order, created_at')
+    .order('sort_order', { ascending: true })
+    .order('name', { ascending: true })
+  if (error) {
+    console.error('getTopics error', error)
+    return []
+  }
+  return ((data ?? []) as TopicRow[]).map(rowToTopic)
+}
+
+export async function createTopic(name: string, taxonomy: string): Promise<Topic | null> {
+  const trimmedName = name.trim()
+  const trimmedTaxonomy = taxonomy.trim()
+  if (!trimmedName || !trimmedTaxonomy) return null
+  const supabase = getClient()
+  // Append within the chosen taxonomy — find the current max sort_order
+  // for that taxonomy and place this row one past it.
+  const { data: maxRow } = await supabase
+    .from('topics')
+    .select('sort_order')
+    .eq('taxonomy', trimmedTaxonomy)
+    .order('sort_order', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  const nextOrder = (maxRow?.sort_order ?? -1) + 1
+  const { data, error } = await supabase
+    .from('topics')
+    .insert({ name: trimmedName, taxonomy: trimmedTaxonomy, sort_order: nextOrder })
+    .select('id, name, taxonomy, sort_order, created_at')
+    .single()
+  if (error) {
+    // Unique-constraint violation (duplicate name) lands here too.
+    console.error('createTopic error', error)
+    return null
+  }
+  return rowToTopic(data as TopicRow)
+}
+
+// Patch a single topic. Either field is optional. Returns the updated
+// row or null on failure.
+export async function updateTopic(
+  id: string,
+  patch: { name?: string; taxonomy?: string },
+): Promise<Topic | null> {
+  if (!id) return null
+  const update: Record<string, string> = {}
+  if (patch.name !== undefined) {
+    const trimmed = patch.name.trim()
+    if (!trimmed) return null
+    update.name = trimmed
+  }
+  if (patch.taxonomy !== undefined) {
+    const trimmed = patch.taxonomy.trim()
+    if (!trimmed) return null
+    update.taxonomy = trimmed
+  }
+  if (Object.keys(update).length === 0) return null
+  const supabase = getClient()
+  const { data, error } = await supabase
+    .from('topics')
+    .update(update)
+    .eq('id', id)
+    .select('id, name, taxonomy, sort_order, created_at')
+    .single()
+  if (error) {
+    console.error('updateTopic error', error)
+    return null
+  }
+  return rowToTopic(data as TopicRow)
+}
+
+export async function deleteTopic(id: string): Promise<boolean> {
+  if (!id) return false
+  const supabase = getClient()
+  const { error } = await supabase.from('topics').delete().eq('id', id)
+  if (error) {
+    console.error('deleteTopic error', error)
+    return false
+  }
+  return true
+}
+
+// Reassigns sort_order for the full ordered list of topic IDs. Called
+// when admin reorders via the up/down arrows on /admin/topics. sort_order
+// is set to the global index — taxonomy grouping is purely a display
+// concern, so a single global ordering is sufficient.
+export async function reorderTopics(orderedIds: string[]): Promise<boolean> {
+  if (orderedIds.length === 0) return true
+  const supabase = getClient()
+  const updates = orderedIds.map((id, i) =>
+    supabase.from('topics').update({ sort_order: i }).eq('id', id),
+  )
+  const results = await Promise.all(updates)
+  const firstErr = results.find((r) => r.error)
+  if (firstErr?.error) {
+    console.error('reorderTopics error', firstErr.error)
+    return false
+  }
+  return true
+}
+
+// Bulk insert used by the "Seed defaults" admin button. No-op if the
+// table already has rows. Returns the number of rows inserted (0 if
+// nothing was seeded).
+export async function seedTopicsIfEmpty(defaults: DefaultTopic[]): Promise<number> {
+  const supabase = getClient()
+  const { count, error: countErr } = await supabase
+    .from('topics')
+    .select('id', { count: 'exact', head: true })
+  if (countErr) {
+    console.error('seedTopicsIfEmpty count error', countErr)
+    return 0
+  }
+  if ((count ?? 0) > 0) return 0
+  const rows = defaults.map((t, i) => ({
+    name: t.name,
+    taxonomy: t.taxonomy,
+    sort_order: i,
+  }))
+  const { error } = await supabase.from('topics').insert(rows)
+  if (error) {
+    console.error('seedTopicsIfEmpty insert error', error)
+    return 0
+  }
+  return rows.length
+}

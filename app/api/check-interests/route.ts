@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
-import { ALL_TOPICS } from '@/lib/topics'
+import { DEFAULT_TOPICS } from '@/lib/topics'
 
 // Coaching nudge at signup. Now that the chip picker drives most
 // submissions toward the curated taxonomy, this endpoint only kicks in
@@ -23,8 +23,10 @@ interface CheckResponse {
 }
 
 // A small set of suggestions pulled from the curated taxonomy. The LLM
-// can pick from here when nudging, instead of inventing keywords.
-const SUGGESTION_POOL = ALL_TOPICS.slice(0, 24).join(', ')
+// can pick from here when nudging, instead of inventing keywords. We
+// use the in-code defaults rather than the live DB to keep this
+// endpoint cheap and resilient.
+const SUGGESTION_POOL = DEFAULT_TOPICS.slice(0, 24).map((t) => t.name).join(', ')
 
 export async function POST(req: NextRequest): Promise<NextResponse<CheckResponse>> {
   let body: { interest?: string }
