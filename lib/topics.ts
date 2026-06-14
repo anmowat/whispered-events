@@ -19,16 +19,33 @@ export type TaxonomyLabel = 'Industries' | 'Functions' | 'Themes' | 'Communities
 
 export interface TaxonomyGroupMeta {
   label: TaxonomyLabel
-  // Brand palette key — resolved to concrete CSS by components/TopicChips.
+  // Brand palette key — resolved to chip fill colors by components/TopicChips.
   color: 'burgundy' | 'sage' | 'slate' | 'gold'
+  // Bright accent used for the taxonomy section labels on the dark
+  // signup surface and for the inline taxonomy words in the prompt
+  // ("Click suggested Industry, Function, Theme and Community topics
+  // below"). Exposed here so the prompt copy and the chip section
+  // labels stay visually linked even though they live in different
+  // components.
+  accentDark: string
 }
 
 export const TAXONOMY_GROUPS: TaxonomyGroupMeta[] = [
-  { label: 'Industries', color: 'sage' },
-  { label: 'Functions', color: 'burgundy' },
-  { label: 'Themes', color: 'slate' },
-  { label: 'Communities', color: 'gold' },
+  { label: 'Industries', color: 'sage', accentDark: '#9BC68A' },
+  { label: 'Functions', color: 'burgundy', accentDark: '#D58A95' },
+  { label: 'Themes', color: 'slate', accentDark: '#A4B5D0' },
+  { label: 'Communities', color: 'gold', accentDark: '#D4B36A' },
 ]
+
+// Indexed lookup for the four inline taxonomy words in prompts. Keyed
+// by singular form (matching the user-facing prompt wording) since the
+// section labels are already plural. Resolves to the same accent color.
+export const TAXONOMY_WORD_ACCENT: Record<'Industry' | 'Function' | 'Theme' | 'Community', string> = {
+  Industry: '#9BC68A',
+  Function: '#D58A95',
+  Theme: '#A4B5D0',
+  Community: '#D4B36A',
+}
 
 export const TAXONOMY_LABELS: TaxonomyLabel[] = TAXONOMY_GROUPS.map((g) => g.label)
 

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { UserProfile } from '@/lib/types'
 import TopicChips from './TopicChips'
+import { TAXONOMY_WORD_ACCENT } from '@/lib/topics'
 import {
   ChatBubble,
   ChatRow,
@@ -51,8 +52,12 @@ const QUESTIONS: Record<Step, string> = {
     "**What city are you based in?**\n\nWe'll send events within 100 miles. Pick one primary city — you can change it anytime you travel.",
   linkedin:
     "**What's your LinkedIn profile URL?**\n\nWe'll use your profile to automatically enrich your function and seniority.",
+  // Rendered as custom JSX below (see InterestPrompt) so the inline
+  // taxonomy words can be colored to match their chip groups. The
+  // string here is a plain-text fallback used by the back-button path
+  // before the bubble re-renders.
   interest:
-    "**What topics are you interested in?**\n\nShare topics you want event matches on (don't worry about specifying seniority — we pull that from your LinkedIn automatically).\n\nClick on suggested topics below or add your own.",
+    "**What topics are you interested in?**\n\nClick suggested Industry, Function, Theme and Community topics below\n\nAlso feel free to add your own topics",
   employment:
     "**What is your current work situation?**\n\nWe ask because some events focus on people in specific roles while others are open to anyone.",
   size:
@@ -320,21 +325,19 @@ export default function ViewEventsTab({
       <div className="flex-1 space-y-4 pb-4">
         <ChatRow role="assistant">
           <ChatBubble role="assistant">
-            <div className="space-y-1">
-              {assistantContent.split('\n').map((line, j) => (
-                <p key={j} className="m-0">
-                  {line ? parseInline(line) : ' '}
-                </p>
-              ))}
-            </div>
+            {step === 'interest' ? (
+              <InterestPrompt />
+            ) : (
+              <div className="space-y-1">
+                {assistantContent.split('\n').map((line, j) => (
+                  <p key={j} className="m-0">
+                    {line ? parseInline(line) : ' '}
+                  </p>
+                ))}
+              </div>
+            )}
           </ChatBubble>
         </ChatRow>
-
-        {step === 'interest' && (
-          <div className="animate-slide-up">
-            <TopicChips value={input} onChange={setInput} />
-          </div>
-        )}
 
         {step === 'interest' && pendingInterestOverride && (
           <div className="animate-slide-up">
@@ -423,6 +426,33 @@ export default function ViewEventsTab({
           placeholder="Type your answer…"
         />
       )}
+
+      {step === 'interest' && (
+        <div className="mt-4 animate-slide-up">
+          <TopicChips value={input} onChange={setInput} />
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Custom prompt for the Topics step. Inline taxonomy words are
+// colored to match their chip groups so the visual link from prompt
+// → section is obvious.
+function InterestPrompt() {
+  const Word = ({ word }: { word: keyof typeof TAXONOMY_WORD_ACCENT }) => (
+    <span style={{ color: TAXONOMY_WORD_ACCENT[word], fontWeight: 600 }}>{word}</span>
+  )
+  return (
+    <div className="space-y-2.5">
+      <p className="m-0 font-semibold" style={{ color: 'var(--ink)' }}>
+        What topics are you interested in?
+      </p>
+      <p className="m-0">
+        Click suggested <Word word="Industry" />, <Word word="Function" />,{' '}
+        <Word word="Theme" /> and <Word word="Community" /> topics below
+      </p>
+      <p className="m-0">Also feel free to add your own topics</p>
     </div>
   )
 }

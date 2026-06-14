@@ -36,37 +36,41 @@ interface ColorTokens {
   textActive: string
 }
 
+// Tuned for the dark "after-hours" theme — the only surface where the
+// chip picker renders today. Unselected uses a saturated tinted fill
+// that pops against #1b1814 with dark text inside. Selected darkens
+// the fill and flips text to white for a clear pressed state.
 const PALETTE: Record<ChipGroup['color'], ColorTokens> = {
-  burgundy: {
-    border: '#D9BFC2',
-    borderActive: '#6E1F2B',
-    bg: '#F8EFEF',
-    bgActive: '#6E1F2B',
-    text: '#6E1F2B',
+  sage: {
+    bg: '#C5E0B4',
+    bgActive: '#6B8E54',
+    border: '#9BC68A',
+    borderActive: '#6B8E54',
+    text: '#2F4A1F',
     textActive: '#FFFFFF',
   },
-  sage: {
-    border: '#C5D0BC',
-    borderActive: '#5E7A50',
-    bg: '#EEF2EA',
-    bgActive: '#5E7A50',
-    text: '#3F5436',
+  burgundy: {
+    bg: '#E8B4BC',
+    bgActive: '#8A2A38',
+    border: '#C9818C',
+    borderActive: '#8A2A38',
+    text: '#5A1822',
     textActive: '#FFFFFF',
   },
   slate: {
-    border: '#C7CCD3',
-    borderActive: '#4A5568',
-    bg: '#EEF0F3',
-    bgActive: '#4A5568',
-    text: '#3B4451',
+    bg: '#C4D0E0',
+    bgActive: '#4A5A75',
+    border: '#8B9AB5',
+    borderActive: '#4A5A75',
+    text: '#2E3849',
     textActive: '#FFFFFF',
   },
   gold: {
-    border: '#E0CCA0',
-    borderActive: '#9B7626',
-    bg: '#F6EFDD',
+    bg: '#E5CC91',
     bgActive: '#9B7626',
-    text: '#7A5C1F',
+    border: '#BFA055',
+    borderActive: '#9B7626',
+    text: '#5C4416',
     textActive: '#FFFFFF',
   },
 }
@@ -114,6 +118,8 @@ export default function TopicChips({
       {groups.map((group) => {
         if (group.topics.length === 0) return null
         const c = PALETTE[group.color]
+        const meta = TAXONOMY_GROUPS.find((g) => g.label === group.label)
+        const labelColor = meta?.accentDark ?? c.bg
         return (
           <div key={group.label}>
             <div
@@ -123,7 +129,7 @@ export default function TopicChips({
                 fontWeight: 600,
                 letterSpacing: '0.08em',
                 textTransform: 'uppercase',
-                color: c.text,
+                color: labelColor,
               }}
             >
               {group.label}

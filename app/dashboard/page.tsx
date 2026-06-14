@@ -527,7 +527,6 @@ function ProfileModal({
 
           <ModalField label="Topics">
             <div className="space-y-3">
-              <TopicChips value={interest} onChange={setInterest} />
               <textarea
                 value={interest}
                 onChange={(e) => setInterest(e.target.value)}
@@ -536,6 +535,7 @@ function ProfileModal({
                 className={`${modalInputCls} resize-none`}
                 style={modalInputStyle}
               />
+              <TopicChips value={interest} onChange={setInterest} />
             </div>
           </ModalField>
 

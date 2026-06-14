@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Header from '@/components/Header'
 import TopicChips from '@/components/TopicChips'
+import { TAXONOMY_WORD_ACCENT } from '@/lib/topics'
 import { UserProfile } from '@/lib/types'
 
 // Invite-style quick-signup landing. Email + LinkedIn + Learn arrive in
@@ -245,9 +246,19 @@ function WelcomePageInner() {
                 </Field>
               )}
 
-              <Field label="What topics are you interested in?" hint="Share topics you want event matches on (don't worry about specifying seniority — we pull that from your LinkedIn automatically). Click on suggested topics below or add your own.">
+              <Field
+                label="What topics are you interested in?"
+                hintNode={
+                  <>
+                    Click suggested <TaxonomyWord word="Industry" />,{' '}
+                    <TaxonomyWord word="Function" />, <TaxonomyWord word="Theme" /> and{' '}
+                    <TaxonomyWord word="Community" /> topics below
+                    <br />
+                    Also feel free to add your own topics
+                  </>
+                }
+              >
                 <div className="space-y-3">
-                  <TopicChips value={interest} onChange={setInterest} />
                   <textarea
                     value={interest}
                     onChange={(e) => setInterest(e.target.value)}
@@ -256,6 +267,7 @@ function WelcomePageInner() {
                     className={inputCls}
                     required
                   />
+                  <TopicChips value={interest} onChange={setInterest} />
                 </div>
               </Field>
 
@@ -339,10 +351,12 @@ function ThankYou() {
 function Field({
   label,
   hint,
+  hintNode,
   children,
 }: {
   label: string
   hint?: string
+  hintNode?: React.ReactNode
   children: React.ReactNode
 }) {
   return (
@@ -353,16 +367,22 @@ function Field({
       >
         {label}
       </span>
-      {hint && (
+      {(hint || hintNode) && (
         <span
           className="block mb-2"
-          style={{ fontSize: 12, color: 'var(--ink-3)', lineHeight: 1.5 }}
+          style={{ fontSize: 12, color: 'var(--ink-3)', lineHeight: 1.55 }}
         >
-          {hint}
+          {hintNode ?? hint}
         </span>
       )}
       {children}
     </label>
+  )
+}
+
+function TaxonomyWord({ word }: { word: keyof typeof TAXONOMY_WORD_ACCENT }) {
+  return (
+    <span style={{ color: TAXONOMY_WORD_ACCENT[word], fontWeight: 600 }}>{word}</span>
   )
 }
 
