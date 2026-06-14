@@ -270,7 +270,15 @@ function WelcomePageInner() {
 
               <Field
                 label="What topics are you interested in?"
-                hint="Pick from frequently used topics below AND also feel free to add your own"
+                hintNode={
+                  <>
+                    We use your topics (as well as your function/level from your LinkedIn) to find the events that best fit you
+                    <br />
+                    Pick from frequently used topics below <strong>AND</strong> also feel free to add your own
+                    <br />
+                    Update anytime on your dashboard
+                  </>
+                }
               >
                 <div className="space-y-3">
                   <textarea
@@ -342,10 +350,12 @@ function ThankYou() {
 function Field({
   label,
   hint,
+  hintNode,
   children,
 }: {
   label: string
   hint?: string
+  hintNode?: React.ReactNode
   children: React.ReactNode
 }) {
   return (
@@ -356,12 +366,12 @@ function Field({
       >
         {label}
       </span>
-      {hint && (
+      {(hint || hintNode) && (
         <span
           className="block mb-2"
           style={{ fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.55 }}
         >
-          {hint}
+          {hintNode ?? hint}
         </span>
       )}
       {children}
