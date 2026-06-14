@@ -608,37 +608,59 @@ const CARD_SIZE = 260
 
 function FeaturedCarousel({ events }: { events: FeaturedEvent[] }) {
   const scrollerRef = useRef<HTMLDivElement>(null)
+  const settleTimer = useRef<number | null>(null)
+
+  // Triple-buffer the events so the wrap is seamless. The middle copy
+  // is the "live" view; the first and third copies act as bleed area
+  // so the user can scroll one full copy-width in either direction
+  // before we silently teleport back into the middle. Because copies
+  // are byte-identical, the teleport is visually invisible.
+  const tripled = [...events, ...events, ...events]
+  const step = CARD_SIZE + 12
+  const setWidth = events.length * step
+
+  useEffect(() => {
+    // Place the user at the start of the middle copy on mount so they
+    // have a full copy of buffer in both directions.
+    const el = scrollerRef.current
+    if (!el || setWidth === 0) return
+    el.scrollLeft = setWidth
+  }, [setWidth])
+
+  // After scroll settles (either after a smooth animation completes
+  // or after the user finishes a swipe), if we've drifted out of the
+  // middle copy's range, teleport silently back in. The check waits
+  // for inactivity so it never interrupts an in-progress animation.
+  function scheduleNormalize() {
+    if (settleTimer.current) window.clearTimeout(settleTimer.current)
+    settleTimer.current = window.setTimeout(() => {
+      const el = scrollerRef.current
+      if (!el || setWidth === 0) return
+      if (el.scrollLeft >= 2 * setWidth) {
+        el.scrollLeft -= setWidth
+      } else if (el.scrollLeft < setWidth) {
+        el.scrollLeft += setWidth
+      }
+    }, 200)
+  }
 
   function scrollByCard(dir: -1 | 1) {
     const el = scrollerRef.current
     if (!el) return
-    const step = CARD_SIZE + 12
-    const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 4
-    const atStart = el.scrollLeft <= 4
-    // Wrap-around: clicking past either edge jumps instantly to the
-    // opposite edge, so repeatedly pressing → cycles through every
-    // event without a dead-stop at the boundary. The jump uses 'auto'
-    // (no animation) to keep it snappy; subsequent steps animate.
-    if (dir === 1 && atEnd) {
-      el.scrollTo({ left: 0, behavior: 'auto' })
-      return
-    }
-    if (dir === -1 && atStart) {
-      el.scrollTo({ left: el.scrollWidth, behavior: 'auto' })
-      return
-    }
     el.scrollBy({ left: step * dir, behavior: 'smooth' })
+    scheduleNormalize()
   }
 
   return (
     <div className="relative">
       <div
         ref={scrollerRef}
-        className="flex gap-3 overflow-x-auto pb-1 snap-x snap-mandatory"
+        onScroll={scheduleNormalize}
+        className="flex gap-3 overflow-x-auto pb-1"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
         <style>{`.featured-carousel::-webkit-scrollbar { display: none; }`}</style>
-        {events.map((e) => {
+        {tripled.map((e, i) => {
           const img = (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -651,16 +673,19 @@ function FeaturedCarousel({ events }: { events: FeaturedEvent[] }) {
           )
           const inner = (
             <div
-              className="shrink-0 snap-start overflow-hidden rounded-[14px]"
+              className="shrink-0 overflow-hidden rounded-[14px]"
               style={{ width: CARD_SIZE, height: CARD_SIZE }}
             >
               {img}
             </div>
           )
-          if (!e.link) return <div key={e.id}>{inner}</div>
+          // Each event id appears three times — disambiguate with the
+          // copy index so React doesn't share state across clones.
+          const key = `${e.id}-${i}`
+          if (!e.link) return <div key={key}>{inner}</div>
           return (
             <a
-              key={e.id}
+              key={key}
               href={e.link}
               target="_blank"
               rel="noopener noreferrer"
