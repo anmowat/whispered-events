@@ -55,7 +55,6 @@ const TAB_CONTENT: Record<HeaderTab, TabContent> = {
       'Our AI extracts the information for you to confirm',
       'Event shared just with executives whose profiles fit',
     ],
-    featuredNote: '* Or just email any event link to event@whispered.com — same flow.',
   },
   partner: {
     subhead: (
@@ -70,7 +69,6 @@ const TAB_CONTENT: Record<HeaderTab, TabContent> = {
       'Customize targeting for your events',
       'Get a customized widget/feed of events for your community',
     ],
-    featuredNote: '* Recent events from communities & firms we partner with.',
   },
 }
 
@@ -329,7 +327,7 @@ function Landing({
   // of the Image field rollout.
   const slides = featuredEvents.filter((e) => !!e.imageUrl)
   const featuredFallback = featuredEvents.slice(0, 3)
-  const featuredLabel = tab === 'partner' ? 'Recent partner events' : 'Example Past Events'
+  const featuredLabel = 'Example Past Events'
 
   return (
     <div className="animate-fade-in" key={tab}>
