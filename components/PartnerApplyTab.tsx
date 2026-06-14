@@ -5,6 +5,7 @@ import {
   ChatRow,
   ChatBubble,
   Composer,
+  BackLink,
   StepIndicator,
   TypingIndicator,
   parseInline,
@@ -222,8 +223,11 @@ export default function PartnerApplyTab({ onDone }: { onDone?: () => void }) {
 
   const showStepIndicator = step !== 'submitted' && step !== 'error'
 
+  const showBackLink = step !== 'submitted'
+
   return (
     <div className="flex flex-col h-full max-w-[680px] mx-auto">
+      {showBackLink && onDone && <BackLink onClick={onDone} />}
       {showStepIndicator && (
         <StepIndicator
           label="Partner"

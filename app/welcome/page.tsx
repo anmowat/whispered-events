@@ -4,7 +4,6 @@ import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Header from '@/components/Header'
 import TopicChips from '@/components/TopicChips'
-import { TAXONOMY_WORD_ACCENT } from '@/lib/topics'
 import { UserProfile } from '@/lib/types'
 
 // Invite-style quick-signup landing. Email + LinkedIn + Learn arrive in
@@ -246,31 +245,6 @@ function WelcomePageInner() {
                 </Field>
               )}
 
-              <Field
-                label="What topics are you interested in?"
-                hintNode={
-                  <>
-                    Click suggested <TaxonomyWord word="Industry" />,{' '}
-                    <TaxonomyWord word="Function" />, <TaxonomyWord word="Theme" /> and{' '}
-                    <TaxonomyWord word="Community" /> topics below
-                    <br />
-                    Also feel free to add your own topics
-                  </>
-                }
-              >
-                <div className="space-y-3">
-                  <textarea
-                    value={interest}
-                    onChange={(e) => setInterest(e.target.value)}
-                    placeholder="e.g. AI agents, RevOps, GTM, Women"
-                    rows={3}
-                    className={inputCls}
-                    required
-                  />
-                  <TopicChips value={interest} onChange={setInterest} />
-                </div>
-              </Field>
-
               <Field label="What city are you based in?" hint="We'll send events within 100 miles. Pick one primary city — you can change it anytime if you travel.">
                 <input
                   type="text"
@@ -292,6 +266,23 @@ function WelcomePageInner() {
                     <option key={f} value={f}>{displayFrequency(f)}</option>
                   ))}
                 </select>
+              </Field>
+
+              <Field
+                label="What topics are you interested in?"
+                hint="Pick from frequently used topics below AND also feel free to add your own"
+              >
+                <div className="space-y-3">
+                  <textarea
+                    value={interest}
+                    onChange={(e) => setInterest(e.target.value)}
+                    placeholder="e.g. AI agents, RevOps, GTM, Women"
+                    rows={3}
+                    className={inputCls}
+                    required
+                  />
+                  <TopicChips value={interest} onChange={setInterest} />
+                </div>
               </Field>
 
               {error && (
@@ -351,12 +342,10 @@ function ThankYou() {
 function Field({
   label,
   hint,
-  hintNode,
   children,
 }: {
   label: string
   hint?: string
-  hintNode?: React.ReactNode
   children: React.ReactNode
 }) {
   return (
@@ -367,22 +356,16 @@ function Field({
       >
         {label}
       </span>
-      {(hint || hintNode) && (
+      {hint && (
         <span
           className="block mb-2"
-          style={{ fontSize: 12, color: 'var(--ink-3)', lineHeight: 1.55 }}
+          style={{ fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.55 }}
         >
-          {hintNode ?? hint}
+          {hint}
         </span>
       )}
       {children}
     </label>
-  )
-}
-
-function TaxonomyWord({ word }: { word: keyof typeof TAXONOMY_WORD_ACCENT }) {
-  return (
-    <span style={{ color: TAXONOMY_WORD_ACCENT[word], fontWeight: 600 }}>{word}</span>
   )
 }
 

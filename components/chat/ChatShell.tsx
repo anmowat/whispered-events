@@ -165,6 +165,25 @@ export function TypingIndicator() {
 
 // "Find Events · Step 3 of 5" eyebrow + 3px progress bar at the top of
 // each chat surface. Hide entirely (return null) when not applicable.
+// Single "← Back" link rendered at the top of every chat surface
+// (signup, contribute, partner apply). Tabs own the click behavior —
+// ViewEventsTab steps backward through its form history, the others
+// return straight to the landing surface. Keeping the link in one
+// shared component means a single visual treatment everywhere.
+export function BackLink({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="text-[12px] mb-3 self-start transition-colors"
+      style={{ color: 'var(--ink-3)' }}
+      onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
+      onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--ink-3)')}
+    >
+      ← Back
+    </button>
+  )
+}
+
 export function StepIndicator({
   label,
   current,

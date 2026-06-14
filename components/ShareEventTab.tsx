@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { EventRecord, EventType } from '@/lib/types'
 import {
+  BackLink,
   ChatBubble,
   ChatRow,
   StepIndicator,
@@ -259,8 +260,11 @@ export default function ShareEventTab({
   // viewport), capped at 80% on >=sm.
   const bubbleWidthCls = 'max-w-full sm:max-w-[80%]'
 
+  const showBackLink = step !== 'submitted'
+
   return (
     <div className="flex flex-col h-full max-w-[680px] mx-auto">
+      {showBackLink && onDone && <BackLink onClick={onDone} />}
       {showStepIndicator && (
         <StepIndicator
           label="Contribute"

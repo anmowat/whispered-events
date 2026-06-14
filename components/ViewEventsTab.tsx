@@ -3,8 +3,8 @@
 import { useState } from 'react'
 import { UserProfile } from '@/lib/types'
 import TopicChips from './TopicChips'
-import { TAXONOMY_WORD_ACCENT } from '@/lib/topics'
 import {
+  BackLink,
   ChatBubble,
   ChatRow,
   Composer,
@@ -52,12 +52,11 @@ const QUESTIONS: Record<Step, string> = {
     "**What city are you based in?**\n\nWe'll send events within 100 miles. Pick one primary city — you can change it anytime you travel.",
   linkedin:
     "**What's your LinkedIn profile URL?**\n\nWe'll use your profile to automatically enrich your function and seniority.",
-  // Rendered as custom JSX below (see InterestPrompt) so the inline
-  // taxonomy words can be colored to match their chip groups. The
-  // string here is a plain-text fallback used by the back-button path
-  // before the bubble re-renders.
+  // Rendered as custom JSX below (see InterestPrompt) so the title can
+  // pick up the gold accent. The string here is a plain-text fallback
+  // used by the back-button path before the bubble re-renders.
   interest:
-    "**What topics are you interested in?**\n\nClick suggested Industry, Function, Theme and Community topics below\n\nAlso feel free to add your own topics",
+    "**What topics are you interested in?**\n\nPick from frequently used topics below AND also feel free to add your own",
   employment:
     "**What is your current work situation?**\n\nWe ask because some events focus on people in specific roles while others are open to anyone.",
   size:
@@ -316,8 +315,22 @@ export default function ViewEventsTab({
   const showComposer = step !== 'confirm' && step !== 'submitted' && !isPicklistStep
   const canGoBack = stepHistory.length > 0 && step !== 'submitted'
 
+  // Single top-of-surface back link. While there's form history we
+  // step backward one question; from the first step we return to the
+  // landing surface. The bottom in-flow back link has been removed —
+  // one entry point keeps it consistent with the other chat tabs.
+  function handleTopBack() {
+    if (canGoBack) {
+      goBack()
+    } else if (onReturnHome) {
+      onReturnHome()
+    }
+  }
+  const showBackLink = step !== 'submitted'
+
   return (
     <div className="flex flex-col h-full max-w-[680px] mx-auto">
+      {showBackLink && <BackLink onClick={handleTopBack} />}
       {showStepIndicator && (
         <StepIndicator label="Sign up" current={STEP_INDEX[step]} total={TOTAL_STEPS} />
       )}
@@ -405,17 +418,6 @@ export default function ViewEventsTab({
           </div>
         )}
 
-        {canGoBack && (
-          <button
-            onClick={goBack}
-            className="text-[12px] inline-flex items-center gap-1 transition-colors"
-            style={{ color: 'var(--ink-3)' }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
-            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--ink-3)')}
-          >
-            ← Back
-          </button>
-        )}
       </div>
 
       {showComposer && (
@@ -436,23 +438,18 @@ export default function ViewEventsTab({
   )
 }
 
-// Custom prompt for the Topics step. Inline taxonomy words are
-// colored to match their chip groups so the visual link from prompt
-// → section is obvious.
+// Custom prompt for the Topics step. Title is rendered in the gold
+// accent so the "What topics..." line pops the same way the section
+// labels of the chip groups below do.
 function InterestPrompt() {
-  const Word = ({ word }: { word: keyof typeof TAXONOMY_WORD_ACCENT }) => (
-    <span style={{ color: TAXONOMY_WORD_ACCENT[word], fontWeight: 600 }}>{word}</span>
-  )
   return (
     <div className="space-y-2.5">
-      <p className="m-0 font-semibold" style={{ color: 'var(--ink)' }}>
+      <p className="m-0 font-semibold" style={{ color: 'var(--accent)' }}>
         What topics are you interested in?
       </p>
       <p className="m-0">
-        Click suggested <Word word="Industry" />, <Word word="Function" />,{' '}
-        <Word word="Theme" /> and <Word word="Community" /> topics below
+        Pick from frequently used topics below AND also feel free to add your own
       </p>
-      <p className="m-0">Also feel free to add your own topics</p>
     </div>
   )
 }

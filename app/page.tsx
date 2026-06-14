@@ -673,17 +673,13 @@ function ActiveMode({
   onBack: () => void
   onShowPartner: () => void
 }) {
+  // The "← Back" link now lives inside each tab component (rendered
+  // via BackLink at the top of the chat surface) so the behavior can
+  // be context-aware: ViewEventsTab steps backward through its form
+  // history, the others return straight to landing. One entry point,
+  // consistent treatment across tabs.
   return (
     <div className="max-w-3xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-10">
-      <button
-        onClick={onBack}
-        className="text-[12px] mb-5 transition-colors"
-        style={{ color: 'rgba(236,230,218,.5)' }}
-        onMouseEnter={(e) => (e.currentTarget.style.color = '#c9a86a')}
-        onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(236,230,218,.5)')}
-      >
-        ← Back
-      </button>
       {tab === 'view' && (
         <ViewEventsTab eventCount={eventCount} startAtForm onReturnHome={onBack} />
       )}
