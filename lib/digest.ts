@@ -108,6 +108,7 @@ async function processUser(
   await sendUserDigest(user, {
     newEvents: toEntries(topNew, futureById),
     topMatches: toEntries(top, futureById),
+    totalUpcomingMatches: allUpcoming.length,
   })
 
   await markMatchesNotified(
@@ -402,6 +403,7 @@ export async function sendEachNewEventDigest(
     {
       newEvents: [{ event: triggeringEvent, matchPercent: triggeringMatchPercent }],
       topMatches: toEntries(topMatchesRows, futureById),
+      totalUpcomingMatches: allUpcoming.length,
     },
     'per_event',
   )

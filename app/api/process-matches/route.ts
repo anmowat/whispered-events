@@ -190,7 +190,11 @@ async function processUserTrigger(
     // waiting for next Monday's cron.
     const nearbyCount = countNearbyEvents(targetUser, events)
     try {
-      await sendApprovedWithDigest(targetUser, { newEvents, topMatches }, nearbyCount)
+      await sendApprovedWithDigest(
+        targetUser,
+        { newEvents, topMatches, totalUpcomingMatches: allAboveThreshold.length },
+        nearbyCount,
+      )
     } catch (e) {
       console.error(`process-matches: sendApprovedWithDigest failed for ${targetUser.email}, falling back to plain approval:`, e)
       try {
@@ -208,7 +212,11 @@ async function processUserTrigger(
   }
 
   if (!freshAboveThreshold.length) return
-  await sendUserDigest(targetUser, { newEvents, topMatches })
+  await sendUserDigest(targetUser, {
+    newEvents,
+    topMatches,
+    totalUpcomingMatches: allAboveThreshold.length,
+  })
   await markMatchesNotified(
     newEvents.map((e) => ({ eventId: e.event.id, userId: targetUser.id })),
   )

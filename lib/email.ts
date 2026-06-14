@@ -149,7 +149,7 @@ function escapeHtml(s: string): string {
 function digestFooterHtml(_firstName: string): string {
   return `
 <p style="font-family:${SANS};font-size:13px;line-height:1.7;color:${C.ink3};margin:24px 0 0;">
-  <strong style="color:${C.ink2};">Use <a href="${DASHBOARD_LINK}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">your dashboard</a> to</strong> view matches, update your profile, and control match frequency<br>
+  <strong style="color:${C.ink2};">Use <a href="${DASHBOARD_LINK}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">your dashboard</a> to</strong> view all matches, update your profile, and control match frequency<br>
   <strong style="color:${C.ink2};">Know an event we should add?</strong> Email <a href="${NEW_EVENT_MAILTO}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">event@whispered.com</a>
 </p>
 `.trim()
@@ -157,9 +157,29 @@ function digestFooterHtml(_firstName: string): string {
 
 function digestFooterTextLines(_firstName: string): string[] {
   return [
-    `Use your dashboard to view matches, update your profile, and control match frequency — ${DASHBOARD_LINK}`,
+    `Use your dashboard to view all matches, update your profile, and control match frequency — ${DASHBOARD_LINK}`,
     `Know an event we should add? Email event@whispered.com`,
   ]
+}
+
+// Inline truncation notice — rendered between the event list and the
+// footer when the email shows fewer matches than the user actually has
+// upcoming. Returns empty strings when there's nothing to truncate, so
+// callers can drop the result into a template unconditionally.
+function moreOnDashboardHtml(more: number): string {
+  if (more <= 0) return ''
+  const noun = more === 1 ? 'match' : 'matches'
+  return `
+<p style="font-family:${SANS};font-size:14px;line-height:1.6;color:${C.ink2};margin:20px 0 0;">
+  You have <strong style="color:${C.ink};">${more} more ${noun}</strong> waiting — see them on <a href="${DASHBOARD_LINK}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">your dashboard</a> &rarr;
+</p>
+`.trim()
+}
+
+function moreOnDashboardTextLine(more: number): string {
+  if (more <= 0) return ''
+  const noun = more === 1 ? 'match' : 'matches'
+  return `You have ${more} more ${noun} waiting — see them on your dashboard: ${DASHBOARD_LINK}`
 }
 
 // Per-send eyebrow date stamp (Mon DD in PT). Sits above the h1 so
@@ -676,6 +696,12 @@ export interface DigestEventEntry {
 export interface DigestPayload {
   newEvents: DigestEventEntry[]
   topMatches: DigestEventEntry[]
+  // Total count of the user's future, above-threshold matches at
+  // send time. When > newEvents.length, the email renders an
+  // inline "you have N more matches — see your dashboard" line so
+  // users with backlogs at least know the truncation exists. When
+  // omitted or equal to newEvents.length the line is hidden.
+  totalUpcomingMatches?: number
 }
 
 export function firstNameOrThere(user: AirtableUser): string {
@@ -766,12 +792,22 @@ export async function sendApprovedWithDigest(
       ? "You've been approved for Whispered Events. We don't have matching events for you yet — here are two quick ways to fix that:"
       : "You've been approved for Whispered Events."
 
+  // Inline truncation note — surfaces remaining matches that didn't
+  // fit in the top-3 cap. Falls back to '' when nothing was truncated.
+  const moreCount = Math.max(
+    0,
+    (payload.totalUpcomingMatches ?? 0) - annotated.newEvents.length,
+  )
+  const moreHtml = moreOnDashboardHtml(moreCount)
+  const moreText = moreOnDashboardTextLine(moreCount)
+
   const eb = todayEyebrow()
   const html = shell(`
     ${eyebrow(`Welcome · ${eb}`)}
     ${h1(`<span style="font-style:italic;">Welcome</span> to the club, ${escapeHtml(firstName)}.`)}
     ${p(introCopy, { mt: 14 })}
     ${renderEntries(annotated.newEvents)}
+    ${moreHtml}
     ${coachingHtml}
     ${digestFooterHtml(firstName)}
   `)
@@ -797,6 +833,7 @@ export async function sendApprovedWithDigest(
     }
   }
   appendEntries(annotated.newEvents)
+  if (moreText) textLines.push(moreText, '')
   if (coachingTextLines.length) {
     textLines.push(...coachingTextLines, '')
   }
@@ -900,11 +937,23 @@ export async function sendUserDigest(
     ? 'We have a new matching event for you.'
     : 'We have some new matching Whispered Events for you.'
 
+  // Inline truncation note. For per-event this captures the user's
+  // backlog (rendered email shows just the triggering event, the
+  // dashboard has any others). For cron digests it captures the
+  // unnotified+notified upcoming matches beyond the rendered 3.
+  const moreCount = Math.max(
+    0,
+    (payload.totalUpcomingMatches ?? 0) - annotated.newEvents.length,
+  )
+  const moreHtml = moreOnDashboardHtml(moreCount)
+  const moreText = moreOnDashboardTextLine(moreCount)
+
   const html = shell(`
     ${eyebrowMarkup}
     ${h1(`New <span style="font-style:italic;">whispers</span> for ${escapeHtml(firstName)}.`)}
     ${p(introCopy, { mt: 12 })}
     ${renderEntries(annotated.newEvents)}
+    ${moreHtml}
     ${digestFooterHtml(firstName)}
   `)
 
@@ -931,6 +980,7 @@ export async function sendUserDigest(
     }
   }
   appendEntries(annotated.newEvents)
+  if (moreText) textLines.push(moreText, '')
   textLines.push(...digestFooterTextLines(firstName))
   const text = textLines.join('\n')
 
