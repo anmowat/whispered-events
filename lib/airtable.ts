@@ -354,6 +354,13 @@ export async function createEvent(event: EventRecord, hostUserId?: string): Prom
   if (event.location) fields['Location'] = event.location
   if (event.description) fields['Description'] = event.description
   if (event.audience.length) fields['Audience'] = event.audience.join(', ')
+  if (event.image) {
+    // Airtable attachment fields accept an array of { url } and fetch
+    // the bytes themselves, then serve back from their own CDN. If the
+    // source URL is unreachable Airtable silently leaves the field
+    // empty — we don't try to verify here.
+    ;(fields as Record<string, unknown>)['Image'] = [{ url: event.image }]
+  }
 
   const geo = await geocodeLocation(event.location)
   if (geo) {
@@ -414,6 +421,22 @@ export interface FeaturedEvent {
   link: string
   date: string
   location: string
+  // Airtable-hosted attachment URL for the event's hero image, when
+  // one was captured at parse time. Only rendered on featured-event
+  // cards on the homepage today.
+  imageUrl?: string
+}
+
+// Pulls the first attachment URL out of an Airtable attachment field
+// value. Prefers a thumbnail when present (faster + smaller payload);
+// falls back to the original.
+function firstAttachmentUrl(value: unknown): string | undefined {
+  if (!Array.isArray(value) || value.length === 0) return undefined
+  const first = value[0] as {
+    url?: string
+    thumbnails?: { large?: { url?: string }; small?: { url?: string } }
+  }
+  return first.thumbnails?.large?.url || first.url
 }
 
 export async function getFeaturedEvents(): Promise<FeaturedEvent[]> {
@@ -421,7 +444,7 @@ export async function getFeaturedEvents(): Promise<FeaturedEvent[]> {
   const records = await base('tbltqCrPbZbETbQRl')
     .select({
       view: 'viwz4UVrptnDATP19',
-      fields: ['Name', 'Description', 'Link', 'Date', 'Location'],
+      fields: ['Name', 'Description', 'Link', 'Date', 'Location', 'Image'],
       maxRecords: 10,
     })
     .all()
@@ -433,6 +456,7 @@ export async function getFeaturedEvents(): Promise<FeaturedEvent[]> {
       link: String(r.get('Link') || ''),
       date: String(r.get('Date') || ''),
       location: String(r.get('Location') || ''),
+      imageUrl: firstAttachmentUrl(r.get('Image')),
     }))
     .filter((e) => e.name)
 }

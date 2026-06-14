@@ -131,6 +131,7 @@ export default function ShareEventTab({
           link: p.link || '',
           audience: p.audience || [],
           host: false,
+          image: p.image || undefined,
         })
         setExistingId(undefined)
         setAssistantContent(
@@ -218,6 +219,7 @@ export default function ShareEventTab({
       audience: parsed.audience || [],
       host: parsed.host || false,
       submitter: submitterEmail,
+      image: parsed.image,
     }
     try {
       const res = await fetch('/api/submit-event', {

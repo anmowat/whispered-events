@@ -16,14 +16,18 @@ export async function parseEventInput(
 ): Promise<{ parsed: ParsedEvent; isUrl: boolean }> {
   const inputIsUrl = isUrl(input)
   let content = input
+  let imageUrl: string | undefined
   if (inputIsUrl) {
     try {
-      content = await scrapeUrl(input)
+      const scrape = await scrapeUrl(input)
+      content = scrape.text
+      imageUrl = scrape.imageUrl
     } catch (err) {
       console.error('parseEventInput scrape failed:', err instanceof Error ? err.message : String(err))
       content = `Event URL: ${input}`
     }
   }
   const parsed = await parseEventContent(content, inputIsUrl ? input : undefined)
+  if (imageUrl) parsed.image = imageUrl
   return { parsed, isUrl: inputIsUrl }
 }

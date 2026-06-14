@@ -15,6 +15,10 @@ export interface EventRecord {
   host: boolean
   submitter: string
   notes?: string
+  // og:image (or equivalent) extracted from the source page at parse
+  // time. Stored as an Airtable attachment on the Events table and
+  // shown on featured-event cards on the homepage.
+  image?: string
 }
 
 export interface ParsedEvent {
@@ -25,6 +29,7 @@ export interface ParsedEvent {
   description?: string
   link?: string
   audience?: string[]
+  image?: string
 }
 
 export interface UserProfile {

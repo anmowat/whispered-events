@@ -137,9 +137,12 @@ export async function POST(req: NextRequest) {
   console.log('inbound-email: effective sender', senderEmail, 'url', url, 'subject', subject)
 
   let content = combined
+  let imageUrl: string | undefined
   if (url) {
     try {
-      content = await scrapeUrl(url)
+      const scrape = await scrapeUrl(url)
+      content = scrape.text
+      imageUrl = scrape.imageUrl
     } catch (e) {
       console.error('inbound-email: scrape failed, falling back to email body', e)
       content = `${combined}\n\nEvent URL: ${url}`
@@ -147,6 +150,7 @@ export async function POST(req: NextRequest) {
   }
 
   const parsed = await parseEventContent(content, url)
+  if (imageUrl) parsed.image = imageUrl
 
   const link = parsed.link || url
   if (!parsed.name || !link) {
@@ -197,6 +201,7 @@ export async function POST(req: NextRequest) {
     audience: parsed.audience ?? [],
     host: false,
     submitter: senderEmail,
+    image: parsed.image,
   }
 
   let id: string

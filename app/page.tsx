@@ -606,26 +606,42 @@ function FeaturedRow({ event }: { event: FeaturedEvent }) {
         e.currentTarget.style.background = 'transparent'
       }}
     >
-      <div className="min-w-0">
-        <div
-          style={{
-            fontFamily: SERIF,
-            fontSize: 'clamp(19px, 2.6vw, 25px)',
-            lineHeight: 1.2,
-            color: '#ece6da',
-          }}
-          className="truncate"
-        >
-          {event.name}
-        </div>
-        <div
-          className="mt-1.5"
-          style={{
-            fontSize: 13,
-            color: 'rgba(236,230,218,.5)',
-          }}
-        >
-          {event.location || 'Location TBD'}
+      <div className="flex items-center gap-4 sm:gap-5 min-w-0 flex-1">
+        {event.imageUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={event.imageUrl}
+            alt=""
+            className="rounded-[10px] object-cover shrink-0"
+            style={{
+              width: 64,
+              height: 64,
+              border: '1px solid rgba(236,230,218,.12)',
+            }}
+            loading="lazy"
+          />
+        )}
+        <div className="min-w-0 flex-1">
+          <div
+            style={{
+              fontFamily: SERIF,
+              fontSize: 'clamp(19px, 2.6vw, 25px)',
+              lineHeight: 1.2,
+              color: '#ece6da',
+            }}
+            className="truncate"
+          >
+            {event.name}
+          </div>
+          <div
+            className="mt-1.5"
+            style={{
+              fontSize: 13,
+              color: 'rgba(236,230,218,.5)',
+            }}
+          >
+            {event.location || 'Location TBD'}
+          </div>
         </div>
       </div>
       <div className="text-right shrink-0">

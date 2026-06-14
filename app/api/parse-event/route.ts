@@ -18,11 +18,14 @@ export async function POST(req: NextRequest) {
 
     let content = text || ''
     let sourceUrl = url
+    let imageUrl: string | undefined
 
     if (url) {
       try {
-        content = await scrapeUrl(url)
-        console.log('scrape ok, content length:', content.length)
+        const scrape = await scrapeUrl(url)
+        content = scrape.text
+        imageUrl = scrape.imageUrl
+        console.log('scrape ok, content length:', content.length, 'image:', imageUrl ?? '(none)')
         console.log('scrape preview:', content.substring(0, 300))
       } catch (scrapeErr) {
         console.error('scrape failed:', scrapeErr instanceof Error ? scrapeErr.message : String(scrapeErr))
@@ -31,6 +34,7 @@ export async function POST(req: NextRequest) {
     }
 
     const parsed = await parseEventContent(content, sourceUrl)
+    if (imageUrl) parsed.image = imageUrl
     console.log('parsed result:', JSON.stringify(parsed))
     return NextResponse.json({ event: parsed })
   } catch (err) {

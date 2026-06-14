@@ -1,4 +1,13 @@
-export async function scrapeUrl(url: string): Promise<string> {
+export interface ScrapeResult {
+  // Plain-text excerpt fed to the LLM parser.
+  text: string
+  // og:image (or fallback) resolved to an absolute URL. Stored as the
+  // event's Image attachment on Airtable so featured-event cards can
+  // render the source page's hero artwork without a second fetch.
+  imageUrl?: string
+}
+
+export async function scrapeUrl(url: string): Promise<ScrapeResult> {
   const response = await fetch(url, {
     headers: {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
@@ -15,7 +24,62 @@ export async function scrapeUrl(url: string): Promise<string> {
   }
 
   const html = await response.text()
-  return extractTextFromHtml(html)
+  return {
+    text: extractTextFromHtml(html),
+    imageUrl: extractImageUrl(html, url),
+  }
+}
+
+// Pulls a single hero image URL from the page in priority order:
+//   og:image → twitter:image → JSON-LD Event.image.
+// Resolved to an absolute URL against the source page so relative
+// paths (rare but seen on some hand-rolled landing pages) work too.
+function extractImageUrl(html: string, baseUrl: string): string | undefined {
+  // Both attribute orderings — content-first and property-first — show
+  // up in the wild; check each.
+  const patterns: RegExp[] = [
+    /<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i,
+    /<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i,
+    /<meta[^>]*name=["']twitter:image["'][^>]*content=["']([^"']+)["']/i,
+    /<meta[^>]*content=["']([^"']+)["'][^>]*name=["']twitter:image["']/i,
+  ]
+  for (const p of patterns) {
+    const m = html.match(p)
+    if (m?.[1]) {
+      const resolved = resolveUrl(m[1].trim(), baseUrl)
+      if (resolved) return resolved
+    }
+  }
+  // JSON-LD fallback — Event.image may be a string or an array.
+  const jsonLdMatches = Array.from(html.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi))
+  for (const m of jsonLdMatches) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data: any = JSON.parse(m[1].trim())
+      const candidates: unknown[] = Array.isArray(data) ? data : [data]
+      for (const node of candidates) {
+        const img = (node as { image?: unknown })?.image
+        if (typeof img === 'string') {
+          const resolved = resolveUrl(img, baseUrl)
+          if (resolved) return resolved
+        } else if (Array.isArray(img) && typeof img[0] === 'string') {
+          const resolved = resolveUrl(img[0], baseUrl)
+          if (resolved) return resolved
+        }
+      }
+    } catch {
+      // skip non-JSON
+    }
+  }
+  return undefined
+}
+
+function resolveUrl(maybeRelative: string, baseUrl: string): string | undefined {
+  try {
+    return new URL(maybeRelative, baseUrl).toString()
+  } catch {
+    return undefined
+  }
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
