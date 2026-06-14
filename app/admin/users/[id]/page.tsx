@@ -207,7 +207,7 @@ export default function AdminUserDetailPage() {
                 <Field label="Grade" value={user.grade} />
                 <Field label="Employment" value={user.employment} />
                 <Field label="Company Size" value={user.companySize} />
-                <Field label="Interest" value={user.interest} multiline />
+                <Field label="Topics" value={user.interest} multiline />
                 <Field label="How they heard" value={user.learn} multiline />
                 <Field label="Full Experience" value={user.fullExp} multiline />
                 <Field

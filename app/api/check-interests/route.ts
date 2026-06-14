@@ -1,17 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
-import { getFutureEvents } from '@/lib/airtable'
+import { ALL_TOPICS } from '@/lib/topics'
 
-// Quick "is this interest specific enough" check used at signup. The
-// matching algorithm scores interest text against event audience +
-// description, so phrases like "flexible", "all types", "networking",
-// or event formats ("dinner / conference") tend to produce very few
-// matches. Catching these at signup and coaching the user toward
-// better keywords saves them from a quiet inbox for weeks.
+// Coaching nudge at signup. Now that the chip picker drives most
+// submissions toward the curated taxonomy, this endpoint only kicks in
+// for free-text answers that won't score well — vague single words,
+// pure event-format text, or pure role/seniority text. We coach (not
+// reject); the UI lets users keep their answer either way.
 //
 // On any failure (network, tool-use parse, missing API key) we fail
-// open — better to let a slightly weak interest through than to block
-// the signup flow.
+// open — better to let a slightly weak topics answer through than to
+// block the signup flow.
 
 export const maxDuration = 30
 
@@ -22,6 +21,10 @@ interface CheckResponse {
   message?: string
   suggestions?: string[]
 }
+
+// A small set of suggestions pulled from the curated taxonomy. The LLM
+// can pick from here when nudging, instead of inventing keywords.
+const SUGGESTION_POOL = ALL_TOPICS.slice(0, 24).join(', ')
 
 export async function POST(req: NextRequest): Promise<NextResponse<CheckResponse>> {
   let body: { interest?: string }
@@ -38,21 +41,6 @@ export async function POST(req: NextRequest): Promise<NextResponse<CheckResponse
     return NextResponse.json({ ok: true })
   }
 
-  let audienceList = ''
-  try {
-    const events = await getFutureEvents()
-    const tags = new Set<string>()
-    for (const e of events) {
-      for (const tag of e.audience) {
-        const trimmed = tag.trim()
-        if (trimmed) tags.add(trimmed)
-      }
-    }
-    audienceList = Array.from(tags).slice(0, 80).join(', ')
-  } catch (e) {
-    console.error('check-interests: getFutureEvents failed, evaluating without audience context:', e)
-  }
-
   try {
     const message = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
@@ -60,22 +48,22 @@ export async function POST(req: NextRequest): Promise<NextResponse<CheckResponse
       tools: [
         {
           name: 'submit_evaluation',
-          description: 'Evaluate whether the interest text is specific enough to match events.',
+          description: 'Evaluate whether the topics text is specific enough to match events.',
           input_schema: {
             type: 'object',
             properties: {
               ok: {
                 type: 'boolean',
-                description: 'true if the interest is specific enough to match well; false if too vague.',
+                description: 'true if the topics text contains at least one scorable subject; false if it is pure role/format/exclusion text or too vague to match.',
               },
               message: {
                 type: 'string',
-                description: 'When ok=false, a short one-sentence note explaining why this answer won\'t match many events. Friendly, not condescending.',
+                description: 'When ok=false, a short friendly one-sentence nudge explaining why this won\'t score well. Not condescending.',
               },
               suggestions: {
                 type: 'array',
                 items: { type: 'string' },
-                description: 'When ok=false, 3-5 specific keywords drawn from or aligned with the audience tags above that would match better. No labels, just the bare keywords.',
+                description: 'When ok=false, 3-5 specific topic keywords drawn from the suggestion pool above.',
               },
             },
             required: ['ok'],
@@ -86,29 +74,29 @@ export async function POST(req: NextRequest): Promise<NextResponse<CheckResponse
       messages: [
         {
           role: 'user',
-          content: `You evaluate user-provided "event interest" answers for an executive event matching platform.
+          content: `You evaluate user-provided "Topics" answers for an executive event matching platform.
 
-Our event database tags each event with an Audience field. Here is a representative sample of audience tags from upcoming events:
-${audienceList || '(unavailable)'}
+Our matching algorithm scores topics against the event's name, audience, and description. Useful topics name a subject (function, industry, theme, community). Role/seniority is already pulled from LinkedIn, and event format is filtered separately — neither helps this leg of scoring.
 
-Our matching algorithm scores the user's interest text against event audience + description. Specific role/topic/industry keywords match well; vague answers don't.
+Our curated topic suggestions look like: ${SUGGESTION_POOL}
 
 The user wrote: "${interest}"
 
-Examples of answers that are TOO VAGUE (set ok=false):
-- "Flexible" / "All types" / "Open to anything" — no specificity
-- "Networking" / "Connecting with people" — every event is networking
-- Just event formats: "Dinner, conferences, workshops" — describes shape, not content
-- Generic seniority alone without context: "C-level events"
-- One-word generic terms: "GTM" alone is borderline; "RevOps" or "AI" are fine because they map to real audience tags
+Set ok=false (coach, don't hard reject) when the answer is:
+- Pure event formats: "Dinners", "Roundtables", "Networking happy hours" — describes shape, not content.
+- Pure role/seniority: "CMO events", "VP+", "Senior sales leaders" — already on LinkedIn.
+- Pure exclusion criteria: "Not pitch fests", "No fractional people" — useful filter but not a topic.
+- Generic/vague: "Flexible", "All types", "Open to anything", "Everything" — no specificity.
+- Lone unrelated single word with no anchor (e.g. just "events").
 
-Examples that are FINE (set ok=true):
-- "RevOps and GTM events at $50M+ ARR companies"
-- "CMO, marketing leadership, demand gen"
-- "AI in B2B sales, founder dinners in SF"
-- "Enterprise SaaS sales, customer success leaders"
+Set ok=true when the answer contains AT LEAST ONE scorable subject — even alongside format or role text. Examples that pass:
+- "RevOps and GTM events at $50M+ ARR companies" → "RevOps", "GTM" are scorable
+- "CMO events, demand gen" → "demand gen" is scorable
+- "AI in B2B sales, founder dinners in SF" → "AI", "B2B sales", "founder" all scorable
+- "women in tech" → "women" is scorable (a community angle)
+- Single-word topics like "RevOps", "AI", "SaaS", "Healthcare" → fine, they map to real audience tags
 
-When ok=false, set message to a short friendly note (e.g. "Answers like this don't usually match many events — they're too broad for our matching algorithm to anchor on.") and suggestions to 3-5 specific keywords pulled from or aligned with the audience tags above.`,
+When ok=false, set message to a short friendly nudge (e.g. "That looks like role/format — we already handle role from LinkedIn, and format is a separate filter. Add a subject or two and your matches will sharpen up.") and suggestions to 3-5 keywords drawn from the curated suggestions above.`,
         },
       ],
     })

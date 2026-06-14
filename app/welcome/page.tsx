@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Header from '@/components/Header'
+import TopicChips from '@/components/TopicChips'
 import { UserProfile } from '@/lib/types'
 
 // Invite-style quick-signup landing. Email + LinkedIn + Learn arrive in
@@ -99,7 +100,7 @@ function WelcomePageInner() {
       return
     }
     if (!interest.trim() || !city.trim()) {
-      setError('Please fill in your interests and city.')
+      setError('Please fill in your topics and city.')
       return
     }
 
@@ -244,15 +245,18 @@ function WelcomePageInner() {
                 </Field>
               )}
 
-              <Field label="What types of events are you interested in?" hint="Add keywords to sharpen your matches — specific beats generic. Works well: Sales, AI, GTM, Marketing. Too broad: networking, dinners.">
-                <textarea
-                  value={interest}
-                  onChange={(e) => setInterest(e.target.value)}
-                  placeholder="e.g. RevOps, GTM, AI, SaaS leadership"
-                  rows={3}
-                  className={inputCls}
-                  required
-                />
+              <Field label="What topics are you interested in?" hint="Share topics you want event matches on (don't worry about specifying seniority — we pull that from your LinkedIn automatically). Click on suggested topics below or add your own.">
+                <div className="space-y-3">
+                  <TopicChips value={interest} onChange={setInterest} />
+                  <textarea
+                    value={interest}
+                    onChange={(e) => setInterest(e.target.value)}
+                    placeholder="e.g. AI agents, RevOps, GTM, Women"
+                    rows={3}
+                    className={inputCls}
+                    required
+                  />
+                </div>
               </Field>
 
               <Field label="What city are you based in?" hint="We'll send events within 100 miles. Pick one primary city — you can change it anytime if you travel.">

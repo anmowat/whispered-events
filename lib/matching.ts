@@ -20,7 +20,7 @@ const QUALITY_MULTIPLIER: Record<'A' | 'Polish' | 'B' | 'C', number> = {
 // Bumped any time the scoring rubric / prompt / formula changes so the
 // inputs hash on every cached row turns stale. The admin rescore-missing
 // endpoint then picks them up and refreshes under the new model.
-const MATCHING_VERSION = 4
+const MATCHING_VERSION = 5
 
 export type SkippedReason = 'grade_c' | 'location_zero'
 
@@ -134,7 +134,7 @@ async function callLLM(
 - Full experience: ${cap(user.fullExp) || 'Not provided — ignore in scoring'}
 - Company size: ${user.companySize || 'Not specified — ignore in scoring'}
 - Employment: ${user.employment || 'Not specified — ignore in scoring'}
-- Event interests: ${interest || 'Not stated — return preferences=1.0 (neutral)'}`
+- Topics they want events about: ${interest || 'Not stated — return preferences=1.0 (neutral)'}`
 
   const instructions = `Score how well this event fits this attendee. Be CALIBRATED — both scores have explicit anchors below. Don't be conservative for safety; the rubric is the floor.
 
@@ -172,11 +172,15 @@ Return three values via the submit_score tool:
 
    Industry context (SaaS vs VC vs services etc.) cannot drop the score by more than one tier. Function + seniority overlap dominates.
 
-2. "preferences" (0.0–1.5): how the event matches the attendee's stated Event interests. Use this rubric:
-   • 1.5 — Stated interest matches the event name, audience, or description literally or near-literally (e.g. interest "RevOps events" + event "RevOps Leaders Dinner" → 1.5; interest "marketing" + event audience includes "CMO/Marketing VP" → 1.5).
-   • 1.2 — Strong semantic match (interest "GTM" + event for "Sales + Marketing leaders").
-   • 1.0 — Interests not stated OR neutral (no signal either way).
-   • 0.5 — Weak overlap (one tangential keyword).
+2. "preferences" (0.0–1.5): how the event aligns with the topics the attendee said they want events about. Compare against the event's name, audience, and description.
+
+   Treat as neutral (ignore for this leg, do not penalize): topics that are actually role/seniority (e.g. "CMO events", "VP+", "senior sales leaders"), event formats (e.g. "dinners", "networking", "roundtables"), or exclusion criteria. Role/seniority is already scored in the audience leg above; format isn't on the event-side rubric.
+
+   • 1.5 — Stated topic matches the event name, audience tag, or description literally or near-literally (e.g. topic "RevOps" + event "RevOps Leaders Dinner" → 1.5; topic "Women" + event audience includes "Women in Marketing Leadership" → 1.5; topic "Agentic AI" + "Agentic Growth Era Dinner" → 1.5; topic "SDR" or "Sales Development" + Funnel '26 → 1.5).
+   • 1.2 — Strong semantic match (topic "GTM" + event for "Sales + Marketing leaders"; topic "AI" + an event explicitly about Agentic AI).
+   • 1.0 — No topics stated, OR only role/format/exclusion text given and no scorable topic remains.
+   • 0.8 — Topics stated but none overlap this specific event (off-topic, not opposed). Use this — do NOT default to 0.5 just because no overlap exists.
+   • 0.5 — Genuine tangential overlap (one weak keyword that maps loosely; rarely the right tier).
    • 0.0 — Attendee explicitly excluded this kind of event.
 
 3. "reason" (one sentence): the dominant factor driving the score — literal overlap, adjacency, or mismatch.`

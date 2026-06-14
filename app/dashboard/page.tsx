@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { AirtableEvent } from '@/lib/airtable'
 import Header from '@/components/Header'
 import MultiSelect from '@/components/MultiSelect'
+import TopicChips from '@/components/TopicChips'
 
 interface DashboardUser {
   email: string
@@ -196,9 +197,9 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Event preferences */}
+        {/* Topics */}
         <section className="mb-6">
-          <div className="eyebrow mb-2.5">Event preferences</div>
+          <div className="eyebrow mb-2.5">Topics</div>
           <div
             className="rounded-card border flex justify-between items-start gap-4 px-5 py-4"
             style={{ background: 'var(--paper)', borderColor: 'var(--rule)' }}
@@ -207,7 +208,7 @@ export default function DashboardPage() {
               className="m-0 leading-relaxed"
               style={{ fontSize: 14, color: 'var(--ink)' }}
             >
-              {user.interest || <span style={{ color: 'var(--ink-3)' }}>No interests set yet.</span>}
+              {user.interest || <span style={{ color: 'var(--ink-3)' }}>No topics set yet.</span>}
             </p>
             <button
               onClick={() => setEditingProfile(true)}
@@ -524,15 +525,18 @@ function ProfileModal({
             />
           </ModalField>
 
-          <ModalField label="Interests">
-            <textarea
-              value={interest}
-              onChange={(e) => setInterest(e.target.value)}
-              placeholder="e.g. RevOps, AI/ML, founder-led dinners — not pure SaaS pitch fests"
-              rows={3}
-              className={`${modalInputCls} resize-none`}
-              style={modalInputStyle}
-            />
+          <ModalField label="Topics">
+            <div className="space-y-3">
+              <TopicChips value={interest} onChange={setInterest} />
+              <textarea
+                value={interest}
+                onChange={(e) => setInterest(e.target.value)}
+                placeholder="e.g. AI agents, RevOps, GTM, Women"
+                rows={3}
+                className={`${modalInputCls} resize-none`}
+                style={modalInputStyle}
+              />
+            </div>
           </ModalField>
 
           <ModalField label="Employment">

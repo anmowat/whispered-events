@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { UserProfile } from '@/lib/types'
+import TopicChips from './TopicChips'
 import {
   ChatBubble,
   ChatRow,
@@ -51,7 +52,7 @@ const QUESTIONS: Record<Step, string> = {
   linkedin:
     "**What's your LinkedIn profile URL?**\n\nWe'll use your profile to automatically enrich your function and seniority.",
   interest:
-    "**What types of events are you interested in?**\n\nAdd keywords to sharpen your matches — specific beats generic.\n\n• **Works well**: Sales, AI, GTM, Marketing\n• **Too broad**: Networking, dinners",
+    "**What topics are you interested in?**\n\nShare topics you want event matches on (don't worry about specifying seniority — we pull that from your LinkedIn automatically).\n\nClick on suggested topics below or add your own.",
   employment:
     "**What is your current work situation?**\n\nWe ask because some events focus on people in specific roles while others are open to anyone.",
   size:
@@ -329,6 +330,12 @@ export default function ViewEventsTab({
           </ChatBubble>
         </ChatRow>
 
+        {step === 'interest' && (
+          <div className="animate-slide-up">
+            <TopicChips value={input} onChange={setInput} />
+          </div>
+        )}
+
         {step === 'interest' && pendingInterestOverride && (
           <div className="animate-slide-up">
             <button
@@ -483,7 +490,7 @@ function ProfileSummary({
     { key: 'learn', label: 'How you heard about us' },
     { key: 'location', label: 'City' },
     { key: 'linkedin', label: 'LinkedIn' },
-    { key: 'interest', label: 'Interests' },
+    { key: 'interest', label: 'Topics' },
     { key: 'employment', label: 'Employment' },
     ...(profile.employment.toLowerCase() === 'employed'
       ? [{ key: 'companySize' as keyof UserProfile, label: 'Company size' }]
