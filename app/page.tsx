@@ -41,7 +41,6 @@ const TAB_CONTENT: Record<HeaderTab, TabContent> = {
       'Get notified of new matching events',
       'Update your profile to improve matches',
     ],
-    featuredNote: '* We show past events as examples.',
   },
   contribute: {
     subhead: (
@@ -600,35 +599,41 @@ function Landing({
 // one card at a time, and the scroller's native overflow keeps swipe
 // gestures working on touch devices. Each image is wrapped in an
 // anchor to the event link.
+//
+// Card aspect ratio is 1:1 — Luma (the modal event-page source for us)
+// serves a 1080×1080 og:image, so a square keeps the entire poster on
+// screen. Non-square sources will get a center-crop instead of having
+// their tops sliced off.
+const CARD_SIZE = 260
+
 function FeaturedCarousel({ events }: { events: FeaturedEvent[] }) {
   const scrollerRef = useRef<HTMLDivElement>(null)
-  const [atStart, setAtStart] = useState(true)
-  const [atEnd, setAtEnd] = useState(false)
-
-  function refreshBounds() {
-    const el = scrollerRef.current
-    if (!el) return
-    setAtStart(el.scrollLeft <= 4)
-    setAtEnd(el.scrollLeft + el.clientWidth >= el.scrollWidth - 4)
-  }
-
-  useEffect(() => {
-    refreshBounds()
-  }, [events.length])
 
   function scrollByCard(dir: -1 | 1) {
     const el = scrollerRef.current
     if (!el) return
-    // Card width (280) + gap (12). Scroll one card per click; the
-    // native smooth scroll handles the animation.
-    el.scrollBy({ left: (280 + 12) * dir, behavior: 'smooth' })
+    const step = CARD_SIZE + 12
+    const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 4
+    const atStart = el.scrollLeft <= 4
+    // Wrap-around: clicking past either edge jumps instantly to the
+    // opposite edge, so repeatedly pressing → cycles through every
+    // event without a dead-stop at the boundary. The jump uses 'auto'
+    // (no animation) to keep it snappy; subsequent steps animate.
+    if (dir === 1 && atEnd) {
+      el.scrollTo({ left: 0, behavior: 'auto' })
+      return
+    }
+    if (dir === -1 && atStart) {
+      el.scrollTo({ left: el.scrollWidth, behavior: 'auto' })
+      return
+    }
+    el.scrollBy({ left: step * dir, behavior: 'smooth' })
   }
 
   return (
     <div className="relative">
       <div
         ref={scrollerRef}
-        onScroll={refreshBounds}
         className="flex gap-3 overflow-x-auto pb-1 snap-x snap-mandatory"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
@@ -647,7 +652,7 @@ function FeaturedCarousel({ events }: { events: FeaturedEvent[] }) {
           const inner = (
             <div
               className="shrink-0 snap-start overflow-hidden rounded-[14px]"
-              style={{ width: 280, height: 180 }}
+              style={{ width: CARD_SIZE, height: CARD_SIZE }}
             >
               {img}
             </div>
@@ -668,41 +673,42 @@ function FeaturedCarousel({ events }: { events: FeaturedEvent[] }) {
         })}
       </div>
 
-      <CarouselButton dir="left" disabled={atStart} onClick={() => scrollByCard(-1)} />
-      <CarouselButton dir="right" disabled={atEnd} onClick={() => scrollByCard(1)} />
+      <CarouselButton dir="left" onClick={() => scrollByCard(-1)} />
+      <CarouselButton dir="right" onClick={() => scrollByCard(1)} />
     </div>
   )
 }
 
 function CarouselButton({
   dir,
-  disabled,
   onClick,
 }: {
   dir: 'left' | 'right'
-  disabled: boolean
   onClick: () => void
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      disabled={disabled}
       aria-label={dir === 'left' ? 'Scroll left' : 'Scroll right'}
-      className="absolute top-1/2 -translate-y-1/2 rounded-full flex items-center justify-center transition-opacity"
+      className="absolute top-1/2 -translate-y-1/2 rounded-full flex items-center justify-center transition-colors"
       style={{
-        [dir]: 4,
-        width: 36,
-        height: 36,
-        background: 'rgba(27,24,20,.7)',
-        border: '1px solid rgba(236,230,218,.2)',
-        color: '#c9a86a',
-        opacity: disabled ? 0 : 1,
-        pointerEvents: disabled ? 'none' : 'auto',
-        backdropFilter: 'blur(4px)',
+        [dir]: 8,
+        width: 48,
+        height: 48,
+        background: '#c9a86a',
+        border: '1px solid #c9a86a',
+        color: '#1b1814',
+        fontSize: 22,
+        fontWeight: 600,
+        lineHeight: 1,
+        boxShadow: '0 4px 16px rgba(0,0,0,.45)',
+        cursor: 'pointer',
       } as React.CSSProperties}
+      onMouseEnter={(e) => (e.currentTarget.style.background = '#d5b87c')}
+      onMouseLeave={(e) => (e.currentTarget.style.background = '#c9a86a')}
     >
-      {dir === 'left' ? '←' : '→'}
+      {dir === 'left' ? '‹' : '›'}
     </button>
   )
 }
