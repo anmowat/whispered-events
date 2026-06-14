@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import LoginModal from '@/components/LoginModal'
 import { AdminTabs } from '@/components/AdminTabs'
-import { TAXONOMY_LABELS, TaxonomyLabel } from '@/lib/topics'
+import { TAXONOMY_GROUPS, TAXONOMY_LABELS, TaxonomyLabel } from '@/lib/topics'
 
 interface Topic {
   id: string
@@ -13,21 +13,17 @@ interface Topic {
   createdAt: string
 }
 
-// Manage the chip-picker topic list. Rows are inline-editable: rename
-// in the text input, switch taxonomy via the dropdown. Add new at the
-// top, reorder via up/down arrows (global ordering — sort_order is a
-// single index across all topics, but chips are rendered grouped on
-// the public side). "Seed defaults" appears only when the table is
-// empty; one click writes the 28 in-code DEFAULT_TOPICS.
+// Manage the chip-picker topic list. Topics are grouped by taxonomy
+// (Industries / Functions / Themes / Communities) and rows can be
+// reordered within their group. Taxonomy is set once at creation —
+// each section has its own add-row, so picking a section IS picking
+// the taxonomy.
 
 export default function AdminTopicsPage() {
   const [topics, setTopics] = useState<Topic[] | null>(null)
   const [authState, setAuthState] = useState<'unknown' | 'authorized' | 'unauthorized' | 'error'>('unknown')
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [showLogin, setShowLogin] = useState(false)
-  const [newName, setNewName] = useState('')
-  const [newTaxonomy, setNewTaxonomy] = useState<TaxonomyLabel>('Functions')
-  const [adding, setAdding] = useState(false)
   const [seeding, setSeeding] = useState(false)
   const [actionMsg, setActionMsg] = useState<string | null>(null)
 
@@ -57,28 +53,26 @@ export default function AdminTopicsPage() {
     fetchTopics()
   }, [])
 
-  async function addTopic() {
-    const name = newName.trim()
-    if (!name || adding) return
-    setAdding(true)
+  async function addTopic(name: string, taxonomy: TaxonomyLabel) {
+    const trimmed = name.trim()
+    if (!trimmed) return false
     setActionMsg(null)
     try {
       const res = await fetch('/api/admin/topics', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, taxonomy: newTaxonomy }),
+        body: JSON.stringify({ name: trimmed, taxonomy }),
       })
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { error?: string }
         setActionMsg(`Error: ${data.error || `HTTP ${res.status}`}`)
-        return
+        return false
       }
-      setNewName('')
       await fetchTopics()
+      return true
     } catch (e) {
       setActionMsg(`Error: ${e instanceof Error ? e.message : String(e)}`)
-    } finally {
-      setAdding(false)
+      return false
     }
   }
 
@@ -102,20 +96,18 @@ export default function AdminTopicsPage() {
     }
   }
 
-  async function patchTopic(id: string, patch: { name?: string; taxonomy?: string }) {
+  async function patchTopicName(id: string, name: string) {
     try {
       const res = await fetch(`/api/admin/topics/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(patch),
+        body: JSON.stringify({ name }),
       })
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { error?: string }
         setActionMsg(`Error: ${data.error || `HTTP ${res.status}`}`)
         await fetchTopics()
-        return
       }
-      // Optimistic UI already reflected the change; nothing else to do.
     } catch (e) {
       setActionMsg(`Error: ${e instanceof Error ? e.message : String(e)}`)
       await fetchTopics()
@@ -137,13 +129,14 @@ export default function AdminTopicsPage() {
     }
   }
 
-  async function moveTopic(idx: number, dir: -1 | 1) {
+  // Swap two topics in the full list by their full-list indices. The
+  // PATCH still takes the entire orderedIds[] so positions across
+  // taxonomies stay consistent.
+  async function swapInFullList(idxA: number, idxB: number) {
     if (!topics) return
-    const target = idx + dir
-    if (target < 0 || target >= topics.length) return
+    if (idxA < 0 || idxB < 0 || idxA >= topics.length || idxB >= topics.length) return
     const next = [...topics]
-    const [moved] = next.splice(idx, 1)
-    next.splice(target, 0, moved)
+    ;[next[idxA], next[idxB]] = [next[idxB], next[idxA]]
     setTopics(next)
     try {
       const res = await fetch('/api/admin/topics', {
@@ -212,60 +205,26 @@ export default function AdminTopicsPage() {
             <div className="mb-6">
               <h1 className="text-2xl font-semibold text-gray-900">Topics</h1>
               <p className="text-xs text-gray-500 mt-1">
-                Curated chip-picker tags shown on signup. {topics.length}{' '}
-                {topics.length === 1 ? 'topic' : 'topics'}. Each topic
-                belongs to a taxonomy (Industries / Functions / Themes /
-                Communities); chip group colors are fixed by taxonomy.
+                Curated chip-picker tags shown on signup, grouped by
+                taxonomy. {topics.length} {topics.length === 1 ? 'topic' : 'topics'} total.
+                Taxonomy is set on creation — add a topic to a section to put it there.
               </p>
             </div>
 
-            {/* Add row */}
-            <div className="flex items-center gap-2 mb-5">
-              <input
-                type="text"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault()
-                    addTopic()
-                  }
-                }}
-                placeholder="New topic name…"
-                className="flex-1 bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-800 placeholder-gray-400 focus:outline-none transition-colors shadow-sm"
-              />
-              <select
-                value={newTaxonomy}
-                onChange={(e) => setNewTaxonomy(e.target.value as TaxonomyLabel)}
-                className="bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-800 shadow-sm focus:outline-none"
-              >
-                {TAXONOMY_LABELS.map((t) => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
-              </select>
-              <button
-                onClick={addTopic}
-                disabled={adding || !newName.trim()}
-                className="px-4 py-2 rounded-lg text-white text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{ background: '#6E1F2B' }}
-                onMouseEnter={(e) => !adding && newName.trim() && (e.currentTarget.style.background = '#8E2E3B')}
-                onMouseLeave={(e) => (e.currentTarget.style.background = '#6E1F2B')}
-              >
-                {adding ? 'Adding…' : 'Add topic'}
-              </button>
-            </div>
-
             {actionMsg && (
-              <div className="mb-4 text-xs" style={{ color: actionMsg.startsWith('Error') ? '#B91C1C' : '#374151' }}>
+              <div
+                className="mb-4 text-xs"
+                style={{ color: actionMsg.startsWith('Error') ? '#B91C1C' : '#374151' }}
+              >
                 {actionMsg}
               </div>
             )}
 
-            {/* Empty state with seed button */}
-            {topics.length === 0 ? (
-              <div className="bg-white border border-[#E8DDD0] rounded-2xl p-8 text-center shadow-sm">
-                <p className="text-sm text-gray-600 mb-4">
-                  No topics yet. Seed the curated 28-chip default list, or add your own above.
+            {/* Empty state: seed CTA + per-section adds still appear below */}
+            {topics.length === 0 && (
+              <div className="bg-white border border-[#E8DDD0] rounded-2xl p-6 text-center shadow-sm mb-6">
+                <p className="text-sm text-gray-600 mb-3">
+                  No topics yet. Seed the curated 28-chip default list, or add your own per section below.
                 </p>
                 <button
                   onClick={seedDefaults}
@@ -278,31 +237,161 @@ export default function AdminTopicsPage() {
                   {seeding ? 'Seeding…' : 'Seed defaults'}
                 </button>
               </div>
-            ) : (
-              <ul className="bg-white border border-[#E8DDD0] rounded-2xl shadow-sm overflow-hidden">
-                {topics.map((t, idx) => (
-                  <TopicRow
-                    key={t.id}
-                    topic={t}
-                    isFirst={idx === 0}
-                    isLast={idx === topics.length - 1}
-                    onMoveUp={() => moveTopic(idx, -1)}
-                    onMoveDown={() => moveTopic(idx, 1)}
-                    onPatch={(patch) => {
-                      setTopics((prev) =>
-                        prev ? prev.map((x) => (x.id === t.id ? { ...x, ...patch } : x)) : prev,
-                      )
-                      patchTopic(t.id, patch)
-                    }}
-                    onDelete={() => deleteTopic(t.id, t.name)}
-                  />
-                ))}
-              </ul>
             )}
+
+            <div className="space-y-6">
+              {TAXONOMY_GROUPS.map((group) => {
+                const rows = topics
+                  .map((t, fullIdx) => ({ t, fullIdx }))
+                  .filter(({ t }) => t.taxonomy === group.label)
+                return (
+                  <TaxonomySection
+                    key={group.label}
+                    label={group.label}
+                    rows={rows}
+                    onAdd={(name) => addTopic(name, group.label)}
+                    onRename={patchTopicName}
+                    onDelete={deleteTopic}
+                    onMoveWithinGroup={(rowIdxInGroup, dir) => {
+                      const me = rows[rowIdxInGroup]
+                      const neighbor = rows[rowIdxInGroup + dir]
+                      if (!me || !neighbor) return
+                      swapInFullList(me.fullIdx, neighbor.fullIdx)
+                    }}
+                  />
+                )
+              })}
+
+              {/* Surface topics with an unknown taxonomy so admin can spot them. */}
+              {(() => {
+                const orphans = topics
+                  .map((t, fullIdx) => ({ t, fullIdx }))
+                  .filter(({ t }) => !TAXONOMY_LABELS.includes(t.taxonomy as TaxonomyLabel))
+                if (orphans.length === 0) return null
+                return (
+                  <div className="bg-white border border-amber-300 rounded-2xl shadow-sm p-4">
+                    <h3 className="text-sm font-semibold text-amber-700 mb-2">
+                      Unknown taxonomy ({orphans.length})
+                    </h3>
+                    <p className="text-xs text-gray-500 mb-3">
+                      These rows have a taxonomy value that doesn&apos;t match
+                      any of the four groups. Delete and re-add them in the
+                      correct section.
+                    </p>
+                    <ul className="text-xs text-gray-700 space-y-1">
+                      {orphans.map(({ t }) => (
+                        <li key={t.id} className="flex items-center justify-between gap-2">
+                          <span>
+                            <span className="font-medium">{t.name}</span>
+                            <span className="text-gray-400 ml-2">(taxonomy: {t.taxonomy})</span>
+                          </span>
+                          <button
+                            onClick={() => deleteTopic(t.id, t.name)}
+                            className="text-red-600 hover:underline"
+                          >
+                            Delete
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )
+              })()}
+            </div>
           </div>
         )}
       </main>
     </div>
+  )
+}
+
+function TaxonomySection({
+  label,
+  rows,
+  onAdd,
+  onRename,
+  onDelete,
+  onMoveWithinGroup,
+}: {
+  label: TaxonomyLabel
+  rows: { t: Topic; fullIdx: number }[]
+  onAdd: (name: string) => Promise<boolean>
+  onRename: (id: string, name: string) => Promise<void>
+  onDelete: (id: string, name: string) => Promise<void>
+  onMoveWithinGroup: (rowIdxInGroup: number, dir: -1 | 1) => void
+}) {
+  const [newName, setNewName] = useState('')
+  const [adding, setAdding] = useState(false)
+
+  async function handleAdd() {
+    if (adding || !newName.trim()) return
+    setAdding(true)
+    const ok = await onAdd(newName)
+    if (ok) setNewName('')
+    setAdding(false)
+  }
+
+  return (
+    <section>
+      <div className="flex items-baseline justify-between mb-2">
+        <h2 className="text-sm font-semibold text-gray-800 uppercase tracking-wider">
+          {label}
+        </h2>
+        <span className="text-xs text-gray-400">
+          {rows.length} {rows.length === 1 ? 'topic' : 'topics'}
+        </span>
+      </div>
+
+      <div className="bg-white border border-[#E8DDD0] rounded-2xl shadow-sm overflow-hidden">
+        {rows.length === 0 ? (
+          <div className="px-4 py-3 text-xs text-gray-400 italic border-b border-[#F0E8DC]">
+            No topics yet in {label}.
+          </div>
+        ) : (
+          <ul>
+            {rows.map(({ t }, idx) => (
+              <TopicRow
+                key={t.id}
+                topic={t}
+                isFirst={idx === 0}
+                isLast={idx === rows.length - 1}
+                onMoveUp={() => onMoveWithinGroup(idx, -1)}
+                onMoveDown={() => onMoveWithinGroup(idx, 1)}
+                onRename={(name) => onRename(t.id, name)}
+                onDelete={() => onDelete(t.id, t.name)}
+              />
+            ))}
+          </ul>
+        )}
+
+        {/* Per-section add row */}
+        <div className="flex items-center gap-2 px-4 py-2.5 bg-[#FDFAF6] border-t border-[#F0E8DC]">
+          <input
+            type="text"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                handleAdd()
+              }
+            }}
+            placeholder={`Add a topic to ${label}…`}
+            className="flex-1 bg-white border border-[#E8DDD0] rounded-lg px-3 py-1.5 text-sm text-gray-800 placeholder-gray-400 focus:outline-none transition-colors"
+          />
+          <button
+            onClick={handleAdd}
+            disabled={adding || !newName.trim()}
+            className="px-3 py-1.5 rounded-lg text-white text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ background: '#6E1F2B' }}
+            onMouseEnter={(e) => !adding && newName.trim() && (e.currentTarget.style.background = '#8E2E3B')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = '#6E1F2B')}
+          >
+            {adding ? 'Adding…' : 'Add'}
+          </button>
+        </div>
+      </div>
+    </section>
   )
 }
 
@@ -312,7 +401,7 @@ function TopicRow({
   isLast,
   onMoveUp,
   onMoveDown,
-  onPatch,
+  onRename,
   onDelete,
 }: {
   topic: Topic
@@ -320,13 +409,11 @@ function TopicRow({
   isLast: boolean
   onMoveUp: () => void
   onMoveDown: () => void
-  onPatch: (patch: { name?: string; taxonomy?: string }) => void
+  onRename: (name: string) => void
   onDelete: () => void
 }) {
   const [name, setName] = useState(topic.name)
 
-  // Keep the local input in sync if the parent rewrites topics from
-  // the server (e.g. after an error).
   useEffect(() => {
     setName(topic.name)
   }, [topic.name])
@@ -337,7 +424,7 @@ function TopicRow({
       setName(topic.name)
       return
     }
-    onPatch({ name: trimmed })
+    onRename(trimmed)
   }
 
   return (
@@ -375,19 +462,6 @@ function TopicRow({
         }}
         className="flex-1 bg-transparent border border-transparent rounded px-2 py-1 text-sm text-gray-800 hover:border-[#E8DDD0] focus:border-[#6E1F2B] focus:outline-none transition-colors"
       />
-      <select
-        value={topic.taxonomy}
-        onChange={(e) => onPatch({ taxonomy: e.target.value })}
-        className="bg-white border border-[#E8DDD0] rounded-lg px-2 py-1 text-xs text-gray-700 shadow-sm focus:outline-none"
-      >
-        {TAXONOMY_LABELS.map((t) => (
-          <option key={t} value={t}>{t}</option>
-        ))}
-        {!TAXONOMY_LABELS.includes(topic.taxonomy as TaxonomyLabel) && (
-          // Surface any orphaned taxonomy value so admin can fix it.
-          <option value={topic.taxonomy}>{topic.taxonomy} (unknown)</option>
-        )}
-      </select>
       <button
         onClick={onDelete}
         aria-label={`Delete ${topic.name}`}
