@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { HeaderTab } from '@/components/Header'
 import ShareEventTab from '@/components/ShareEventTab'
 import PartnerApplyTab from '@/components/PartnerApplyTab'
@@ -41,8 +41,7 @@ const TAB_CONTENT: Record<HeaderTab, TabContent> = {
       'Get notified of new matching events',
       'Update your profile to improve matches',
     ],
-    featuredNote:
-      '* To see exclusive dinners / intimate events, create a profile to see which you match.',
+    featuredNote: '* We show past events as examples.',
   },
   contribute: {
     subhead: (
@@ -324,8 +323,14 @@ function Landing({
   matches30: number | null
   onCTA: () => void
 }) {
-  const featured = featuredEvents.slice(0, 3)
-  const featuredLabel = tab === 'partner' ? 'Recent partner events' : 'Featured Events'
+  // Carousel uses every event we have an image for (no top-N truncation
+  // since the user scrolls horizontally instead of seeing them all
+  // stacked). Fall back to the top-3 vertical card list when nothing
+  // has an image yet so the section isn't empty during the early days
+  // of the Image field rollout.
+  const slides = featuredEvents.filter((e) => !!e.imageUrl)
+  const featuredFallback = featuredEvents.slice(0, 3)
+  const featuredLabel = tab === 'partner' ? 'Recent partner events' : 'Example Past Events'
 
   return (
     <div className="animate-fade-in" key={tab}>
@@ -548,8 +553,8 @@ function Landing({
         </div>
       </section>
 
-      {/* Featured */}
-      {featured.length > 0 && (
+      {/* Featured / past events */}
+      {(slides.length > 0 || featuredFallback.length > 0) && (
         <section className="max-w-[1080px] mx-auto px-5 sm:px-11 pb-16 sm:pb-[66px]">
           <div
             className="mb-[18px]"
@@ -562,11 +567,15 @@ function Landing({
           >
             {featuredLabel}
           </div>
-          <div className="flex flex-col gap-3">
-            {featured.map((e) => (
-              <FeaturedRow key={e.id} event={e} />
-            ))}
-          </div>
+          {slides.length > 0 ? (
+            <FeaturedCarousel events={slides} />
+          ) : (
+            <div className="flex flex-col gap-3">
+              {featuredFallback.map((e) => (
+                <FeaturedRow key={e.id} event={e} />
+              ))}
+            </div>
+          )}
           {content.featuredNote && (
             <div
               className="mt-3.5"
@@ -583,6 +592,118 @@ function Landing({
         </section>
       )}
     </div>
+  )
+}
+
+// Horizontal image carousel for the Example Past Events / Recent
+// partner events section. No autoplay — left/right buttons scroll
+// one card at a time, and the scroller's native overflow keeps swipe
+// gestures working on touch devices. Each image is wrapped in an
+// anchor to the event link.
+function FeaturedCarousel({ events }: { events: FeaturedEvent[] }) {
+  const scrollerRef = useRef<HTMLDivElement>(null)
+  const [atStart, setAtStart] = useState(true)
+  const [atEnd, setAtEnd] = useState(false)
+
+  function refreshBounds() {
+    const el = scrollerRef.current
+    if (!el) return
+    setAtStart(el.scrollLeft <= 4)
+    setAtEnd(el.scrollLeft + el.clientWidth >= el.scrollWidth - 4)
+  }
+
+  useEffect(() => {
+    refreshBounds()
+  }, [events.length])
+
+  function scrollByCard(dir: -1 | 1) {
+    const el = scrollerRef.current
+    if (!el) return
+    // Card width (280) + gap (12). Scroll one card per click; the
+    // native smooth scroll handles the animation.
+    el.scrollBy({ left: (280 + 12) * dir, behavior: 'smooth' })
+  }
+
+  return (
+    <div className="relative">
+      <div
+        ref={scrollerRef}
+        onScroll={refreshBounds}
+        className="flex gap-3 overflow-x-auto pb-1 snap-x snap-mandatory"
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+      >
+        <style>{`.featured-carousel::-webkit-scrollbar { display: none; }`}</style>
+        {events.map((e) => {
+          const img = (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={e.imageUrl}
+              alt={e.name}
+              className="w-full h-full object-cover rounded-[14px] transition-opacity"
+              style={{ border: '1px solid rgba(236,230,218,.16)' }}
+              loading="lazy"
+            />
+          )
+          const inner = (
+            <div
+              className="shrink-0 snap-start overflow-hidden rounded-[14px]"
+              style={{ width: 280, height: 180 }}
+            >
+              {img}
+            </div>
+          )
+          if (!e.link) return <div key={e.id}>{inner}</div>
+          return (
+            <a
+              key={e.id}
+              href={e.link}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={e.name}
+              className="block hover:opacity-90 transition-opacity"
+            >
+              {inner}
+            </a>
+          )
+        })}
+      </div>
+
+      <CarouselButton dir="left" disabled={atStart} onClick={() => scrollByCard(-1)} />
+      <CarouselButton dir="right" disabled={atEnd} onClick={() => scrollByCard(1)} />
+    </div>
+  )
+}
+
+function CarouselButton({
+  dir,
+  disabled,
+  onClick,
+}: {
+  dir: 'left' | 'right'
+  disabled: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={dir === 'left' ? 'Scroll left' : 'Scroll right'}
+      className="absolute top-1/2 -translate-y-1/2 rounded-full flex items-center justify-center transition-opacity"
+      style={{
+        [dir]: 4,
+        width: 36,
+        height: 36,
+        background: 'rgba(27,24,20,.7)',
+        border: '1px solid rgba(236,230,218,.2)',
+        color: '#c9a86a',
+        opacity: disabled ? 0 : 1,
+        pointerEvents: disabled ? 'none' : 'auto',
+        backdropFilter: 'blur(4px)',
+      } as React.CSSProperties}
+    >
+      {dir === 'left' ? '←' : '→'}
+    </button>
   )
 }
 
