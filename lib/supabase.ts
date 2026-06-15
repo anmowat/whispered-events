@@ -117,7 +117,7 @@ export interface MatchLog {
   qualityScore: number | null
   preferenceScore: number | null
   inputsHash: string
-  skippedReason?: 'grade_c' | 'location_zero' | null
+  skippedReason?: 'grade_c' | 'location_zero' | 'women_only_audience' | null
 }
 
 export async function logMatch(entry: MatchLog): Promise<void> {

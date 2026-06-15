@@ -3,6 +3,7 @@ import { createHash } from 'crypto'
 import { AirtableEvent, AirtableUser } from './airtable'
 import { withinMiles } from './geocode'
 import { VIRTUAL_LOCATION_RE } from './types'
+import { inferLikelyGender } from './gender'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -20,9 +21,9 @@ const QUALITY_MULTIPLIER: Record<'A' | 'Polish' | 'B' | 'C', number> = {
 // Bumped any time the scoring rubric / prompt / formula changes so the
 // inputs hash on every cached row turns stale. The admin rescore-missing
 // endpoint then picks them up and refreshes under the new model.
-const MATCHING_VERSION = 5
+const MATCHING_VERSION = 6
 
-export type SkippedReason = 'grade_c' | 'location_zero'
+export type SkippedReason = 'grade_c' | 'location_zero' | 'women_only_audience'
 
 export interface ScoreResult {
   score: number
@@ -233,6 +234,34 @@ Return three values via the submit_score tool:
   }
 }
 
+// Women-only event gate. Fires when the event's audience field
+// mentions "women" anywhere (host-controlled — the host said it, we
+// honor it). The attendee is excluded only when their Topics field
+// does NOT include a Women-coded term AND their first name maps to
+// a high-confidence male entry in lib/gender. Ambiguous + non-listed
+// names default to inclusion so we err toward reach. Topics opt-in
+// always wins as the explicit override.
+//
+// When the gate fires we short-circuit before the LLM call: returns
+// audience = 0.0, preferences = 1.0 (neutral), and a 'women_only_audience'
+// skipped reason. Saves tokens and is deterministic.
+function isWomenOnlyAudience(audience: string[]): boolean {
+  return audience.some((tag) => /\bwomen\b|\bwomxn\b|\bfemale\b/i.test(tag))
+}
+
+function topicsIncludeWomen(interest: string): boolean {
+  return /\bwomen\b|\bwomxn\b|\bfemale\b/i.test(interest || '')
+}
+
+function shouldExcludeFromWomenOnlyEvent(
+  event: AirtableEvent,
+  user: AirtableUser,
+): boolean {
+  if (!isWomenOnlyAudience(event.audience)) return false
+  if (topicsIncludeWomen(user.interest)) return false
+  return inferLikelyGender(user.firstName ?? user.name ?? '') === 'male'
+}
+
 export async function scoreEventUser(
   event: AirtableEvent,
   user: AirtableUser,
@@ -271,7 +300,19 @@ export async function scoreEventUser(
     })
   }
 
-  // Short-circuit 3: empty interest → skip the LLM's preferences leg, but we still need audience.
+  // Short-circuit 3: women-only audience gate. Deterministic, no LLM
+  // call. See shouldExcludeFromWomenOnlyEvent above for the policy.
+  if (shouldExcludeFromWomenOnlyEvent(event, user)) {
+    return emptyResult({
+      location,
+      quality,
+      reason: 'Skipped: women-only audience, attendee out of scope',
+      skippedReason: 'women_only_audience',
+      inputsHash,
+    })
+  }
+
+  // Short-circuit 4: empty interest → skip the LLM's preferences leg, but we still need audience.
   // Run one combined LLM call regardless; the prompt instructs it to return preferences=1.0
   // when interest is missing. This keeps the code paths uniform.
   const llm = await callLLM(event, user, fixedSide)
