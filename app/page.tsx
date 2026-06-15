@@ -21,6 +21,7 @@ type Mode = 'landing' | 'active'
 const SERIF = `'Cormorant Garamond', Georgia, 'Times New Roman', serif`
 
 interface TabContent {
+  heroVerb: string
   subhead: React.ReactNode
   cta: string
   steps: string[]
@@ -29,6 +30,7 @@ interface TabContent {
 
 const TAB_CONTENT: Record<HeaderTab, TabContent> = {
   view: {
+    heroVerb: 'posted',
     subhead: (
       <>
         Share and get matched<br />
@@ -43,6 +45,7 @@ const TAB_CONTENT: Record<HeaderTab, TabContent> = {
     ],
   },
   contribute: {
+    heroVerb: 'broadcast',
     subhead: (
       <>
         Contribute an event in seconds —<br />
@@ -57,6 +60,7 @@ const TAB_CONTENT: Record<HeaderTab, TabContent> = {
     ],
   },
   partner: {
+    heroVerb: 'promoted',
     subhead: (
       <>
         Promote your event to the right execs —<br />
@@ -344,7 +348,7 @@ function Landing({
             color: '#ece6da',
           }}
         >
-          The best events aren&rsquo;t posted.
+          The best events aren&rsquo;t {content.heroVerb}.
           <br />
           <span style={{ fontStyle: 'italic', color: '#c9a86a' }}>
             They&rsquo;re whispered.
