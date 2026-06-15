@@ -16,7 +16,12 @@ import {
   ScoreResult,
 } from '@/lib/matching'
 import { getExistingMatch, logMatch, markMatchesNotified } from '@/lib/supabase'
-import { sendUserDigest, sendApprovedWithDigest, sendUserApprovedEmail } from '@/lib/email'
+import {
+  sendUserDigest,
+  sendApprovedWithDigest,
+  sendUserApprovedEmail,
+  sendLocationUpdatedDigest,
+} from '@/lib/email'
 import { DIGEST_CAP_PER_SECTION } from '@/lib/digest'
 
 export const maxDuration = 300
@@ -90,7 +95,7 @@ async function processEventTrigger(eventId: string) {
 
 async function processUserTrigger(
   userId: string,
-  options: { noEmail?: boolean; welcome?: boolean } = {},
+  options: { noEmail?: boolean; welcome?: boolean; locationChanged?: boolean } = {},
 ) {
   const targetUser = await getUserById(userId)
   if (!targetUser) {
@@ -211,6 +216,30 @@ async function processUserTrigger(
     return
   }
 
+  if (options.locationChanged) {
+    // Self-service location update on the dashboard — send a
+    // location-specific digest IFF the re-scoring surfaced new
+    // matches above threshold. Silent no-op when nothing new came
+    // into range (typo fix, city we don't have events near, etc.).
+    if (!freshAboveThreshold.length) return
+    try {
+      await sendLocationUpdatedDigest(
+        targetUser,
+        { newEvents, topMatches, totalUpcomingMatches: allAboveThreshold.length },
+        targetUser.location || '',
+      )
+      await markMatchesNotified(
+        newEvents.map((e) => ({ eventId: e.event.id, userId: targetUser.id })),
+      )
+    } catch (e) {
+      console.error(
+        `process-matches: sendLocationUpdatedDigest failed for ${targetUser.email}:`,
+        e,
+      )
+    }
+    return
+  }
+
   if (!freshAboveThreshold.length) return
   await sendUserDigest(targetUser, {
     newEvents,
@@ -323,10 +352,11 @@ export async function GET(req: NextRequest) {
   try {
     const noEmail = searchParams.get('noEmail') === '1'
     const welcome = searchParams.get('welcome') === '1'
+    const locationChanged = searchParams.get('locationChanged') === '1'
     if (trigger === 'event') {
       await processEventTrigger(id)
     } else if (trigger === 'user') {
-      await processUserTrigger(id, { noEmail, welcome })
+      await processUserTrigger(id, { noEmail, welcome, locationChanged })
     } else {
       return NextResponse.json({ error: 'trigger must be "event" or "user"' }, { status: 400 })
     }

@@ -870,6 +870,91 @@ export async function sendApprovedWithDigest(
   })
 }
 
+// Sent when a user updates their location on the dashboard and the
+// re-scoring surfaces new events above threshold. Mirrors the welcome
+// template shape — same header tone, same renderEntries, same
+// truncation pointer — but with location-specific framing and a
+// subject line that names the new city. Caller is expected to have
+// already verified that newEvents.length > 0; this function does not
+// guard against empty newEvents (Resend would just send an empty
+// digest).
+export async function sendLocationUpdatedDigest(
+  user: AirtableUser,
+  payload: DigestPayload,
+  newLocation: string,
+): Promise<void> {
+  if (!payload.newEvents.length) return
+  const resend = getResend()
+  const firstName = firstNameOrThere(user)
+  const annotated = markDuplicates(payload)
+  const cityLabel = newLocation.trim() || 'your area'
+
+  const moreCount = Math.max(
+    0,
+    (payload.totalUpcomingMatches ?? 0) - annotated.newEvents.length,
+  )
+  const moreHtml = moreOnDashboardHtml(moreCount)
+  const moreText = moreOnDashboardTextLine(moreCount)
+
+  const eb = todayEyebrow()
+  const introCopy = `We saw you just updated your location to ${cityLabel} — here are upcoming events that match your profile.`
+
+  const html = shell(`
+    ${eyebrow(`Location update · ${eb}`)}
+    ${h1(`New <span style="font-style:italic;">whispers</span> in ${escapeHtml(cityLabel)}, ${escapeHtml(firstName)}.`)}
+    ${p(introCopy, { mt: 14 })}
+    ${renderEntries(annotated.newEvents)}
+    ${moreHtml}
+    ${digestFooterHtml(firstName)}
+  `)
+
+  const textLines: string[] = [
+    `Location update · ${eb}`,
+    '',
+    `New whispers in ${cityLabel}, ${firstName}.`,
+    '',
+    introCopy,
+    '',
+  ]
+  const appendEntries = (entries: DigestEventEntry[]) => {
+    if (!entries.length) return
+    for (const entry of entries) {
+      const { event, matchPercent, isDuplicate } = entry
+      const date = shortDate(event.date)
+      const datePart = date ? ` (${date})` : ''
+      const body = isDuplicate ? ' see above' : event.description ? ` ${event.description}` : ''
+      textLines.push(`${event.name}${datePart}${body} (Match ${Math.round(matchPercent)}%)`)
+      textLines.push(event.link)
+      textLines.push('')
+    }
+  }
+  appendEntries(annotated.newEvents)
+  if (moreText) textLines.push(moreText, '')
+  textLines.push(...digestFooterTextLines(firstName))
+  const text = textLines.join('\n')
+
+  const { error } = await resend.emails.send({
+    from: TEAM_FROM,
+    to: user.email,
+    bcc: MONITOR_BCC,
+    subject: `New matches in ${cityLabel}`,
+    html,
+    text,
+    headers: AUTO_HEADERS,
+  })
+  if (error) {
+    console.error('sendLocationUpdatedDigest: Resend error', { email: user.email, error })
+    throw new Error(`Resend send failed: ${error.message ?? JSON.stringify(error)}`)
+  }
+  const eventIds = Array.from(new Set(annotated.newEvents.map((e) => e.event.id)))
+  await logDigestSend({
+    userId: user.id,
+    userEmail: user.email,
+    kind: 'cron',
+    eventIds,
+  })
+}
+
 // Inline coaching block reused inside the welcome email. Mirrors the
 // standalone sendCoaching templates so a new user with no matches sees
 // the same guidance the Monday cron would send them later.

@@ -39,9 +39,14 @@ export async function POST(req: NextRequest) {
     update.companySize !== undefined
 
   try {
-    // Capture the user's current frequency so we can detect a Dashboard-Only →
-    // digest transition and zero out the backlog of unnotified matches.
-    const before = update.frequency !== undefined ? await getUserByEmail(email) : null
+    // Capture the user's pre-update state so we can detect:
+    //   (a) Dashboard-Only → digest frequency transitions (zero out backlog)
+    //   (b) A location change (trigger the location-update digest email)
+    // Single Airtable read covers both cases.
+    const before =
+      update.frequency !== undefined || update.location !== undefined
+        ? await getUserByEmail(email)
+        : null
 
     const updated = await updateUserProfile(email, update)
 
@@ -54,9 +59,22 @@ export async function POST(req: NextRequest) {
     }
 
     if (updated && matchingInputsChanged) {
+      // Detect a meaningful location change — submitted, non-empty, and
+      // different from the prior value (case-insensitive trim). When it
+      // fires we drop noEmail so the location-update branch of
+      // process-matches can send the new-city digest. All other
+      // matching-input changes stay silent (interests / employment /
+      // size). Paused users are filtered out further downstream.
+      const locationChanged =
+        !!before &&
+        typeof update.location === 'string' &&
+        update.location.trim() !== '' &&
+        update.location.trim().toLowerCase() !== (before.location ?? '').trim().toLowerCase()
+
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+      const flags = locationChanged ? 'locationChanged=1' : 'noEmail=1'
       waitUntil(
-        fetch(`${appUrl}/api/process-matches?trigger=user&id=${updated.id}&noEmail=1`).catch((e) =>
+        fetch(`${appUrl}/api/process-matches?trigger=user&id=${updated.id}&${flags}`).catch((e) =>
           console.error('process-matches fire-and-forget error:', e),
         ),
       )
