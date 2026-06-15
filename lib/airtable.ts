@@ -427,16 +427,12 @@ export interface FeaturedEvent {
   imageUrl?: string
 }
 
-// Pulls the first attachment URL out of an Airtable attachment field
-// value. Prefers a thumbnail when present (faster + smaller payload);
-// falls back to the original.
-function firstAttachmentUrl(value: unknown): string | undefined {
-  if (!Array.isArray(value) || value.length === 0) return undefined
-  const first = value[0] as {
-    url?: string
-    thumbnails?: { large?: { url?: string }; small?: { url?: string } }
-  }
-  return first.thumbnails?.large?.url || first.url
+// True when the Image attachment field has a usable upload. We route
+// through /api/event-image/[id] rather than returning the Airtable URL
+// directly because Airtable's signed URLs expire ~2h after issue and
+// /api/featured-events caches the JSON for 24h.
+function hasImageAttachment(value: unknown): boolean {
+  return Array.isArray(value) && value.length > 0 && typeof (value[0] as { url?: string })?.url === 'string'
 }
 
 export async function getFeaturedEvents(): Promise<FeaturedEvent[]> {
@@ -456,7 +452,7 @@ export async function getFeaturedEvents(): Promise<FeaturedEvent[]> {
       link: String(r.get('Link') || ''),
       date: String(r.get('Date') || ''),
       location: String(r.get('Location') || ''),
-      imageUrl: firstAttachmentUrl(r.get('Image')),
+      imageUrl: hasImageAttachment(r.get('Image')) ? `/api/event-image/${r.id}` : undefined,
     }))
     .filter((e) => e.name)
 }
