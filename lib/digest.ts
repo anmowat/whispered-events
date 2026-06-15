@@ -325,6 +325,60 @@ export async function runDigests(now: Date): Promise<{
   }
 }
 
+// Daily batched digest for "As they arrive" users. Runs at 14:00 UTC
+// (morning PT) every day. Per-user flow is identical to the weekly
+// cron — same `processUser` helper, same 3-event cap, same
+// `markMatchesNotified` stamping — but the recently-touched floor is
+// 1 day instead of 7 so a same-day re-run doesn't double-send.
+//
+// Dormancy nudges for As-they-arrive users still fire from the Monday
+// runDigests (line 297–311); this function only handles the digest
+// path. Users with no unnotified matches are silently skipped.
+const DAILY_RECENT_TOUCH_DAYS = 1
+
+export async function runDailyArriveDigests(now: Date): Promise<{
+  arrive: FrequencyStats
+}> {
+  const allUsers = (await getActiveUsers()).filter(isMatchEligible)
+  const futureEvents = await getFutureEvents()
+  const futureById = new Map(futureEvents.map((e) => [e.id, e]))
+  const lastSentByEmail = await getLastDigestSentByEmail()
+
+  const arrive: FrequencyStats = {
+    processed: 0,
+    sent: 0,
+    recapped: 0,
+    coached: 0,
+    skippedRecent: 0,
+  }
+
+  for (const user of allUsers) {
+    if (user.frequency !== 'As they arrive') continue
+    const lastSent = lastSentByEmail.get(user.email.trim().toLowerCase()) ?? null
+    if (recentlyTouched(lastSent, now, DAILY_RECENT_TOUCH_DAYS)) {
+      arrive.skippedRecent += 1
+      continue
+    }
+    arrive.processed += 1
+    let didSend = false
+    try {
+      const result = await processUser(user, futureById)
+      if (result.sent) {
+        arrive.sent += 1
+        didSend = true
+      }
+    } catch (err) {
+      console.error(
+        `runDailyArriveDigests: processUser failed for ${user.email}`,
+        err instanceof Error ? err.message : String(err),
+      )
+    }
+    if (didSend) await sleep(RESEND_THROTTLE_MS)
+  }
+
+  return { arrive }
+}
+
 // Recap path: user has matching events but nothing new to tell them.
 // Fetches the top 3 upcoming matches and hands them to sendRecap.
 // Wrapped in try/catch so a single Resend hiccup doesn't tank the
@@ -373,41 +427,4 @@ async function safelySendCoaching(
       err instanceof Error ? err.message : String(err),
     )
   }
-}
-
-// Per-event each-new-event path: build the same digest payload but with the
-// just-matched event as the single "new" entry.
-export async function sendEachNewEventDigest(
-  user: AirtableUser,
-  triggeringEvent: AirtableEvent,
-  triggeringMatchPercent: number,
-): Promise<boolean> {
-  const futureEvents = await getFutureEvents()
-  const futureById = new Map(futureEvents.map((e) => [e.id, e]))
-  if (!futureById.has(triggeringEvent.id)) {
-    futureById.set(triggeringEvent.id, triggeringEvent)
-  }
-  const futureIds = Array.from(futureById.keys())
-
-  const allUpcoming = await getUpcomingMatchesForUser(
-    user.id,
-    futureIds,
-    DIGEST_SCORE_THRESHOLD,
-  )
-  // Top Matches = absolute top 3 (may include the triggering event; the
-  // email template renders dupes compactly via "see above").
-  const topMatchesRows = allUpcoming.slice(0, DIGEST_CAP_PER_SECTION)
-
-  await sendUserDigest(
-    user,
-    {
-      newEvents: [{ event: triggeringEvent, matchPercent: triggeringMatchPercent }],
-      topMatches: toEntries(topMatchesRows, futureById),
-      totalUpcomingMatches: allUpcoming.length,
-    },
-    'per_event',
-  )
-
-  await markMatchesNotified([{ eventId: triggeringEvent.id, userId: user.id }])
-  return true
 }

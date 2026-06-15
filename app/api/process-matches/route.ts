@@ -17,7 +17,7 @@ import {
 } from '@/lib/matching'
 import { getExistingMatch, logMatch, markMatchesNotified } from '@/lib/supabase'
 import { sendUserDigest, sendApprovedWithDigest, sendUserApprovedEmail } from '@/lib/email'
-import { sendEachNewEventDigest, DIGEST_CAP_PER_SECTION } from '@/lib/digest'
+import { DIGEST_CAP_PER_SECTION } from '@/lib/digest'
 
 export const maxDuration = 300
 
@@ -254,25 +254,14 @@ async function scoreAndNotify(
 
     if (result.score < SCORE_THRESHOLD) return 'scored'
 
-    // Frequency routes delivery:
-    //   - As they arrive: send an immediate digest-format email (1 new + top matches)
-    //   - Weekly / Monthly: leave notified_at NULL; cron will pick it up
+    // Frequency routes delivery — all three batched paths now flow
+    // through cron, so this function's job is just to log the match:
+    //   - As they arrive: daily cron (/api/cron/digest-daily) picks it up
+    //   - Weekly / Monthly: Monday cron (/api/cron/digest) picks it up
     //   - Paused: never email
-    if (user.frequency === 'As they arrive') {
-      // Suppress re-sends. If notified_at was already set on the prior
-      // match row, this user has already received this event via SOME
-      // digest path (per-event, weekly cron, monthly cron, or welcome).
-      // An admin-triggered rescore that moved them above threshold
-      // again shouldn't fire a second copy.
-      if (outcome.previousNotifiedAt) {
-        return 'scored'
-      }
-      try {
-        await sendEachNewEventDigest(user, event, result.matchPercent)
-      } catch (e) {
-        console.error(`process-matches: sendEachNewEventDigest failed for ${user.email} / ${event.id}:`, e)
-      }
-    }
+    // logMatch above already wrote notified_at = NULL, so no further
+    // action is needed here. Caps on duplicate sends are enforced at
+    // the cron level via getUnnotifiedMatchesForUser.
     return 'scored'
   } catch (err) {
     console.error(`process-matches: error for user ${user.email} / event ${event.id}:`, err)
