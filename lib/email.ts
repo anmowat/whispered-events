@@ -321,6 +321,28 @@ export async function sendEventSubmittedEmail(email: string, eventName: string):
   }
 }
 
+// Injects inline color + underline + target="_blank" onto every <a>
+// tag in admin-composed blast body HTML. The WYSIWYG produces clean
+// <a href="..."> tags without styling, and because the wrapper div
+// sets color:var(--ink-2), most email clients cascade that color into
+// the <a> and strip the browser-default blue + underline. Result: the
+// link is technically there but looks identical to surrounding text.
+// Inline styles defeat the cascade so the link reads as a link.
+function decorateLinks(html: string): string {
+  return html.replace(/<a\b([^>]*?)>/gi, (_, attrs: string) => {
+    const hasStyle = /\sstyle\s*=/i.test(attrs)
+    const hasTarget = /\starget\s*=/i.test(attrs)
+    let out = attrs
+    if (!hasStyle) {
+      out += ` style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;"`
+    }
+    if (!hasTarget) {
+      out += ' target="_blank" rel="noopener noreferrer"'
+    }
+    return `<a${out}>`
+  })
+}
+
 // Admin-composed broadcast. Body is HTML produced by the WYSIWYG
 // editor on /admin/blast (paragraphs, lists, links, bold, italic).
 // {{firstName}} is substituted per recipient before rendering. Wraps
@@ -338,13 +360,15 @@ export async function sendBlast(
     .replaceAll('{{location}}', escapeHtml(user.location || ''))
     .replaceAll('{{interests}}', escapeHtml(user.interest || ''))
 
+  const decorated = decorateLinks(substituted)
+
   const html = shell(`
     <div style="font-family:${SANS};font-size:14.5px;line-height:1.6;color:${C.ink2};">
-      ${substituted}
+      ${decorated}
     </div>
     ${digestFooterHtml(firstName)}
   `)
-  const text = [htmlToText(substituted), '', ...digestFooterTextLines(firstName)].join('\n')
+  const text = [htmlToText(decorated), '', ...digestFooterTextLines(firstName)].join('\n')
 
   // Blasts deliberately skip the MONITOR_BCC. Sends fan out to dozens
   // of users at a time and Andy's inbox doesn't need a duplicate of
