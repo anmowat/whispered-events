@@ -160,13 +160,30 @@ export default function DashboardPage() {
         activeTab={null}
         onLogoClick={() => (window.location.href = '/')}
         rightSlot={
-          <a
-            href="/"
+          <button
+            type="button"
+            onClick={async () => {
+              // Best-effort session destroy on the server; either way we
+              // land the user on the homepage. fetch lets us swallow
+              // network errors silently — a stale cookie isn't worth
+              // blocking the user on.
+              try {
+                await fetch('/api/auth/logout', {
+                  method: 'POST',
+                  redirect: 'manual',
+                })
+              } catch {
+                // ignore
+              }
+              window.location.href = '/'
+            }}
             className="text-[13px] transition-colors"
-            style={{ color: 'var(--ink-2)' }}
+            style={{ color: 'var(--ink-2)', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--ink-2)')}
           >
-            ← Back to home
-          </a>
+            Logout
+          </button>
         }
       />
 
