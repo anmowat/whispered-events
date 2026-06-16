@@ -797,8 +797,11 @@ function NotLoggedInPrompt() {
               className="font-serif m-0"
               style={{ fontSize: 28, lineHeight: 1.15, color: 'var(--ink)', letterSpacing: '-0.01em' }}
             >
-              <span className="italic">Welcome</span> back.
+              <span className="italic">Welcome</span>.
             </h2>
+            <p style={{ fontSize: 14, color: 'var(--ink-2)', lineHeight: 1.55 }}>
+              Your dashboard allows you to see all your matches and update your profile (to improve your matches).
+            </p>
             <p style={{ fontSize: 14, color: 'var(--ink-2)', lineHeight: 1.55 }}>
               It looks like you haven&apos;t logged in on this device. Click below to get a secure login link.
             </p>
@@ -837,6 +840,12 @@ function NotLoggedInPrompt() {
                 Something went wrong. Please try again.
               </p>
             )}
+            <p
+              className="text-center font-serif italic"
+              style={{ fontSize: 14, color: 'var(--ink-2)', lineHeight: 1.5, marginTop: 6 }}
+            >
+              We look forward to seeing you at an event soon. 🥂
+            </p>
             <p
               className="text-center text-[12px]"
               style={{ color: 'var(--ink-3)' }}
