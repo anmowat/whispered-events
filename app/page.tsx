@@ -70,7 +70,7 @@ const TAB_CONTENT: Record<HeaderTab, TabContent> = {
     cta: 'Apply to Partner',
     steps: [
       'Share (and update) events you are running',
-      'Customize targeting for your events',
+      'Customize targeting for your events (i.e. revenue size)',
       'Get a customized widget/feed of events for your community',
     ],
   },
