@@ -56,6 +56,27 @@ const SANS = `-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica 
 const FONT_LINK = `<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500;1,600&display=swap" rel="stylesheet">`
 
 const DASHBOARD_LINK = 'https://www.whisperedevents.com/dashboard'
+
+// Appends ?email=<encoded> when we know the recipient. The dashboard
+// not-logged-in page reads this and pre-fills the magic-link form so
+// users coming from email don't have to type their address.
+function dashboardLinkFor(email?: string): string {
+  const trimmed = email?.trim()
+  if (!trimmed) return DASHBOARD_LINK
+  return `${DASHBOARD_LINK}?email=${encodeURIComponent(trimmed)}`
+}
+
+// Single-pass swap of the bare DASHBOARD_LINK constant for the
+// per-recipient version. Lets every email-template helper continue to
+// reference DASHBOARD_LINK as a literal while still pre-filling the
+// recipient's email in the URL. Apply to BOTH the HTML and plain-text
+// bodies in each sender right before handing to Resend. No-op when
+// no email is supplied (admin tooling, etc.).
+function personalizeDashboardLinks(rendered: string, email?: string): string {
+  const personal = dashboardLinkFor(email)
+  if (personal === DASHBOARD_LINK) return rendered
+  return rendered.split(DASHBOARD_LINK).join(personal)
+}
 const NEW_EVENT_MAILTO = 'mailto:event@whispered.com'
 
 // ----- Shared building blocks -----
@@ -234,8 +255,8 @@ P.S. You can submit events anytime on the site or by emailing event@whispered.co
     to: email,
     bcc: MONITOR_BCC,
     subject: 'Whispered Events — Application Received',
-    html,
-    text,
+    html: personalizeDashboardLinks(html, email),
+    text: personalizeDashboardLinks(text, email),
     headers: AUTO_HEADERS,
   })
   if (error) {
@@ -274,8 +295,8 @@ export async function sendUserApprovedEmail(user: AirtableUser): Promise<void> {
     to: user.email,
     bcc: MONITOR_BCC,
     subject: "You're approved for Whispered Events",
-    html,
-    text,
+    html: personalizeDashboardLinks(html, user.email),
+    text: personalizeDashboardLinks(text, user.email),
     headers: AUTO_HEADERS,
   })
   if (error) {
@@ -311,8 +332,8 @@ export async function sendEventSubmittedEmail(email: string, eventName: string):
     to: email,
     bcc: MONITOR_BCC,
     subject: `Event added — ${eventName}`,
-    html,
-    text,
+    html: personalizeDashboardLinks(html, email),
+    text: personalizeDashboardLinks(text, email),
     headers: AUTO_HEADERS,
   })
   if (error) {
@@ -377,8 +398,8 @@ export async function sendBlast(
     from: TEAM_FROM,
     to: user.email,
     subject,
-    html,
-    text,
+    html: personalizeDashboardLinks(html, user.email),
+    text: personalizeDashboardLinks(text, user.email),
     headers: AUTO_HEADERS,
   })
   if (error) {
@@ -442,8 +463,8 @@ export async function sendCoaching(
     to: user.email,
     bcc: MONITOR_BCC,
     subject,
-    html,
-    text,
+    html: personalizeDashboardLinks(html, user.email),
+    text: personalizeDashboardLinks(text, user.email),
     headers: AUTO_HEADERS,
   })
   if (error) {
@@ -615,8 +636,8 @@ export async function sendRecap(
     to: user.email,
     bcc: MONITOR_BCC,
     subject,
-    html,
-    text: textLines.join('\n'),
+    html: personalizeDashboardLinks(html, user.email),
+    text: personalizeDashboardLinks(textLines.join('\n'), user.email),
     headers: AUTO_HEADERS,
   })
   if (error) {
@@ -657,8 +678,8 @@ export async function sendEventCouldNotReadEmail(email: string): Promise<void> {
     to: email,
     bcc: MONITOR_BCC,
     subject: "We couldn't read your event",
-    html,
-    text,
+    html: personalizeDashboardLinks(html, email),
+    text: personalizeDashboardLinks(text, email),
     headers: AUTO_HEADERS,
   })
   if (error) {
@@ -873,8 +894,8 @@ export async function sendApprovedWithDigest(
     to: user.email,
     bcc: MONITOR_BCC,
     subject,
-    html,
-    text,
+    html: personalizeDashboardLinks(html, user.email),
+    text: personalizeDashboardLinks(text, user.email),
     headers: AUTO_HEADERS,
   })
   if (error) {
@@ -962,8 +983,8 @@ export async function sendLocationUpdatedDigest(
     to: user.email,
     bcc: MONITOR_BCC,
     subject: `New matches in ${cityLabel}`,
-    html,
-    text,
+    html: personalizeDashboardLinks(html, user.email),
+    text: personalizeDashboardLinks(text, user.email),
     headers: AUTO_HEADERS,
   })
   if (error) {
@@ -1098,8 +1119,8 @@ export async function sendUserDigest(
     to: user.email,
     bcc: MONITOR_BCC,
     subject: 'New matching Whispered Events',
-    html,
-    text,
+    html: personalizeDashboardLinks(html, user.email),
+    text: personalizeDashboardLinks(text, user.email),
     headers: AUTO_HEADERS,
   })
   if (error) {

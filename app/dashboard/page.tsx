@@ -104,22 +104,7 @@ export default function DashboardPage() {
   }
 
   if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <div className="text-center space-y-3">
-          <p className="font-medium" style={{ color: 'var(--ink)' }}>
-            You&apos;re not logged in
-          </p>
-          <a
-            href="/"
-            className="text-sm underline"
-            style={{ color: 'var(--accent)', textUnderlineOffset: 3 }}
-          >
-            Go back to Whispered Events
-          </a>
-        </div>
-      </div>
-    )
+    return <NotLoggedInPrompt />
   }
 
   // Initialize Type filter to all available types on first events load.
@@ -721,5 +706,153 @@ function MatchBadge({ percent }: { percent: string }) {
         Matches are based on event criteria, your profile, and your interests. To improve your matches, update your profile.
       </span>
     </span>
+  )
+}
+
+// Shown when /dashboard is hit without a valid session — typically a
+// user clicking the footer link in a digest email on a device where
+// they've never logged in. Reads ?email= from the URL so the input is
+// pre-filled (every email-side dashboard link carries the recipient's
+// address). Mirrors the LoginModal state machine but rendered inline
+// so the user sees the form immediately rather than having to dismiss
+// a modal first.
+function NotLoggedInPrompt() {
+  const [email, setEmail] = useState('')
+  const [state, setState] = useState<'idle' | 'loading' | 'sent' | 'not_found' | 'inactive' | 'error'>('idle')
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const fromUrl = params.get('email')?.trim() ?? ''
+    if (fromUrl) setEmail(fromUrl)
+  }, [])
+
+  async function handleSubmit() {
+    const trimmed = email.trim()
+    if (!trimmed || state === 'loading') return
+    setState('loading')
+    try {
+      const res = await fetch('/api/auth/magic-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: trimmed }),
+      })
+      if (res.ok) {
+        setState('sent')
+        return
+      }
+      const data = (await res.json().catch(() => ({}))) as { error?: string }
+      if (data.error === 'not_found') setState('not_found')
+      else if (data.error === 'inactive') setState('inactive')
+      else setState('error')
+    } catch {
+      setState('error')
+    }
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center p-4">
+      <div
+        className="w-full max-w-[420px] rounded-card border p-7 space-y-4"
+        style={{ background: 'var(--paper)', borderColor: 'var(--rule)' }}
+      >
+        {state === 'sent' ? (
+          <>
+            <h2
+              className="font-serif m-0"
+              style={{ fontSize: 26, color: 'var(--ink)', letterSpacing: '-0.01em' }}
+            >
+              Check your email.
+            </h2>
+            <p style={{ fontSize: 14, color: 'var(--ink-2)', lineHeight: 1.55 }}>
+              We sent a login link to <strong>{email}</strong>. It expires in 15 minutes.
+            </p>
+          </>
+        ) : state === 'not_found' ? (
+          <>
+            <h2
+              className="font-serif m-0"
+              style={{ fontSize: 26, color: 'var(--ink)', letterSpacing: '-0.01em' }}
+            >
+              Not in our system yet.
+            </h2>
+            <p style={{ fontSize: 14, color: 'var(--ink-2)', lineHeight: 1.55 }}>
+              Head over to <a href="/" className="underline" style={{ color: 'var(--accent)', textUnderlineOffset: 3 }}>Find Events</a> to share your profile and apply for access.
+            </p>
+          </>
+        ) : state === 'inactive' ? (
+          <>
+            <h2
+              className="font-serif m-0"
+              style={{ fontSize: 26, color: 'var(--ink)', letterSpacing: '-0.01em' }}
+            >
+              Account inactive.
+            </h2>
+            <p style={{ fontSize: 14, color: 'var(--ink-2)', lineHeight: 1.55 }}>
+              New profiles are reviewed manually — if you&apos;ve just applied, you&apos;ll hear from us soon. If your access has lapsed, contribute an event to reactivate.
+            </p>
+          </>
+        ) : (
+          <>
+            <h2
+              className="font-serif m-0"
+              style={{ fontSize: 28, lineHeight: 1.15, color: 'var(--ink)', letterSpacing: '-0.01em' }}
+            >
+              <span className="italic">Welcome</span> back.
+            </h2>
+            <p style={{ fontSize: 14, color: 'var(--ink-2)', lineHeight: 1.55 }}>
+              It looks like you haven&apos;t logged in on this device. Click below to get a secure login link.
+            </p>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleSubmit()
+              }}
+              placeholder="you@company.com"
+              autoFocus
+              className="w-full rounded-input border px-3.5 py-2.5 text-[14px] focus:outline-none transition-colors"
+              style={{
+                background: 'var(--paper-2)',
+                borderColor: 'var(--rule)',
+                color: 'var(--ink)',
+              }}
+            />
+            <button
+              onClick={handleSubmit}
+              disabled={state === 'loading' || !email.trim()}
+              className="w-full py-2.5 rounded-pill text-[13.5px] font-medium text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{ background: 'var(--accent)' }}
+              onMouseEnter={(e) =>
+                state !== 'loading' &&
+                email.trim() &&
+                (e.currentTarget.style.background = 'var(--accent-2)')
+              }
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--accent)')}
+            >
+              {state === 'loading' ? 'Sending…' : 'Send login link →'}
+            </button>
+            {state === 'error' && (
+              <p className="text-center text-[12.5px]" style={{ color: 'var(--accent)' }}>
+                Something went wrong. Please try again.
+              </p>
+            )}
+            <p
+              className="text-center text-[12px]"
+              style={{ color: 'var(--ink-3)' }}
+            >
+              New here?{' '}
+              <a
+                href="/"
+                className="underline font-medium"
+                style={{ color: 'var(--accent)', textUnderlineOffset: 3 }}
+              >
+                Apply for access →
+              </a>
+            </p>
+          </>
+        )}
+      </div>
+    </div>
   )
 }
