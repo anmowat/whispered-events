@@ -37,6 +37,8 @@ function displayFrequency(value: string): string {
 type DashboardEvent = AirtableEvent & {
   matchScore: number | null
   matchPercent: number | null
+  rating: 'up' | 'down' | null
+  ratingReason: string | null
 }
 
 const EMPLOYMENT_OPTIONS = ['Employed', 'Fractional', 'Searching', 'Other']
@@ -199,19 +201,23 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Topics */}
+        {/* Profile CTA — replaces the inline topics chip display. The
+            goal is to get users into the ProfileModal rather than
+            window-shop their own settings. */}
         <section className="mb-6">
-          <div className="eyebrow mb-2.5">Topics</div>
+          <div className="eyebrow mb-2.5">Your profile</div>
           <div
-            className="rounded-card border flex justify-between items-start gap-4 px-5 py-4"
+            className="rounded-card border flex justify-between items-center gap-4 px-5 py-4"
             style={{ background: 'var(--paper)', borderColor: 'var(--rule)' }}
           >
-            <p
-              className="m-0 leading-relaxed"
-              style={{ fontSize: 14, color: 'var(--ink)' }}
-            >
-              {user.interest || <span style={{ color: 'var(--ink-3)' }}>No topics set yet.</span>}
-            </p>
+            <div className="min-w-0">
+              <p className="m-0 font-medium" style={{ fontSize: 14, color: 'var(--ink)' }}>
+                Update your profile to improve your matches
+              </p>
+              <p className="mt-0.5 m-0" style={{ fontSize: 12, color: 'var(--ink-3)' }}>
+                Update your topics, location, and employment.
+              </p>
+            </div>
             <button
               onClick={() => setEditingProfile(true)}
               className="eyebrow shrink-0 underline"
@@ -286,7 +292,19 @@ export default function DashboardPage() {
           {filteredEvents.length > 0 ? (
             <div className="flex flex-col gap-3">
               {filteredEvents.map((event) => (
-                <EventCard key={event.id} event={event} />
+                <EventCard
+                  key={event.id}
+                  event={event}
+                  onRated={(rating, reason) =>
+                    setEvents((prev) =>
+                      prev.map((e) =>
+                        e.id === event.id
+                          ? { ...e, rating, ratingReason: rating === 'down' ? reason : null }
+                          : e,
+                      ),
+                    )
+                  }
+                />
               ))}
             </div>
           ) : (
@@ -624,7 +642,17 @@ const modalInputStyle: React.CSSProperties = {
   color: 'var(--ink)',
 }
 
-function EventCard({ event }: { event: DashboardEvent }) {
+function EventCard({
+  event,
+  onRated,
+}: {
+  event: DashboardEvent
+  onRated: (rating: 'up' | 'down' | null, reason: string | null) => void
+}) {
+  const [showDownModal, setShowDownModal] = useState(false)
+  const [showThanks, setShowThanks] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+
   const dateFormatted = event.date
     ? new Date(event.date).toLocaleDateString('en-US', {
         month: 'long',
@@ -638,44 +666,315 @@ function EventCard({ event }: { event: DashboardEvent }) {
       ? `${event.matchPercent}%`
       : null
 
+  // Optimistically flip the UI, fire to the API, revert + alert on failure.
+  // Net-negative UX to spin forever waiting on the network for a one-bit
+  // rating that the user can re-click to fix anyway.
+  async function writeRating(rating: 'up' | 'down' | null, reason: string | null) {
+    const prevRating = event.rating
+    const prevReason = event.ratingReason
+    onRated(rating, reason)
+    setSubmitting(true)
+    try {
+      const res = await fetch('/api/dashboard/match-rating', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ eventId: event.id, rating, reason }),
+      })
+      if (!res.ok) {
+        onRated(prevRating, prevReason)
+        alert("Couldn't save your rating. Please try again.")
+      }
+    } catch {
+      onRated(prevRating, prevReason)
+      alert("Couldn't save your rating. Please try again.")
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  function handleThumbsUp() {
+    if (submitting) return
+    if (event.rating === 'up') {
+      void writeRating(null, null)
+    } else {
+      void writeRating('up', null)
+    }
+  }
+
+  function handleThumbsDown() {
+    if (submitting) return
+    if (event.rating === 'down') {
+      void writeRating(null, null)
+    } else {
+      setShowDownModal(true)
+    }
+  }
+
+  async function handleDownSubmit(reason: string) {
+    setShowDownModal(false)
+    await writeRating('down', reason || null)
+    setShowThanks(true)
+  }
+
+  // Card background tints when the user thumbs-up'd the match — quick
+  // glance signal that they've rated this one. Thumbs-down stays neutral
+  // (the filled icon is the visual cue) so the negative isn't visually
+  // shouty when scanning the list.
+  const ratedUp = event.rating === 'up'
+
   return (
-    <article
-      className="rounded-card border px-5 py-4"
-      style={{ background: 'var(--paper)', borderColor: 'var(--rule)' }}
-    >
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex-1 min-w-0">
-          {event.link ? (
-            <a
-              href={event.link}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="event-link font-serif"
-              style={{ fontSize: 18, lineHeight: 1.25 }}
-            >
-              {event.name}
-              <span className="arrow" aria-hidden>↗</span>
-            </a>
-          ) : (
-            <span className="font-serif" style={{ fontSize: 18, color: 'var(--ink)' }}>
-              {event.name}
-            </span>
-          )}
-          <p className="m-0 mt-1" style={{ fontSize: 12, color: 'var(--ink-3)' }}>
-            {[event.type, dateFormatted, event.location].filter(Boolean).join(' · ')}
-          </p>
+    <>
+      <article
+        className="rounded-card border px-5 py-4"
+        style={{
+          background: ratedUp ? 'var(--accent-soft)' : 'var(--paper)',
+          borderColor: ratedUp ? 'var(--accent)' : 'var(--rule)',
+        }}
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-baseline flex-wrap gap-x-3 gap-y-1">
+              {event.link ? (
+                <a
+                  href={event.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="event-link font-serif"
+                  style={{ fontSize: 18, lineHeight: 1.25 }}
+                >
+                  {event.name}
+                  <span className="arrow" aria-hidden>↗</span>
+                </a>
+              ) : (
+                <span className="font-serif" style={{ fontSize: 18, color: 'var(--ink)' }}>
+                  {event.name}
+                </span>
+              )}
+              {matchPct && <MatchBadge percent={matchPct} />}
+            </div>
+            <p className="m-0 mt-1" style={{ fontSize: 12, color: 'var(--ink-3)' }}>
+              {[event.type, dateFormatted, event.location].filter(Boolean).join(' · ')}
+            </p>
+          </div>
+          <RatingButtons
+            rating={event.rating}
+            disabled={submitting}
+            onThumbsUp={handleThumbsUp}
+            onThumbsDown={handleThumbsDown}
+          />
         </div>
-        {matchPct && <MatchBadge percent={matchPct} />}
-      </div>
-      {event.description && (
-        <p
-          className="m-0 mt-2 leading-relaxed"
-          style={{ fontSize: 13, color: 'var(--ink-2)' }}
-        >
-          {event.description}
-        </p>
+        {event.description && (
+          <p
+            className="m-0 mt-2 leading-relaxed"
+            style={{ fontSize: 13, color: 'var(--ink-2)' }}
+          >
+            {event.description}
+          </p>
+        )}
+      </article>
+      {showDownModal && (
+        <ThumbsDownModal
+          eventName={event.name}
+          onCancel={() => setShowDownModal(false)}
+          onSubmit={handleDownSubmit}
+        />
       )}
-    </article>
+      {showThanks && <ThumbsDownThanksModal onClose={() => setShowThanks(false)} />}
+    </>
+  )
+}
+
+function RatingButtons({
+  rating,
+  disabled,
+  onThumbsUp,
+  onThumbsDown,
+}: {
+  rating: 'up' | 'down' | null
+  disabled: boolean
+  onThumbsUp: () => void
+  onThumbsDown: () => void
+}) {
+  return (
+    <div className="flex items-center gap-1 shrink-0">
+      <button
+        type="button"
+        onClick={onThumbsUp}
+        disabled={disabled}
+        aria-pressed={rating === 'up'}
+        aria-label={rating === 'up' ? 'Remove thumbs up' : 'Thumbs up — good match'}
+        title={rating === 'up' ? 'Remove rating' : 'Good match'}
+        className="inline-flex items-center justify-center rounded-full border w-8 h-8 transition-colors disabled:opacity-50"
+        style={{
+          background: rating === 'up' ? 'var(--accent)' : 'transparent',
+          color: rating === 'up' ? 'var(--paper)' : 'var(--ink-3)',
+          borderColor: rating === 'up' ? 'var(--accent)' : 'var(--rule)',
+        }}
+      >
+        <ThumbsUpIcon filled={rating === 'up'} />
+      </button>
+      <button
+        type="button"
+        onClick={onThumbsDown}
+        disabled={disabled}
+        aria-pressed={rating === 'down'}
+        aria-label={rating === 'down' ? 'Remove thumbs down' : 'Thumbs down — not a fit'}
+        title={rating === 'down' ? 'Remove rating' : 'Not a fit'}
+        className="inline-flex items-center justify-center rounded-full border w-8 h-8 transition-colors disabled:opacity-50"
+        style={{
+          background: rating === 'down' ? '#7A2A36' : 'transparent',
+          color: rating === 'down' ? 'var(--paper)' : 'var(--ink-3)',
+          borderColor: rating === 'down' ? '#7A2A36' : 'var(--rule)',
+        }}
+      >
+        <ThumbsDownIcon filled={rating === 'down'} />
+      </button>
+    </div>
+  )
+}
+
+function ThumbsUpIcon({ filled }: { filled: boolean }) {
+  return (
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill={filled ? 'currentColor' : 'none'}
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M7 11v8a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1h3z" />
+      <path d="M7 11l4-8a2 2 0 0 1 2-1c1.1 0 2 .9 2 2v6h4.5a2 2 0 0 1 2 2.3l-1.2 6A2 2 0 0 1 18.3 20H7" />
+    </svg>
+  )
+}
+
+function ThumbsDownIcon({ filled }: { filled: boolean }) {
+  return (
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill={filled ? 'currentColor' : 'none'}
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M17 13V5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1h-3z" />
+      <path d="M17 13l-4 8a2 2 0 0 1-2 1c-1.1 0-2-.9-2-2v-6H4.5a2 2 0 0 1-2-2.3l1.2-6A2 2 0 0 1 5.7 4H17" />
+    </svg>
+  )
+}
+
+function ThumbsDownModal({
+  eventName,
+  onCancel,
+  onSubmit,
+}: {
+  eventName: string
+  onCancel: () => void
+  onSubmit: (reason: string) => void | Promise<void>
+}) {
+  const [reason, setReason] = useState('')
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.5)' }}
+      onClick={onCancel}
+    >
+      <div
+        className="rounded-card border w-full max-w-md p-6"
+        style={{ background: 'var(--paper)', borderColor: 'var(--rule)' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <p className="font-serif m-0" style={{ fontSize: 20, color: 'var(--ink)' }}>
+          Tell us why this one wasn&rsquo;t a fit
+        </p>
+        <p className="mt-1 m-0" style={{ fontSize: 12, color: 'var(--ink-3)' }}>
+          {eventName}
+        </p>
+        <textarea
+          autoFocus
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          rows={4}
+          className="mt-3 w-full rounded-card border px-3 py-2"
+          style={{
+            ...modalInputStyle,
+            fontSize: 14,
+            resize: 'vertical',
+          }}
+          placeholder="Wrong topic, wrong city, wrong seniority…"
+        />
+        <div className="mt-4 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="eyebrow px-3 py-2"
+            style={{ color: 'var(--ink-3)' }}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => void onSubmit(reason.trim())}
+            className="eyebrow px-3 py-2 rounded-pill"
+            style={{
+              background: 'var(--accent)',
+              color: 'var(--paper)',
+            }}
+          >
+            Submit
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ThumbsDownThanksModal({ onClose }: { onClose: () => void }) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.5)' }}
+      onClick={onClose}
+    >
+      <div
+        className="rounded-card border w-full max-w-md p-6"
+        style={{ background: 'var(--paper)', borderColor: 'var(--rule)' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <p className="font-serif m-0" style={{ fontSize: 20, color: 'var(--ink)' }}>
+          Thank you for the feedback.
+        </p>
+        <p className="mt-2 leading-relaxed m-0" style={{ fontSize: 14, color: 'var(--ink-2)' }}>
+          We&rsquo;ll use this to improve matches in the future. We love any additional feedback at{' '}
+          <a
+            href="mailto:team@whisperedevents.com"
+            className="underline"
+            style={{ color: 'var(--accent)', textUnderlineOffset: 3 }}
+          >
+            team@whisperedevents.com
+          </a>
+          .
+        </p>
+        <div className="mt-4 flex justify-end">
+          <button
+            type="button"
+            onClick={onClose}
+            className="eyebrow px-3 py-2 rounded-pill"
+            style={{ background: 'var(--accent)', color: 'var(--paper)' }}
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -685,7 +984,7 @@ function MatchBadge({ percent }: { percent: string }) {
   return (
     <span className="relative inline-flex group shrink-0">
       <span
-        className="cursor-help inline-flex items-center gap-1.5 text-[12px] font-medium rounded-pill px-3 py-[5px] border num"
+        className="cursor-help inline-flex items-center gap-1.5 text-[11px] font-medium rounded-pill px-2.5 py-[3px] border num"
         style={{
           background: 'var(--accent-soft)',
           color: 'var(--accent)',
@@ -694,13 +993,13 @@ function MatchBadge({ percent }: { percent: string }) {
       >
         <span
           className="rounded-full"
-          style={{ width: 6, height: 6, background: 'var(--accent)' }}
+          style={{ width: 5, height: 5, background: 'var(--accent)' }}
         />
         {percent}
         <span style={{ opacity: 0.7 }}>match</span>
       </span>
       <span
-        className="pointer-events-none absolute right-0 top-full mt-2 z-20 hidden group-hover:block w-64 text-[12px] leading-snug rounded-lg px-3 py-2 shadow-lg"
+        className="pointer-events-none absolute left-0 top-full mt-2 z-20 hidden group-hover:block w-64 text-[12px] leading-snug rounded-lg px-3 py-2 shadow-lg"
         style={{ background: 'var(--ink)', color: 'var(--paper)' }}
       >
         Matches are based on event criteria, your profile, and your interests. To improve your matches, update your profile.

@@ -343,6 +343,70 @@ export async function sendEventSubmittedEmail(email: string, eventName: string):
   }
 }
 
+// Internal-only notification when a user thumbs-up's / thumbs-down's a
+// match on their dashboard. Goes to MONITOR_BCC as the To: (not a user
+// send), no BCC, distinct subject line so it's easy to filter in Gmail.
+export async function sendMatchRatingNotification(params: {
+  userId: string
+  userName: string
+  userEmail: string
+  eventName: string
+  rating: 'up' | 'down'
+  reason: string | null
+}): Promise<void> {
+  const resend = getResend()
+  const adminUrl = `https://www.whisperedevents.com/admin/users/${params.userId}`
+  const emoji = params.rating === 'up' ? '👍' : '👎'
+  const safeName = escapeHtml(params.userName || params.userEmail)
+  const safeEmail = escapeHtml(params.userEmail)
+  const safeEvent = escapeHtml(params.eventName)
+  const reasonRow =
+    params.rating === 'down' && params.reason
+      ? `<p style="font-family:${SANS};font-size:14px;line-height:1.55;color:${C.ink};margin:14px 0 0;"><strong>Reason:</strong> ${escapeHtml(params.reason)}</p>`
+      : ''
+  const html = `
+<div style="margin:0;padding:20px;background:${C.bg};font-family:${SANS};color:${C.ink};">
+  <div style="max-width:540px;margin:0 auto;background:${C.paper};border:1px solid ${C.rule};border-radius:6px;padding:24px;">
+    <p style="font-family:${SERIF};font-size:20px;font-weight:600;margin:0;color:${C.ink};">${emoji} Match rating</p>
+    <p style="font-family:${SANS};font-size:14px;line-height:1.55;color:${C.ink};margin:16px 0 0;">
+      <strong><a href="${adminUrl}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">${safeName}</a></strong> &lt;${safeEmail}&gt; rated:
+    </p>
+    <p style="font-family:${SANS};font-size:14px;line-height:1.55;color:${C.ink};margin:8px 0 0;">
+      <strong>Event:</strong> ${safeEvent}
+    </p>
+    <p style="font-family:${SANS};font-size:14px;line-height:1.55;color:${C.ink};margin:8px 0 0;">
+      <strong>Rating:</strong> ${emoji} ${params.rating === 'up' ? 'Thumbs up' : 'Thumbs down'}
+    </p>
+    ${reasonRow}
+  </div>
+</div>
+`.trim()
+  const textLines = [
+    `${emoji} Match rating`,
+    '',
+    `User: ${params.userName || params.userEmail} <${params.userEmail}>`,
+    `Profile: ${adminUrl}`,
+    `Event: ${params.eventName}`,
+    `Rating: ${emoji} ${params.rating === 'up' ? 'Thumbs up' : 'Thumbs down'}`,
+  ]
+  if (params.rating === 'down' && params.reason) {
+    textLines.push(`Reason: ${params.reason}`)
+  }
+  const subject = `Rating · ${emoji} ${params.userName || params.userEmail} · ${params.eventName}`
+  const { error } = await resend.emails.send({
+    from: TEAM_FROM,
+    to: MONITOR_BCC,
+    subject,
+    html,
+    text: textLines.join('\n'),
+    headers: AUTO_HEADERS,
+  })
+  if (error) {
+    console.error('sendMatchRatingNotification: Resend error', { email: params.userEmail, error })
+    throw new Error(`Resend send failed: ${error.message ?? JSON.stringify(error)}`)
+  }
+}
+
 // Injects inline color + underline + target="_blank" onto every <a>
 // tag in admin-composed blast body HTML. The WYSIWYG produces clean
 // <a href="..."> tags without styling, and because the wrapper div

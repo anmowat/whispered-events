@@ -7,6 +7,7 @@ import {
   getLastDigestSentByEmail,
   getLastBlastSentByEmail,
   getMatchesForEvent,
+  getRatingCountsByEmail,
 } from '@/lib/supabase'
 import { getActiveUsers, getFutureEvents } from '@/lib/airtable'
 import { withinMiles } from '@/lib/geocode'
@@ -30,13 +31,14 @@ export async function GET(req: NextRequest) {
   const eventIdFilter = req.nextUrl.searchParams.get('eventId') || ''
 
   try {
-    const [activeUsers, futureEvents, contribStats, lastSeen, lastDigest, lastBlast] = await Promise.all([
+    const [activeUsers, futureEvents, contribStats, lastSeen, lastDigest, lastBlast, ratingCounts] = await Promise.all([
       getActiveUsers(),
       getFutureEvents(),
       getContributionTotalsByEmail(),
       getLastSeenByEmail(),
       getLastDigestSentByEmail(),
       getLastBlastSentByEmail(),
+      getRatingCountsByEmail(),
     ])
     const futureEventIds = futureEvents.map((e) => e.id)
     const counts = await getMatchCountsByEmail(futureEventIds)
@@ -80,6 +82,7 @@ export async function GET(req: NextRequest) {
         const localMatchPct = nearbyCount > 0
           ? Math.round((matchCount / nearbyCount) * 100)
           : null
+        const ratings = ratingCounts.get(u.email) ?? { up: 0, down: 0 }
         return {
           id: u.id,
           created: u.created || null,
@@ -97,6 +100,8 @@ export async function GET(req: NextRequest) {
           lastSeen: lastSeen.get(key) ?? null,
           lastDigestSent: lastDigest.get(key) ?? null,
           lastBlastSent: lastBlast.get(key) ?? null,
+          ratingsUp: ratings.up,
+          ratingsDown: ratings.down,
         }
       })
       .sort((a, b) => {

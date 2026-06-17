@@ -32,6 +32,8 @@ export async function GET(req: NextRequest) {
       ...e,
       matchScore: entry?.score ?? null,
       matchPercent: entry?.matchPercent ?? null,
+      rating: entry?.rating ?? null,
+      ratingReason: entry?.ratingReason ?? null,
     }
   })
 

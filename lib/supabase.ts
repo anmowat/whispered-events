@@ -156,26 +156,94 @@ export async function getMatchedEventIds(userEmail: string): Promise<Set<string>
   return new Set((data ?? []).map((m: { event_id: string }) => m.event_id))
 }
 
+export type MatchRating = 'up' | 'down'
+
+export interface UserMatchScore {
+  score: number
+  matchPercent: number
+  rating: MatchRating | null
+  ratingReason: string | null
+}
+
 export async function getMatchScoresForUser(
   userEmail: string,
-): Promise<Map<string, { score: number; matchPercent: number }>> {
+): Promise<Map<string, UserMatchScore>> {
   const supabase = getClient()
   const { data } = await supabase
     .from('matches')
-    .select('event_id, score, match_percent')
+    .select('event_id, score, match_percent, rating, rating_reason')
     .eq('user_email', userEmail)
-  const scores = new Map<string, { score: number; matchPercent: number }>()
+  const scores = new Map<string, UserMatchScore>()
   for (const row of data ?? []) {
-    const r = row as { event_id: string; score: number; match_percent: number | null }
+    const r = row as {
+      event_id: string
+      score: number
+      match_percent: number | null
+      rating: MatchRating | null
+      rating_reason: string | null
+    }
     const prev = scores.get(r.event_id)?.score ?? -1
     if (r.score > prev) {
       scores.set(r.event_id, {
         score: r.score,
         matchPercent: r.match_percent ?? Math.round((r.score / 3.0) * 100),
+        rating: r.rating,
+        ratingReason: r.rating_reason,
       })
     }
   }
   return scores
+}
+
+// Writes the user's thumbs-up / thumbs-down (or clears it). Returns true
+// when the (event, user) row existed and was updated. Callers should
+// short-circuit if false so we don't fire an admin notification for a
+// rating that didn't actually land.
+export async function setMatchRating(params: {
+  eventId: string
+  userEmail: string
+  rating: MatchRating | null
+  reason: string | null
+}): Promise<boolean> {
+  const supabase = getClient()
+  const { data, error } = await supabase
+    .from('matches')
+    .update({
+      rating: params.rating,
+      // Clear the reason whenever we leave thumbs-down state — no stale
+      // explanation on a row the user later thumbs-up'd or cleared.
+      rating_reason: params.rating === 'down' ? params.reason : null,
+      rated_at: params.rating ? new Date().toISOString() : null,
+    })
+    .eq('event_id', params.eventId)
+    .eq('user_email', params.userEmail)
+    .select('event_id')
+  if (error) throw new Error(`setMatchRating failed: ${error.message}`)
+  return (data?.length ?? 0) > 0
+}
+
+// Aggregates lifetime up/down counts per user_email. Drives the "Rating"
+// column on the admin users list. One bulk read; counted in app code so
+// we don't depend on a Postgres aggregate function on Supabase's PostgREST.
+export async function getRatingCountsByEmail(): Promise<
+  Map<string, { up: number; down: number }>
+> {
+  const supabase = getClient()
+  const { data, error } = await supabase
+    .from('matches')
+    .select('user_email, rating')
+    .not('rating', 'is', null)
+  if (error) throw new Error(`getRatingCountsByEmail failed: ${error.message}`)
+  const counts = new Map<string, { up: number; down: number }>()
+  for (const row of data ?? []) {
+    const r = row as { user_email: string; rating: MatchRating | null }
+    if (!r.user_email || !r.rating) continue
+    const c = counts.get(r.user_email) ?? { up: 0, down: 0 }
+    if (r.rating === 'up') c.up++
+    else if (r.rating === 'down') c.down++
+    counts.set(r.user_email, c)
+  }
+  return counts
 }
 
 export interface MatchAuditRow {

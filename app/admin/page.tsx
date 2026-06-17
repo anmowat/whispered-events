@@ -21,6 +21,8 @@ interface UserRow {
   lastSeen: string | null
   lastDigestSent: string | null
   lastBlastSent: string | null
+  ratingsUp: number
+  ratingsDown: number
 }
 
 interface Stats {
@@ -42,6 +44,7 @@ type SortKey =
   | 'lastSeen'
   | 'lastDigestSent'
   | 'lastBlastSent'
+  | 'ratings'
 
 type SortDir = 'asc' | 'desc'
 
@@ -60,6 +63,7 @@ const DEFAULT_DIR: Record<SortKey, SortDir> = {
   lastSeen: 'desc',
   lastDigestSent: 'desc',
   lastBlastSent: 'desc',
+  ratings: 'desc',
 }
 
 const POLL_MS = 10_000
@@ -203,6 +207,7 @@ function compareByKey(a: UserRow, b: UserRow, key: SortKey): number {
     case 'lastSeen': return dateMs(a.lastSeen) - dateMs(b.lastSeen)
     case 'lastDigestSent': return dateMs(a.lastDigestSent) - dateMs(b.lastDigestSent)
     case 'lastBlastSent': return dateMs(a.lastBlastSent) - dateMs(b.lastBlastSent)
+    case 'ratings': return (a.ratingsUp + a.ratingsDown) - (b.ratingsUp + b.ratingsDown)
   }
 }
 
@@ -616,6 +621,15 @@ export default function AdminPage() {
                       title="Last contribution — date the user most recently shared / spotted an event (whichever is more recent)."
                     />
                     <SortHeader
+                      label="Rating"
+                      sortKey="ratings"
+                      align="right"
+                      sortBy={sortBy}
+                      sortDir={sortDir}
+                      onToggle={toggleSort}
+                      title="Lifetime thumbs-up / thumbs-down ratings the user has submitted on their dashboard. Format: up / down. Sorted by total (up + down)."
+                    />
+                    <SortHeader
                       label="Sent"
                       sortKey="lastDigestSent"
                       align="right"
@@ -710,6 +724,14 @@ export default function AdminPage() {
                         title={formatDate(u.lastContribution)}
                       >
                         {formatDateShort(u.lastContribution)}
+                      </td>
+                      <td
+                        className={`px-4 py-3 text-right tabular-nums whitespace-nowrap ${u.ratingsUp === 0 && u.ratingsDown === 0 ? 'text-gray-400' : 'text-gray-800'}`}
+                        title={`${u.ratingsUp} thumbs up, ${u.ratingsDown} thumbs down`}
+                      >
+                        {u.ratingsUp + u.ratingsDown === 0
+                          ? '—'
+                          : `${u.ratingsUp} / ${u.ratingsDown}`}
                       </td>
                       <td
                         className={`px-4 py-3 text-right tabular-nums whitespace-nowrap ${u.lastDigestSent ? 'text-gray-800' : 'text-gray-400'}`}
