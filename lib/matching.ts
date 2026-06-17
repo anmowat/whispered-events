@@ -21,7 +21,7 @@ const QUALITY_MULTIPLIER: Record<'A' | 'Polish' | 'B' | 'C', number> = {
 // Bumped any time the scoring rubric / prompt / formula changes so the
 // inputs hash on every cached row turns stale. The admin rescore-missing
 // endpoint then picks them up and refreshes under the new model.
-const MATCHING_VERSION = 7
+const MATCHING_VERSION = 8
 
 export type SkippedReason = 'grade_c' | 'location_zero' | 'women_only_audience'
 
@@ -164,6 +164,8 @@ Return three values via the submit_score tool:
      • "Engineering Leaders" → Engineering, Platform, Infrastructure, DevOps, Data
      • "Product Leaders" → Product Management, Design, Product Marketing
      • "Operations Leaders" → Operations, Supply Chain, Strategy
+
+   Founder/CEO oversight exception: Founders and CEOs oversee every function in their company. The strict alias "Founder ≡ CEO" credits 1.5 / 1.2 only when the audience LITERALLY names "Founder(s)", "Co-Founder", or "CEO". Otherwise, when the audience targets a senior function whose holders would report into a Founder/CEO — other C-suite roles (CMO, CRO, CFO, CTO, CPO, COO, etc.), VPs / Heads of any function (Sales, Marketing, Engineering, RevOps, etc.), broad-role aliases ("GTM Leaders", "Revenue Leaders", "Engineering Leaders", etc.), or broad senior-functional groups ("Anyone in GTM", "Anyone in Engineering") — a Founder/CEO scores 0.8, not 0.0. Rationale: a Founder/CEO can speak to and learn from any dinner where their direct reports would be invited. This exception applies ONLY to Founders/CEOs. It does NOT generalize to other C-suite — a CTO at a "CMOs only" dinner is wrong audience (0.0), a CMO at a "CROs only" dinner is 0.0. Cross-function C-suite with no oversight relationship is 0.0.
 
    Multi-function attendees: when the Function field lists multiple values (e.g. "RevOps, Sales"), score against the SINGLE BEST match across them. Pick the function that aligns most strongly with the event audience, ignore the rest.
 
