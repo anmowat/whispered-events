@@ -56,6 +56,7 @@ const SANS = `-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica 
 const FONT_LINK = `<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500;1,600&display=swap" rel="stylesheet">`
 
 const DASHBOARD_LINK = 'https://www.whisperedevents.com/dashboard'
+const FAQ_LINK = 'https://www.whisperedevents.com/faq'
 
 // Appends ?email=<encoded> when we know the recipient. The dashboard
 // not-logged-in page reads this and pre-fills the magic-link form so
@@ -831,11 +832,17 @@ export async function sendApprovedWithDigest(
     ? inlineCoachingTextLines(user.location || '', nearbyCount)
     : []
 
-  const introCopy = hasMatches
+  const baseIntro = hasMatches
     ? "You've been approved for Whispered Events. Here are some upcoming events that match your profile:"
     : includeCoaching
-      ? "You've been approved for Whispered Events. We don't have matching events for you yet — here are two quick ways to fix that:"
+      ? null
       : "You've been approved for Whispered Events."
+
+  const coachingIntroHtml = `You've been approved for Whispered Events. We don't have matching events in your region yet (<a href="${FAQ_LINK}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">see how we match</a>) — here are two quick ways to fix that:`
+  const coachingIntroText = `You've been approved for Whispered Events. We don't have matching events in your region yet (see how we match: ${FAQ_LINK}) — here are two quick ways to fix that:`
+
+  const introCopyHtml = baseIntro ?? coachingIntroHtml
+  const introCopyText = baseIntro ?? coachingIntroText
 
   // Inline truncation note — surfaces remaining matches that didn't
   // fit in the top-3 cap. Falls back to '' when nothing was truncated.
@@ -850,7 +857,7 @@ export async function sendApprovedWithDigest(
   const html = shell(`
     ${eyebrow(`Welcome · ${eb}`)}
     ${h1(`<span style="font-style:italic;">Welcome</span> to the club, ${escapeHtml(firstName)}.`)}
-    ${p(introCopy, { mt: 14 })}
+    ${p(introCopyHtml, { mt: 14 })}
     ${renderEntries(annotated.newEvents)}
     ${moreHtml}
     ${coachingHtml}
@@ -862,7 +869,7 @@ export async function sendApprovedWithDigest(
     '',
     `Welcome to the club, ${firstName}.`,
     '',
-    introCopy,
+    introCopyText,
     '',
   ]
   const appendEntries = (entries: DigestEventEntry[]) => {
