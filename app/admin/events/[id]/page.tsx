@@ -48,7 +48,7 @@ function scoreTooltip(u: UserRow): string {
     `Location: ${fmtNum(u.locationScore)}`,
     `Audience: ${fmtNum(u.audienceScore)}`,
     `Quality:  ${fmtNum(u.qualityScore)}`,
-    `Prefs:    ${fmtNum(u.preferenceScore)}`,
+    `Topics:   ${fmtNum(u.preferenceScore)}`,
     `Total:    ${fmtNum(u.score)}`,
   ]
   return lines.join('\n')

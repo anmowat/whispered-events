@@ -21,7 +21,7 @@ const QUALITY_MULTIPLIER: Record<'A' | 'Polish' | 'B' | 'C', number> = {
 // Bumped any time the scoring rubric / prompt / formula changes so the
 // inputs hash on every cached row turns stale. The admin rescore-missing
 // endpoint then picks them up and refreshes under the new model.
-const MATCHING_VERSION = 6
+const MATCHING_VERSION = 7
 
 export type SkippedReason = 'grade_c' | 'location_zero' | 'women_only_audience'
 
@@ -141,14 +141,14 @@ async function callLLM(
 
 Return three values via the submit_score tool:
 
-1. "audience" (0.0–1.5): how the event's stated Audience and Type aligns with the attendee's Function and Seniority. Use this rubric — do not invent intermediate logic:
-   • 1.5 — Event audience literally names this attendee's function AND seniority (e.g. event audience "Marketing VP/Directors, CMO" for a C-level Marketing attendee).
-   • 1.2 — Event audience literally names the function OR the seniority, but not both.
-   • 0.9 — Same function family, adjacent seniority only (e.g. VP Sales at a CRO dinner; Director Marketing at a CMO event). Different functions at the same seniority level do NOT count as adjacent.
-   • 0.5 — Tangential overlap. This is the right tier when the audience names a SPECIFIC C-suite role and the attendee holds a DIFFERENT C-suite role (e.g. a CMO at a CEOs-only dinner; a VP Sales at a CMO event). Cross-function executive overlap is tangential, not adjacent.
-   • 0.0 — Wrong audience entirely.
+1. "audience" (0.0–1.5): how the event's stated Audience and Type aligns with the attendee's Function and Seniority. LITERAL function naming (or strict C-suite alias) is the only path to 1.2+. Broad-role aliases are soft signal. Use this rubric — do not invent intermediate logic:
+   • 1.5 — Event audience LITERALLY names this attendee's function AND seniority (e.g. audience "Marketing VP/Directors, CMO" for a C-level Marketing attendee). Strict C-suite aliases below count as literal.
+   • 1.2 — Same literal/strict-alias match but only function OR seniority, not both. Requires the function to actually match — a CMO at an event whose audience names "VPs of Marketing" lands here (function literal, seniority off). A CTO at a CMO event does NOT — that's wrong audience (0.0).
+   • 0.8 — Broad-role alias only: the attendee qualifies via one of the broad-role aliases below (e.g. RevOps under "GTM Leaders", Customer Success under "Revenue Leaders", Design under "Product Leaders") with no literal function naming. Close to the audience but not literally named.
+   • 0.6 — Same function family, adjacent seniority only (e.g. VP Sales at a CRO dinner; Director Marketing at a CMO event). Different functions at the same seniority do NOT count as adjacent.
+   • 0.0 — Wrong audience entirely. Covers cross-C-suite mismatches (CTO at a CMO event) and other wrong-function cases (VP Sales at a CMO event). There is no "tangential overlap" tier for the audience leg — if the function family doesn't match and there's no broad-role-alias path, it's wrong audience.
 
-   C-suite function-family aliases — when the attendee's Function + Seniority matches one of these definitions, treat the corresponding C-title in the event audience as a LITERAL match (the function AND seniority anchor for 1.5):
+   C-suite function-family aliases (STRICT — count as literal naming for the 1.5 / 1.2 tiers): when the attendee's Function + Seniority matches one of these, treat the corresponding C-title in the event audience as a LITERAL match:
      • Founder ≡ CEO (and Co-Founder ≡ CEO)
      • C-Level Sales / C-Level Revenue ≡ CRO
      • C-Level Marketing ≡ CMO
@@ -159,7 +159,7 @@ Return three values via the submit_score tool:
      • C-Level Legal / C-Level Counsel ≡ GC
      • C-Level People / C-Level HR ≡ CHRO / CPO-People
 
-   Broad-role aliases — when the event audience uses one of these phrases, interpret it as inclusive of the listed functions at any senior level (Director / VP / C-Level):
+   Broad-role aliases (SOFT — cap at 0.8, NOT literal): when the event audience uses one of these phrases, interpret it as inclusive of the listed functions at any senior level (Director / VP / C-Level), but score the match at 0.8 not 1.2:
      • "GTM Leaders" / "Revenue Leaders" / "Go-to-Market Leaders" → Sales, RevOps, Marketing, Customer Success
      • "Engineering Leaders" → Engineering, Platform, Infrastructure, DevOps, Data
      • "Product Leaders" → Product Management, Design, Product Marketing
@@ -167,22 +167,21 @@ Return three values via the submit_score tool:
 
    Multi-function attendees: when the Function field lists multiple values (e.g. "RevOps, Sales"), score against the SINGLE BEST match across them. Pick the function that aligns most strongly with the event audience, ignore the rest.
 
-   Hard rule — applies ONLY to single-role audiences (e.g. "CEOs only", "CMOs only", "CROs and Founders only"): only attendees mapping to that exact role family via the aliases above qualify for ≥0.9. Every other C-suite function is 0.5 (tangential), not 0.9.
+   Hard rule — applies ONLY to single-role audiences (e.g. "CEOs only", "CMOs only", "CROs and Founders only"): only attendees mapping to that exact role family via the STRICT C-suite aliases above qualify for ≥1.2. Every other C-suite function is 0.0 (wrong audience), not partial credit.
 
-   Multi-role audiences (event lists 3+ distinct roles, e.g. "CROs, CMOs, GTM Leaders, Founders"): the hard rule does NOT apply. An attendee mapping to ANY listed role via the aliases above qualifies for ≥1.2; matching both function AND seniority of one listed role is 1.5.
+   Multi-role audiences (event lists 3+ distinct roles, e.g. "CROs, CMOs, GTM Leaders, Founders"): an attendee who matches one of the listed roles via a STRICT C-suite alias scores per the literal tiers (1.5 / 1.2). An attendee who matches ONLY via a broad-role alias caps at 0.8.
 
    Industry context (SaaS vs VC vs services etc.) cannot drop the score by more than one tier. Function + seniority overlap dominates.
 
-2. "preferences" (0.0–1.5): how the event aligns with the topics the attendee said they want events about. Compare against the event's name, audience, and description.
+2. "preferences" (0.0–1.5): how the event aligns with the topics the attendee said they want events about. Compare against the event's name, audience, and description. DENSITY matters — score the SHARE of the attendee's scorable topics that match, not just whether any one of them does.
 
-   Treat as neutral (ignore for this leg, do not penalize): topics that are actually role/seniority (e.g. "CMO events", "VP+", "senior sales leaders"), event formats (e.g. "dinners", "networking", "roundtables"), or exclusion criteria. Role/seniority is already scored in the audience leg above; format isn't on the event-side rubric.
+   Treat as neutral (ignore for this leg, do not penalize, and do not count against the scorable-topic denominator): topics that are actually role/seniority (e.g. "CMO events", "VP+", "senior sales leaders"), event formats (e.g. "dinners", "networking", "roundtables"), or exclusion criteria. Role/seniority is already scored in the audience leg above; format isn't on the event-side rubric.
 
-   • 1.5 — Stated topic matches the event name, audience tag, or description literally or near-literally (e.g. topic "RevOps" + event "RevOps Leaders Dinner" → 1.5; topic "Women" + event audience includes "Women in Marketing Leadership" → 1.5; topic "Agentic AI" + "Agentic Growth Era Dinner" → 1.5; topic "SDR" or "Sales Development" + Funnel '26 → 1.5).
-   • 1.2 — Strong semantic match (topic "GTM" + event for "Sales + Marketing leaders"; topic "AI" + an event explicitly about Agentic AI).
-   • 1.0 — No topics stated, OR only role/format/exclusion text given and no scorable topic remains.
-   • 0.8 — Topics stated but none overlap this specific event (off-topic, not opposed). Use this — do NOT default to 0.5 just because no overlap exists.
-   • 0.5 — Genuine tangential overlap (one weak keyword that maps loosely; rarely the right tier).
-   • 0.0 — Attendee explicitly excluded this kind of event.
+   • 1.5 — Multiple stated topics literally match the event (≥2 of the attendee's scorable topics map to the event's name/audience/description). OR a single literal match when the attendee's scorable topic list is very short (≤2 topics) and the match is dominant.
+   • 1.2 — Single literal topic match against a medium topic list (3 scorable topics) — strong but not overwhelming.
+   • 1.0 — No topics stated, OR only role/format/exclusion text given and no scorable topic remains. ALSO: single literal topic match in a longer list (4+ scorable topics) — needle in haystack. ALSO: strong semantic match (topic "GTM" + event for "Sales + Marketing leaders"; topic "AI" + an event explicitly about Agentic AI) regardless of list length.
+   • 0.7 — Genuine tangential overlap (one weak keyword that maps loosely — e.g. topic "GTM" against an event about "Marketing Operations"; same neighborhood, not the same thing).
+   • 0.4 — Topics stated but none match this event at all (off-topic, not opposed). Floor for "we have signal about what they want; this isn't it."
 
 3. "reason" (one sentence): the dominant factor driving the score — literal overlap, adjacency, or mismatch.`
 

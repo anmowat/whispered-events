@@ -60,7 +60,7 @@ function scoreTooltip(e: EventRow): string {
     `Location: ${fmtNum(e.locationScore)}`,
     `Audience: ${fmtNum(e.audienceScore)}`,
     `Quality:  ${fmtNum(e.qualityScore)}`,
-    `Prefs:    ${fmtNum(e.preferenceScore)}`,
+    `Topics:   ${fmtNum(e.preferenceScore)}`,
     `Total:    ${fmtNum(e.score)}`,
   ]
   return lines.join('\n')

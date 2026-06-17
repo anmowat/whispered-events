@@ -41,7 +41,7 @@ function scoreTooltip(m: HostMatch): string {
     `Location: ${fmtNum(m.locationScore)}`,
     `Audience: ${fmtNum(m.audienceScore)}`,
     `Quality:  ${fmtNum(m.qualityScore)}`,
-    `Prefs:    ${fmtNum(m.preferenceScore)}`,
+    `Topics:   ${fmtNum(m.preferenceScore)}`,
     `Total:    ${fmtNum(m.score)}`,
   ].join('\n')
 }
