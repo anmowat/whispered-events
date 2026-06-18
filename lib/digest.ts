@@ -325,8 +325,8 @@ export async function runDigests(now: Date): Promise<{
   }
 }
 
-// Daily batched digest for "As they arrive" users. Runs at 14:00 UTC
-// (morning PT) every day. Per-user flow is identical to the weekly
+// Daily batched digest for "As they arrive" users. Runs at 02:00 UTC
+// (7 PM PT the previous day) every day. Per-user flow is identical to the weekly
 // cron — same `processUser` helper, same 3-event cap, same
 // `markMatchesNotified` stamping — but the recently-touched floor is
 // 1 day instead of 7 so a same-day re-run doesn't double-send.
