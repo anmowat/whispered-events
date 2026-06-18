@@ -206,7 +206,7 @@ export async function POST(req: NextRequest) {
 
   let id: string
   try {
-    id = await createEvent(eventToCreate)
+    id = await createEvent(eventToCreate, undefined, 'Email')
   } catch (e) {
     console.error('inbound-email: createEvent failed', e)
     // Send the "couldn't read your event" reply so the submitter

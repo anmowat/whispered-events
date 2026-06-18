@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
       if (partnerUser) hostUserId = partnerUser.id
     }
 
-    const id = await createEvent(event, hostUserId)
+    const id = await createEvent(event, hostUserId, 'Dashboard')
 
     recordContribution({
       email: event.submitter,

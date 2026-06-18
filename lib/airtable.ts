@@ -338,7 +338,11 @@ export async function getPartnerUserByEmail(email: string): Promise<AirtableUser
   return toAirtableUser(records[0])
 }
 
-export async function createEvent(event: EventRecord, hostUserId?: string): Promise<string> {
+export async function createEvent(
+  event: EventRecord,
+  hostUserId?: string,
+  source?: 'Email' | 'Dashboard',
+): Promise<string> {
   const base = getBase()
   // Required fields. Optional fields are added below only when non-empty —
   // Airtable's typed columns (Date in particular) reject empty strings
@@ -369,6 +373,7 @@ export async function createEvent(event: EventRecord, hostUserId?: string): Prom
     console.warn(`createEvent: could not geocode "${event.location}"`)
   }
   if (hostUserId) fields['Host'] = [hostUserId]
+  if (source) fields['Source'] = source
   const record = await base(EVENTS_TABLE).create(fields)
   // Bust the cache so the immediately-following processEventTrigger sees the
   // new event.
