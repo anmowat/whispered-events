@@ -1037,7 +1037,9 @@ function AddEventModal({
             className="font-serif m-0"
             style={{ fontSize: 24, color: '#ece6da', letterSpacing: '-0.01em' }}
           >
-            Add an <span style={{ fontStyle: 'italic', color: '#c9a86a' }}>event</span>
+            Add an{' '}
+            <span style={{ fontStyle: 'italic', color: '#c9a86a' }}>event</span>{' '}
+            (anonymously) in seconds
           </h2>
           <button
             onClick={onClose}
