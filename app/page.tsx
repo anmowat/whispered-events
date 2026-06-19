@@ -485,24 +485,6 @@ function Landing({
             They&rsquo;re whispered.
           </span>
         </h1>
-        {/* Partner row — leads under the headline so the social proof
-            lands first, then the per-tab value prop below it. */}
-        {partners.some((p) => p.featured) && (
-          <div className="mt-9">
-            <div
-              className="mb-[18px]"
-              style={{
-                fontSize: 11,
-                letterSpacing: '.26em',
-                textTransform: 'uppercase',
-                color: 'rgba(236,230,218,.38)',
-              }}
-            >
-              Partnered with the best communities &amp; companies
-            </div>
-            <PartnerMarquee partners={partners} />
-          </div>
-        )}
 
         <p
           className="text-[15px] sm:text-[17px]"
@@ -645,44 +627,64 @@ function Landing({
         </div>
       </section>
 
-      {/* Featured / past events */}
-      {(slides.length > 0 || featuredFallback.length > 0) && (
-        <section className="max-w-[1080px] mx-auto px-5 sm:px-11 pb-16 sm:pb-[66px]">
-          <div
-            className="mb-[18px]"
-            style={{
-              fontSize: 11,
-              letterSpacing: '.3em',
-              textTransform: 'uppercase',
-              color: 'rgba(236,230,218,.4)',
-            }}
-          >
-            {featuredLabel}
-          </div>
-          {slides.length > 0 ? (
-            <FeaturedCarousel events={slides} />
-          ) : (
-            <div className="flex flex-col gap-3">
-              {featuredFallback.map((e) => (
-                <FeaturedRow key={e.id} event={e} />
-              ))}
-            </div>
+      {/* Bottom section: Find Events / Contribute show example past
+          events. Partner tab shows the partner marquee instead — the
+          strongest social proof for prospects evaluating whether to
+          host with us. */}
+      {tab === 'partner'
+        ? partners.some((p) => p.featured) && (
+            <section className="max-w-[1080px] mx-auto px-5 sm:px-11 pb-16 sm:pb-[66px]">
+              <div
+                className="mb-[18px]"
+                style={{
+                  fontSize: 11,
+                  letterSpacing: '.26em',
+                  textTransform: 'uppercase',
+                  color: 'rgba(236,230,218,.4)',
+                }}
+              >
+                Partnered with the best communities &amp; companies
+              </div>
+              <PartnerMarquee partners={partners} />
+            </section>
+          )
+        : (slides.length > 0 || featuredFallback.length > 0) && (
+            <section className="max-w-[1080px] mx-auto px-5 sm:px-11 pb-16 sm:pb-[66px]">
+              <div
+                className="mb-[18px]"
+                style={{
+                  fontSize: 11,
+                  letterSpacing: '.3em',
+                  textTransform: 'uppercase',
+                  color: 'rgba(236,230,218,.4)',
+                }}
+              >
+                {featuredLabel}
+              </div>
+              {slides.length > 0 ? (
+                <FeaturedCarousel events={slides} />
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {featuredFallback.map((e) => (
+                    <FeaturedRow key={e.id} event={e} />
+                  ))}
+                </div>
+              )}
+              {content.featuredNote && (
+                <div
+                  className="mt-3.5"
+                  style={{
+                    fontSize: 12,
+                    lineHeight: 1.6,
+                    color: 'rgba(236,230,218,.4)',
+                    maxWidth: 640,
+                  }}
+                >
+                  {content.featuredNote}
+                </div>
+              )}
+            </section>
           )}
-          {content.featuredNote && (
-            <div
-              className="mt-3.5"
-              style={{
-                fontSize: 12,
-                lineHeight: 1.6,
-                color: 'rgba(236,230,218,.4)',
-                maxWidth: 640,
-              }}
-            >
-              {content.featuredNote}
-            </div>
-          )}
-        </section>
-      )}
     </div>
   )
 }
