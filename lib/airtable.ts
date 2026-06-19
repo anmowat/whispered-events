@@ -585,9 +585,15 @@ export async function getFutureEvents(): Promise<AirtableEvent[]> {
 
 export async function getUserByEmail(email: string): Promise<AirtableUser | null> {
   const base = getBase()
+  // LOWER() match — createProfile's upsert check (further down in this
+  // file) is case-insensitive, so this lookup needs to agree. Users
+  // whose row was first created via inbound event contribution (which
+  // stores the From-header email with its original casing) wouldn't
+  // be found by a strict-equality match.
+  const needle = email.toLowerCase().replace(/'/g, "\\'")
   const records = await base(PROFILES_TABLE)
     .select({
-      filterByFormula: `{Email} = '${email.replace(/'/g, "\\'")}'`,
+      filterByFormula: `LOWER({Email}) = '${needle}'`,
       fields: [...USER_FIELDS],
       maxRecords: 1,
     })

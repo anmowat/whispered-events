@@ -755,7 +755,13 @@ export async function sendEventCouldNotReadEmail(email: string): Promise<void> {
 
 export async function sendMagicLink(email: string, token: string, baseUrl: string): Promise<void> {
   const resend = getResend()
-  const link = `${baseUrl}/api/auth/verify?token=${token}`
+  // /auth/login is a passive interstitial — it never consumes the
+  // token on its own. The user clicks "Sign me in" there to POST to
+  // /api/auth/verify, which is what actually creates the session.
+  // Pointing the email at /auth/login (not the API route) means email
+  // security scanners that prefetch URLs can't accidentally burn the
+  // token before the recipient clicks.
+  const link = `${baseUrl}/auth/login?token=${token}`
   // Magic-link email: no monitor BCC because the link is single-use auth.
   // Layout mirrors the magic-link mockup from the design pack.
   const html = `

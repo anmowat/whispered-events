@@ -85,6 +85,17 @@ export default function Home() {
   const [featuredEvents, setFeaturedEvents] = useState<FeaturedEvent[]>([])
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [matches30, setMatches30] = useState<number | null>(null)
+  const [authInvalid, setAuthInvalid] = useState(false)
+
+  // Surface ?auth=invalid as a visible banner — set by /api/auth/verify
+  // when a magic-link token is missing, expired, or already used. Before
+  // this, the user was bounced silently to the homepage and saw the
+  // normal "Create Profile" CTA, which read as "my account doesn't
+  // exist."
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('auth') === 'invalid') setAuthInvalid(true)
+  }, [])
 
   useEffect(() => {
     fetch('/api/events-count')
@@ -176,6 +187,61 @@ export default function Home() {
       />
 
       <main className="flex-1 flex flex-col">
+        {authInvalid && (
+          <div
+            className="mx-auto w-full max-w-[880px] mt-6 sm:mt-8 px-5 sm:px-10"
+          >
+            <div
+              className="flex items-start gap-3 rounded-[10px] border px-4 py-3.5"
+              style={{
+                background: 'rgba(201,168,106,0.08)',
+                borderColor: 'rgba(201,168,106,0.32)',
+                color: 'rgba(236,230,218,.85)',
+              }}
+            >
+              <span
+                aria-hidden
+                style={{
+                  width: 6,
+                  height: 6,
+                  marginTop: 8,
+                  background: '#c9a86a',
+                  transform: 'rotate(45deg)',
+                  flexShrink: 0,
+                }}
+              />
+              <div className="flex-1 text-[13.5px] leading-relaxed">
+                <strong style={{ color: '#ece6da' }}>
+                  That sign-in link didn&rsquo;t work.
+                </strong>{' '}
+                It may have already been used or expired. Use{' '}
+                <button
+                  onClick={() => setShowLogin(true)}
+                  style={{
+                    color: '#c9a86a',
+                    textDecoration: 'underline',
+                    textUnderlineOffset: 3,
+                  }}
+                >
+                  Log in
+                </button>{' '}
+                to request a fresh one.
+              </div>
+              <button
+                onClick={() => setAuthInvalid(false)}
+                aria-label="Dismiss"
+                className="text-[18px] leading-none"
+                style={{
+                  color: 'rgba(236,230,218,.5)',
+                  flexShrink: 0,
+                  marginTop: 2,
+                }}
+              >
+                &times;
+              </button>
+            </div>
+          </div>
+        )}
         {mode === 'landing' ? (
           <Landing
             tab={tab}
