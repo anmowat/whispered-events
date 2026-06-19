@@ -1049,16 +1049,16 @@ function AddEventModal({
           </button>
         </div>
         <div
-          className="m-0 mb-4 space-y-1.5"
+          className="m-0 mb-4 text-center space-y-1.5"
           style={{ fontSize: 13.5, color: 'rgba(236,230,218,.78)', lineHeight: 1.55 }}
         >
+          <p className="m-0">Share a link to any event</p>
           <p className="m-0">
-            Share a link to any event (one you&rsquo;re running or one you
-            know about)
+            (one you&rsquo;re running or one you know about)
           </p>
+          <p className="m-0">Our AI extracts the details</p>
           <p className="m-0">
-            Our AI extracts the details and we share it with the executives
-            whose profile fits
+            We share the event with the execs whose profile fits
           </p>
           <p className="m-0">You get karma and credits 🥂</p>
         </div>
