@@ -34,7 +34,7 @@ const DEFAULT_FREQUENCY = 'Monthly'
 
 // Exact spellings match the Size single-select options in the Airtable
 // Users table — do not change here without also updating Airtable.
-const COMPANY_SIZE_OPTIONS = ['<$5M', '$5-25m', '$25-100m', '$100m-1B', '$1B+', 'Other']
+const COMPANY_SIZE_OPTIONS = ['<$5M', '$5-25M', '$25-100M', '$100M-1B', '$1B+', 'Other']
 
 // Display-only relabel for 'Paused'. The value we save (Airtable
 // picklist, every backend lookup, the digest cron's frequency check)
