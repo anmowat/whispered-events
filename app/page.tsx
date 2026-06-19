@@ -91,9 +91,16 @@ export default function Home() {
   // this, the user was bounced silently to the homepage and saw the
   // normal "Create Profile" CTA, which read as "my account doesn't
   // exist."
+  // ?apply=partner deep-links into the Partner Apply chat surface so
+  // CTAs elsewhere (e.g. /host's "Apply to become a partner") can land
+  // visitors directly on the form instead of the marketing landing.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     if (params.get('auth') === 'invalid') setAuthInvalid(true)
+    if (params.get('apply') === 'partner') {
+      setTab('partner')
+      setMode('active')
+    }
   }, [])
 
   useEffect(() => {

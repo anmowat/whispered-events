@@ -91,20 +91,21 @@ export default function HostPage() {
 
         {authState === 'unauthorized' && (
           <div
-            className="rounded-card border p-8 text-center"
+            className="rounded-card border p-8 text-center max-w-xl mx-auto"
             style={{ background: 'var(--paper)', borderColor: 'var(--rule)' }}
           >
             <h2
-              className="font-serif mb-2"
+              className="font-serif mb-3"
               style={{ fontSize: 24, color: 'var(--ink)', letterSpacing: '-0.01em' }}
             >
-              Log in to view your events
+              Host Dashboard
             </h2>
             <p
-              className="mb-6"
-              style={{ fontSize: 13, color: 'var(--ink-3)' }}
+              className="mb-6 leading-relaxed"
+              style={{ fontSize: 14, color: 'var(--ink-2)' }}
             >
-              We&apos;ll send you a magic link.
+              This page is for partners to view and refine matches for events
+              they host. If you are a partner, log in.
             </p>
             <button
               onClick={() => setShowLogin(true)}
@@ -138,7 +139,36 @@ export default function HostPage() {
           </div>
         )}
 
-        {authState === 'authorized' && events && (
+        {authState === 'authorized' && events && events.length === 0 && (
+          <div
+            className="rounded-card border p-8 text-center max-w-xl mx-auto"
+            style={{ background: 'var(--paper)', borderColor: 'var(--rule)' }}
+          >
+            <h2
+              className="font-serif mb-3"
+              style={{ fontSize: 24, color: 'var(--ink)', letterSpacing: '-0.01em' }}
+            >
+              Host Dashboard
+            </h2>
+            <p
+              className="mb-6 leading-relaxed"
+              style={{ fontSize: 14, color: 'var(--ink-2)' }}
+            >
+              This page is for partners to view and refine matches for events
+              they host.{' '}
+              <a
+                href="/?apply=partner"
+                className="underline"
+                style={{ color: 'var(--accent)', textUnderlineOffset: 3 }}
+              >
+                Apply here to become a partner
+              </a>{' '}
+              (it&rsquo;s free).
+            </p>
+          </div>
+        )}
+
+        {authState === 'authorized' && events && events.length > 0 && (
           <>
             <div className="mb-6">
               <h1
@@ -155,27 +185,51 @@ export default function HostPage() {
               <p className="mt-1" style={{ fontSize: 13, color: 'var(--ink-3)' }}>
                 {events.length} upcoming event{events.length === 1 ? '' : 's'}
               </p>
+              <p
+                className="mt-3 mb-0 max-w-2xl leading-relaxed"
+                style={{ fontSize: 13.5, color: 'var(--ink-2)' }}
+              >
+                View events you are hosting and the matches for each below. If
+                you have feedback on matches or other suggestions / questions,
+                email{' '}
+                <a
+                  href="mailto:team@whisperedevents.com"
+                  className="underline"
+                  style={{ color: 'var(--accent)', textUnderlineOffset: 3 }}
+                >
+                  team@whisperedevents.com
+                </a>
+                .
+              </p>
             </div>
 
-            <div className="flex items-center gap-3 mb-4 flex-wrap">
+            <div className="flex items-center gap-2 mb-4 flex-wrap">
               <input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search by event name…"
-                className="flex-1 min-w-[200px] rounded-input border border-rule bg-paper text-ink px-3 py-2 text-[13px] placeholder:opacity-60 focus:outline-none focus:border-accent transition-colors"
+                className="flex-1 min-w-[200px] rounded-input border px-3 py-2 text-[13px] placeholder:opacity-60 focus:outline-none transition-colors"
+                style={{
+                  backgroundColor: 'var(--paper-2)',
+                  borderColor: 'var(--rule)',
+                  color: 'var(--ink)',
+                }}
               />
-              <div className="flex items-center gap-2">
-                <label className="eyebrow">Sort by</label>
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as SortKey)}
-                  className="salon-select rounded-input border border-rule bg-paper text-ink px-3 py-2 text-[13px] focus:outline-none focus:border-accent transition-colors"
-                >
-                  <option value="date">Date</option>
-                  <option value="name">Name</option>
-                </select>
-              </div>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as SortKey)}
+                className="salon-select rounded-input border px-3 py-2 text-[13px] focus:outline-none transition-colors"
+                style={{
+                  backgroundColor: 'var(--paper-2)',
+                  borderColor: 'var(--rule)',
+                  color: 'var(--ink)',
+                }}
+                aria-label="Sort events"
+              >
+                <option value="date">Sort by date</option>
+                <option value="name">Sort by name</option>
+              </select>
             </div>
 
             <div
@@ -253,9 +307,7 @@ export default function HostPage() {
                   className="px-4 py-6 text-center"
                   style={{ fontSize: 13, color: 'var(--ink-3)' }}
                 >
-                  {events.length === 0
-                    ? 'No upcoming events where you are listed as host.'
-                    : 'No events match your search.'}
+                  No events match your search.
                 </p>
               )}
             </div>
