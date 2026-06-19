@@ -80,7 +80,39 @@ export default function HostPage() {
         activeTab={null}
         onLogoClick={() => (window.location.href = '/')}
         rightSlot={
-          <span className="eyebrow" style={{ color: 'var(--ink-3)' }}>Host</span>
+          authState === 'authorized' ? (
+            <button
+              type="button"
+              onClick={async () => {
+                // Mirror the dashboard logout — destroy the server
+                // session if we can, then bounce home. Network errors
+                // shouldn't trap the user in a logged-in shell.
+                try {
+                  await fetch('/api/auth/logout', {
+                    method: 'POST',
+                    redirect: 'manual',
+                  })
+                } catch {
+                  // ignore
+                }
+                window.location.href = '/'
+              }}
+              className="text-[13px] transition-colors"
+              style={{
+                color: 'var(--ink-2)',
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                cursor: 'pointer',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
+              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--ink-2)')}
+            >
+              Logout
+            </button>
+          ) : (
+            <span className="eyebrow" style={{ color: 'var(--ink-3)' }}>Host</span>
+          )
         }
       />
 

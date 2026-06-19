@@ -171,8 +171,39 @@ export default function Home() {
     letterSpacing: '.01em',
     border: 'none',
     cursor: 'pointer',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
   }
   const pillClass = 'rounded-pill text-[13px] font-semibold transition-colors'
+  // Small padlock — signals to first-time visitors that the
+  // Dashboard / Host Dashboard buttons land on an auth-gated surface.
+  const lockIcon = (
+    <svg
+      aria-hidden
+      width="11"
+      height="13"
+      viewBox="0 0 14 16"
+      fill="none"
+      style={{ flexShrink: 0 }}
+    >
+      <rect
+        x="2"
+        y="7"
+        width="10"
+        height="7.5"
+        rx="1.5"
+        fill="#1b1814"
+      />
+      <path
+        d="M4 7V4.5a3 3 0 0 1 6 0V7"
+        stroke="#1b1814"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        fill="none"
+      />
+    </svg>
+  )
   const headerRight =
     tab === 'contribute' ? (
       <button
@@ -192,6 +223,7 @@ export default function Home() {
         onMouseEnter={(e) => (e.currentTarget.style.background = '#d5b87c')}
         onMouseLeave={(e) => (e.currentTarget.style.background = '#c9a86a')}
       >
+        {lockIcon}
         {tab === 'partner' ? 'Host Dashboard' : 'Dashboard'}
       </a>
     )
