@@ -274,7 +274,10 @@ function WelcomePageInner() {
                   <>
                     We use your topics (as well as your function/level from your LinkedIn) to find the events that best fit you
                     <br />
-                    Pick from frequently used topics below <strong>AND</strong> also feel free to add your own
+                    Pick from frequently used topics below <strong>AND</strong>{' '}
+                    <strong className="underline" style={{ color: 'var(--accent)' }}>
+                      also feel free to add your own
+                    </strong>
                     <br />
                     Update anytime on your dashboard
                   </>
