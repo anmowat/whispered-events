@@ -132,7 +132,9 @@ export default function FaqPage() {
             focused on helping executives find quality events vs. becoming a
             tool for selling ;) If you are traveling you can easily update your
             location to see matches in a new city. We will explore
-            multi-location functionality for top contributors in the future.
+            multi-location functionality for top contributors in the future — so
+            email great events you see to{' '}
+            <Link href="mailto:event@whispered.com">event@whispered.com</Link>.
           </p>
         </section>
 
