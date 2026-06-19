@@ -461,12 +461,6 @@ function ProfileModal({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const dirty =
-    location !== (user.location || '') ||
-    interest !== (user.interest || '') ||
-    employment !== (user.employment || '') ||
-    companySize !== (user.companySize || '')
-
   async function handleSave() {
     setSaving(true)
     setError(null)
@@ -615,7 +609,7 @@ function ProfileModal({
             </button>
             <button
               onClick={handleSave}
-              disabled={!dirty || saving}
+              disabled={saving}
               className="px-5 py-2 rounded-pill text-[13px] font-medium text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               style={{ background: 'var(--accent)' }}
               onMouseEnter={(e) => !saving && (e.currentTarget.style.background = 'var(--accent-2)')}
