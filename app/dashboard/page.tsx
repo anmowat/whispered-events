@@ -208,29 +208,20 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Profile CTA — split into Bio and Topics so users get the
-            mental model up front (who you are vs. what you want to
-            see). Each row opens its own modal so the form stays light. */}
+        {/* Profile CTA — Bio + Topics live in one card, each as a
+            single row. The eyebrow above acts as the section header so
+            no inner "Update your profile" title row is needed. */}
         <section className="mb-6">
           <div className="eyebrow mb-2.5">Your profile</div>
           <div
-            className="rounded-card border overflow-hidden"
+            className="rounded-card border"
             style={{ background: 'var(--paper)', borderColor: 'var(--rule)' }}
           >
-            <div
-              className="px-5 py-4"
-              style={{ borderBottom: '1px solid var(--rule-soft)' }}
-            >
-              <p className="m-0 font-medium" style={{ fontSize: 14, color: 'var(--ink)' }}>
-                Update your profile to improve your matches
-              </p>
-            </div>
             <ProfileSubRow
               title="Bio"
               description="Who you are, where you are located and employment status."
               onEdit={() => setEditingBio(true)}
             />
-            <div style={{ borderTop: '1px solid var(--rule-soft)' }} />
             <ProfileSubRow
               title="Topics"
               description="What topics you are interested in."
@@ -472,14 +463,13 @@ function ProfileSubRow({
 }) {
   return (
     <div className="flex justify-between items-center gap-4 px-5 py-4">
-      <div className="min-w-0">
-        <p className="m-0 font-medium" style={{ fontSize: 14, color: 'var(--ink)' }}>
-          {title}
-        </p>
-        <p className="mt-0.5 m-0" style={{ fontSize: 12, color: 'var(--ink-3)' }}>
-          {description}
-        </p>
-      </div>
+      <p
+        className="m-0 min-w-0 flex items-baseline flex-wrap gap-x-2.5"
+        style={{ fontSize: 14 }}
+      >
+        <span style={{ fontWeight: 500, color: 'var(--ink)' }}>{title}</span>
+        <span style={{ fontSize: 13, color: 'var(--ink-3)' }}>{description}</span>
+      </p>
       <button
         onClick={onEdit}
         className="eyebrow shrink-0 underline"
@@ -498,6 +488,7 @@ function ProfileModalShell({
   title,
   saving,
   error,
+  saveDisabled = false,
   onSave,
   onClose,
   children,
@@ -505,10 +496,15 @@ function ProfileModalShell({
   title: string
   saving: boolean
   error: string | null
+  // When the form has a validation error (e.g. required field not yet
+  // picked), pass true to grey out Save. The caller is responsible for
+  // surfacing the reason via `error`.
+  saveDisabled?: boolean
   onSave: () => void
   onClose: () => void
   children: React.ReactNode
 }) {
+  const disabled = saving || saveDisabled
   return (
     <div
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto"
@@ -556,10 +552,10 @@ function ProfileModalShell({
             </button>
             <button
               onClick={onSave}
-              disabled={saving}
+              disabled={disabled}
               className="px-5 py-2 rounded-pill text-[13px] font-medium text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               style={{ background: 'var(--accent)' }}
-              onMouseEnter={(e) => !saving && (e.currentTarget.style.background = 'var(--accent-2)')}
+              onMouseEnter={(e) => !disabled && (e.currentTarget.style.background = 'var(--accent-2)')}
               onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--accent)')}
             >
               {saving ? 'Saving…' : 'Save changes'}
@@ -658,12 +654,18 @@ function BioModal({
   }
 
   const showSize = employment.toLowerCase() === 'employed'
+  // Employed users must pick a company size — otherwise Airtable
+  // gets an empty string for a single-select cell and rematching
+  // doesn't have the bucket it needs.
+  const sizeMissing = showSize && !companySize
+  const displayError = error ?? (sizeMissing ? 'Pick a company size to save.' : null)
 
   return (
     <ProfileModalShell
       title="Edit bio"
       saving={saving}
-      error={error}
+      saveDisabled={sizeMissing}
+      error={displayError}
       onSave={handleSave}
       onClose={onClose}
     >
@@ -671,14 +673,13 @@ function BioModal({
         label="Email"
         hint={
           <>
-            Need a different email? Email{' '}
+            Update your email? Email{' '}
             <a
               href="mailto:team@whisperedevents.com"
               style={{ color: 'var(--accent)', textDecoration: 'underline', textUnderlineOffset: 2 }}
             >
               team@whisperedevents.com
-            </a>{' '}
-            and we&rsquo;ll switch it for you.
+            </a>
           </>
         }
       >
@@ -722,6 +723,21 @@ function BioModal({
           className={modalInputCls}
           style={modalInputStyle}
         />
+        <p
+          className="mt-1.5 m-0"
+          style={{ fontSize: 11.5, lineHeight: 1.5, color: 'var(--ink-3)' }}
+        >
+          We (consciously) support one location at a time.{' '}
+          <a
+            href="/faq"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: 'var(--accent)', textDecoration: 'underline', textUnderlineOffset: 2 }}
+          >
+            See FAQ
+          </a>
+          .
+        </p>
       </ModalField>
 
       <ModalField label="Function">
@@ -817,6 +833,19 @@ function TopicsModal({
     >
       <ModalField label="Topics">
         <div className="space-y-3">
+          <p
+            className="m-0"
+            style={{ fontSize: 12.5, lineHeight: 1.5, color: 'var(--ink-2)' }}
+          >
+            Pick from suggested topics{' '}
+            <strong
+              className="underline"
+              style={{ color: 'var(--accent)', textUnderlineOffset: 2 }}
+            >
+              AND write-in your own
+            </strong>
+            .
+          </p>
           <textarea
             value={interest}
             onChange={(e) => setInterest(e.target.value)}
