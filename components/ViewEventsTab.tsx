@@ -60,7 +60,7 @@ const QUESTIONS: Record<Step, string> = {
   // pick up the gold accent. The string here is a plain-text fallback
   // used by the back-button path before the bubble re-renders.
   interest:
-    "**What topics are you interested in?**\n\nWe use your topics plus your location and LinkedIn profile to find the events that best fit you\nPick from frequently used topics below **AND** also feel free to add your own\nUpdate anytime on your dashboard",
+    "**What topics are you interested in?**\n\nWe use your topics (plus your location and LinkedIn profile which we'll collect next) to find the best events for you.\nPick from frequently used topics below **AND** also feel free to add your own\nUpdate anytime on your dashboard",
   employment:
     "**What is your current work situation?**\n\nWe ask because some events focus on people in specific roles while others are open to anyone.",
   size:
@@ -456,7 +456,7 @@ function InterestPrompt() {
         What topics are you interested in?
       </p>
       <p className="m-0">
-        We use your topics plus your location and LinkedIn profile to find the events that best fit you
+        We use your topics (plus your location and LinkedIn profile which we&rsquo;ll collect next) to find the best events for you.
       </p>
       <p className="m-0">
         Pick from frequently used topics below <strong>AND</strong>{' '}
