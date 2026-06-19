@@ -64,7 +64,7 @@ const QUESTIONS: Record<Step, string> = {
   employment:
     "**What is your current work situation?**\n\nWe ask because some events focus on people in specific roles while others are open to anyone.",
   size:
-    "**What is the approximate revenue of your current company?**\n\nMany events are run by vendors who want to focus on specific company sizes — this helps us make sure you're only seeing events you'd actually qualify for.",
+    "**What is the approximate revenue of your current company?**\n\nSome events are run by vendors who focus on specific company sizes — this information helps us make sure you're matched to events that fit.",
   frequency:
     "Last question — **how often would you like to receive emails with matching events?**",
   confirm: '',
