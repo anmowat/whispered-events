@@ -723,15 +723,21 @@ export const DEFAULT_FREQUENCY = 'Monthly'
 export async function createProfile(profile: UserProfile): Promise<string> {
   const base = getBase()
   const email = profile.email.trim().toLowerCase()
+  // Single-select fields (Employment, Size, Frequency) reject '' with
+  // INVALID_MULTIPLE_CHOICE_OPTIONS — Airtable treats it as "create new
+  // option ''". Send null instead so the cell is cleared. Same pattern
+  // used in updateUserProfile above.
   const fields: Partial<FieldSet> = {
     LinkedIn: cleanLinkedinUrl(profile.linkedin),
     Interest: profile.interest,
-    Employment: profile.employment,
-    'Size': profile.companySize,
     Email: email,
     Location: profile.location,
     Learn: profile.learn,
   }
+  ;(fields as Record<string, unknown>)['Employment'] =
+    profile.employment === '' ? null : profile.employment
+  ;(fields as Record<string, unknown>)['Size'] =
+    profile.companySize === '' ? null : profile.companySize
   if (profile.location) {
     const geo = await geocodeLocation(profile.location)
     if (geo) {
