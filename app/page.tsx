@@ -80,6 +80,7 @@ export default function Home() {
   const [tab, setTab] = useState<HeaderTab>('view')
   const [mode, setMode] = useState<Mode>('landing')
   const [showLogin, setShowLogin] = useState(false)
+  const [showAddEvent, setShowAddEvent] = useState(false)
   const [eventCount, setEventCount] = useState(0)
   const [partners, setPartners] = useState<Partner[]>([])
   const [featuredEvents, setFeaturedEvents] = useState<FeaturedEvent[]>([])
@@ -156,33 +157,44 @@ export default function Home() {
   // useful next action front and centre:
   //   - View → Dashboard (logged-in users go straight to matches;
   //     logged-out users land on the magic-link prompt).
-  //   - Contribute → Add Event mailto so they can fire over a link
-  //     from any client without a form.
+  //   - Contribute → Add Event modal — bare mailto silently fails
+  //     when no mail handler is configured (common on Chrome without
+  //     a Gmail handler set), so the modal exposes the address with
+  //     copy/Gmail/default-mail-app launchers.
   //   - Partner → /host so partners running events get to their host
   //     dashboard in one click.
   // Single gold pill button replaces the prior pale text link.
-  const headerCta: { label: string; href: string } =
-    tab === 'contribute'
-      ? { label: 'Add Event', href: 'mailto:event@whispered.com' }
-      : tab === 'partner'
-        ? { label: 'Host Dashboard', href: '/host' }
-        : { label: 'Dashboard', href: '/dashboard' }
-  const headerRight = (
-    <a
-      href={headerCta.href}
-      className="rounded-pill text-[13px] font-semibold transition-colors"
-      style={{
-        background: '#c9a86a',
-        color: '#1b1814',
-        padding: '8px 16px',
-        letterSpacing: '.01em',
-      }}
-      onMouseEnter={(e) => (e.currentTarget.style.background = '#d5b87c')}
-      onMouseLeave={(e) => (e.currentTarget.style.background = '#c9a86a')}
-    >
-      {headerCta.label}
-    </a>
-  )
+  const pillStyle: React.CSSProperties = {
+    background: '#c9a86a',
+    color: '#1b1814',
+    padding: '8px 16px',
+    letterSpacing: '.01em',
+    border: 'none',
+    cursor: 'pointer',
+  }
+  const pillClass = 'rounded-pill text-[13px] font-semibold transition-colors'
+  const headerRight =
+    tab === 'contribute' ? (
+      <button
+        onClick={() => setShowAddEvent(true)}
+        className={pillClass}
+        style={pillStyle}
+        onMouseEnter={(e) => (e.currentTarget.style.background = '#d5b87c')}
+        onMouseLeave={(e) => (e.currentTarget.style.background = '#c9a86a')}
+      >
+        Add Event
+      </button>
+    ) : (
+      <a
+        href={tab === 'partner' ? '/host' : '/dashboard'}
+        className={pillClass}
+        style={pillStyle}
+        onMouseEnter={(e) => (e.currentTarget.style.background = '#d5b87c')}
+        onMouseLeave={(e) => (e.currentTarget.style.background = '#c9a86a')}
+      >
+        {tab === 'partner' ? 'Host Dashboard' : 'Dashboard'}
+      </a>
+    )
 
   return (
     <div
@@ -190,6 +202,7 @@ export default function Home() {
       style={{ background: '#1b1814', color: '#ece6da' }}
     >
       {showLogin && <LoginModal onClose={() => setShowLogin(false)} />}
+      {showAddEvent && <AddEventModal onClose={() => setShowAddEvent(false)} />}
 
       <AfterHoursHeader
         activeTab={tab}
@@ -940,6 +953,123 @@ function ActiveMode({
 }
 
 // ---------------- Footer ----------------
+
+// "Add Event" modal — opened from the Contribute tab's header CTA.
+// Bare mailto: silently fails when the browser doesn't have a mail
+// handler configured (the most common Chrome-without-Gmail-handler
+// case), so the modal exposes the address with a copy button plus
+// explicit Gmail and default-mail-app launchers. Everyone has a
+// working path.
+function AddEventModal({ onClose }: { onClose: () => void }) {
+  const email = 'event@whispered.com'
+  const subject = 'Event to share'
+  const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${encodeURIComponent(subject)}`
+  const mailtoUrl = `mailto:${email}?subject=${encodeURIComponent(subject)}`
+  const [copied, setCopied] = useState(false)
+
+  async function handleCopy() {
+    try {
+      await navigator.clipboard.writeText(email)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1800)
+    } catch {
+      // Clipboard may be blocked (insecure context, permissions) —
+      // user can still drag-select the address.
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(20,15,10,0.55)' }}
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-[420px] rounded-card border p-6"
+        style={{ background: '#252220', borderColor: 'rgba(236,230,218,.13)' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-3">
+          <h2
+            className="font-serif m-0"
+            style={{ fontSize: 24, color: '#ece6da', letterSpacing: '-0.01em' }}
+          >
+            Add an <span style={{ fontStyle: 'italic', color: '#c9a86a' }}>event</span>
+          </h2>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="text-xl leading-none"
+            style={{ color: 'rgba(236,230,218,.5)' }}
+          >
+            &times;
+          </button>
+        </div>
+        <p
+          className="m-0 mb-4"
+          style={{ fontSize: 13.5, color: 'rgba(236,230,218,.78)', lineHeight: 1.55 }}
+        >
+          Email us a link to any event (one you&rsquo;re running or one you
+          know about). Our AI extracts the details and we share it with the
+          executives whose profile fits.
+        </p>
+
+        <div
+          className="flex items-center justify-between gap-3 rounded-input border px-3 py-2 mb-4"
+          style={{
+            background: '#1b1814',
+            borderColor: 'rgba(236,230,218,.13)',
+          }}
+        >
+          <span style={{ fontSize: 14, color: '#ece6da' }}>{email}</span>
+          <button
+            onClick={handleCopy}
+            className="text-[12px] underline"
+            style={{ color: '#c9a86a', textUnderlineOffset: 3 }}
+          >
+            {copied ? 'Copied!' : 'Copy'}
+          </button>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <a
+            href={gmailUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-pill text-[13px] font-semibold text-center py-2.5 transition-colors"
+            style={{
+              background: '#c9a86a',
+              color: '#1b1814',
+              letterSpacing: '.01em',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = '#d5b87c')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = '#c9a86a')}
+          >
+            Open in Gmail
+          </a>
+          <a
+            href={mailtoUrl}
+            className="rounded-pill text-[13px] font-medium text-center py-2.5 border transition-colors"
+            style={{
+              borderColor: 'rgba(236,230,218,.28)',
+              color: '#ece6da',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = '#c9a86a'
+              e.currentTarget.style.color = '#c9a86a'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'rgba(236,230,218,.28)'
+              e.currentTarget.style.color = '#ece6da'
+            }}
+          >
+            Open in default mail app
+          </a>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 function Footer() {
   return (
