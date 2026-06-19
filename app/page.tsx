@@ -83,7 +83,6 @@ export default function Home() {
   const [eventCount, setEventCount] = useState(0)
   const [partners, setPartners] = useState<Partner[]>([])
   const [featuredEvents, setFeaturedEvents] = useState<FeaturedEvent[]>([])
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [matches30, setMatches30] = useState<number | null>(null)
   const [authInvalid, setAuthInvalid] = useState(false)
 
@@ -118,10 +117,6 @@ export default function Home() {
       .then((d: { matches30: number }) => setMatches30(d.matches30 ?? 0))
       .catch(() => {})
 
-    fetch('/api/auth/me')
-      .then((r) => r.json())
-      .then((d: { user: unknown }) => setIsLoggedIn(!!d.user))
-      .catch(() => {})
   }, [])
 
   // Body class scopes the dark theme to this page only. Removed on
@@ -150,26 +145,36 @@ export default function Home() {
   }, [mode, tab])
 
   const content = TAB_CONTENT[tab]
-  const headerRight = isLoggedIn ? (
+  // Header right-slot CTA varies by tab so each surface has the most
+  // useful next action front and centre:
+  //   - View → Dashboard (logged-in users go straight to matches;
+  //     logged-out users land on the magic-link prompt).
+  //   - Contribute → Add Event mailto so they can fire over a link
+  //     from any client without a form.
+  //   - Partner → /host so partners running events get to their host
+  //     dashboard in one click.
+  // Single gold pill button replaces the prior pale text link.
+  const headerCta: { label: string; href: string } =
+    tab === 'contribute'
+      ? { label: 'Add Event', href: 'mailto:event@whispered.com' }
+      : tab === 'partner'
+        ? { label: 'Host Dashboard', href: '/host' }
+        : { label: 'Dashboard', href: '/dashboard' }
+  const headerRight = (
     <a
-      href="/dashboard"
-      className="text-[13px] transition-colors"
-      style={{ color: 'rgba(236,230,218,.62)' }}
-      onMouseEnter={(e) => (e.currentTarget.style.color = '#ece6da')}
-      onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(236,230,218,.62)')}
+      href={headerCta.href}
+      className="rounded-pill text-[13px] font-semibold transition-colors"
+      style={{
+        background: '#c9a86a',
+        color: '#1b1814',
+        padding: '8px 16px',
+        letterSpacing: '.01em',
+      }}
+      onMouseEnter={(e) => (e.currentTarget.style.background = '#d5b87c')}
+      onMouseLeave={(e) => (e.currentTarget.style.background = '#c9a86a')}
     >
-      Dashboard
+      {headerCta.label}
     </a>
-  ) : (
-    <button
-      onClick={() => setShowLogin(true)}
-      className="text-[13px] transition-colors"
-      style={{ color: 'rgba(236,230,218,.62)' }}
-      onMouseEnter={(e) => (e.currentTarget.style.color = '#ece6da')}
-      onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(236,230,218,.62)')}
-    >
-      Log in
-    </button>
   )
 
   return (
