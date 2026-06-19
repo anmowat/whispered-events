@@ -73,6 +73,33 @@ export default function FaqPage() {
             }}
           >
             <span style={{ color: 'var(--ink-3)', marginRight: 8 }}>Q:</span>
+            Do I qualify for Whispered Events?
+          </h2>
+          <p
+            className="mt-3 mb-0"
+            style={{ fontSize: 15, color: 'var(--ink-2)', lineHeight: 1.6 }}
+          >
+            <strong style={{ color: 'var(--ink-3)', fontWeight: 600, marginRight: 6 }}>
+              A:
+            </strong>
+            Yes. While Whispered Events focuses on executive-level events, we
+            do admit everyone. Unlike lists of events where everyone can see
+            every event, we use your profile and interests (see below) to
+            match you to events that fit for you.
+          </p>
+        </section>
+
+        <section className="mt-12">
+          <h2
+            className="font-serif m-0"
+            style={{
+              fontSize: 22,
+              lineHeight: 1.2,
+              color: 'var(--accent)',
+              letterSpacing: '-0.01em',
+            }}
+          >
+            <span style={{ color: 'var(--ink-3)', marginRight: 8 }}>Q:</span>
             How are matches determined?
           </h2>
           <p
