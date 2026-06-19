@@ -163,6 +163,12 @@ export default function ViewEventsTab({
   // While non-null we render a "keep what you wrote" button so they
   // can opt out of the coaching nudge without re-typing.
   const [pendingInterestOverride, setPendingInterestOverride] = useState<string | null>(null)
+  // Same coaching pattern for location — see /api/check-location.
+  // pendingLocationOverride holds the original text so the user can
+  // dismiss the nudge; pendingLocationSuggestion is the cleaned value
+  // we offer as a one-click correction (typo fix / noise stripped).
+  const [pendingLocationOverride, setPendingLocationOverride] = useState<string | null>(null)
+  const [pendingLocationSuggestion, setPendingLocationSuggestion] = useState<string | null>(null)
 
   function advance(currentStep: Step, value: string, prelude?: string) {
     const field = profileField(currentStep)
@@ -186,6 +192,8 @@ export default function ViewEventsTab({
     setStep(next === 'confirm' ? 'confirm' : next)
     setAssistantContent(final)
     setPendingInterestOverride(null)
+    setPendingLocationOverride(null)
+    setPendingLocationSuggestion(null)
   }
 
   function goBack() {
@@ -194,6 +202,8 @@ export default function ViewEventsTab({
     setStepHistory((s) => s.slice(0, -1))
     setStep(prev)
     setPendingInterestOverride(null)
+    setPendingLocationOverride(null)
+    setPendingLocationSuggestion(null)
     setAssistantContent(QUESTIONS[prev])
     setInput('')
     // Re-populate the input with their previous typed answer where
@@ -231,6 +241,36 @@ export default function ViewEventsTab({
       setAssistantContent(`Please pick one of the options above.\n\n${QUESTIONS['frequency']}`)
       return
     }
+    // Location quality check — see /api/check-location. Catches
+    // typos, ambiguity, and noisy free-text so the downstream
+    // Nominatim geocoder lands on the right city. User can either
+    // accept a one-click suggestion or keep what they typed.
+    if (step === 'location' && val !== pendingLocationOverride) {
+      try {
+        const res = await fetch('/api/check-location', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ location: val }),
+        })
+        const data = (await res.json()) as {
+          ok?: boolean
+          message?: string
+          suggestion?: string
+        }
+        if (data.ok === false && data.message) {
+          setAssistantContent(
+            `${data.message}\n\nUse the suggestion below, or keep what you wrote.`,
+          )
+          setInput(val)
+          setPendingLocationOverride(val)
+          setPendingLocationSuggestion(data.suggestion || null)
+          return
+        }
+      } catch {
+        // Fail open — never block signup on a flaky check.
+      }
+    }
+
     // Interest evaluation: when the user submits something vague (e.g.
     // "Flexible", "All types", "Networking") the matching algorithm
     // won't find much. Pause the flow and coach them on better
@@ -383,6 +423,65 @@ export default function ViewEventsTab({
               }}
             >
               Keep &ldquo;{pendingInterestOverride}&rdquo; →
+            </button>
+          </div>
+        )}
+
+        {step === 'location' && pendingLocationOverride && (
+          <div className="flex flex-wrap gap-2 animate-slide-up">
+            {pendingLocationSuggestion && (
+              <button
+                onClick={() => {
+                  const val = pendingLocationSuggestion
+                  setPendingLocationOverride(null)
+                  setPendingLocationSuggestion(null)
+                  setInput('')
+                  advance('location', val)
+                }}
+                className="px-3.5 py-1.5 rounded-pill border text-[13px] font-medium transition-colors"
+                style={{
+                  background: 'var(--accent)',
+                  borderColor: 'var(--accent)',
+                  color: 'white',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'var(--accent-2)'
+                  e.currentTarget.style.borderColor = 'var(--accent-2)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'var(--accent)'
+                  e.currentTarget.style.borderColor = 'var(--accent)'
+                }}
+              >
+                Use &ldquo;{pendingLocationSuggestion}&rdquo; →
+              </button>
+            )}
+            <button
+              onClick={() => {
+                const val = pendingLocationOverride
+                setPendingLocationOverride(null)
+                setPendingLocationSuggestion(null)
+                setInput('')
+                advance('location', val)
+              }}
+              className="px-3.5 py-1.5 rounded-pill border text-[13px] transition-colors"
+              style={{
+                background: 'var(--paper)',
+                borderColor: 'var(--rule)',
+                color: 'var(--ink-2)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'var(--accent-soft)'
+                e.currentTarget.style.borderColor = 'var(--accent)'
+                e.currentTarget.style.color = 'var(--accent)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'var(--paper)'
+                e.currentTarget.style.borderColor = 'var(--rule)'
+                e.currentTarget.style.color = 'var(--ink-2)'
+              }}
+            >
+              Keep &ldquo;{pendingLocationOverride}&rdquo; →
             </button>
           </div>
         )}

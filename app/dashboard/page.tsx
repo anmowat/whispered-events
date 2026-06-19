@@ -623,6 +623,69 @@ function ReadOnlyField({
   )
 }
 
+// Inline confirmation card shown at the top of the Bio modal when
+// /api/check-location flags the typed location (typo, ambiguity, or
+// extra noise). Offers three exits: accept a clean suggestion, keep
+// what the user typed, or dismiss and edit the field by hand.
+function LocationConfirm({
+  message,
+  suggestion,
+  onAccept,
+  onKeep,
+  onEdit,
+}: {
+  message: string
+  suggestion?: string
+  onAccept: (suggestion: string) => void
+  onKeep: () => void
+  onEdit: () => void
+}) {
+  return (
+    <div
+      className="rounded-card border px-4 py-3.5 space-y-2.5"
+      style={{
+        background: 'rgba(201,168,106,0.08)',
+        borderColor: 'rgba(201,168,106,0.32)',
+      }}
+    >
+      <p
+        className="m-0"
+        style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--ink)' }}
+      >
+        <strong style={{ color: 'var(--accent)' }}>Quick check:</strong>{' '}
+        {message}
+      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        {suggestion && (
+          <button
+            onClick={() => onAccept(suggestion)}
+            className="px-3 py-1.5 rounded-pill text-[12.5px] font-medium text-white transition-colors"
+            style={{ background: 'var(--accent)' }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--accent-2)')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--accent)')}
+          >
+            Use &ldquo;{suggestion}&rdquo;
+          </button>
+        )}
+        <button
+          onClick={onKeep}
+          className="px-3 py-1.5 text-[12.5px] underline"
+          style={{ color: 'var(--ink-2)', textUnderlineOffset: 3 }}
+        >
+          Keep what I typed
+        </button>
+        <button
+          onClick={onEdit}
+          className="px-3 py-1.5 text-[12.5px] underline"
+          style={{ color: 'var(--ink-3)', textUnderlineOffset: 3 }}
+        >
+          Edit
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function BioModal({
   user,
   onClose,
@@ -638,35 +701,98 @@ function BioModal({
   const [companySize, setCompanySize] = useState(user.companySize || '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Quality check on the location string — see /api/check-location.
+  // We run it whenever the user changes Location and re-runs as needed
+  // once they confirm. locationConfirmed flips true after the user
+  // either accepts a suggestion or explicitly keeps what they typed,
+  // so the same value doesn't get re-checked on a second Save click.
+  const [locationCheck, setLocationCheck] = useState<{
+    message: string
+    suggestion?: string
+  } | null>(null)
+  const [locationConfirmed, setLocationConfirmed] = useState(false)
+
+  async function persist(finalLocation: string) {
+    const nextSize = employment.toLowerCase() === 'employed' ? companySize : ''
+    const payload = {
+      location: finalLocation,
+      function: func,
+      employment,
+      companySize: nextSize,
+    }
+    const res = await fetch('/api/dashboard/profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    if (!res.ok) {
+      const data = (await res.json()) as { error?: string }
+      throw new Error(data.error || `HTTP ${res.status}`)
+    }
+    onSaved({
+      ...user,
+      location: finalLocation,
+      function: func,
+      employment,
+      companySize: nextSize,
+    })
+    onClose()
+  }
 
   async function handleSave() {
     setSaving(true)
     setError(null)
     try {
-      const nextSize = employment.toLowerCase() === 'employed' ? companySize : ''
-      const payload = {
-        location,
-        function: func,
-        employment,
-        companySize: nextSize,
+      // Skip the check when Location didn't change or the user has
+      // already confirmed it in this session.
+      const locationChanged = location.trim() !== (user.location || '').trim()
+      if (locationChanged && !locationConfirmed) {
+        const check = await fetch('/api/check-location', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ location }),
+        })
+          .then((r) => r.json() as Promise<{ ok: boolean; message?: string; suggestion?: string }>)
+          .catch(() => ({ ok: true as const }))
+        if (!check.ok) {
+          setLocationCheck({
+            message: check.message || 'We want to double-check this location before saving.',
+            suggestion: check.suggestion,
+          })
+          setSaving(false)
+          return
+        }
       }
-      const res = await fetch('/api/dashboard/profile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
-      if (!res.ok) {
-        const data = (await res.json()) as { error?: string }
-        throw new Error(data.error || `HTTP ${res.status}`)
-      }
-      onSaved({
-        ...user,
-        location,
-        function: func,
-        employment,
-        companySize: nextSize,
-      })
-      onClose()
+      await persist(location)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function acceptLocationSuggestion(suggestion: string) {
+    setLocation(suggestion)
+    setLocationConfirmed(true)
+    setLocationCheck(null)
+    setSaving(true)
+    setError(null)
+    try {
+      await persist(suggestion)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function keepLocationAsTyped() {
+    setLocationConfirmed(true)
+    setLocationCheck(null)
+    setSaving(true)
+    setError(null)
+    try {
+      await persist(location)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save')
     } finally {
@@ -690,6 +816,16 @@ function BioModal({
       onSave={handleSave}
       onClose={onClose}
     >
+      {locationCheck && (
+        <LocationConfirm
+          message={locationCheck.message}
+          suggestion={locationCheck.suggestion}
+          onAccept={(s) => acceptLocationSuggestion(s)}
+          onKeep={() => keepLocationAsTyped()}
+          onEdit={() => setLocationCheck(null)}
+        />
+      )}
+
       <ReadOnlyField
         label="Email"
         hint={
@@ -739,7 +875,13 @@ function BioModal({
       <ModalField label="Location">
         <input
           value={location}
-          onChange={(e) => setLocation(e.target.value)}
+          onChange={(e) => {
+            setLocation(e.target.value)
+            // Any edit invalidates the prior confirmation so the next
+            // save click re-runs the quality check.
+            if (locationConfirmed) setLocationConfirmed(false)
+            if (locationCheck) setLocationCheck(null)
+          }}
           placeholder="e.g. San Francisco, CA"
           className={modalInputCls}
           style={modalInputStyle}
