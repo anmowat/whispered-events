@@ -55,7 +55,7 @@ const TAB_CONTENT: Record<HeaderTab, TabContent> = {
     cta: 'Add Event',
     steps: [
       'Share an event link (one you are running or just one you know about)',
-      'Our AI extracts the information for you to confirm',
+      'Our AI extracts the information automatically',
       'Event shared just with executives whose profiles fit',
     ],
   },
