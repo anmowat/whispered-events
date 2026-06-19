@@ -5,7 +5,16 @@ import { Wordmark } from '@/components/Wordmark'
 
 type State = 'idle' | 'loading' | 'sent' | 'not_found' | 'inactive' | 'error'
 
-export default function LoginModal({ onClose }: { onClose: () => void }) {
+export default function LoginModal({
+  onClose,
+  next,
+}: {
+  onClose: () => void
+  // Where to land the user after the magic-link round-trip. Passed
+  // through to /api/auth/magic-link, validated server-side against
+  // an allow-list. Defaults server-side to /dashboard.
+  next?: string
+}) {
   const [state, setState] = useState<State>('idle')
   const [email, setEmail] = useState('')
 
@@ -16,7 +25,7 @@ export default function LoginModal({ onClose }: { onClose: () => void }) {
       const res = await fetch('/api/auth/magic-link', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim() }),
+        body: JSON.stringify({ email: email.trim(), next }),
       })
       if (res.ok) {
         setState('sent')

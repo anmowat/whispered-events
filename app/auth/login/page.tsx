@@ -11,9 +11,15 @@ import Link from 'next/link'
 export default function MagicLinkLoginPage({
   searchParams,
 }: {
-  searchParams: { token?: string }
+  searchParams: { token?: string; next?: string }
 }) {
   const token = (searchParams.token ?? '').trim()
+  // `next` is forwarded through the auth flow so the user lands on
+  // the page they were trying to reach (e.g. /host). The verify route
+  // re-validates against an allow-list, so we can pass it along here
+  // without checking — even a tampered URL value gets dropped server-
+  // side before the redirect.
+  const next = (searchParams.next ?? '').trim()
 
   return (
     <div
@@ -74,6 +80,7 @@ export default function MagicLinkLoginPage({
             </p>
             <form method="POST" action="/api/auth/verify">
               <input type="hidden" name="token" value={token} />
+              {next && <input type="hidden" name="next" value={next} />}
               <button
                 type="submit"
                 className="w-full py-3 rounded-pill text-[14px] font-semibold transition-colors"

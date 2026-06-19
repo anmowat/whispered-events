@@ -52,7 +52,7 @@ const TAB_CONTENT: Record<HeaderTab, TabContent> = {
         we share it with the executives whose profile fits.
       </>
     ),
-    cta: 'Share Event',
+    cta: 'Add Event',
     steps: [
       'Share an event link (one you are running or just one you know about)',
       'Our AI extracts the information for you to confirm',
@@ -136,6 +136,14 @@ export default function Home() {
   }, [])
 
   function handleCTA() {
+    // On Contribute the hero CTA opens the same modal as the header
+    // "Add Event" button — single canonical entry point for event
+    // submission. The chat-style ShareEventTab is left intact (still
+    // mounted via ActiveMode) for re-use later.
+    if (tab === 'contribute') {
+      setShowAddEvent(true)
+      return
+    }
     setMode('active')
   }
   function handleBack() {
@@ -557,47 +565,7 @@ function Landing({
           </p>
         )}
 
-        {/* Contribute tab: subtler alternative under the CTA. Uppercase
-            eyebrow OR, body in sans, email in italic-champagne Cormorant
-            to echo the headline's 'They're whispered' moment. */}
-        {tab === 'contribute' && (
-          <p
-            className="mt-5 text-center"
-            style={{
-              fontSize: 14,
-              lineHeight: 1.5,
-              color: 'rgba(236,230,218,.7)',
-            }}
-          >
-            <span
-              style={{
-                fontSize: 11,
-                letterSpacing: '.26em',
-                textTransform: 'uppercase',
-                color: 'rgba(236,230,218,.42)',
-                marginRight: 10,
-              }}
-            >
-              Or
-            </span>
-            email link to{' '}
-            <a
-              href="mailto:event@whispered.com"
-              style={{
-                fontFamily: SERIF,
-                fontStyle: 'italic',
-                fontSize: 18,
-                color: '#c9a86a',
-                textDecoration: 'underline',
-                textUnderlineOffset: 4,
-                textDecorationColor: 'rgba(201,168,106,.4)',
-                marginLeft: 2,
-              }}
-            >
-              event@whispered.com
-            </a>
-          </p>
-        )}
+
 
         {/* Partner tab: under-CTA link to the full /partners directory.
             Same sans + italic-champagne treatment as the Contribute

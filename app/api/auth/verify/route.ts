@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyMagicToken, createSession } from '@/lib/supabase'
+import { safeNext } from '@/lib/auth-redirect'
 
 // Two-step magic-link flow:
 //   - GET  /api/auth/verify?token=... — does NOT consume the token.
@@ -18,6 +19,11 @@ export async function GET(req: NextRequest) {
   }
   const url = new URL('/auth/login', req.nextUrl.origin)
   url.searchParams.set('token', token)
+  // Pass next through to the interstitial so the form post downstream
+  // still carries the user's intended destination. Backward-compat
+  // emails without ?next just default to /dashboard server-side.
+  const next = req.nextUrl.searchParams.get('next')
+  if (next) url.searchParams.set('next', next)
   return NextResponse.redirect(url)
 }
 
@@ -26,13 +32,16 @@ export async function POST(req: NextRequest) {
   // body, so the same endpoint serves the interstitial form and any
   // future programmatic caller.
   let token: string | null = null
+  let next: string | null = null
   const contentType = req.headers.get('content-type') ?? ''
   if (contentType.includes('application/json')) {
-    const body = (await req.json().catch(() => ({}))) as { token?: string }
+    const body = (await req.json().catch(() => ({}))) as { token?: string; next?: string }
     token = body.token ?? null
+    next = body.next ?? null
   } else {
     const form = await req.formData().catch(() => null)
     token = (form?.get('token') as string | null) ?? null
+    next = (form?.get('next') as string | null) ?? null
   }
 
   if (!token) {
@@ -46,7 +55,9 @@ export async function POST(req: NextRequest) {
 
   const sessionToken = await createSession(email)
 
-  const response = NextResponse.redirect(new URL('/dashboard', req.nextUrl.origin), { status: 303 })
+  // safeNext re-validates the form value against the allow-list — even
+  // a tampered URL can only land on a known internal route.
+  const response = NextResponse.redirect(new URL(safeNext(next), req.nextUrl.origin), { status: 303 })
   response.cookies.set('session', sessionToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',

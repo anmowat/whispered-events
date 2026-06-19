@@ -74,42 +74,61 @@ export default function HostPage() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      {showLogin && <LoginModal onClose={() => { setShowLogin(false); fetchEvents() }} />}
+      {showLogin && (
+        <LoginModal
+          next="/host"
+          onClose={() => {
+            setShowLogin(false)
+            fetchEvents()
+          }}
+        />
+      )}
 
       <Header
         activeTab={null}
         onLogoClick={() => (window.location.href = '/')}
         rightSlot={
           authState === 'authorized' ? (
-            <button
-              type="button"
-              onClick={async () => {
-                // Mirror the dashboard logout — destroy the server
-                // session if we can, then bounce home. Network errors
-                // shouldn't trap the user in a logged-in shell.
-                try {
-                  await fetch('/api/auth/logout', {
-                    method: 'POST',
-                    redirect: 'manual',
-                  })
-                } catch {
-                  // ignore
-                }
-                window.location.href = '/'
-              }}
-              className="text-[13px] transition-colors"
-              style={{
-                color: 'var(--ink-2)',
-                background: 'none',
-                border: 'none',
-                padding: 0,
-                cursor: 'pointer',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
-              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--ink-2)')}
-            >
-              Logout
-            </button>
+            <div className="flex items-center gap-4">
+              <a
+                href="/dashboard"
+                className="text-[13px] transition-colors"
+                style={{ color: 'var(--ink-2)' }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
+                onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--ink-2)')}
+              >
+                Dashboard
+              </a>
+              <button
+                type="button"
+                onClick={async () => {
+                  // Mirror the dashboard logout — destroy the server
+                  // session if we can, then bounce home. Network errors
+                  // shouldn't trap the user in a logged-in shell.
+                  try {
+                    await fetch('/api/auth/logout', {
+                      method: 'POST',
+                      redirect: 'manual',
+                    })
+                  } catch {
+                    // ignore
+                  }
+                  window.location.href = '/'
+                }}
+                className="text-[13px] transition-colors"
+                style={{
+                  color: 'var(--ink-2)',
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  cursor: 'pointer',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
+                onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--ink-2)')}
+              >
+                Logout
+              </button>
+            </div>
           ) : (
             <span className="eyebrow" style={{ color: 'var(--ink-3)' }}>Host</span>
           )
