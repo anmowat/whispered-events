@@ -43,6 +43,10 @@ type DashboardEvent = AirtableEvent & {
 
 const EMPLOYMENT_OPTIONS = ['Employed', 'Fractional', 'Searching', 'Other']
 
+// Exact spellings match the Size single-select options in the Airtable
+// Users table — do not change here without also updating Airtable.
+const COMPANY_SIZE_OPTIONS = ['<$5M', '$5-25M', '$25-100M', '$100M-1B', '$1B+', 'Other']
+
 const DATE_RANGES: { id: '' | '30' | '60' | '90'; label: string }[] = [
   { id: '', label: 'All upcoming' },
   { id: '90', label: 'Next 90 days' },
@@ -577,13 +581,19 @@ function ProfileModal({
 
           {showSize && (
             <ModalField label="Company size">
-              <input
+              <select
                 value={companySize}
                 onChange={(e) => setCompanySize(e.target.value)}
-                placeholder="e.g. $4 million"
-                className={modalInputCls}
+                className={`salon-select ${modalInputCls}`}
                 style={modalInputStyle}
-              />
+              >
+                <option value="">Select…</option>
+                {COMPANY_SIZE_OPTIONS.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </select>
             </ModalField>
           )}
         </div>
