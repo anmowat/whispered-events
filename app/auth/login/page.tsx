@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import { Wordmark } from '@/components/Wordmark'
 
 // Magic-link interstitial. Email clients (Gmail, Outlook, corporate
 // security scanners) pre-fetch URLs in incoming mail to check them for
@@ -28,7 +27,17 @@ export default function MagicLinkLoginPage({
           borderColor: 'rgba(236,230,218,.13)',
         }}
       >
-        <Wordmark size={18} />
+        <span
+          className="inline-flex items-baseline gap-2 leading-none"
+          style={{ fontFamily: "'Cormorant Garamond', Georgia, 'Times New Roman', serif" }}
+        >
+          <span style={{ fontSize: 22, fontWeight: 600, color: '#ece6da', letterSpacing: '.01em' }}>
+            Whispered
+          </span>
+          <span style={{ fontSize: 22, fontWeight: 600, fontStyle: 'italic', color: '#c9a86a', letterSpacing: '.01em' }}>
+            Events
+          </span>
+        </span>
         <div
           style={{
             height: 1,
@@ -61,8 +70,7 @@ export default function MagicLinkLoginPage({
                 color: 'rgba(236,230,218,.78)',
               }}
             >
-              Tap below to sign in. We confirm the click here so email
-              security scanners can&rsquo;t accidentally burn your link.
+              Tap below to sign in to Whispered Events.
             </p>
             <form method="POST" action="/api/auth/verify">
               <input type="hidden" name="token" value={token} />
