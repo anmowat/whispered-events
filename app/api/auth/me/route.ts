@@ -32,6 +32,8 @@ export async function GET(req: NextRequest) {
       location: user.location,
       employment: user.employment,
       companySize: user.companySize,
+      function: user.function,
+      linkedin: user.linkedin,
       status: user.status,
       active: user.active,
       frequency: user.frequency,

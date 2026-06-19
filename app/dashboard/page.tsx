@@ -13,6 +13,8 @@ interface DashboardUser {
   location: string
   employment: string
   companySize: string
+  function: string
+  linkedin: string
   status: string
   active: boolean
   lastContribution: string | null
@@ -64,7 +66,8 @@ export default function DashboardPage() {
   const [user, setUser] = useState<DashboardUser | null>(null)
   const [events, setEvents] = useState<DashboardEvent[]>([])
   const [loading, setLoading] = useState(true)
-  const [editingProfile, setEditingProfile] = useState(false)
+  const [editingBio, setEditingBio] = useState(false)
+  const [editingTopics, setEditingTopics] = useState(false)
 
   // Filter state — Type is multi-select per the redesign, the other two
   // remain single-select wrapped around the existing values.
@@ -205,30 +208,34 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Profile CTA — replaces the inline topics chip display. The
-            goal is to get users into the ProfileModal rather than
-            window-shop their own settings. */}
+        {/* Profile CTA — split into Bio and Topics so users get the
+            mental model up front (who you are vs. what you want to
+            see). Each row opens its own modal so the form stays light. */}
         <section className="mb-6">
           <div className="eyebrow mb-2.5">Your profile</div>
           <div
-            className="rounded-card border flex justify-between items-center gap-4 px-5 py-4"
+            className="rounded-card border overflow-hidden"
             style={{ background: 'var(--paper)', borderColor: 'var(--rule)' }}
           >
-            <div className="min-w-0">
+            <div
+              className="px-5 py-4"
+              style={{ borderBottom: '1px solid var(--rule-soft)' }}
+            >
               <p className="m-0 font-medium" style={{ fontSize: 14, color: 'var(--ink)' }}>
                 Update your profile to improve your matches
               </p>
-              <p className="mt-0.5 m-0" style={{ fontSize: 12, color: 'var(--ink-3)' }}>
-                Update your topics, location, and employment.
-              </p>
             </div>
-            <button
-              onClick={() => setEditingProfile(true)}
-              className="eyebrow shrink-0 underline"
-              style={{ color: 'var(--accent)', textUnderlineOffset: 3 }}
-            >
-              Edit
-            </button>
+            <ProfileSubRow
+              title="Bio"
+              description="Who you are, where you are located and employment status."
+              onEdit={() => setEditingBio(true)}
+            />
+            <div style={{ borderTop: '1px solid var(--rule-soft)' }} />
+            <ProfileSubRow
+              title="Topics"
+              description="What topics you are interested in."
+              onEdit={() => setEditingTopics(true)}
+            />
           </div>
         </section>
 
@@ -341,10 +348,17 @@ export default function DashboardPage() {
         </section>
       </main>
 
-      {editingProfile && (
-        <ProfileModal
+      {editingBio && (
+        <BioModal
           user={user}
-          onClose={() => setEditingProfile(false)}
+          onClose={() => setEditingBio(false)}
+          onSaved={(u) => setUser(u)}
+        />
+      )}
+      {editingTopics && (
+        <TopicsModal
+          user={user}
+          onClose={() => setEditingTopics(false)}
           onSaved={(u) => setUser(u)}
         />
       )}
@@ -445,52 +459,56 @@ function FrequencyControl({
   )
 }
 
-function ProfileModal({
-  user,
-  onClose,
-  onSaved,
+// One row inside the "Your profile" card. Title + description on the
+// left, accent "Edit" affordance on the right. Used for Bio and Topics.
+function ProfileSubRow({
+  title,
+  description,
+  onEdit,
 }: {
-  user: DashboardUser
-  onClose: () => void
-  onSaved: (u: DashboardUser) => void
+  title: string
+  description: string
+  onEdit: () => void
 }) {
-  const [location, setLocation] = useState(user.location || '')
-  const [interest, setInterest] = useState(user.interest || '')
-  const [employment, setEmployment] = useState(user.employment || '')
-  const [companySize, setCompanySize] = useState(user.companySize || '')
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  return (
+    <div className="flex justify-between items-center gap-4 px-5 py-4">
+      <div className="min-w-0">
+        <p className="m-0 font-medium" style={{ fontSize: 14, color: 'var(--ink)' }}>
+          {title}
+        </p>
+        <p className="mt-0.5 m-0" style={{ fontSize: 12, color: 'var(--ink-3)' }}>
+          {description}
+        </p>
+      </div>
+      <button
+        onClick={onEdit}
+        className="eyebrow shrink-0 underline"
+        style={{ color: 'var(--accent)', textUnderlineOffset: 3 }}
+      >
+        Edit
+      </button>
+    </div>
+  )
+}
 
-  async function handleSave() {
-    setSaving(true)
-    setError(null)
-    try {
-      const payload = {
-        location,
-        interest,
-        employment,
-        companySize: employment.toLowerCase() === 'employed' ? companySize : '',
-      }
-      const res = await fetch('/api/dashboard/profile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
-      if (!res.ok) {
-        const data = (await res.json()) as { error?: string }
-        throw new Error(data.error || `HTTP ${res.status}`)
-      }
-      onSaved({ ...user, ...payload })
-      onClose()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const showSize = employment.toLowerCase() === 'employed'
-
+// Shared modal chrome — heading, scrolling body, Cancel + Save footer.
+// Bio and Topics modals each wrap their fields in this so the chrome
+// stays consistent between them without copy-pasting 60 lines twice.
+function ProfileModalShell({
+  title,
+  saving,
+  error,
+  onSave,
+  onClose,
+  children,
+}: {
+  title: string
+  saving: boolean
+  error: string | null
+  onSave: () => void
+  onClose: () => void
+  children: React.ReactNode
+}) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto"
@@ -507,7 +525,7 @@ function ProfileModal({
           style={{ borderColor: 'var(--rule)' }}
         >
           <h2 className="font-serif m-0" style={{ fontSize: 22, color: 'var(--ink)' }}>
-            Edit profile
+            {title}
           </h2>
           <button
             onClick={onClose}
@@ -519,78 +537,7 @@ function ProfileModal({
           </button>
         </div>
 
-        <div className="px-5 py-4 space-y-4 overflow-y-auto">
-          <ModalField label="Email">
-            <p
-              className="m-0 px-3 py-2 rounded-input border text-[13px]"
-              style={{
-                background: 'var(--paper-2)',
-                borderColor: 'var(--rule)',
-                color: 'var(--ink-2)',
-              }}
-            >
-              {user.email}
-            </p>
-          </ModalField>
-
-          <ModalField label="Location">
-            <input
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              placeholder="e.g. San Francisco, CA"
-              className={modalInputCls}
-              style={modalInputStyle}
-            />
-          </ModalField>
-
-          <ModalField label="Topics">
-            <div className="space-y-3">
-              <textarea
-                value={interest}
-                onChange={(e) => setInterest(e.target.value)}
-                placeholder="e.g. AI agents, RevOps, GTM, Women"
-                rows={3}
-                className={`${modalInputCls} resize-none`}
-                style={modalInputStyle}
-              />
-              <TopicChips value={interest} onChange={setInterest} />
-            </div>
-          </ModalField>
-
-          <ModalField label="Employment">
-            <select
-              value={employment}
-              onChange={(e) => setEmployment(e.target.value)}
-              className={`salon-select ${modalInputCls}`}
-              style={modalInputStyle}
-            >
-              <option value="">Select…</option>
-              {EMPLOYMENT_OPTIONS.map((opt) => (
-                <option key={opt} value={opt}>
-                  {opt}
-                </option>
-              ))}
-            </select>
-          </ModalField>
-
-          {showSize && (
-            <ModalField label="Company size">
-              <select
-                value={companySize}
-                onChange={(e) => setCompanySize(e.target.value)}
-                className={`salon-select ${modalInputCls}`}
-                style={modalInputStyle}
-              >
-                <option value="">Select…</option>
-                {COMPANY_SIZE_OPTIONS.map((opt) => (
-                  <option key={opt} value={opt}>
-                    {opt}
-                  </option>
-                ))}
-              </select>
-            </ModalField>
-          )}
-        </div>
+        <div className="px-5 py-4 space-y-4 overflow-y-auto">{children}</div>
 
         <div
           className="flex items-center justify-between gap-3 px-5 py-4 border-t"
@@ -608,7 +555,7 @@ function ProfileModal({
               Cancel
             </button>
             <button
-              onClick={handleSave}
+              onClick={onSave}
               disabled={saving}
               className="px-5 py-2 rounded-pill text-[13px] font-medium text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               style={{ background: 'var(--accent)' }}
@@ -621,6 +568,267 @@ function ProfileModal({
         </div>
       </div>
     </div>
+  )
+}
+
+// Read-only field box used for Email + LinkedIn. Matches the look of
+// the editable inputs below so the visual rhythm of the modal stays
+// consistent — the only signal that the field isn't editable is the
+// muted text color + the accompanying mailto hint underneath.
+function ReadOnlyField({
+  label,
+  children,
+  hint,
+}: {
+  label: string
+  children: React.ReactNode
+  hint: React.ReactNode
+}) {
+  return (
+    <ModalField label={label}>
+      <p
+        className="m-0 px-3 py-2 rounded-input border text-[13px]"
+        style={{
+          background: 'var(--paper-2)',
+          borderColor: 'var(--rule)',
+          color: 'var(--ink-2)',
+        }}
+      >
+        {children}
+      </p>
+      <p
+        className="mt-1.5 m-0"
+        style={{ fontSize: 11.5, lineHeight: 1.5, color: 'var(--ink-3)' }}
+      >
+        {hint}
+      </p>
+    </ModalField>
+  )
+}
+
+function BioModal({
+  user,
+  onClose,
+  onSaved,
+}: {
+  user: DashboardUser
+  onClose: () => void
+  onSaved: (u: DashboardUser) => void
+}) {
+  const [location, setLocation] = useState(user.location || '')
+  const [func, setFunc] = useState(user.function || '')
+  const [employment, setEmployment] = useState(user.employment || '')
+  const [companySize, setCompanySize] = useState(user.companySize || '')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handleSave() {
+    setSaving(true)
+    setError(null)
+    try {
+      const nextSize = employment.toLowerCase() === 'employed' ? companySize : ''
+      const payload = {
+        location,
+        function: func,
+        employment,
+        companySize: nextSize,
+      }
+      const res = await fetch('/api/dashboard/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      if (!res.ok) {
+        const data = (await res.json()) as { error?: string }
+        throw new Error(data.error || `HTTP ${res.status}`)
+      }
+      onSaved({
+        ...user,
+        location,
+        function: func,
+        employment,
+        companySize: nextSize,
+      })
+      onClose()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const showSize = employment.toLowerCase() === 'employed'
+
+  return (
+    <ProfileModalShell
+      title="Edit bio"
+      saving={saving}
+      error={error}
+      onSave={handleSave}
+      onClose={onClose}
+    >
+      <ReadOnlyField
+        label="Email"
+        hint={
+          <>
+            Need a different email? Email{' '}
+            <a
+              href="mailto:team@whisperedevents.com"
+              style={{ color: 'var(--accent)', textDecoration: 'underline', textUnderlineOffset: 2 }}
+            >
+              team@whisperedevents.com
+            </a>{' '}
+            and we&rsquo;ll switch it for you.
+          </>
+        }
+      >
+        {user.email}
+      </ReadOnlyField>
+
+      <ReadOnlyField
+        label="LinkedIn"
+        hint={
+          <>
+            Changed your LinkedIn handle? Email{' '}
+            <a
+              href="mailto:team@whispered.com"
+              style={{ color: 'var(--accent)', textDecoration: 'underline', textUnderlineOffset: 2 }}
+            >
+              team@whispered.com
+            </a>{' '}
+            to update it.
+          </>
+        }
+      >
+        {user.linkedin ? (
+          <a
+            href={user.linkedin}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: 'var(--accent)', textDecoration: 'underline', textUnderlineOffset: 2 }}
+          >
+            {user.linkedin}
+          </a>
+        ) : (
+          <span style={{ color: 'var(--ink-3)' }}>Not provided</span>
+        )}
+      </ReadOnlyField>
+
+      <ModalField label="Location">
+        <input
+          value={location}
+          onChange={(e) => setLocation(e.target.value)}
+          placeholder="e.g. San Francisco, CA"
+          className={modalInputCls}
+          style={modalInputStyle}
+        />
+      </ModalField>
+
+      <ModalField label="Function">
+        <input
+          value={func}
+          onChange={(e) => setFunc(e.target.value)}
+          placeholder="e.g. RevOps, Sales, GTM"
+          className={modalInputCls}
+          style={modalInputStyle}
+        />
+      </ModalField>
+
+      <ModalField label="Employment">
+        <select
+          value={employment}
+          onChange={(e) => setEmployment(e.target.value)}
+          className={`salon-select ${modalInputCls}`}
+          style={modalInputStyle}
+        >
+          <option value="">Select…</option>
+          {EMPLOYMENT_OPTIONS.map((opt) => (
+            <option key={opt} value={opt}>
+              {opt}
+            </option>
+          ))}
+        </select>
+      </ModalField>
+
+      {showSize && (
+        <ModalField label="Company size">
+          <select
+            value={companySize}
+            onChange={(e) => setCompanySize(e.target.value)}
+            className={`salon-select ${modalInputCls}`}
+            style={modalInputStyle}
+          >
+            <option value="">Select…</option>
+            {COMPANY_SIZE_OPTIONS.map((opt) => (
+              <option key={opt} value={opt}>
+                {opt}
+              </option>
+            ))}
+          </select>
+        </ModalField>
+      )}
+    </ProfileModalShell>
+  )
+}
+
+function TopicsModal({
+  user,
+  onClose,
+  onSaved,
+}: {
+  user: DashboardUser
+  onClose: () => void
+  onSaved: (u: DashboardUser) => void
+}) {
+  const [interest, setInterest] = useState(user.interest || '')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handleSave() {
+    setSaving(true)
+    setError(null)
+    try {
+      const payload = { interest }
+      const res = await fetch('/api/dashboard/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      if (!res.ok) {
+        const data = (await res.json()) as { error?: string }
+        throw new Error(data.error || `HTTP ${res.status}`)
+      }
+      onSaved({ ...user, interest })
+      onClose()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <ProfileModalShell
+      title="Edit topics"
+      saving={saving}
+      error={error}
+      onSave={handleSave}
+      onClose={onClose}
+    >
+      <ModalField label="Topics">
+        <div className="space-y-3">
+          <textarea
+            value={interest}
+            onChange={(e) => setInterest(e.target.value)}
+            placeholder="e.g. AI agents, RevOps, GTM, Women"
+            rows={3}
+            className={`${modalInputCls} resize-none`}
+            style={modalInputStyle}
+          />
+          <TopicChips value={interest} onChange={setInterest} />
+        </div>
+      </ModalField>
+    </ProfileModalShell>
   )
 }
 

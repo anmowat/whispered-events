@@ -24,6 +24,7 @@ export async function POST(req: NextRequest) {
   if (typeof body.employment === 'string') update.employment = body.employment
   if (typeof body.companySize === 'string') update.companySize = body.companySize
   if (typeof body.frequency === 'string') update.frequency = body.frequency
+  if (typeof body.function === 'string') update.function = body.function
 
   // Mirror the application form rule — Size only meaningful when Employed
   if (update.employment && update.employment.toLowerCase() !== 'employed') {
@@ -36,7 +37,8 @@ export async function POST(req: NextRequest) {
     update.location !== undefined ||
     update.interest !== undefined ||
     update.employment !== undefined ||
-    update.companySize !== undefined
+    update.companySize !== undefined ||
+    update.function !== undefined
 
   try {
     // Capture the user's pre-update state so we can detect:

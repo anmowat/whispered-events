@@ -609,6 +609,7 @@ export interface UserProfileUpdate {
   employment?: string
   companySize?: string
   frequency?: string
+  function?: string
 }
 
 export async function updateUserProfile(
@@ -640,6 +641,7 @@ export async function updateUserProfile(
     }
   }
   if (update.interest !== undefined) fields['Interest'] = update.interest
+  if (update.function !== undefined) fields['Function'] = update.function
 
   // Single-select fields: Airtable treats '' as "create new option ''",
   // which fails with INVALID_MULTIPLE_CHOICE_OPTIONS. Send null instead
