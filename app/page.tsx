@@ -562,37 +562,9 @@ function Landing({
 
 
 
-        {/* Partner tab: under-CTA link to the full /partners directory.
-            Same sans + italic-champagne treatment as the Contribute
-            tab's email line, minus the OR eyebrow (no alternative
-            being offered — just a way to browse). */}
-        {tab === 'partner' && (
-          <p
-            className="mt-5 text-center"
-            style={{
-              fontSize: 14,
-              lineHeight: 1.5,
-              color: 'rgba(236,230,218,.7)',
-            }}
-          >
-            see{' '}
-            <a
-              href="/partners"
-              style={{
-                fontFamily: SERIF,
-                fontStyle: 'italic',
-                fontSize: 18,
-                color: '#c9a86a',
-                textDecoration: 'underline',
-                textUnderlineOffset: 4,
-                textDecorationColor: 'rgba(201,168,106,.4)',
-                marginLeft: 2,
-              }}
-            >
-              all our partners
-            </a>
-          </p>
-        )}
+        {/* Partner tab: "see all our partners" link lives below the
+            marquee at the bottom of the page (see partner section
+            below) so the social proof + browse path stay together. */}
       </section>
 
       {/* How it works — the uppercase eyebrow itself reads as the
@@ -659,6 +631,34 @@ function Landing({
                 Partnered with the best communities &amp; companies
               </div>
               <PartnerMarquee partners={partners} />
+              {/* "see all our partners" lives below the marquee so the
+                  scroll is the primary social proof and the directory
+                  link is a follow-on. */}
+              <p
+                className="mt-6 text-center"
+                style={{
+                  fontSize: 14,
+                  lineHeight: 1.5,
+                  color: 'rgba(236,230,218,.7)',
+                }}
+              >
+                see{' '}
+                <a
+                  href="/partners"
+                  style={{
+                    fontFamily: SERIF,
+                    fontStyle: 'italic',
+                    fontSize: 18,
+                    color: '#c9a86a',
+                    textDecoration: 'underline',
+                    textUnderlineOffset: 4,
+                    textDecorationColor: 'rgba(201,168,106,.4)',
+                    marginLeft: 2,
+                  }}
+                >
+                  all our partners
+                </a>
+              </p>
             </section>
           )
         : (slides.length > 0 || featuredFallback.length > 0) && (
