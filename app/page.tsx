@@ -1046,23 +1046,6 @@ function AddEventModal({ onClose }: { onClose: () => void }) {
           executives whose profile fits.
         </p>
 
-        <div
-          className="flex items-center justify-between gap-3 rounded-input border px-3 py-2 mb-4"
-          style={{
-            background: '#1b1814',
-            borderColor: 'rgba(236,230,218,.13)',
-          }}
-        >
-          <span style={{ fontSize: 14, color: '#ece6da' }}>{email}</span>
-          <button
-            onClick={handleCopy}
-            className="text-[12px] underline"
-            style={{ color: '#c9a86a', textUnderlineOffset: 3 }}
-          >
-            {copied ? 'Copied!' : 'Copy'}
-          </button>
-        </div>
-
         <div className="flex flex-col gap-2">
           <a
             href={gmailUrl}
@@ -1098,6 +1081,31 @@ function AddEventModal({ onClose }: { onClose: () => void }) {
             Open in default mail app
           </a>
         </div>
+
+        {/* Tertiary fallback for users on a setup where neither launcher
+            works — small text link, not a button. Click flips the label
+            to "Copied!" so the user knows the action took effect. */}
+        <p
+          className="m-0 mt-4 text-center"
+          style={{ fontSize: 12, color: 'rgba(236,230,218,.5)', lineHeight: 1.5 }}
+        >
+          Or copy{' '}
+          <button
+            onClick={handleCopy}
+            className="underline"
+            style={{
+              color: copied ? '#c9a86a' : 'rgba(236,230,218,.7)',
+              textUnderlineOffset: 2,
+              background: 'none',
+              border: 'none',
+              padding: 0,
+              cursor: 'pointer',
+              font: 'inherit',
+            }}
+          >
+            {copied ? `${email} (copied)` : email}
+          </button>
+        </p>
       </div>
     </div>
   )
