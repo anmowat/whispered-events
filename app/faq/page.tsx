@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Header from '@/components/Header'
 import LoginModal from '@/components/LoginModal'
+import TopicChips from '@/components/TopicChips'
 
 // Single-question FAQ for v1. The content is small enough that a static
 // page is the right shape; if this grows past ~5 questions we can swap
@@ -190,6 +191,36 @@ export default function FaqPage() {
             employment status. We may share your name, interests, and location
             with partners running events you match for.
           </p>
+        </section>
+
+        <section className="mt-12">
+          <h2
+            className="font-serif m-0"
+            style={{
+              fontSize: 22,
+              lineHeight: 1.2,
+              color: 'var(--accent)',
+              letterSpacing: '-0.01em',
+            }}
+          >
+            <span style={{ color: 'var(--ink-3)', marginRight: 8 }}>Q:</span>
+            What types of events do you have?
+          </h2>
+          <p
+            className="mt-3 mb-3"
+            style={{ fontSize: 15, color: 'var(--ink-2)', lineHeight: 1.6 }}
+          >
+            <strong style={{ color: 'var(--ink-3)', fontWeight: 600, marginRight: 6 }}>
+              A:
+            </strong>
+            We focus on in-person, director / VP / C-suite level events. We
+            have events around the world (with concentrations in the obvious
+            big cities in North America). See the current top topic areas for
+            events on our platform. We update this regularly.
+          </p>
+          <div className="mt-4">
+            <TopicChips readonly />
+          </div>
         </section>
 
         <section

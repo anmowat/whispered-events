@@ -84,11 +84,18 @@ function buildFallbackGroups(): ChipGroup[] {
 }
 
 export default function TopicChips({
-  value,
+  value = '',
   onChange,
+  readonly = false,
 }: {
-  value: string
-  onChange: (next: string) => void
+  // Editable mode: value is the comma-separated list of currently
+  // selected topics; onChange fires on every toggle.
+  // Readonly mode (set readonly=true): chips render as static spans
+  // in their resting tinted state. Used on the FAQ to show the live
+  // topic taxonomy without making it look clickable.
+  value?: string
+  onChange?: (next: string) => void
+  readonly?: boolean
 }) {
   const [groups, setGroups] = useState<ChipGroup[]>(() => buildFallbackGroups())
 
@@ -111,7 +118,9 @@ export default function TopicChips({
     }
   }, [])
 
-  const selected = parseTopics(value)
+  // Skip the selected-set computation in readonly mode — every chip
+  // renders in the resting state regardless of value.
+  const selected: string[] = readonly ? [] : parseTopics(value)
 
   return (
     <div className="space-y-3">
@@ -136,12 +145,27 @@ export default function TopicChips({
             </div>
             <div className="flex flex-wrap gap-1.5">
               {group.topics.map((topic) => {
+                if (readonly) {
+                  return (
+                    <span
+                      key={topic}
+                      className="px-2.5 py-1 rounded-pill border text-[12.5px]"
+                      style={{
+                        background: c.bg,
+                        borderColor: c.border,
+                        color: c.text,
+                      }}
+                    >
+                      {topic}
+                    </span>
+                  )
+                }
                 const isSelected = hasTopic(selected, topic)
                 return (
                   <button
                     key={topic}
                     type="button"
-                    onClick={() => onChange(toggleTopic(value, topic))}
+                    onClick={() => onChange?.(toggleTopic(value, topic))}
                     className="px-2.5 py-1 rounded-pill border text-[12.5px] transition-colors"
                     style={{
                       background: isSelected ? c.bgActive : c.bg,
