@@ -15,9 +15,9 @@ import {
 type Step =
   | 'email'
   | 'learn'
+  | 'interest'
   | 'location'
   | 'linkedin'
-  | 'interest'
   | 'employment'
   | 'size'
   | 'frequency'
@@ -60,7 +60,7 @@ const QUESTIONS: Record<Step, string> = {
   // pick up the gold accent. The string here is a plain-text fallback
   // used by the back-button path before the bubble re-renders.
   interest:
-    "**What topics are you interested in?**\n\nWe use your topics (as well as your function/level from your LinkedIn) to find the events that best fit you\nPick from frequently used topics below **AND** also feel free to add your own\nUpdate anytime on your dashboard",
+    "**What topics are you interested in?**\n\nWe use your topics plus your location and LinkedIn profile to find the events that best fit you\nPick from frequently used topics below **AND** also feel free to add your own\nUpdate anytime on your dashboard",
   employment:
     "**What is your current work situation?**\n\nWe ask because some events focus on people in specific roles while others are open to anyone.",
   size:
@@ -100,9 +100,9 @@ function nextStep(current: Step, value: string): Step {
   const order: Step[] = [
     'email',
     'learn',
+    'interest',
     'location',
     'linkedin',
-    'interest',
     'employment',
     'size',
     'frequency',
@@ -122,9 +122,9 @@ function nextStep(current: Step, value: string): Step {
 const STEP_INDEX: Record<Step, number> = {
   email: 1,
   learn: 2,
-  location: 3,
-  linkedin: 4,
-  interest: 5,
+  interest: 3,
+  location: 4,
+  linkedin: 5,
   employment: 6,
   size: 6,
   frequency: 7,
@@ -456,10 +456,13 @@ function InterestPrompt() {
         What topics are you interested in?
       </p>
       <p className="m-0">
-        We use your topics (as well as your function/level from your LinkedIn) to find the events that best fit you
+        We use your topics plus your location and LinkedIn profile to find the events that best fit you
       </p>
       <p className="m-0">
-        Pick from frequently used topics below <strong>AND</strong> also feel free to add your own
+        Pick from frequently used topics below <strong>AND</strong>{' '}
+        <strong className="underline" style={{ color: 'var(--accent)' }}>
+          also feel free to add your own
+        </strong>
       </p>
       <p className="m-0">Update anytime on your dashboard</p>
     </div>
@@ -527,9 +530,9 @@ function ProfileSummary({
   const fields: { key: keyof UserProfile; label: string }[] = [
     { key: 'email', label: 'Email' },
     { key: 'learn', label: 'How you heard about us' },
+    { key: 'interest', label: 'Topics' },
     { key: 'location', label: 'City' },
     { key: 'linkedin', label: 'LinkedIn' },
-    { key: 'interest', label: 'Topics' },
     { key: 'employment', label: 'Employment' },
     ...(profile.employment.toLowerCase() === 'employed'
       ? [{ key: 'companySize' as keyof UserProfile, label: 'Company size' }]
