@@ -32,6 +32,10 @@ const EMPLOYMENT_OPTIONS = ['Employed', 'Searching', 'Fractional', 'Other']
 const FREQUENCY_OPTIONS = ['As they arrive', 'Weekly', 'Monthly', 'Paused']
 const DEFAULT_FREQUENCY = 'Monthly'
 
+// Exact spellings match the Size single-select options in the Airtable
+// Users table — do not change here without also updating Airtable.
+const COMPANY_SIZE_OPTIONS = ['<$5M', '$5-25m', '$25-100m', '$100m-1B', '$1B+', 'Other']
+
 // Display-only relabel for 'Paused'. The value we save (Airtable
 // picklist, every backend lookup, the digest cron's frequency check)
 // keeps 'Paused' — we just show users a friendlier label that hints
@@ -311,7 +315,7 @@ export default function ViewEventsTab({
   // Employment + frequency are picklist-only. A text composer beneath
   // the chips reads as "you can type here too" and confuses people, even
   // though we accept anything. Drop it for those two steps.
-  const isPicklistStep = step === 'employment' || step === 'frequency'
+  const isPicklistStep = step === 'employment' || step === 'frequency' || step === 'size'
   const showComposer = step !== 'confirm' && step !== 'submitted' && !isPicklistStep
   const canGoBack = stepHistory.length > 0 && step !== 'submitted'
 
@@ -385,6 +389,10 @@ export default function ViewEventsTab({
 
         {step === 'employment' && (
           <ChipRow options={EMPLOYMENT_OPTIONS} onPick={(opt) => handleSend(opt)} />
+        )}
+
+        {step === 'size' && (
+          <ChipRow options={COMPANY_SIZE_OPTIONS} onPick={(opt) => handleSend(opt)} />
         )}
 
         {step === 'frequency' && (
@@ -584,7 +592,9 @@ function ProfileSummary({
                         ? FREQUENCY_OPTIONS
                         : editingField === 'employment'
                           ? EMPLOYMENT_OPTIONS
-                          : null
+                          : editingField === 'companySize'
+                            ? COMPANY_SIZE_OPTIONS
+                            : null
                     if (picklist) {
                       return (
                         <select
