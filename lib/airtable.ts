@@ -634,9 +634,22 @@ export async function updateUserProfile(
     }
   }
   if (update.interest !== undefined) fields['Interest'] = update.interest
-  if (update.employment !== undefined) fields['Employment'] = update.employment
-  if (update.companySize !== undefined) fields['Size'] = update.companySize
-  if (update.frequency !== undefined) fields['Frequency'] = update.frequency
+
+  // Single-select fields: Airtable treats '' as "create new option ''",
+  // which fails with INVALID_MULTIPLE_CHOICE_OPTIONS. Send null instead
+  // to clear the cell. Same cast we already use for LatLon above.
+  if (update.employment !== undefined) {
+    ;(fields as Record<string, unknown>)['Employment'] =
+      update.employment === '' ? null : update.employment
+  }
+  if (update.companySize !== undefined) {
+    ;(fields as Record<string, unknown>)['Size'] =
+      update.companySize === '' ? null : update.companySize
+  }
+  if (update.frequency !== undefined) {
+    ;(fields as Record<string, unknown>)['Frequency'] =
+      update.frequency === '' ? null : update.frequency
+  }
 
   if (Object.keys(fields).length === 0) return { id: records[0].id }
   await base(PROFILES_TABLE).update(records[0].id, fields)
