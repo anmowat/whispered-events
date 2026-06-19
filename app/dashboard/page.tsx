@@ -376,7 +376,7 @@ function NativeSelect({
       onChange={(e) => onChange(e.target.value)}
       className="salon-select w-full rounded-input border text-[13px] py-2 pl-3 pr-8"
       style={{
-        background: 'var(--paper)',
+        backgroundColor: 'var(--paper)',
         borderColor: 'var(--rule)',
         color: 'var(--ink)',
       }}
@@ -641,7 +641,7 @@ const modalInputCls =
 // pin border-color, background, and text color explicitly so the form
 // is legible on both Salon (cream) and After Hours (dark).
 const modalInputStyle: React.CSSProperties = {
-  background: 'var(--paper-2)',
+  backgroundColor: 'var(--paper-2)',
   borderColor: 'var(--rule)',
   color: 'var(--ink)',
 }

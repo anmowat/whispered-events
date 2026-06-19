@@ -611,7 +611,7 @@ function ProfileSummary({
                             }
                           }}
                           className="salon-select w-full rounded-input border px-3 py-2 text-[13px]"
-                          style={{ background: 'var(--paper-2)', borderColor: 'var(--accent)' }}
+                          style={{ backgroundColor: 'var(--paper-2)', borderColor: 'var(--accent)' }}
                         >
                           {picklist.map((opt) => (
                             <option key={opt} value={opt}>
