@@ -190,9 +190,6 @@ export default function DashboardPage() {
           >
             Welcome back, <span className="italic">{firstName}</span>
           </h1>
-          <p className="mt-1" style={{ fontSize: 13, color: 'var(--ink-3)' }}>
-            {user.email}
-          </p>
         </div>
 
         {!user.active && (
