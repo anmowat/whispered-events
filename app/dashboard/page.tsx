@@ -149,7 +149,7 @@ export default function DashboardPage() {
   const firstName = user.name?.split(' ')[0] || 'there'
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen flex flex-col">
       <Header
         activeTab={null}
         onLogoClick={() => (window.location.href = '/')}
@@ -181,7 +181,7 @@ export default function DashboardPage() {
         }
       />
 
-      <main className="max-w-[820px] mx-auto px-6 sm:px-8 py-10 pb-20">
+      <main className="flex-1 max-w-[820px] w-full mx-auto px-6 sm:px-8 py-10 pb-20">
         {/* Welcome */}
         <div className="mb-8">
           <h1
@@ -208,25 +208,29 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Profile CTA — Bio + Topics live in one card, each as a
-            single row. The eyebrow above acts as the section header so
-            no inner "Update your profile" title row is needed. */}
+        {/* Profile CTA — single card: header at top, Bio + Topics
+            indented below it with tight vertical spacing. */}
         <section className="mb-6">
           <div className="eyebrow mb-2.5">Your profile</div>
           <div
-            className="rounded-card border"
+            className="rounded-card border px-5 py-4"
             style={{ background: 'var(--paper)', borderColor: 'var(--rule)' }}
           >
-            <ProfileSubRow
-              title="Bio"
-              description="Who you are, where you are located and employment status."
-              onEdit={() => setEditingBio(true)}
-            />
-            <ProfileSubRow
-              title="Topics"
-              description="What topics you are interested in."
-              onEdit={() => setEditingTopics(true)}
-            />
+            <p className="m-0 font-medium" style={{ fontSize: 14, color: 'var(--ink)' }}>
+              Update your profile to improve your matches
+            </p>
+            <div className="mt-3 pl-3 space-y-1">
+              <ProfileSubRow
+                title="Bio"
+                description="Who you are, where you are located and employment status."
+                onEdit={() => setEditingBio(true)}
+              />
+              <ProfileSubRow
+                title="Topics"
+                description="What topics you are interested in."
+                onEdit={() => setEditingTopics(true)}
+              />
+            </div>
           </div>
         </section>
 
@@ -318,26 +322,10 @@ export default function DashboardPage() {
             </p>
           )}
 
-          <div
-            className="pt-8 text-center space-y-1 leading-relaxed"
-            style={{ fontSize: 12, color: 'var(--ink-3)' }}
-          >
-            <p>Matches are personalized based on your LinkedIn profile (seniority, function, work history).</p>
-            <p>Click Edit above to refine your matches.</p>
-            <p>
-              If your LinkedIn has changed, email{' '}
-              <a
-                href="mailto:team@whisperedevents.com"
-                className="underline"
-                style={{ color: 'var(--accent)', textUnderlineOffset: 3 }}
-              >
-                team@whisperedevents.com
-              </a>{' '}
-              and we can refresh your matches.
-            </p>
-          </div>
         </section>
       </main>
+
+      <DashboardFooter />
 
       {editingBio && (
         <BioModal
@@ -452,6 +440,39 @@ function FrequencyControl({
 
 // One row inside the "Your profile" card. Title + description on the
 // left, accent "Edit" affordance on the right. Used for Bio and Topics.
+// Slim footer mirroring the homepage After Hours treatment — copyright
+// left, FAQ link right. Replaces the LinkedIn matching explainer that
+// used to live at the bottom of the events list.
+function DashboardFooter() {
+  return (
+    <div
+      className="flex items-center justify-between px-4 sm:px-11 py-5 sm:py-[26px]"
+      style={{
+        borderTop: '1px solid rgba(236,230,218,.13)',
+        fontSize: 12,
+        color: 'rgba(236,230,218,.4)',
+      }}
+    >
+      <span>Whispered Events - Copyright 2026</span>
+      <a
+        href="/faq"
+        className="transition-colors"
+        style={{
+          letterSpacing: '.08em',
+          textDecoration: 'underline',
+          textUnderlineOffset: 3,
+          textDecorationColor: 'rgba(236,230,218,.25)',
+          color: 'rgba(236,230,218,.4)',
+        }}
+        onMouseEnter={(e) => (e.currentTarget.style.color = '#c9a86a')}
+        onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(236,230,218,.4)')}
+      >
+        FAQ
+      </a>
+    </div>
+  )
+}
+
 function ProfileSubRow({
   title,
   description,
@@ -462,13 +483,13 @@ function ProfileSubRow({
   onEdit: () => void
 }) {
   return (
-    <div className="flex justify-between items-center gap-4 px-5 py-4">
+    <div className="flex justify-between items-center gap-4">
       <p
         className="m-0 min-w-0 flex items-baseline flex-wrap gap-x-2.5"
-        style={{ fontSize: 14 }}
+        style={{ fontSize: 13 }}
       >
         <span style={{ fontWeight: 500, color: 'var(--ink)' }}>{title}</span>
-        <span style={{ fontSize: 13, color: 'var(--ink-3)' }}>{description}</span>
+        <span style={{ fontSize: 12.5, color: 'var(--ink-3)' }}>{description}</span>
       </p>
       <button
         onClick={onEdit}

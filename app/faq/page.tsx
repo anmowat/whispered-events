@@ -118,6 +118,35 @@ export default function FaqPage() {
             }}
           >
             <span style={{ color: 'var(--ink-3)', marginRight: 8 }}>Q:</span>
+            Can I have more than one location for matches?
+          </h2>
+          <p
+            className="mt-3 mb-0"
+            style={{ fontSize: 15, color: 'var(--ink-2)', lineHeight: 1.6 }}
+          >
+            <strong style={{ color: 'var(--ink-3)', fontWeight: 600, marginRight: 6 }}>
+              A:
+            </strong>
+            We (consciously) have started with allowing users to have just one
+            location for event matches at a time. This is because we are
+            focused on helping executives find quality events vs. becoming a
+            tool for selling ;) If you are traveling you can easily update your
+            location to see matches in a new city. We will explore
+            multi-location functionality for top contributors in the future.
+          </p>
+        </section>
+
+        <section className="mt-12">
+          <h2
+            className="font-serif m-0"
+            style={{
+              fontSize: 22,
+              lineHeight: 1.2,
+              color: 'var(--accent)',
+              letterSpacing: '-0.01em',
+            }}
+          >
+            <span style={{ color: 'var(--ink-3)', marginRight: 8 }}>Q:</span>
             What data do you collect, and how is it used?
           </h2>
           <p
