@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { waitUntil } from '@vercel/functions'
 import { verifySession, setMatchRating, MatchRating } from '@/lib/supabase'
-import { getUserByEmail, getEventById } from '@/lib/airtable'
+import { getUserByEmail } from '@/lib/users'
+import { getEventById } from '@/lib/events'
 import { sendMatchRatingNotification } from '@/lib/email'
 
 // Writes the dashboard thumbs-up / thumbs-down (or clears it) onto the

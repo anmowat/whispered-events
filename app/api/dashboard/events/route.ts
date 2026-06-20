@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifySession, getMatchScoresForUser } from '@/lib/supabase'
-import { getFutureEvents } from '@/lib/airtable'
+import { getFutureEvents } from '@/lib/events'
 
 const NOTIFY_THRESHOLD = 1.35
 

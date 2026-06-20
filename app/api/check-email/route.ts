@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getContributionStats } from '@/lib/supabase'
-import { getUserByEmail } from '@/lib/airtable'
+import { getUserByEmail } from '@/lib/users'
 
 export async function POST(req: NextRequest) {
   try {

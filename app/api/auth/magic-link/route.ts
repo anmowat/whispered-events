@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getUserByEmail } from '@/lib/airtable'
+import { getUserByEmail } from '@/lib/users'
 import { createMagicToken } from '@/lib/supabase'
 import { sendMagicLink } from '@/lib/email'
 import { safeNext } from '@/lib/auth-redirect'

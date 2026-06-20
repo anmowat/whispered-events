@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifySession, getContributionStats } from '@/lib/supabase'
-import { getUserByEmail } from '@/lib/airtable'
+import { getUserByEmail } from '@/lib/users'
 
 export async function GET(req: NextRequest) {
   const sessionToken = req.cookies.get('session')?.value
