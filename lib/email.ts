@@ -306,25 +306,53 @@ export async function sendUserApprovedEmail(user: AirtableUser): Promise<void> {
   }
 }
 
-export async function sendEventSubmittedEmail(email: string, eventName: string): Promise<void> {
+// Contribution-milestone copy. Anniversaries get a celebratory line at
+// the top of the body — top-contributor recognition matters more than
+// a generic "thanks". Anything outside the milestone set falls back to
+// the standard count line further down. Caller passes the running
+// total post-insert, so 1 = first-ever contribution.
+function contributionMilestone(total: number): string | null {
+  switch (total) {
+    case 1: return '🎉 This is your first contribution — welcome to the Whispered Events community!'
+    case 5: return "🎉 5 events contributed — you're on a roll!"
+    case 10: return '🎊 10 events contributed — top contributor territory!'
+    case 25: return "🥂 25 events contributed — you're shaping the platform!"
+    case 50: return '🚀 50 events contributed — power contributor!'
+    case 100: return '👑 100 events contributed — legendary!'
+    default: return null
+  }
+}
+
+export async function sendEventSubmittedEmail(
+  email: string,
+  eventName: string,
+  contributionsTotal: number,
+): Promise<void> {
   const resend = getResend()
   const safeName = escapeHtml(eventName)
   const firstName = firstNameFromEmail(email)
+  const milestone = contributionMilestone(contributionsTotal)
+  const countLine = `You've added ${contributionsTotal} event${contributionsTotal === 1 ? '' : 's'} so far! We'll be adding new features for top contributors soon.`
   const html = shell(`
     ${h1(`Event <span style="font-style:italic;">added</span>.`)}
-    ${p('Thanks for contributing an event to Whispered Events — the platform is powered by contributions like yours.', { mt: 14 })}
-    ${p(`<strong style="color:${C.ink};">"${safeName}"</strong> has been added, and we've updated your contributions.`, { mt: 12 })}
-    ${p('Have a great time at your next event, and keep sharing Whispered Events with your network so more great people can discover the right events.', { mt: 12 })}
+    ${p('Thanks for adding an event — Whispered Events is driven by contributions like yours!', { mt: 14 })}
+    ${p(`<strong style="color:${C.ink};">"${safeName}"</strong> has been added. If you are the host of the event, reply to this email to get host access and apply to be a partner for additional features.`, { mt: 12 })}
+    ${milestone ? p(`<strong style="color:${C.ink};">${milestone}</strong>`, { mt: 12 }) : ''}
+    ${p(countLine, { mt: 12 })}
+    ${p('Enjoy your next event!', { mt: 12 })}
     ${digestFooterHtml(firstName)}
   `)
   const text = [
     'Event added.',
     '',
-    'Thanks for contributing an event to Whispered Events — the platform is powered by contributions like yours.',
+    'Thanks for adding an event — Whispered Events is driven by contributions like yours!',
     '',
-    `"${eventName}" has been added, and we've updated your contributions.`,
+    `"${eventName}" has been added. If you are the host of the event, reply to this email to get host access and apply to be a partner for additional features.`,
     '',
-    'Have a great time at your next event, and keep sharing Whispered Events with your network so more great people can discover the right events.',
+    ...(milestone ? [milestone, ''] : []),
+    countLine,
+    '',
+    'Enjoy your next event!',
     '',
     ...digestFooterTextLines(firstName),
   ].join('\n')

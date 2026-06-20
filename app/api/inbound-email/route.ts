@@ -8,7 +8,7 @@ import {
   createEvent,
   getUserByEmail,
 } from '@/lib/airtable'
-import { recordContribution } from '@/lib/supabase'
+import { recordContribution, getContributionStats } from '@/lib/supabase'
 import { sendEventCouldNotReadEmail, sendEventSubmittedEmail } from '@/lib/email'
 import { EventRecord, VIRTUAL_LOCATION_RE } from '@/lib/types'
 
@@ -221,13 +221,28 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, reason: 'create failed' })
   }
 
-  recordContribution({
-    email: senderEmail,
-    eventId: id,
-    eventName: parsed.name,
-    source: 'inbound_email',
-    airtableUserId: existingUser?.id ?? null,
-  }).catch((e) => console.error('inbound-email: recordContribution error', e))
+  // Await record-then-count so the confirmation email reflects the
+  // running total post-insert (used to surface contribution
+  // milestones). Inbound-email is a webhook, not a user-facing
+  // route, so the extra ~200ms here doesn't affect any human.
+  try {
+    await recordContribution({
+      email: senderEmail,
+      eventId: id,
+      eventName: parsed.name,
+      source: 'inbound_email',
+      airtableUserId: existingUser?.id ?? null,
+    })
+  } catch (e) {
+    console.error('inbound-email: recordContribution error', e)
+  }
+  let contributionsTotal = 0
+  try {
+    const stats = await getContributionStats(senderEmail)
+    contributionsTotal = stats.total
+  } catch (e) {
+    console.error('inbound-email: getContributionStats failed', e)
+  }
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.whisperedevents.com'
   waitUntil(
@@ -243,7 +258,7 @@ export async function POST(req: NextRequest) {
       'for event',
       parsed.name,
     )
-    await sendEventSubmittedEmail(senderEmail, parsed.name)
+    await sendEventSubmittedEmail(senderEmail, parsed.name, contributionsTotal)
     console.log('inbound-email: confirmation sent OK to', senderEmail)
   } catch (e) {
     console.error('inbound-email: sendEventSubmittedEmail failed', e)

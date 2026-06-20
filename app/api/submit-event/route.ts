@@ -5,7 +5,7 @@ import {
   createEvent,
   getPartnerUserByEmail,
 } from '@/lib/airtable'
-import { recordContribution } from '@/lib/supabase'
+import { recordContribution, getContributionStats } from '@/lib/supabase'
 import { sendEventSubmittedEmail } from '@/lib/email'
 import { EventRecord, VIRTUAL_LOCATION_RE } from '@/lib/types'
 
@@ -69,22 +69,37 @@ export async function POST(req: NextRequest) {
 
     const id = await createEvent(event, hostUserId, 'Dashboard')
 
-    recordContribution({
-      email: event.submitter,
-      eventId: id,
-      eventName: event.name,
-      source: 'form',
-      airtableUserId: hostUserId ?? null,
-    }).catch((e) => console.error('recordContribution error:', e))
-
-    // Confirmation email to the submitter (BCC'd to MONITOR_BCC inside
-    // sendEventSubmittedEmail so we see every send). Wrapped in waitUntil so
-    // Vercel keeps the function alive past the response — a bare
-    // .catch() promise gets killed when the parent returns.
+    // Record + count + confirmation email all chain inside one
+    // waitUntil so the submitter response stays fast but the email
+    // sees the post-insert running total (used to surface
+    // contribution milestones). A bare .catch() promise would get
+    // killed when the parent returns.
     waitUntil(
-      sendEventSubmittedEmail(event.submitter, event.name).catch((e) =>
-        console.error('submit-event: sendEventSubmittedEmail failed', e),
-      ),
+      (async () => {
+        try {
+          await recordContribution({
+            email: event.submitter,
+            eventId: id,
+            eventName: event.name,
+            source: 'form',
+            airtableUserId: hostUserId ?? null,
+          })
+        } catch (e) {
+          console.error('recordContribution error:', e)
+        }
+        let total = 0
+        try {
+          const stats = await getContributionStats(event.submitter)
+          total = stats.total
+        } catch (e) {
+          console.error('submit-event: getContributionStats failed', e)
+        }
+        try {
+          await sendEventSubmittedEmail(event.submitter, event.name, total)
+        } catch (e) {
+          console.error('submit-event: sendEventSubmittedEmail failed', e)
+        }
+      })(),
     )
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
