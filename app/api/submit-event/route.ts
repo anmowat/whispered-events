@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { waitUntil } from '@vercel/functions'
-import {
-  checkDuplicate,
-  createEvent,
-  getPartnerUserByEmail,
-} from '@/lib/airtable'
+import { createEvent } from '@/lib/airtable'
+import { getPartnerUserByEmail } from '@/lib/users'
+import { checkDuplicate } from '@/lib/events'
 import { recordContribution, getContributionStats } from '@/lib/supabase'
 import { sendEventSubmittedEmail } from '@/lib/email'
 import { EventRecord, VIRTUAL_LOCATION_RE } from '@/lib/types'

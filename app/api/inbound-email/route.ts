@@ -3,11 +3,9 @@ import { waitUntil } from '@vercel/functions'
 import { Resend, type GetReceivingEmailResponseSuccess } from 'resend'
 import { scrapeUrl } from '@/lib/scraper'
 import { parseEventContent } from '@/lib/claude'
-import {
-  checkDuplicate,
-  createEvent,
-  getUserByEmail,
-} from '@/lib/airtable'
+import { createEvent } from '@/lib/airtable'
+import { getUserByEmail } from '@/lib/users'
+import { checkDuplicate } from '@/lib/events'
 import { recordContribution, getContributionStats } from '@/lib/supabase'
 import { sendEventCouldNotReadEmail, sendEventSubmittedEmail } from '@/lib/email'
 import { EventRecord, VIRTUAL_LOCATION_RE } from '@/lib/types'

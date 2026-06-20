@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { waitUntil } from '@vercel/functions'
-import { addEventHost, getPartnerUserByEmail } from '@/lib/airtable'
+import { addEventHost } from '@/lib/airtable'
+import { getPartnerUserByEmail } from '@/lib/users'
 
 // Partner-only "claim me as a host" mutation. Used by the contribute flow
 // when /api/check-event flagged the submitter as eligible to claim
