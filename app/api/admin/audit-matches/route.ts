@@ -44,7 +44,6 @@ export async function GET(req: NextRequest) {
         grade: user.grade ?? null,
         function: user.function || null,
         seniority: user.seniority || null,
-        fullExp: user.fullExp ? `${user.fullExp.length} chars` : null,
         location: user.location || null,
         latLon: user.lat != null && user.lng != null ? `${user.lat},${user.lng}` : null,
         eligibleForMatching: isMatchEligible(user),

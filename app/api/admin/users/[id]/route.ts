@@ -79,7 +79,6 @@ export async function GET(
         function: user.function,
         seniority: user.seniority,
         linkedin: user.linkedin,
-        fullExp: user.fullExp,
         grade: user.grade ?? '',
         interest: user.interest,
         learn: user.learn,

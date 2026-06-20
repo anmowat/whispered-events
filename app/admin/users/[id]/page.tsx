@@ -12,7 +12,6 @@ interface UserDetail {
   function: string
   seniority: string
   linkedin: string
-  fullExp: string
   grade: string
   interest: string
   learn: string
@@ -209,7 +208,6 @@ export default function AdminUserDetailPage() {
                 <Field label="Company Size" value={user.companySize} />
                 <Field label="Topics" value={user.interest} multiline />
                 <Field label="How they heard" value={user.learn} multiline />
-                <Field label="Full Experience" value={user.fullExp} multiline />
                 <Field
                   label="Last Contribution"
                   value={

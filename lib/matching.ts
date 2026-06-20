@@ -54,7 +54,6 @@ export function computeInputsHash(event: AirtableEvent, user: AirtableUser): str
     user: {
       function: user.function ?? '',
       seniority: user.seniority ?? '',
-      fullExp: user.fullExp ?? '',
       companySize: user.companySize ?? '',
       employment: user.employment ?? '',
       interest: user.interest ?? '',
@@ -132,7 +131,6 @@ async function callLLM(
   const userBlock = `Attendee profile:
 - Function/Role: ${user.function}
 - Seniority: ${user.seniority}
-- Full experience: ${cap(user.fullExp) || 'Not provided — ignore in scoring'}
 - Company size: ${user.companySize || 'Not specified — ignore in scoring'}
 - Employment: ${user.employment || 'Not specified — ignore in scoring'}
 - Topics they want events about: ${interest || 'Not stated — return preferences=1.0 (neutral)'}`

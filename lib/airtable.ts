@@ -259,7 +259,6 @@ const USER_FIELDS = [
   'FirstName',
   'Function',
   'Seniority',
-  'FullExp',
   'Grade',
   'Size',
   'Interest',
@@ -307,7 +306,6 @@ function toAirtableUser(r: {
     firstName: String(r.get('FirstName') || ''),
     function: String(r.get('Function') || ''),
     seniority: String(r.get('Seniority') || ''),
-    fullExp: String(r.get('FullExp') || ''),
     grade,
     companySize: String(r.get('Size') || ''),
     interest: String(r.get('Interest') || ''),
@@ -497,7 +495,6 @@ export interface AirtableUser {
   firstName: string
   function: string
   seniority: string
-  fullExp: string
   grade?: 'A' | 'Polish' | 'B' | 'C'
   companySize: string
   interest: string

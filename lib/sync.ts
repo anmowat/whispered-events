@@ -38,7 +38,6 @@ interface UserCacheRow {
   first_name: string
   fn: string
   seniority: string
-  full_exp: string
   grade: string | null
   company_size: string
   interest: string
@@ -67,7 +66,7 @@ interface EventCacheRow {
 }
 
 const USER_FIELDS = [
-  'Email', 'Name', 'FirstName', 'Function', 'Seniority', 'FullExp', 'Grade',
+  'Email', 'Name', 'FirstName', 'Function', 'Seniority', 'Grade',
   'Size', 'Interest', 'Employment', 'Location', 'LatLon', 'Active',
   'Frequency',
 ]
@@ -103,7 +102,6 @@ export async function syncUsersToCache(): Promise<SyncStats> {
       first_name: String(r.get('FirstName') || ''),
       fn: String(r.get('Function') || ''),
       seniority: String(r.get('Seniority') || ''),
-      full_exp: String(r.get('FullExp') || ''),
       grade,
       company_size: String(r.get('Size') || ''),
       interest: String(r.get('Interest') || ''),
