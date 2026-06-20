@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { EventRecord, EventType } from '@/lib/types'
 import {
   BackLink,
@@ -61,6 +61,10 @@ export default function ShareEventTab({
   const [input, setInput] = useState('')
   const [pendingInput, setPendingInput] = useState('')
   const [submitterEmail, setSubmitterEmail] = useState('')
+  // true once /api/auth/me confirms a logged-in session and we've
+  // populated submitterEmail from it. Lets handleInputSubmit skip the
+  // email-prompt step entirely for known users.
+  const [emailPrefilled, setEmailPrefilled] = useState(false)
   // null = unknown (still loading or check failed). The inline host
   // notice shows for false AND null — safer to over-warn than to let a
   // non-partner think they'll be auto-linked.
@@ -77,11 +81,37 @@ export default function ShareEventTab({
   const [claimMessage, setClaimMessage] = useState<string>('')
   const [isLoading, setIsLoading] = useState(false)
 
+  // Detect a logged-in session and pre-fill submitterEmail so the
+  // contribute flow can skip the "what's your email?" step entirely.
+  // Anonymous contributions still fall through to the prompt.
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/auth/me')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { user?: { email?: string } } | null) => {
+        if (cancelled || !data?.user?.email) return
+        setSubmitterEmail(data.user.email)
+        setEmailPrefilled(true)
+      })
+      .catch(() => {
+        // Not logged in or check failed — fall back to the email prompt.
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   function handleInputSubmit() {
     if (!input.trim()) return
     const userInput = input.trim()
     setInput('')
     setPendingInput(userInput)
+    // Logged-in path: skip the email-prompt step and go straight to the
+    // lookup. Anonymous path: ask for the email like before.
+    if (emailPrefilled && submitterEmail) {
+      runEventLookup(submitterEmail, userInput)
+      return
+    }
     setAssistantContent(
       "Got it. **What's your email?** We'll check whether this event is already in our database.",
     )
@@ -95,6 +125,14 @@ export default function ShareEventTab({
       setAssistantContent("That doesn't look like a valid email — please try again.")
       return
     }
+    await runEventLookup(email, pendingInput)
+  }
+
+  // Shared lookup: kicks off the partner check in parallel and runs the
+  // event de-dupe / parse against /api/check-event. Caller passes both
+  // email and the raw event input so we don't have to wait on a state
+  // update from the immediately-preceding setPendingInput.
+  async function runEventLookup(email: string, eventInput: string) {
     setStep('parsing')
     setAssistantContent('Thanks. Let me look this up…')
     setIsLoading(true)
@@ -115,7 +153,7 @@ export default function ShareEventTab({
       const res = await fetch('/api/check-event', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ input: pendingInput, email }),
+        body: JSON.stringify({ input: eventInput, email }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to look up event')
