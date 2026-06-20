@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import {
-  getActiveUsers,
-  getFutureEvents,
-  getUserById,
   invalidateEventCache,
   invalidateUserCache,
   AirtableEvent,
   AirtableUser,
 } from '@/lib/airtable'
+import { getActiveUsers, getUserById } from '@/lib/users'
+import { getFutureEvents } from '@/lib/events'
 import { withinMiles } from '@/lib/geocode'
 import {
   scoreEventUser,
