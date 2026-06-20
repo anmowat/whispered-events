@@ -105,22 +105,15 @@ export function cleanEventLink(raw: string): string {
   return url.toString()
 }
 
-// 90-second in-memory cache. Many flows (process-matches, cron digest,
-// per-event each-new-event emails) call these multiple times in rapid
-// succession; without this cache each call is a full Airtable scan.
-const CACHE_TTL_MS = 90_000
-const userCache: { value: AirtableUser[] | null; expires: number } = { value: null, expires: 0 }
-const eventCache: { value: AirtableEvent[] | null; expires: number } = { value: null, expires: 0 }
-
-export function invalidateUserCache(): void {
-  userCache.value = null
-  userCache.expires = 0
-}
-
-export function invalidateEventCache(): void {
-  eventCache.value = null
-  eventCache.expires = 0
-}
+// The 90-second in-memory user/event caches that used to live here are
+// gone with Phase 2 — every read now goes to Supabase via lib/users.ts
+// and lib/events.ts. getActiveUsers / getFutureEvents below are kept as
+// fallback paths for code that still imports from this module, but no
+// caller does today. Writes (createEvent / updateEvent / etc.) used to
+// call invalidate* to bust the cache before downstream reads; that's no
+// longer necessary because there's no cache to bust. The matching loop
+// handles read-after-write staleness via syncSingleEvent / syncSingleUser
+// in lib/sync.ts.
 
 export async function getEventsCount(): Promise<number> {
   const base = getBase()
@@ -250,7 +243,6 @@ export async function addEventHost(eventId: string, userId: string): Promise<voi
   await base(EVENTS_TABLE).update(eventId, {
     Host: [...existing, userId],
   } as Partial<FieldSet>)
-  invalidateEventCache()
 }
 
 const USER_FIELDS = [
@@ -373,9 +365,6 @@ export async function createEvent(
   if (hostUserId) fields['Host'] = [hostUserId]
   if (source) fields['Source'] = source
   const record = await base(EVENTS_TABLE).create(fields)
-  // Bust the cache so the immediately-following processEventTrigger sees the
-  // new event.
-  invalidateEventCache()
   return record.id
 }
 
@@ -404,7 +393,6 @@ export async function updateEvent(
   if (fields.submitter) updateData['Submitter'] = fields.submitter
   if (hostUserId) updateData['Host'] = [hostUserId]
   await base(EVENTS_TABLE).update(id, updateData)
-  invalidateEventCache()
 }
 
 export interface Partner {
@@ -525,9 +513,6 @@ export interface AirtableEvent {
 }
 
 export async function getActiveUsers(): Promise<AirtableUser[]> {
-  const now = Date.now()
-  if (userCache.value && userCache.expires > now) return userCache.value
-
   const base = getBase()
   const records = await base(PROFILES_TABLE)
     .select({
@@ -535,17 +520,10 @@ export async function getActiveUsers(): Promise<AirtableUser[]> {
       fields: [...USER_FIELDS],
     })
     .all()
-  const users = records.map(toAirtableUser).filter((u) => u.email)
-
-  userCache.value = users
-  userCache.expires = now + CACHE_TTL_MS
-  return users
+  return records.map(toAirtableUser).filter((u) => u.email)
 }
 
 export async function getFutureEvents(): Promise<AirtableEvent[]> {
-  const now = Date.now()
-  if (eventCache.value && eventCache.expires > now) return eventCache.value
-
   const base = getBase()
   const today = new Date().toISOString().split('T')[0]
 
@@ -575,8 +553,6 @@ export async function getFutureEvents(): Promise<AirtableEvent[]> {
     })
     .filter((e) => e.name)
 
-  eventCache.value = events
-  eventCache.expires = now + CACHE_TTL_MS
   return events
 }
 
@@ -663,7 +639,6 @@ export async function updateUserProfile(
 
   if (Object.keys(fields).length === 0) return { id: records[0].id }
   await base(PROFILES_TABLE).update(records[0].id, fields)
-  invalidateUserCache()
   return { id: records[0].id }
 }
 
@@ -778,7 +753,6 @@ export async function createProfile(profile: UserProfile): Promise<string> {
       fields['Frequency'] = DEFAULT_FREQUENCY
     }
     await base(PROFILES_TABLE).update(existing[0].id, fields)
-    invalidateUserCache()
     // Attribute any prior pre-signup contributions to this freshly-known user.
     linkContributionsToUser(existing[0].id, email).catch((e) =>
       console.error('createProfile: linkContributionsToUser failed', e),
@@ -788,7 +762,6 @@ export async function createProfile(profile: UserProfile): Promise<string> {
 
   fields['Frequency'] = chosenFrequency
   const record = await base(PROFILES_TABLE).create(fields)
-  invalidateUserCache()
   linkContributionsToUser(record.id, email).catch((e) =>
     console.error('createProfile: linkContributionsToUser failed', e),
   )
@@ -1016,6 +989,5 @@ export async function upsertPartnerApplication(
     userFields,
   )
 
-  invalidateUserCache()
   return { partnerId, userId }
 }

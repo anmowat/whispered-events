@@ -129,43 +129,7 @@ export async function syncUsersToCache(): Promise<SyncStats> {
 
   const records = await base('Users').select({ fields: USER_FIELDS }).all()
 
-  const rows: UserRow[] = records.map((r) => {
-    const activeRaw = String(r.get('Active') || '')
-    const gradeRaw = String(r.get('Grade') || '').trim()
-    const grade = gradeRaw === 'A' || gradeRaw === 'Polish' || gradeRaw === 'B' || gradeRaw === 'C'
-      ? gradeRaw
-      : null
-    const { lat, lng } = parseLatLon(r.get('LatLon'))
-    return {
-      id: r.id,
-      email: String(r.get('Email') || ''),
-      name: String(r.get('Name') || ''),
-      first_name: String(r.get('FirstName') || ''),
-      fn: String(r.get('Function') || ''),
-      seniority: String(r.get('Seniority') || ''),
-      grade,
-      company_size: String(r.get('Size') || ''),
-      interest: String(r.get('Interest') || ''),
-      employment: String(r.get('Employment') || ''),
-      location: String(r.get('Location') || ''),
-      lat,
-      lng,
-      active: activeRaw.toLowerCase() === 'active',
-      status: activeRaw,
-      frequency: String(r.get('Frequency') || ''),
-      linkedin: String(r.get('LinkedIn') || ''),
-      learn: String(r.get('Learn') || ''),
-      // Airtable Status is a distinct field from Active. Only consumer is the
-      // partner-only gate (getPartnerUserByEmail), which checks exactly this.
-      is_partner: String(r.get('Status') || '') === 'Partner',
-      // Airtable record createdTime — the closest signal we have to "when
-      // did this user originally exist". The Airtable JS client exposes it
-      // on the private _rawJson; defensively fall back to now() if absent.
-      airtable_created_at:
-        airtableCreatedTime(r) ?? new Date().toISOString(),
-      airtable_deleted_at: null,
-    }
-  })
+  const rows: UserRow[] = records.map(userRecordToRow)
 
   // Legacy cache shape — keep populating until Phase 2 swaps the reader.
   // Strip the new columns the cache table doesn't carry.
@@ -223,41 +187,7 @@ export async function syncEventsToCache(): Promise<SyncStats> {
 
   const records = await base('Events').select({ fields: EVENT_FIELDS }).all()
 
-  const rows: EventRow[] = records.map((r) => {
-    const { lat, lng } = parseLatLon(r.get('LatLon'))
-    const dateRaw = String(r.get('Date') || '').trim()
-    const hostIds = (r.get('Host') as string[] | undefined) ?? []
-    return {
-      id: r.id,
-      name: String(r.get('Name') || ''),
-      type: String(r.get('Type') || ''),
-      // Empty Airtable date -> NULL on the events table (date column rejects '').
-      date: dateRaw || null,
-      location: String(r.get('Location') || ''),
-      description: String(r.get('Description') || ''),
-      link: String(r.get('Link') || ''),
-      audience: String(r.get('Audience') || '')
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean),
-      lat,
-      lng,
-      submitter_email: String(r.get('Submitter') || ''),
-      source: String(r.get('Source') || ''),
-      // Image attachment URLs are short-lived; Phase 1 leaves the proxy path
-      // alone and stores empty. A future phase will fetch + persist to
-      // Supabase Storage so we can drop the Airtable read on images.
-      image_url: '',
-      host_ids: hostIds,
-      // Existing events default to approved=true so backfill is a no-op for
-      // the matching loop. The admin "remove from matching" toggle will
-      // flip this to false going forward.
-      approved: true,
-      airtable_created_at:
-        airtableCreatedTime(r) ?? new Date().toISOString(),
-      airtable_deleted_at: null,
-    }
-  })
+  const rows: EventRow[] = records.map(eventRecordToRow)
 
   // Legacy cache shape — keep populating until Phase 2 swaps the reader.
   const cacheRows: EventCacheRow[] = rows.map((r) => ({
@@ -330,4 +260,136 @@ async function tombstoneMissing(
     }
   }
   return toTombstone.length
+}
+
+// Row builders shared between the full-table syncs and the single-row helpers
+// below. Keeping the mapping in one place means the matching-loop hot path
+// (which re-pulls one row from Airtable when Supabase hasn't synced yet) and
+// the cron-driven full sync write identical row shapes.
+
+type AirtableRecord = {
+  id: string
+  get: (field: string) => unknown
+  _rawJson?: { createdTime?: string }
+}
+
+function userRecordToRow(r: AirtableRecord): UserRow {
+  const activeRaw = String(r.get('Active') || '')
+  const gradeRaw = String(r.get('Grade') || '').trim()
+  const grade = gradeRaw === 'A' || gradeRaw === 'Polish' || gradeRaw === 'B' || gradeRaw === 'C'
+    ? gradeRaw
+    : null
+  const { lat, lng } = parseLatLon(r.get('LatLon'))
+  return {
+    id: r.id,
+    email: String(r.get('Email') || ''),
+    name: String(r.get('Name') || ''),
+    first_name: String(r.get('FirstName') || ''),
+    fn: String(r.get('Function') || ''),
+    seniority: String(r.get('Seniority') || ''),
+    grade,
+    company_size: String(r.get('Size') || ''),
+    interest: String(r.get('Interest') || ''),
+    employment: String(r.get('Employment') || ''),
+    location: String(r.get('Location') || ''),
+    lat,
+    lng,
+    active: activeRaw.toLowerCase() === 'active',
+    status: activeRaw,
+    frequency: String(r.get('Frequency') || ''),
+    linkedin: String(r.get('LinkedIn') || ''),
+    learn: String(r.get('Learn') || ''),
+    // Airtable Status is a distinct field from Active. Only consumer is the
+    // partner-only gate (getPartnerUserByEmail), which checks exactly this.
+    is_partner: String(r.get('Status') || '') === 'Partner',
+    // Airtable record createdTime — the closest signal we have to "when
+    // did this user originally exist". The Airtable JS client exposes it
+    // on the private _rawJson; defensively fall back to now() if absent.
+    airtable_created_at:
+      airtableCreatedTime(r) ?? new Date().toISOString(),
+    airtable_deleted_at: null,
+  }
+}
+
+function eventRecordToRow(r: AirtableRecord): EventRow {
+  const { lat, lng } = parseLatLon(r.get('LatLon'))
+  const dateRaw = String(r.get('Date') || '').trim()
+  const hostIds = (r.get('Host') as string[] | undefined) ?? []
+  return {
+    id: r.id,
+    name: String(r.get('Name') || ''),
+    type: String(r.get('Type') || ''),
+    // Empty Airtable date -> NULL on the events table (date column rejects '').
+    date: dateRaw || null,
+    location: String(r.get('Location') || ''),
+    description: String(r.get('Description') || ''),
+    link: String(r.get('Link') || ''),
+    audience: String(r.get('Audience') || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean),
+    lat,
+    lng,
+    submitter_email: String(r.get('Submitter') || ''),
+    source: String(r.get('Source') || ''),
+    // Image attachment URLs are short-lived; Phase 1 leaves the proxy path
+    // alone and stores empty. A future phase will fetch + persist to
+    // Supabase Storage so we can drop the Airtable read on images.
+    image_url: '',
+    host_ids: hostIds,
+    // Existing events default to approved=true so backfill is a no-op for
+    // the matching loop. The admin "remove from matching" toggle will
+    // flip this to false going forward.
+    approved: true,
+    airtable_created_at:
+      airtableCreatedTime(r) ?? new Date().toISOString(),
+    airtable_deleted_at: null,
+  }
+}
+
+// Single-row sync used by the matching loop's event/user triggers. The
+// cron sync runs frequently but not instantaneously, and a brand-new
+// event submission immediately fires /api/process-matches before the
+// next cron tick — so the trigger entry pulls just this row from
+// Airtable and upserts to Supabase to keep the read fresh.
+//
+// Returns true on a successful single-row sync, false if the record
+// doesn't exist in Airtable (or the upsert failed). Callers treat
+// false as "row truly absent" and bail accordingly.
+export async function syncSingleUser(userId: string): Promise<boolean> {
+  if (!userId) return false
+  const base = getBase()
+  const supabase = getSupabase()
+  try {
+    const record = await base('Users').find(userId)
+    const row = userRecordToRow(record as AirtableRecord)
+    const { error } = await supabase.from('users').upsert(row, { onConflict: 'id' })
+    if (error) {
+      console.error(`syncSingleUser(${userId}) upsert failed:`, error)
+      return false
+    }
+    return true
+  } catch (err) {
+    console.error(`syncSingleUser(${userId}) failed:`, err)
+    return false
+  }
+}
+
+export async function syncSingleEvent(eventId: string): Promise<boolean> {
+  if (!eventId) return false
+  const base = getBase()
+  const supabase = getSupabase()
+  try {
+    const record = await base('Events').find(eventId)
+    const row = eventRecordToRow(record as AirtableRecord)
+    const { error } = await supabase.from('events').upsert(row, { onConflict: 'id' })
+    if (error) {
+      console.error(`syncSingleEvent(${eventId}) upsert failed:`, error)
+      return false
+    }
+    return true
+  } catch (err) {
+    console.error(`syncSingleEvent(${eventId}) failed:`, err)
+    return false
+  }
 }

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { isAdmin } from '@/lib/admin-auth'
-import { invalidateEventCache, invalidateUserCache } from '@/lib/airtable'
 import { getActiveUsers } from '@/lib/users'
 import { getFutureEvents } from '@/lib/events'
 import { isMatchEligible, scoreEventUser, computeInputsHash } from '@/lib/matching'
@@ -24,9 +23,6 @@ export async function POST(req: NextRequest) {
   if (!(await isAdmin(req))) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
-
-  invalidateEventCache()
-  invalidateUserCache()
 
   const [allUsers, futureEvents] = await Promise.all([
     getActiveUsers(),

@@ -1,12 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import {
-  invalidateEventCache,
-  invalidateUserCache,
-  AirtableEvent,
-  AirtableUser,
-} from '@/lib/airtable'
+import { AirtableEvent, AirtableUser } from '@/lib/airtable'
 import { getActiveUsers, getUserById } from '@/lib/users'
 import { getFutureEvents } from '@/lib/events'
+import { syncSingleEvent, syncSingleUser } from '@/lib/sync'
 import { withinMiles } from '@/lib/geocode'
 import {
   scoreEventUser,
@@ -49,12 +45,11 @@ function countNearbyEvents(user: AirtableUser, events: AirtableEvent[]): number 
 }
 
 async function processEventTrigger(eventId: string) {
-  // Bust both caches at the entry to a new-event flow. The 90s in-memory
-  // cache is a hot-loop optimization; for the once-per-new-event scoring
-  // path it's not worth the cross-instance staleness risk. Two Airtable
-  // reads in exchange for never silently missing a user.
-  invalidateEventCache()
-  invalidateUserCache()
+  // Brand-new events fire this trigger before the cron sync has a chance
+  // to mirror them into Supabase. Pull just this row straight from
+  // Airtable so the subsequent getFutureEvents() Supabase read sees the
+  // freshly-created event. Idempotent — re-runs just refresh the row.
+  await syncSingleEvent(eventId)
 
   const events = await getFutureEvents()
   const event = events.find((e) => e.id === eventId)
@@ -96,6 +91,11 @@ async function processUserTrigger(
   userId: string,
   options: { noEmail?: boolean; welcome?: boolean; locationChanged?: boolean } = {},
 ) {
+  // Just-approved or just-edited users fire this trigger before the cron
+  // sync runs. Pull this row straight from Airtable so active / interests
+  // / location reflect the latest admin action.
+  await syncSingleUser(userId)
+
   const targetUser = await getUserById(userId)
   if (!targetUser) {
     console.log(`process-matches: user ${userId} not found, skipping`)
