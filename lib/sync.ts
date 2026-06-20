@@ -20,6 +20,17 @@ function getBase(): Base {
   return new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base('appK8AqOvtEgIquRT')
 }
 
+// Airtable records carry their createdTime on _rawJson. Defensive accessor
+// returns null when the field is absent so callers can pick a fallback.
+function airtableCreatedTime(record: unknown): string | null {
+  const raw = (record as { _rawJson?: { createdTime?: unknown } })?._rawJson?.createdTime
+  if (typeof raw !== 'string' || !raw) return null
+  // Make sure it parses; bail if not so we don't write garbage to a timestamptz.
+  const parsed = Date.parse(raw)
+  if (!Number.isFinite(parsed)) return null
+  return new Date(parsed).toISOString()
+}
+
 function parseLatLon(raw: unknown): { lat: number | null; lng: number | null } {
   const s = String(raw || '').trim()
   if (!s) return { lat: null, lng: null }
@@ -61,6 +72,10 @@ interface UserRow extends UserCacheRow {
   linkedin: string
   learn: string
   is_partner: boolean
+  // Airtable record createdTime (when the row was first created in Airtable).
+  // Mirrored so AirtableUser.created surfaces real history and the activation
+  // backfill can use it as the actual "first activated at" approximation.
+  airtable_created_at: string
 }
 
 interface EventCacheRow {
@@ -87,6 +102,7 @@ interface EventRow extends Omit<EventCacheRow, 'date'> {
   image_url: string
   host_ids: string[]
   approved: boolean
+  airtable_created_at: string
 }
 
 const USER_FIELDS = [
@@ -142,6 +158,11 @@ export async function syncUsersToCache(): Promise<SyncStats> {
       // Airtable Status is a distinct field from Active. Only consumer is the
       // partner-only gate (getPartnerUserByEmail), which checks exactly this.
       is_partner: String(r.get('Status') || '') === 'Partner',
+      // Airtable record createdTime — the closest signal we have to "when
+      // did this user originally exist". The Airtable JS client exposes it
+      // on the private _rawJson; defensively fall back to now() if absent.
+      airtable_created_at:
+        airtableCreatedTime(r) ?? new Date().toISOString(),
       airtable_deleted_at: null,
     }
   })
@@ -232,6 +253,8 @@ export async function syncEventsToCache(): Promise<SyncStats> {
       // the matching loop. The admin "remove from matching" toggle will
       // flip this to false going forward.
       approved: true,
+      airtable_created_at:
+        airtableCreatedTime(r) ?? new Date().toISOString(),
       airtable_deleted_at: null,
     }
   })

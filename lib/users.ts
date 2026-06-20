@@ -42,6 +42,10 @@ interface UserRow {
   learn: string | null
   is_partner: boolean
   first_activated_at: string | null
+  // Airtable record createdTime — the real "when did this user originally
+  // sign up" signal. created_at below is when the Supabase mirror first
+  // inserted the row (~today for everyone, post-Phase 1).
+  airtable_created_at: string | null
   airtable_deleted_at: string | null
   deleted_at: string | null
   created_at: string
@@ -58,7 +62,9 @@ function toAirtableUser(row: UserRow): AirtableUser {
   const lng = row.lng == null ? undefined : Number(row.lng)
   return {
     id: row.id,
-    created: row.created_at ?? '',
+    // Prefer the Airtable createdTime so callers see real history;
+    // created_at (Supabase insert time) is meaningless post-Phase-1.
+    created: row.airtable_created_at ?? row.created_at ?? '',
     email: row.email ?? '',
     name: row.name ?? '',
     firstName: row.first_name ?? '',

@@ -38,6 +38,7 @@ interface EventRow {
   image_url: string | null
   host_ids: string[] | null
   approved: boolean
+  airtable_created_at: string | null
   airtable_deleted_at: string | null
   deleted_at: string | null
   created_at: string
@@ -58,7 +59,9 @@ function toAirtableEvent(row: EventRow): AirtableEvent {
     audience: row.audience ?? [],
     lat: Number.isFinite(lat) ? lat : undefined,
     lng: Number.isFinite(lng) ? lng : undefined,
-    created: row.created_at ?? '',
+    // Prefer the Airtable createdTime so callers see real history;
+    // created_at (Supabase insert time) is meaningless post-Phase-1.
+    created: row.airtable_created_at ?? row.created_at ?? '',
   }
 }
 
