@@ -610,6 +610,7 @@ export interface UserProfileUpdate {
   companySize?: string
   frequency?: string
   function?: string
+  seniority?: string
 }
 
 export async function updateUserProfile(
@@ -657,6 +658,10 @@ export async function updateUserProfile(
   if (update.frequency !== undefined) {
     ;(fields as Record<string, unknown>)['Frequency'] =
       update.frequency === '' ? null : update.frequency
+  }
+  if (update.seniority !== undefined) {
+    ;(fields as Record<string, unknown>)['Seniority'] =
+      update.seniority === '' ? null : update.seniority
   }
 
   if (Object.keys(fields).length === 0) return { id: records[0].id }
