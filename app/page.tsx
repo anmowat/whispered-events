@@ -130,7 +130,7 @@ const TAB_CONTENT: Record<HeaderTab, TabContent> = {
     ),
     cta: 'Apply to Partner',
     heroSteps: [
-      { icon: 'link', label: 'Claim the events you’re running (and get them added to your Host Dashboard)' },
+      { icon: 'link', label: 'Claim the events you’re running' },
       { icon: 'sliders', label: 'Customize targeting' },
       { icon: 'grid', label: 'Get a custom feed for your community' },
     ],
