@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/host-auth'
-import { getEventsHostedBy } from '@/lib/airtable'
+import { getEventsHostedBy } from '@/lib/events'
 import { getMatchCountsByEventId } from '@/lib/supabase'
 
 // Returns the caller's upcoming hosted events with a match count for each.

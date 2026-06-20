@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import {
-  checkDuplicate,
-  getEventHostEmails,
-  getPartnerUserByEmail,
-  updateEvent,
-} from '@/lib/airtable'
+import { updateEvent } from '@/lib/airtable'
+import { getPartnerUserByEmail } from '@/lib/users'
+import { checkDuplicate, getEventHostEmails } from '@/lib/events'
 import { recordContribution } from '@/lib/supabase'
 import { parseEventInput } from '@/lib/parse-event'
 import { ParsedEvent } from '@/lib/types'

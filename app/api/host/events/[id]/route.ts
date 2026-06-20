@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { waitUntil } from '@vercel/functions'
 import { getSessionUser } from '@/lib/host-auth'
-import {
-  getEventByIdIfHost,
-  updateEvent,
-  getActiveUsers,
-} from '@/lib/airtable'
+import { updateEvent } from '@/lib/airtable'
+import { getActiveUsers } from '@/lib/users'
+import { getEventByIdIfHost } from '@/lib/events'
 import { getMatchesForEvent } from '@/lib/supabase'
 import { EventRecord, VIRTUAL_LOCATION_RE } from '@/lib/types'
 

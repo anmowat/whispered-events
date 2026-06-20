@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getPartnerUserByEmail } from '@/lib/airtable'
+import { getPartnerUserByEmail } from '@/lib/users'
 
 // Tiny lookup used by the contribute review card to decide whether to show
 // the "only partners can claim Host" inline notice. We default to false on

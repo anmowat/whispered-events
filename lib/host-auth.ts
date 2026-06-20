@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { verifySession } from './supabase'
-import { getUserByEmail, AirtableUser } from './airtable'
+import { AirtableUser } from './airtable'
+import { getUserByEmail } from './users'
 
 // Resolves the current request's session cookie to the corresponding Airtable
 // user record. Returns null if there's no session, the session is invalid, or
