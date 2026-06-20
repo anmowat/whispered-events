@@ -3,6 +3,27 @@ import { EventRecord, UserProfile } from './types'
 import stringSimilarity from 'string-similarity'
 import { geocodeLocation } from './geocode'
 import { linkContributionsToUser } from './supabase'
+import { syncSingleUser, syncSingleEvent } from './sync'
+
+// Mirror-fresh helpers. Every write in this file calls one of these at the
+// tail so the Supabase mirror reflects the just-written row before any
+// downstream read fires. Failures are non-fatal — the next cron sync
+// repairs the gap, so a Supabase hiccup never poisons a successful Airtable
+// write. Kept local so each write site reads as "do the work, then mirror".
+async function mirrorUserSafe(id: string, label: string): Promise<void> {
+  try {
+    await syncSingleUser(id)
+  } catch (err) {
+    console.error(`${label}: syncSingleUser failed`, err)
+  }
+}
+async function mirrorEventSafe(id: string, label: string): Promise<void> {
+  try {
+    await syncSingleEvent(id)
+  } catch (err) {
+    console.error(`${label}: syncSingleEvent failed`, err)
+  }
+}
 
 const EVENTS_TABLE = 'Events'
 const PROFILES_TABLE = 'Users'
@@ -243,6 +264,7 @@ export async function addEventHost(eventId: string, userId: string): Promise<voi
   await base(EVENTS_TABLE).update(eventId, {
     Host: [...existing, userId],
   } as Partial<FieldSet>)
+  await mirrorEventSafe(eventId, 'addEventHost')
 }
 
 const USER_FIELDS = [
@@ -365,6 +387,7 @@ export async function createEvent(
   if (hostUserId) fields['Host'] = [hostUserId]
   if (source) fields['Source'] = source
   const record = await base(EVENTS_TABLE).create(fields)
+  await mirrorEventSafe(record.id, 'createEvent')
   return record.id
 }
 
@@ -393,6 +416,7 @@ export async function updateEvent(
   if (fields.submitter) updateData['Submitter'] = fields.submitter
   if (hostUserId) updateData['Host'] = [hostUserId]
   await base(EVENTS_TABLE).update(id, updateData)
+  await mirrorEventSafe(id, 'updateEvent')
 }
 
 export interface Partner {
@@ -639,6 +663,7 @@ export async function updateUserProfile(
 
   if (Object.keys(fields).length === 0) return { id: records[0].id }
   await base(PROFILES_TABLE).update(records[0].id, fields)
+  await mirrorUserSafe(records[0].id, 'updateUserProfile')
   return { id: records[0].id }
 }
 
@@ -672,6 +697,7 @@ export async function refreshUserLatLon(userId: string): Promise<void> {
   const fresh = formatLatLon(geo)
   if (String(record.get('LatLon') || '') === fresh) return
   await base(PROFILES_TABLE).update(userId, { LatLon: fresh } as Partial<FieldSet>)
+  await mirrorUserSafe(userId, 'refreshUserLatLon')
 }
 
 // Companion for an Event row — admin may edit Location directly without
@@ -691,6 +717,7 @@ export async function refreshEventLatLon(eventId: string): Promise<void> {
   const fresh = formatLatLon(geo)
   if (String(record.get('LatLon') || '') === fresh) return
   await base(EVENTS_TABLE).update(eventId, { LatLon: fresh } as Partial<FieldSet>)
+  await mirrorEventSafe(eventId, 'refreshEventLatLon')
 }
 
 export async function getUserById(userId: string): Promise<AirtableUser | null> {
@@ -757,6 +784,7 @@ export async function createProfile(profile: UserProfile): Promise<string> {
     linkContributionsToUser(existing[0].id, email).catch((e) =>
       console.error('createProfile: linkContributionsToUser failed', e),
     )
+    await mirrorUserSafe(existing[0].id, 'createProfile (upsert)')
     return existing[0].id
   }
 
@@ -765,6 +793,7 @@ export async function createProfile(profile: UserProfile): Promise<string> {
   linkContributionsToUser(record.id, email).catch((e) =>
     console.error('createProfile: linkContributionsToUser failed', e),
   )
+  await mirrorUserSafe(record.id, 'createProfile (new)')
   return record.id
 }
 
@@ -989,5 +1018,6 @@ export async function upsertPartnerApplication(
     userFields,
   )
 
+  await mirrorUserSafe(userId, 'upsertPartnerApplication')
   return { partnerId, userId }
 }
