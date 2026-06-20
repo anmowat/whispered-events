@@ -20,11 +20,72 @@ type Mode = 'landing' | 'active'
 
 const SERIF = `'Cormorant Garamond', Georgia, 'Times New Roman', serif`
 
+// Champagne line-icons for the hero "how it works" steps. currentColor
+// so the wrapping span's color (champagne) flows through. 24×24, 1.4px
+// stroke — sized to read at body weight alongside short text labels.
+const STEP_ICONS: Record<string, React.ReactNode> = {
+  link: (
+    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+      <path d="M10 14a3.5 3.5 0 0 0 5 0l3-3a3.5 3.5 0 0 0-5-5l-1 1" />
+      <path d="M14 10a3.5 3.5 0 0 0-5 0l-3 3a3.5 3.5 0 0 0 5 5l1-1" />
+    </svg>
+  ),
+  spark: (
+    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round">
+      <path d="M12 3l1.8 5.4L19 10l-5.2 1.6L12 17l-1.8-5.4L5 10l5.2-1.6z" />
+      <path d="M17.5 14.5l.8 1.8 1.8.8-1.8.8-.8 1.8-.8-1.8-1.8-.8 1.8-.8z" />
+    </svg>
+  ),
+  target: (
+    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <circle cx="12" cy="12" r="8" />
+      <circle cx="12" cy="12" r="4" />
+      <circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" />
+    </svg>
+  ),
+  user: (
+    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="8.5" r="3.5" />
+      <path d="M5 19c.9-3.2 3.6-5 7-5s6.1 1.8 7 5" />
+    </svg>
+  ),
+  bell: (
+    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 9a6 6 0 0 1 12 0c0 4 1.2 5.5 2 6.5H4c.8-1 2-2.5 2-6.5z" />
+      <path d="M10 19a2 2 0 0 0 4 0" />
+    </svg>
+  ),
+  refresh: (
+    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 7a8 8 0 1 0 1.5 6" />
+      <path d="M20 3v4h-4" />
+    </svg>
+  ),
+  sliders: (
+    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+      <path d="M5 8h9M18 8h1M5 16h1M10 16h9" />
+      <circle cx="16" cy="8" r="2.2" />
+      <circle cx="8" cy="16" r="2.2" />
+    </svg>
+  ),
+  grid: (
+    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round">
+      <rect x="4" y="4" width="7" height="7" rx="1.5" />
+      <rect x="13" y="4" width="7" height="7" rx="1.5" />
+      <rect x="4" y="13" width="7" height="7" rx="1.5" />
+      <rect x="13" y="13" width="7" height="7" rx="1.5" />
+    </svg>
+  ),
+}
+
 interface TabContent {
   heroVerb: string
   subhead: React.ReactNode
   cta: string
-  steps: string[]
+  // Short icon+label rows shown in the hero between the subhead and
+  // the CTA (Treatment A — see Claude Design's howitworkschange spec).
+  // Replaces the older standalone "HOW IT WORKS" 01/02/03 band.
+  heroSteps: { icon: keyof typeof STEP_ICONS; label: string }[]
   featuredNote?: string
 }
 
@@ -38,10 +99,10 @@ const TAB_CONTENT: Record<HeaderTab, TabContent> = {
       </>
     ),
     cta: 'Create Profile',
-    steps: [
-      'Share your profile and event interests',
-      'Get notified of new matching events',
-      'Update your profile to improve matches',
+    heroSteps: [
+      { icon: 'user', label: 'Share your profile & interests' },
+      { icon: 'bell', label: 'Get notified of matching events' },
+      { icon: 'refresh', label: 'Refine your profile to improve matches' },
     ],
   },
   contribute: {
@@ -53,10 +114,10 @@ const TAB_CONTENT: Record<HeaderTab, TabContent> = {
       </>
     ),
     cta: 'Add Event',
-    steps: [
-      'Share an event link (one you are running or just one you know about)',
-      'Our AI extracts the information automatically',
-      'Event shared just with executives whose profiles fit',
+    heroSteps: [
+      { icon: 'link', label: 'Share an event link' },
+      { icon: 'spark', label: 'Our AI extracts the details' },
+      { icon: 'target', label: 'Matched to the right execs' },
     ],
   },
   partner: {
@@ -68,10 +129,10 @@ const TAB_CONTENT: Record<HeaderTab, TabContent> = {
       </>
     ),
     cta: 'Apply to Partner',
-    steps: [
-      'Share (and update) events you are running',
-      'Customize targeting for your events (i.e. revenue size)',
-      'Get a customized widget/feed of events for your community',
+    heroSteps: [
+      { icon: 'link', label: 'Share the events you’re running' },
+      { icon: 'sliders', label: 'Customize who they target' },
+      { icon: 'grid', label: 'Get a custom feed for your community' },
     ],
   },
 }
@@ -511,6 +572,10 @@ function Landing({
           {content.subhead}
         </p>
 
+        {/* Inline three-step rundown — replaces the standalone HOW IT
+            WORKS band that used to live further down the page. */}
+        <HeroSteps steps={content.heroSteps} />
+
         {/* CTA */}
         <div className="mt-9 flex justify-center">
           <button
@@ -565,51 +630,6 @@ function Landing({
         {/* Partner tab: "see all our partners" link lives below the
             marquee at the bottom of the page (see partner section
             below) so the social proof + browse path stay together. */}
-      </section>
-
-      {/* How it works — the uppercase eyebrow itself reads as the
-          separator; no hairline above. */}
-      <section
-        id="how-it-works"
-        className="max-w-[1080px] mx-auto px-5 sm:px-11 pt-3 pb-12 sm:pt-4 sm:pb-16"
-      >
-        <div
-          className="text-center mb-9 sm:mb-11"
-          style={{
-            fontSize: 11,
-            letterSpacing: '.3em',
-            textTransform: 'uppercase',
-            color: 'rgba(236,230,218,.4)',
-          }}
-        >
-          How it works
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-9 sm:gap-[46px]">
-          {content.steps.map((step, i) => (
-            <div key={i}>
-              <div
-                style={{
-                  fontFamily: SERIF,
-                  fontSize: 38,
-                  color: '#c9a86a',
-                  lineHeight: 1,
-                  marginBottom: 16,
-                }}
-              >
-                {String(i + 1).padStart(2, '0')}
-              </div>
-              <div
-                style={{
-                  fontSize: 16,
-                  lineHeight: 1.55,
-                  color: 'rgba(236,230,218,.82)',
-                }}
-              >
-                {step}
-              </div>
-            </div>
-          ))}
-        </div>
       </section>
 
       {/* Bottom section: Find Events / Contribute show example past
@@ -713,6 +733,33 @@ function Landing({
 // screen. Non-square sources will get a center-crop instead of having
 // their tops sliced off.
 const CARD_SIZE = 260
+
+// "How it works" — three evenly-spaced icon + label items rendered in
+// the hero between the subhead and the CTA. No numbers, no connectors:
+// the standalone HOW IT WORKS band that used to live further down the
+// page is replaced by this inline strip across every tab.
+function HeroSteps({ steps }: { steps: { icon: keyof typeof STEP_ICONS; label: string }[] }) {
+  return (
+    <div
+      className="mx-auto mt-9 grid grid-cols-1 sm:grid-cols-3 gap-5 sm:gap-6"
+      style={{ maxWidth: 720 }}
+    >
+      {steps.map((s, i) => (
+        <div key={i} className="flex items-center justify-center gap-3">
+          <span style={{ color: '#c9a86a', flexShrink: 0, display: 'inline-flex' }}>
+            {STEP_ICONS[s.icon]}
+          </span>
+          <span
+            className="text-left"
+            style={{ fontSize: 14.5, lineHeight: 1.3, color: 'rgba(236,230,218,.78)' }}
+          >
+            {s.label}
+          </span>
+        </div>
+      ))}
+    </div>
+  )
+}
 
 function FeaturedCarousel({ events }: { events: FeaturedEvent[] }) {
   const scrollerRef = useRef<HTMLDivElement>(null)
