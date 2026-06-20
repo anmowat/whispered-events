@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { isAdmin } from '@/lib/admin-auth'
-import { getActiveUsers, getEventById } from '@/lib/airtable'
+import { getActiveUsers } from '@/lib/users'
+import { getEventById } from '@/lib/events'
 import { getAllMatchesForEvent } from '@/lib/supabase'
 import { withinMiles } from '@/lib/geocode'
 

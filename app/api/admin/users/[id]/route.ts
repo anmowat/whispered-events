@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { isAdmin } from '@/lib/admin-auth'
-import { getUserById, getFutureEvents } from '@/lib/airtable'
+import { getUserById } from '@/lib/users'
+import { getFutureEvents } from '@/lib/events'
 import { getAllMatchesForUser, getContributionStats, getLastSeenForEmail } from '@/lib/supabase'
 
 // Admin user detail: returns the user's profile fields plus every future

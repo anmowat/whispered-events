@@ -1,0 +1,280 @@
+// Phase 2 of the Airtable -> Supabase migration: Supabase-backed event reads.
+//
+// Public API mirrors the read surface of lib/airtable.ts (every function name
+// that today reads Events from Airtable) so call sites swap one import line.
+// Return shape is the existing AirtableEvent / DuplicateCheckResult — same
+// downstream consumers, different storage backend.
+
+import { createClient } from '@supabase/supabase-js'
+import stringSimilarity from 'string-similarity'
+import { AirtableEvent, DuplicateCheckResult, cleanEventLink } from './airtable'
+import { EventRecord } from './types'
+
+export type { AirtableEvent, DuplicateCheckResult }
+
+function getSupabase() {
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set')
+  }
+  return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
+}
+
+// Shape of the row coming back from public.events. Mirrors what lib/sync.ts
+// writes today, plus the Phase 1 fields (host_ids, submitter_email, source,
+// image_url, approved). Kept private; callers see AirtableEvent.
+interface EventRow {
+  id: string
+  name: string
+  type: string | null
+  date: string | null
+  location: string | null
+  description: string | null
+  link: string | null
+  audience: string[] | null
+  lat: string | number | null
+  lng: string | number | null
+  submitter_email: string | null
+  source: string | null
+  image_url: string | null
+  host_ids: string[] | null
+  approved: boolean
+  airtable_deleted_at: string | null
+  deleted_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+function toAirtableEvent(row: EventRow): AirtableEvent {
+  const lat = row.lat == null ? undefined : Number(row.lat)
+  const lng = row.lng == null ? undefined : Number(row.lng)
+  return {
+    id: row.id,
+    name: row.name ?? '',
+    type: row.type ?? '',
+    date: row.date ?? '',
+    location: row.location ?? '',
+    description: row.description ?? '',
+    link: row.link ?? '',
+    audience: row.audience ?? [],
+    lat: Number.isFinite(lat) ? lat : undefined,
+    lng: Number.isFinite(lng) ? lng : undefined,
+    created: row.created_at ?? '',
+  }
+}
+
+function todayIso(): string {
+  return new Date().toISOString().split('T')[0]
+}
+
+export async function getEventsCount(): Promise<number> {
+  const supabase = getSupabase()
+  const { count, error } = await supabase
+    .from('events')
+    .select('id', { count: 'exact', head: true })
+    .gte('date', todayIso())
+    .eq('approved', true)
+    .is('airtable_deleted_at', null)
+    .is('deleted_at', null)
+  if (error) {
+    console.error('getEventsCount error', error)
+    return 0
+  }
+  return count ?? 0
+}
+
+// Every future, approved, non-deleted event. Matching loop scope. Approved
+// gate is Phase 4 work; existing rows backfilled with approved=true so the
+// initial Phase 2 swap is behaviour-equivalent to the Airtable read.
+export async function getFutureEvents(): Promise<AirtableEvent[]> {
+  const supabase = getSupabase()
+  const { data, error } = await supabase
+    .from('events')
+    .select('*')
+    .gte('date', todayIso())
+    .eq('approved', true)
+    .is('airtable_deleted_at', null)
+    .is('deleted_at', null)
+  if (error) {
+    console.error('getFutureEvents error', error)
+    return []
+  }
+  return (data ?? []).map((row) => toAirtableEvent(row as EventRow)).filter((e) => e.name)
+}
+
+export async function getEventById(eventId: string): Promise<AirtableEvent | null> {
+  if (!eventId) return null
+  const supabase = getSupabase()
+  const { data, error } = await supabase
+    .from('events')
+    .select('*')
+    .eq('id', eventId)
+    .maybeSingle()
+  if (error) {
+    console.error('getEventById error', { eventId, error })
+    return null
+  }
+  return data ? toAirtableEvent(data as EventRow) : null
+}
+
+// Auth-gated event fetch — returns null unless the userId is in host_ids.
+// Used by /api/host/events/[id] GET/PATCH so non-hosts can't read.
+export async function getEventByIdIfHost(
+  eventId: string,
+  userId: string,
+): Promise<AirtableEvent | null> {
+  if (!eventId || !userId) return null
+  const supabase = getSupabase()
+  const { data, error } = await supabase
+    .from('events')
+    .select('*')
+    .eq('id', eventId)
+    .maybeSingle()
+  if (error) {
+    console.error('getEventByIdIfHost error', { eventId, userId, error })
+    return null
+  }
+  if (!data) return null
+  const row = data as EventRow
+  if (!(row.host_ids ?? []).includes(userId)) return null
+  return toAirtableEvent(row)
+}
+
+export async function getEventsHostedBy(userId: string): Promise<AirtableEvent[]> {
+  if (!userId) return []
+  const supabase = getSupabase()
+  // `contains` on a text[] column compiles to `host_ids @> ARRAY['userId']`,
+  // hitting the GIN index added in Phase 1.
+  const { data, error } = await supabase
+    .from('events')
+    .select('*')
+    .contains('host_ids', [userId])
+    .gte('date', todayIso())
+    .is('airtable_deleted_at', null)
+    .is('deleted_at', null)
+  if (error) {
+    console.error('getEventsHostedBy error', { userId, error })
+    return []
+  }
+  return (data ?? []).map((row) => toAirtableEvent(row as EventRow))
+}
+
+// Lowercased emails of every user listed in the event's host_ids array. Used
+// by /api/check-event to decide whether a duplicate submitter is already a
+// host (re-submitting their own event is a no-op rather than an offer to
+// claim co-host).
+export async function getEventHostEmails(eventId: string): Promise<string[]> {
+  if (!eventId) return []
+  const supabase = getSupabase()
+  const { data: eventData, error: eventErr } = await supabase
+    .from('events')
+    .select('host_ids')
+    .eq('id', eventId)
+    .maybeSingle()
+  if (eventErr || !eventData) {
+    if (eventErr) console.error('getEventHostEmails event error', { eventId, eventErr })
+    return []
+  }
+  const hostIds = (eventData as { host_ids: string[] | null }).host_ids ?? []
+  if (!hostIds.length) return []
+  const { data: userRows, error: userErr } = await supabase
+    .from('users')
+    .select('email')
+    .in('id', hostIds)
+  if (userErr) {
+    console.error('getEventHostEmails users error', { eventId, userErr })
+    return []
+  }
+  return (userRows ?? [])
+    .map((r) => String((r as { email: string }).email || '').toLowerCase())
+    .filter(Boolean)
+}
+
+// Defense-in-depth dedupe: exact link match wins; otherwise fuzzy-name +
+// date check against events from the last 30 days through any future date.
+// Mirrors the Airtable implementation 1:1 — same thresholds, same windowing,
+// same returned shape.
+export async function checkDuplicate(
+  name: string,
+  link: string,
+  date?: string,
+): Promise<DuplicateCheckResult> {
+  const supabase = getSupabase()
+
+  // 1) Exact link match shortcut. Clean tracking params first so a UTM-tagged
+  //    copy still matches the canonical stored URL.
+  const cleanedLink = cleanEventLink(link)
+  if (cleanedLink) {
+    const { data, error } = await supabase
+      .from('events')
+      .select('id, name, link, date, location, description, audience, type')
+      .eq('link', cleanedLink)
+      .is('airtable_deleted_at', null)
+      .is('deleted_at', null)
+      .limit(1)
+      .maybeSingle()
+    if (error) console.error('checkDuplicate link match error', error)
+    if (data) return buildDuplicateResult(data as DupRow)
+  }
+
+  // 2) Fuzzy name match against recent + future events. Skipping archived
+  //    events keeps the candidate pool small — historically the main cost
+  //    here was scoring stringSimilarity over the full corpus.
+  const cutoff = new Date(Date.now() - 30 * 86_400_000).toISOString().split('T')[0]
+  const { data: candidates, error } = await supabase
+    .from('events')
+    .select('id, name, link, date, location, description, audience, type')
+    .gte('date', cutoff)
+    .is('airtable_deleted_at', null)
+    .is('deleted_at', null)
+  if (error) {
+    console.error('checkDuplicate fuzzy match error', error)
+    return { isDuplicate: false }
+  }
+  for (const row of (candidates ?? []) as DupRow[]) {
+    const existingName = row.name || ''
+    const nameSimilarity = existingName
+      ? stringSimilarity.compareTwoStrings(name.toLowerCase(), existingName.toLowerCase())
+      : 0
+    const nameMatch = nameSimilarity > 0.7
+    const dateMatch = !!(date && row.date === date)
+    if ((nameMatch && dateMatch) || nameSimilarity > 0.9) {
+      return buildDuplicateResult(row)
+    }
+  }
+  return { isDuplicate: false }
+}
+
+// Subset of EventRow used by checkDuplicate's projected SELECT.
+interface DupRow {
+  id: string
+  name: string | null
+  link: string | null
+  date: string | null
+  location: string | null
+  description: string | null
+  audience: string[] | null
+  type: string | null
+}
+
+function buildDuplicateResult(row: DupRow): DuplicateCheckResult {
+  const missingFields: string[] = []
+  if (!row.description) missingFields.push('description')
+  if (!row.audience || row.audience.length === 0) missingFields.push('audience')
+  if (!row.type) missingFields.push('type')
+  if (!row.date) missingFields.push('date')
+  if (!row.location) missingFields.push('location')
+  return {
+    isDuplicate: true,
+    existingId: row.id,
+    existingRecord: {
+      name: row.name ?? '',
+      link: row.link ?? '',
+      date: row.date ?? '',
+      location: row.location ?? '',
+      description: row.description ?? '',
+      type: (row.type as EventRecord['type']) || 'Other',
+      audience: row.audience ?? [],
+    },
+    missingFields,
+  }
+}

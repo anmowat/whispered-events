@@ -53,10 +53,14 @@ interface UserCacheRow {
 
 // Phase 1 of the Airtable -> Supabase migration: real users row carries every
 // column users_cache has plus the fields the cache was missing (linkedin,
-// learn). Phase 2 will switch reads to consume this shape.
+// learn). Phase 2 adds is_partner (derived from Airtable's Status field).
+// first_activated_at is INTENTIONALLY not part of this shape — it's
+// maintained by a Postgres trigger + the migration backfill, so omitting it
+// from the upsert payload preserves the existing value across syncs.
 interface UserRow extends UserCacheRow {
   linkedin: string
   learn: string
+  is_partner: boolean
 }
 
 interface EventCacheRow {
@@ -88,7 +92,7 @@ interface EventRow extends Omit<EventCacheRow, 'date'> {
 const USER_FIELDS = [
   'Email', 'Name', 'FirstName', 'Function', 'Seniority', 'Grade',
   'Size', 'Interest', 'Employment', 'Location', 'LatLon', 'Active',
-  'Frequency', 'LinkedIn', 'Learn',
+  'Frequency', 'LinkedIn', 'Learn', 'Status',
 ]
 
 const EVENT_FIELDS = [
@@ -135,6 +139,9 @@ export async function syncUsersToCache(): Promise<SyncStats> {
       frequency: String(r.get('Frequency') || ''),
       linkedin: String(r.get('LinkedIn') || ''),
       learn: String(r.get('Learn') || ''),
+      // Airtable Status is a distinct field from Active. Only consumer is the
+      // partner-only gate (getPartnerUserByEmail), which checks exactly this.
+      is_partner: String(r.get('Status') || '') === 'Partner',
       airtable_deleted_at: null,
     }
   })

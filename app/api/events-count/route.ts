@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getEventsCount } from '@/lib/airtable'
+import { getEventsCount } from '@/lib/events'
 
 export const revalidate = 86400 // cache for 24 hours
 
