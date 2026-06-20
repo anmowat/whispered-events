@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getActiveUsers } from '@/lib/airtable'
+import { getActiveUsers } from '@/lib/users'
 import { isMatchEligible } from '@/lib/matching'
 
 // Re-runs matching for every active, eligible user. Auth via the shared

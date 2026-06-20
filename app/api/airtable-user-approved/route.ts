@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { waitUntil } from '@vercel/functions'
-import { getUserById } from '@/lib/airtable'
+import { getUserById } from '@/lib/users'
 import { sendUserApprovedEmail } from '@/lib/email'
 import { linkContributionsToUser } from '@/lib/supabase'
 

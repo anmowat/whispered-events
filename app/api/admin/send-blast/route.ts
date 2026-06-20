@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { isAdmin } from '@/lib/admin-auth'
-import { getActiveUsers } from '@/lib/airtable'
+import { getActiveUsers } from '@/lib/users'
 import { sendBlast } from '@/lib/email'
 
 // Admin-only broadcast send. Looks up each recipient by Airtable id,

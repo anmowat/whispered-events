@@ -9,7 +9,8 @@ import {
   getMatchesForEvent,
   getRatingCountsByEmail,
 } from '@/lib/supabase'
-import { getActiveUsers, getFutureEvents } from '@/lib/airtable'
+import { getActiveUsers } from '@/lib/users'
+import { getFutureEvents } from '@/lib/events'
 import { withinMiles } from '@/lib/geocode'
 
 const NEARBY_RADIUS_MILES = 100

@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { isAdmin } from '@/lib/admin-auth'
-import {
-  getActiveUsers,
-  getFutureEvents,
-  invalidateEventCache,
-  invalidateUserCache,
-} from '@/lib/airtable'
+import { invalidateEventCache, invalidateUserCache } from '@/lib/airtable'
+import { getActiveUsers } from '@/lib/users'
+import { getFutureEvents } from '@/lib/events'
 import { isMatchEligible, scoreEventUser, computeInputsHash } from '@/lib/matching'
 import { getExistingMatchHashes, logMatch } from '@/lib/supabase'
 

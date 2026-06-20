@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAllMatchesForUser } from '@/lib/supabase'
-import { getFutureEvents, getUserByEmail } from '@/lib/airtable'
+import { getUserByEmail } from '@/lib/users'
+import { getFutureEvents } from '@/lib/events'
 import { isMatchEligible } from '@/lib/matching'
 
 // Admin: returns every persisted match row for a given user with the full
