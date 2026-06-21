@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { waitUntil } from '@vercel/functions'
 import { isAdmin } from '@/lib/admin-auth'
 import { getUserById } from '@/lib/users'
 import { getFutureEvents } from '@/lib/events'
 import { getAllMatchesForUser, getContributionStats, getLastSeenForEmail } from '@/lib/supabase'
 import { updateUserAdmin, type UserAdminUpdate } from '@/lib/airtable'
+import { triggerUserApprovedFlow } from '@/lib/user-approval'
 
 // Admin user detail: returns the user's profile fields plus every future
 // event scored against them, sorted by match % desc, with per-pair score
@@ -157,7 +159,39 @@ export async function PATCH(
         { status: 400 },
       )
     }
+
+    // Snapshot prior status before the write so we can detect a transition
+    // into Live and fire the approval flow (welcome email + match seed).
+    // Only fetched when status is part of the patch — saves an extra read
+    // on field-only edits.
+    let priorStatus: string | null = null
+    if (update.status !== undefined) {
+      const prior = await getUserById(userId)
+      priorStatus = prior?.status ?? null
+    }
+
     await updateUserAdmin(userId, update)
+
+    // Pending -> Live transition was historically driven by the Airtable
+    // "User Approved" automation. Now that Users live in Supabase, fire the
+    // same flow here so approving someone in /admin still ships the welcome
+    // email + first matches.
+    if (
+      update.status === 'Live' &&
+      priorStatus !== 'Live' &&
+      priorStatus !== 'Partner'
+    ) {
+      const appUrl = new URL(req.url).origin
+      waitUntil(
+        (async () => {
+          const fresh = await getUserById(userId)
+          if (fresh) await triggerUserApprovedFlow(fresh, { appUrl })
+        })().catch((e) =>
+          console.error('admin/users/[id] triggerUserApprovedFlow failed', e),
+        ),
+      )
+    }
+
     return NextResponse.json({ ok: true, updated: Object.keys(update) })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
