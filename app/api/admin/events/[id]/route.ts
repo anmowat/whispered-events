@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 import { isAdmin } from '@/lib/admin-auth'
 import { getActiveUsers } from '@/lib/users'
-import { getEventById } from '@/lib/events'
+import { getEventById, getEventFlags } from '@/lib/events'
 import { getAllMatchesForEvent } from '@/lib/supabase'
 import { withinMiles } from '@/lib/geocode'
+import { updateEvent } from '@/lib/airtable'
 
 const NEARBY_RADIUS_MILES = 100
 
@@ -35,19 +35,16 @@ export async function GET(
       return NextResponse.json({ error: 'event not found' }, { status: 404 })
     }
 
-    // image_url isn't part of AirtableEvent (the public read shape), so
-    // fetch it directly here for the admin image management UI.
-    const supabase = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    )
-    const [allUsers, matchRows, { data: imageRow }] = await Promise.all([
+    // image_url and featured aren't part of AirtableEvent (the public read
+    // shape), so fetch them via lib/events.ts:getEventFlags for the admin
+    // image management UI and the Featured toggle.
+    const [allUsers, matchRows, flags] = await Promise.all([
       getActiveUsers(),
       getAllMatchesForEvent(eventId),
-      supabase.from('events').select('image_url').eq('id', eventId).maybeSingle(),
+      getEventFlags(eventId),
     ])
-    const imageUrl =
-      (imageRow as { image_url?: string } | null)?.image_url ?? ''
+    const imageUrl = flags?.image_url ?? ''
+    const featured = flags?.featured ?? false
 
     const matchByUserId = new Map(matchRows.map((m) => [m.user_id, m]))
 
@@ -118,6 +115,7 @@ export async function GET(
         lat: event.lat ?? null,
         lng: event.lng ?? null,
         imageUrl,
+        featured,
       },
       users,
       generatedAt: new Date().toISOString(),
@@ -125,6 +123,38 @@ export async function GET(
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     console.error('admin/events/[id] error:', message)
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
+}
+
+// PATCH currently handles the Featured toggle. Same isAdmin gate; routes
+// the write through lib/airtable.ts:updateEvent so the sync mirror-back
+// converges on the same value next tick.
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: { id: string } },
+) {
+  if (!(await isAdmin(req))) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  }
+  const eventId = params.id
+  if (!eventId) {
+    return NextResponse.json({ error: 'id required' }, { status: 400 })
+  }
+
+  try {
+    const body = (await req.json().catch(() => ({}))) as { featured?: unknown }
+    if (typeof body.featured !== 'boolean') {
+      return NextResponse.json(
+        { error: 'featured (boolean) required' },
+        { status: 400 },
+      )
+    }
+    await updateEvent(eventId, { featured: body.featured })
+    return NextResponse.json({ ok: true, featured: body.featured })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    console.error('admin/events/[id] PATCH error:', message)
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }

@@ -18,11 +18,21 @@ interface EventRow {
   matchCount: number
   usersInRange: number
   matchPct: number | null
+  featured: boolean
 }
 
 interface Stats {
   futureEventCount: number
   generatedAt: string
+}
+
+type Scope = 'future' | 'past' | 'all'
+type FeaturedFilter = 'all' | 'yes' | 'no'
+
+const SCOPE_LABEL: Record<Scope, string> = {
+  future: 'Future events',
+  past: 'Past events',
+  all: 'All events',
 }
 
 type SortKey = 'name' | 'type' | 'date' | 'created' | 'location' | 'matches' | 'usersInRange' | 'matchPct'
@@ -114,6 +124,11 @@ export default function AdminEventsPage() {
   const [search, setSearch] = useState('')
   const [showFilters, setShowFilters] = useState(false)
   const [filters, setFilters] = useState<Filters>(emptyFilters())
+  // Scope and featured are server-side filters (the API translates them into
+  // SQL predicates) so changes trigger refetch via the useEffect below.
+  // Defaulting to future + all keeps the page's existing behavior.
+  const [scope, setScope] = useState<Scope>('future')
+  const [featuredFilter, setFeaturedFilter] = useState<FeaturedFilter>('all')
 
   function toggleSort(key: SortKey) {
     if (sortBy === key) {
@@ -126,7 +141,8 @@ export default function AdminEventsPage() {
 
   async function fetchEvents() {
     try {
-      const res = await fetch('/api/admin/events', { cache: 'no-store' })
+      const qs = new URLSearchParams({ scope, featured: featuredFilter })
+      const res = await fetch(`/api/admin/events?${qs}`, { cache: 'no-store' })
       if (res.status === 401) {
         setAuthState('unauthorized')
         return
@@ -152,7 +168,10 @@ export default function AdminEventsPage() {
     fetchEvents()
     const id = setInterval(fetchEvents, POLL_MS)
     return () => clearInterval(id)
-  }, [])
+    // Refetch whenever the server-side filters change. Linter warns about
+    // fetchEvents identity but it closes over both deps so this is correct.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scope, featuredFilter])
 
   const visible = useMemo(() => {
     if (!events) return []
@@ -236,9 +255,11 @@ export default function AdminEventsPage() {
           <>
             <div className="flex items-end justify-between mb-4 flex-wrap gap-2">
               <div>
-                <h1 className="text-2xl font-semibold text-gray-900">Future events</h1>
+                <h1 className="text-2xl font-semibold text-gray-900">{SCOPE_LABEL[scope]}</h1>
                 <p className="text-xs text-gray-500 mt-1">
                   {stats?.futureEventCount ?? 0} events
+                  {featuredFilter === 'yes' && ' · featured only'}
+                  {featuredFilter === 'no' && ' · unfeatured only'}
                   {refreshedAt && ` · refreshed ${refreshedAt.toLocaleTimeString()}`}
                 </p>
               </div>
@@ -258,6 +279,26 @@ export default function AdminEventsPage() {
                 placeholder="Search by name, location, or audience…"
                 className="flex-1 min-w-[200px] bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-800 placeholder-gray-400 focus:outline-none transition-colors shadow-sm"
               />
+              <select
+                value={scope}
+                onChange={(e) => setScope(e.target.value as Scope)}
+                title="Date scope"
+                className="bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none transition-colors shadow-sm"
+              >
+                <option value="future">Future</option>
+                <option value="past">Past</option>
+                <option value="all">All time</option>
+              </select>
+              <select
+                value={featuredFilter}
+                onChange={(e) => setFeaturedFilter(e.target.value as FeaturedFilter)}
+                title="Featured filter"
+                className="bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none transition-colors shadow-sm"
+              >
+                <option value="all">Featured: all</option>
+                <option value="yes">Featured: yes</option>
+                <option value="no">Featured: no</option>
+              </select>
               <div className="relative">
                 <button
                   onClick={() => setShowFilters((v) => !v)}
@@ -307,6 +348,15 @@ export default function AdminEventsPage() {
                       className="border-b border-[#F0E8DC] last:border-b-0 hover:bg-[#FDFAF6] transition-colors cursor-pointer"
                     >
                       <td className="px-3 py-3 max-w-sm">
+                        {e.featured && (
+                          <span
+                            className="mr-1.5 text-[11px] align-middle"
+                            style={{ color: '#6E1F2B' }}
+                            title="Featured on homepage"
+                          >
+                            ★
+                          </span>
+                        )}
                         <span className="text-gray-800 underline decoration-[#D9CAB0] underline-offset-2 hover:decoration-gold-700">
                           {e.name}
                         </span>

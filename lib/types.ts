@@ -19,6 +19,9 @@ export interface EventRecord {
   // time. Stored as an Airtable attachment on the Events table and
   // shown on featured-event cards on the homepage.
   image?: string
+  // Toggled from admin to surface this event on the public homepage
+  // carousel. Mirrored to Supabase events.featured by the sync layer.
+  featured?: boolean
 }
 
 export interface ParsedEvent {

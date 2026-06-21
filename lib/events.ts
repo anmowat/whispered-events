@@ -7,10 +7,10 @@
 
 import { createClient } from '@supabase/supabase-js'
 import stringSimilarity from 'string-similarity'
-import { AirtableEvent, DuplicateCheckResult, cleanEventLink } from './airtable'
+import { AirtableEvent, DuplicateCheckResult, FeaturedEvent, cleanEventLink } from './airtable'
 import { EventRecord } from './types'
 
-export type { AirtableEvent, DuplicateCheckResult }
+export type { AirtableEvent, DuplicateCheckResult, FeaturedEvent }
 
 function getSupabase() {
   if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -38,6 +38,7 @@ interface EventRow {
   image_url: string | null
   host_ids: string[] | null
   approved: boolean
+  featured: boolean
   airtable_created_at: string | null
   airtable_deleted_at: string | null
   deleted_at: string | null
@@ -62,6 +63,7 @@ function toAirtableEvent(row: EventRow): AirtableEvent {
     // Prefer the Airtable createdTime so callers see real history;
     // created_at (Supabase insert time) is meaningless post-Phase-1.
     created: row.airtable_created_at ?? row.created_at ?? '',
+    featured: row.featured === true,
   }
 }
 
@@ -117,6 +119,106 @@ export async function getEventById(eventId: string): Promise<AirtableEvent | nul
     return null
   }
   return data ? toAirtableEvent(data as EventRow) : null
+}
+
+// Homepage carousel source. Strict criteria: must be flagged featured in
+// Airtable (mirrored into events.featured), must have a Storage-backed image
+// (image_url populated by Phase A's upload step), and must already have
+// happened. Past-event + image requirement matches what the homepage actually
+// surfaces today; the date < today guard prevents the carousel from
+// previewing future events that don't yet have social proof.
+export async function getFeaturedEvents(): Promise<FeaturedEvent[]> {
+  const supabase = getSupabase()
+  const { data, error } = await supabase
+    .from('events')
+    .select('id, name, description, link, date, location, image_url')
+    .eq('featured', true)
+    .eq('approved', true)
+    .neq('image_url', '')
+    .lt('date', todayIso())
+    .is('airtable_deleted_at', null)
+    .is('deleted_at', null)
+    .order('date', { ascending: false })
+    .limit(10)
+  if (error) {
+    console.error('getFeaturedEvents error', error)
+    return []
+  }
+  return (data ?? [])
+    .map((row) => {
+      const r = row as Pick<EventRow, 'id' | 'name' | 'description' | 'link' | 'date' | 'location' | 'image_url'>
+      return {
+        id: r.id,
+        name: r.name ?? '',
+        description: r.description ?? '',
+        link: r.link ?? '',
+        date: r.date ?? '',
+        location: r.location ?? '',
+        // image_url filter above already guarantees a usable image; route
+        // through the existing proxy so the carousel URL stays stable even
+        // if we move buckets later.
+        imageUrl: `/api/event-image/${r.id}`,
+      }
+    })
+    .filter((e) => e.name)
+}
+
+export type EventScope = 'future' | 'past' | 'all'
+export type FeaturedFilter = 'all' | 'yes' | 'no'
+
+// Admin events list reader. Mirrors getFutureEvents' shape but accepts a date
+// scope and featured filter so the list page can show past + featured rows.
+// approved gate matches the matching-loop semantics; admin sees only the same
+// universe of events the rest of the app does.
+export async function getEventsForAdmin(opts: {
+  scope?: EventScope
+  featured?: FeaturedFilter
+}): Promise<AirtableEvent[]> {
+  const { scope = 'future', featured = 'all' } = opts
+  const supabase = getSupabase()
+  let q = supabase
+    .from('events')
+    .select('*')
+    .eq('approved', true)
+    .is('airtable_deleted_at', null)
+    .is('deleted_at', null)
+  const today = todayIso()
+  if (scope === 'future') q = q.gte('date', today)
+  else if (scope === 'past') q = q.lt('date', today)
+  if (featured === 'yes') q = q.eq('featured', true)
+  else if (featured === 'no') q = q.eq('featured', false)
+  const { data, error } = await q
+  if (error) {
+    console.error('getEventsForAdmin error', { opts, error })
+    return []
+  }
+  return (data ?? []).map((row) => toAirtableEvent(row as EventRow)).filter((e) => e.name)
+}
+
+// Returns the row's featured flag without ferrying the entire event shape.
+// Admin GET on /api/admin/events/[id] uses this alongside the existing
+// image_url select to avoid a wider SELECT *.
+export async function getEventFlags(eventId: string): Promise<{
+  image_url: string
+  featured: boolean
+} | null> {
+  if (!eventId) return null
+  const supabase = getSupabase()
+  const { data, error } = await supabase
+    .from('events')
+    .select('image_url, featured')
+    .eq('id', eventId)
+    .maybeSingle()
+  if (error) {
+    console.error('getEventFlags error', { eventId, error })
+    return null
+  }
+  if (!data) return null
+  const row = data as { image_url: string | null; featured: boolean | null }
+  return {
+    image_url: row.image_url ?? '',
+    featured: row.featured === true,
+  }
 }
 
 // Auth-gated event fetch — returns null unless the userId is in host_ids.

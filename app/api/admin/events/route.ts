@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { isAdmin } from '@/lib/admin-auth'
 import { getActiveUsers } from '@/lib/users'
-import { getFutureEvents } from '@/lib/events'
+import { getEventsForAdmin, type EventScope, type FeaturedFilter } from '@/lib/events'
 import { getMatchCountsByEventId } from '@/lib/supabase'
 import { withinMiles } from '@/lib/geocode'
 
@@ -19,12 +19,20 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 
+  const url = new URL(req.url)
+  const scope = (url.searchParams.get('scope') as EventScope | null) ?? 'future'
+  const featured = (url.searchParams.get('featured') as FeaturedFilter | null) ?? 'all'
+  const validScope: EventScope =
+    scope === 'past' || scope === 'all' ? scope : 'future'
+  const validFeatured: FeaturedFilter =
+    featured === 'yes' || featured === 'no' ? featured : 'all'
+
   try {
-    const [allUsers, futureEvents] = await Promise.all([
+    const [allUsers, scopedEvents] = await Promise.all([
       getActiveUsers(),
-      getFutureEvents(),
+      getEventsForAdmin({ scope: validScope, featured: validFeatured }),
     ])
-    const eventIds = futureEvents.map((e) => e.id)
+    const eventIds = scopedEvents.map((e) => e.id)
     const matchCounts = await getMatchCountsByEventId(eventIds)
 
     const geocodedUsers = allUsers.filter(
@@ -32,7 +40,7 @@ export async function GET(req: NextRequest) {
         typeof u.lat === 'number' && typeof u.lng === 'number',
     )
 
-    const events = futureEvents.map((e) => {
+    const events = scopedEvents.map((e) => {
       const usersInRange =
         typeof e.lat === 'number' && typeof e.lng === 'number'
           ? geocodedUsers.filter((u) =>
@@ -59,13 +67,18 @@ export async function GET(req: NextRequest) {
         matchCount,
         usersInRange,
         matchPct,
+        featured: e.featured === true,
       }
     })
 
     return NextResponse.json({
       events,
       stats: {
+        // Name preserved for backwards compat with the existing client; the
+        // count reflects the active scope rather than just future events.
         futureEventCount: events.length,
+        scope: validScope,
+        featured: validFeatured,
         generatedAt: new Date().toISOString(),
       },
     })

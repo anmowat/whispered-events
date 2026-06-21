@@ -423,6 +423,9 @@ export async function updateEvent(
     ;(updateData as Record<string, unknown>)['Image'] =
       fields.image ? [{ url: fields.image }] : []
   }
+  if (fields.featured !== undefined) {
+    ;(updateData as Record<string, unknown>)['Featured'] = !!fields.featured
+  }
   await base(EVENTS_TABLE).update(id, updateData)
   await mirrorEventSafe(id, 'updateEvent')
 }
@@ -450,35 +453,11 @@ export interface FeaturedEvent {
   imageUrl?: string
 }
 
-// True when the Image attachment field has a usable upload. We route
-// through /api/event-image/[id] rather than returning the Airtable URL
-// directly because Airtable's signed URLs expire ~2h after issue and
-// /api/featured-events caches the JSON for 24h.
-function hasImageAttachment(value: unknown): boolean {
-  return Array.isArray(value) && value.length > 0 && typeof (value[0] as { url?: string })?.url === 'string'
-}
-
-export async function getFeaturedEvents(): Promise<FeaturedEvent[]> {
-  const base = getBase()
-  const records = await base('tbltqCrPbZbETbQRl')
-    .select({
-      view: 'viwz4UVrptnDATP19',
-      fields: ['Name', 'Description', 'Link', 'Date', 'Location', 'Image'],
-      maxRecords: 10,
-    })
-    .all()
-  return records
-    .map((r) => ({
-      id: r.id,
-      name: String(r.get('Name') || ''),
-      description: String(r.get('Description') || ''),
-      link: String(r.get('Link') || ''),
-      date: String(r.get('Date') || ''),
-      location: String(r.get('Location') || ''),
-      imageUrl: hasImageAttachment(r.get('Image')) ? `/api/event-image/${r.id}` : undefined,
-    }))
-    .filter((e) => e.name)
-}
+// getFeaturedEvents lives in lib/events.ts now (Supabase-backed). The
+// Airtable view viwz4UVrptnDATP19 is no longer read at runtime; it stays
+// in Airtable as a manual reference of what used to be curated. The
+// featured selector is now the `Featured` checkbox column, mirrored into
+// events.featured by the sync layer.
 
 export async function getPartners(): Promise<Partner[]> {
   const base = getBase()
@@ -542,6 +521,8 @@ export interface AirtableEvent {
   lng?: number
   /** Airtable record createdTime — when the event row was first added. */
   created: string
+  /** True when the Featured checkbox is ticked. Drives the homepage carousel. */
+  featured?: boolean
 }
 
 export async function getActiveUsers(): Promise<AirtableUser[]> {

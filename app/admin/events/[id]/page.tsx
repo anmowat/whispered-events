@@ -18,6 +18,7 @@ interface EventDetail {
   lat: number | null
   lng: number | null
   imageUrl: string
+  featured: boolean
 }
 
 interface UserRow {
@@ -79,6 +80,8 @@ export default function AdminEventDetailPage() {
   const [imageBusy, setImageBusy] = useState(false)
   const [imageError, setImageError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const [featuredBusy, setFeaturedBusy] = useState(false)
+  const [featuredError, setFeaturedError] = useState<string | null>(null)
 
   async function fetchDetail() {
     if (!eventId) return
@@ -158,6 +161,29 @@ export default function AdminEventDetailPage() {
       setImageError(e instanceof Error ? e.message : String(e))
     } finally {
       setImageBusy(false)
+    }
+  }
+
+  async function handleFeaturedToggle(next: boolean) {
+    if (!eventId) return
+    setFeaturedError(null)
+    setFeaturedBusy(true)
+    try {
+      const res = await fetch(`/api/admin/events/${eventId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ featured: next }),
+      })
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string }
+        setFeaturedError(data.error || `HTTP ${res.status}`)
+        return
+      }
+      await fetchDetail()
+    } catch (e) {
+      setFeaturedError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setFeaturedBusy(false)
     }
   }
 
@@ -287,7 +313,22 @@ export default function AdminEventDetailPage() {
             </div>
 
             <div className="bg-white border border-[#E8DDD0] rounded-2xl p-6 shadow-sm mb-8">
-              <h3 className="text-xs uppercase tracking-widest text-gold-700 font-medium mb-4" style={{ color: '#6E1F2B' }}>Event</h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xs uppercase tracking-widest font-medium" style={{ color: '#6E1F2B' }}>Event</h3>
+                <label className="inline-flex items-center gap-2 text-sm text-gray-700 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={event.featured}
+                    disabled={featuredBusy}
+                    onChange={(e) => handleFeaturedToggle(e.target.checked)}
+                    className="w-4 h-4 rounded border-[#E8DDD0] cursor-pointer accent-[#6E1F2B] disabled:opacity-50"
+                  />
+                  <span className={featuredBusy ? 'opacity-50' : ''}>Featured on homepage</span>
+                </label>
+              </div>
+              {featuredError && (
+                <p className="text-xs text-red-600 mb-3">{featuredError}</p>
+              )}
               <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
                 <Field label="Name" value={event.name} />
                 <Field label="Type" value={event.type} />

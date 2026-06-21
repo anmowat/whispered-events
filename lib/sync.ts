@@ -102,6 +102,7 @@ interface EventRow extends Omit<EventCacheRow, 'date'> {
   image_url: string
   host_ids: string[]
   approved: boolean
+  featured: boolean
   airtable_created_at: string
 }
 
@@ -113,7 +114,7 @@ const USER_FIELDS = [
 
 const EVENT_FIELDS = [
   'Name', 'Type', 'Date', 'Location', 'Description', 'Link', 'Audience',
-  'LatLon', 'Submitter', 'Source', 'Host', 'Image',
+  'LatLon', 'Submitter', 'Source', 'Host', 'Image', 'Featured',
 ]
 
 export interface SyncStats {
@@ -351,6 +352,9 @@ function eventRecordToRow(r: AirtableRecord): EventRow {
     // the matching loop. The admin "remove from matching" toggle will
     // flip this to false going forward.
     approved: true,
+    // Airtable Featured checkbox -> Supabase events.featured. Drives the
+    // public homepage carousel via lib/events.ts:getFeaturedEvents.
+    featured: r.get('Featured') === true,
     airtable_created_at:
       airtableCreatedTime(r) ?? new Date().toISOString(),
     airtable_deleted_at: null,
