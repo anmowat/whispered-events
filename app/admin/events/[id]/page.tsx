@@ -21,6 +21,48 @@ interface EventDetail {
   featured: boolean
 }
 
+// Draft mirrors EventDetail's editable fields. audience is a comma-joined
+// string while editing so the input doesn't have to manage chip state; we
+// split on save.
+interface EventDraft {
+  name: string
+  type: string
+  date: string
+  location: string
+  link: string
+  description: string
+  audience: string
+  featured: boolean
+}
+
+const EVENT_TYPE_OPTIONS = ['Conference', 'Dinner', 'Virtual', 'Other'] as const
+
+function draftFromEvent(e: EventDetail): EventDraft {
+  return {
+    name: e.name,
+    type: e.type,
+    date: e.date,
+    location: e.location,
+    link: e.link,
+    description: e.description,
+    audience: e.audience.join(', '),
+    featured: e.featured,
+  }
+}
+
+function draftDiff(draft: EventDraft, original: EventDraft): Partial<EventDraft> {
+  const diff: Partial<EventDraft> = {}
+  ;(Object.keys(draft) as Array<keyof EventDraft>).forEach((k) => {
+    if (draft[k] !== original[k]) {
+      // TypeScript can't infer the property-specific type from a generic key
+      // reassignment; cast through unknown so the compiler accepts the
+      // structurally-correct value.
+      ;(diff as Record<string, unknown>)[k] = draft[k]
+    }
+  })
+  return diff
+}
+
 interface UserRow {
   id: string
   email: string
@@ -82,6 +124,14 @@ export default function AdminEventDetailPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [featuredBusy, setFeaturedBusy] = useState(false)
   const [featuredError, setFeaturedError] = useState<string | null>(null)
+  // Edit mode batches every field change into a single PATCH on Save, so
+  // updateEvent (and its mirror + match-rerun pipeline) fires once per edit
+  // session rather than once per keystroke or per field. Draft starts at
+  // null and is populated from event when the admin clicks Edit.
+  const [draft, setDraft] = useState<EventDraft | null>(null)
+  const [editBusy, setEditBusy] = useState(false)
+  const [editError, setEditError] = useState<string | null>(null)
+  const isEditing = draft !== null
 
   async function fetchDetail() {
     if (!eventId) return
@@ -184,6 +234,57 @@ export default function AdminEventDetailPage() {
       setFeaturedError(e instanceof Error ? e.message : String(e))
     } finally {
       setFeaturedBusy(false)
+    }
+  }
+
+  function startEdit() {
+    if (!event) return
+    setEditError(null)
+    setDraft(draftFromEvent(event))
+  }
+
+  function cancelEdit() {
+    setEditError(null)
+    setDraft(null)
+  }
+
+  async function saveEdit() {
+    if (!eventId || !event || !draft) return
+    const original = draftFromEvent(event)
+    const diff = draftDiff(draft, original)
+    if (Object.keys(diff).length === 0) {
+      setDraft(null)
+      return
+    }
+    setEditError(null)
+    setEditBusy(true)
+    try {
+      // audience travels as an array on the wire even though the form holds
+      // it as a comma-joined string. Split, trim, drop empties so a stray
+      // comma doesn't add a blank audience entry.
+      const body: Record<string, unknown> = { ...diff }
+      if (typeof body.audience === 'string') {
+        body.audience = (body.audience as string)
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean)
+      }
+      const res = await fetch(`/api/admin/events/${eventId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string }
+        setEditError(data.error || `HTTP ${res.status}`)
+        return
+      }
+      setDraft(null)
+      await fetchDetail()
+    } catch (e) {
+      setEditError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setEditBusy(false)
     }
   }
 
@@ -313,31 +414,72 @@ export default function AdminEventDetailPage() {
             </div>
 
             <div className="bg-white border border-[#E8DDD0] rounded-2xl p-6 shadow-sm mb-8">
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
                 <h3 className="text-xs uppercase tracking-widest font-medium" style={{ color: '#6E1F2B' }}>Event</h3>
-                <label className="inline-flex items-center gap-2 text-sm text-gray-700 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={event.featured}
-                    disabled={featuredBusy}
-                    onChange={(e) => handleFeaturedToggle(e.target.checked)}
-                    className="w-4 h-4 rounded border-[#E8DDD0] cursor-pointer accent-[#6E1F2B] disabled:opacity-50"
-                  />
-                  <span className={featuredBusy ? 'opacity-50' : ''}>Featured on homepage</span>
-                </label>
+                <div className="flex items-center gap-3">
+                  {!isEditing ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={startEdit}
+                        className="px-3 py-1.5 rounded-lg border border-[#E8DDD0] bg-white text-xs text-gray-700 hover:bg-[#F5EFE6] transition-colors shadow-sm"
+                      >
+                        Edit
+                      </button>
+                      <label className="inline-flex items-center gap-2 text-sm text-gray-700 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={event.featured}
+                          disabled={featuredBusy}
+                          onChange={(e) => handleFeaturedToggle(e.target.checked)}
+                          className="w-4 h-4 rounded border-[#E8DDD0] cursor-pointer accent-[#6E1F2B] disabled:opacity-50"
+                        />
+                        <span className={featuredBusy ? 'opacity-50' : ''}>Featured on homepage</span>
+                      </label>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={saveEdit}
+                        disabled={editBusy || Object.keys(draftDiff(draft!, draftFromEvent(event))).length === 0}
+                        className="px-3 py-1.5 rounded-lg text-white text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                        style={{ background: '#6E1F2B' }}
+                      >
+                        {editBusy ? 'Saving…' : 'Save'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={cancelEdit}
+                        disabled={editBusy}
+                        className="px-3 py-1.5 rounded-lg border border-[#E8DDD0] bg-white text-xs text-gray-700 hover:bg-[#F5EFE6] transition-colors shadow-sm disabled:opacity-50"
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
-              {featuredError && (
+              {featuredError && !isEditing && (
                 <p className="text-xs text-red-600 mb-3">{featuredError}</p>
               )}
-              <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
-                <Field label="Name" value={event.name} />
-                <Field label="Type" value={event.type} />
-                <Field label="Date" value={event.date} />
-                <Field label="Location" value={event.location} />
-                <Field label="LatLon" value={event.lat !== null && event.lng !== null ? `${event.lat}, ${event.lng}` : ''} />
-                <Field label="Audience" value={event.audience.join(', ')} />
-                <Field label="Description" value={event.description} multiline />
-              </dl>
+              {editError && (
+                <p className="text-xs text-red-600 mb-3">{editError}</p>
+              )}
+              {!isEditing ? (
+                <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+                  <Field label="Name" value={event.name} />
+                  <Field label="Type" value={event.type} />
+                  <Field label="Date" value={event.date} />
+                  <Field label="Location" value={event.location} />
+                  <Field label="LatLon" value={event.lat !== null && event.lng !== null ? `${event.lat}, ${event.lng}` : ''} />
+                  <Field label="Link" value={event.link} />
+                  <Field label="Audience" value={event.audience.join(', ')} />
+                  <Field label="Description" value={event.description} multiline />
+                </dl>
+              ) : (
+                <EventEditForm draft={draft!} onChange={setDraft} disabled={editBusy} />
+              )}
             </div>
 
             <div className="mb-3">
@@ -422,5 +564,127 @@ function Field({ label, value, multiline }: { label: string; value: string; mult
         {value ? value : <span className="text-gray-400 italic">not provided</span>}
       </dd>
     </div>
+  )
+}
+
+function EventEditForm({
+  draft,
+  onChange,
+  disabled,
+}: {
+  draft: EventDraft
+  onChange: (next: EventDraft) => void
+  disabled: boolean
+}) {
+  function update<K extends keyof EventDraft>(key: K, value: EventDraft[K]) {
+    onChange({ ...draft, [key]: value })
+  }
+  const input =
+    'w-full bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:border-[#6E1F2B] disabled:opacity-50 transition-colors'
+  return (
+    <div className="space-y-4">
+      <label className="inline-flex items-center gap-2 text-sm text-gray-700 cursor-pointer select-none">
+        <input
+          type="checkbox"
+          checked={draft.featured}
+          disabled={disabled}
+          onChange={(e) => update('featured', e.target.checked)}
+          className="w-4 h-4 rounded border-[#E8DDD0] cursor-pointer accent-[#6E1F2B] disabled:opacity-50"
+        />
+        <span className={disabled ? 'opacity-50' : ''}>Featured on homepage</span>
+      </label>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 text-sm">
+        <FormField label="Name">
+          <input
+            type="text"
+            value={draft.name}
+            disabled={disabled}
+            onChange={(e) => update('name', e.target.value)}
+            className={input}
+          />
+        </FormField>
+        <FormField label="Type">
+          <select
+            value={draft.type}
+            disabled={disabled}
+            onChange={(e) => update('type', e.target.value)}
+            className={input}
+          >
+            {EVENT_TYPE_OPTIONS.map((t) => (
+              <option key={t} value={t}>{t}</option>
+            ))}
+          </select>
+        </FormField>
+        <FormField label="Date">
+          <input
+            type="date"
+            value={draft.date}
+            disabled={disabled}
+            onChange={(e) => update('date', e.target.value)}
+            className={input}
+          />
+        </FormField>
+        <FormField label="Location">
+          <input
+            type="text"
+            value={draft.location}
+            disabled={disabled}
+            onChange={(e) => update('location', e.target.value)}
+            placeholder="City, State or full address"
+            className={input}
+          />
+        </FormField>
+        <FormField label="Link" wide>
+          <input
+            type="url"
+            value={draft.link}
+            disabled={disabled}
+            onChange={(e) => update('link', e.target.value)}
+            placeholder="https://…"
+            className={input}
+          />
+        </FormField>
+        <FormField label="Audience (comma-separated)" wide>
+          <input
+            type="text"
+            value={draft.audience}
+            disabled={disabled}
+            onChange={(e) => update('audience', e.target.value)}
+            placeholder="CRO, CMO, VP Sales"
+            className={input}
+          />
+        </FormField>
+        <FormField label="Description" wide>
+          <textarea
+            value={draft.description}
+            disabled={disabled}
+            onChange={(e) => update('description', e.target.value)}
+            rows={5}
+            className={`${input} font-normal leading-relaxed`}
+          />
+        </FormField>
+      </div>
+      <p className="text-[11px] text-gray-400">
+        LatLon is auto-derived from Location on save. Saving fires updateEvent
+        once, which mirrors back to Supabase and reruns matches.
+      </p>
+    </div>
+  )
+}
+
+function FormField({
+  label,
+  children,
+  wide,
+}: {
+  label: string
+  children: React.ReactNode
+  wide?: boolean
+}) {
+  return (
+    <label className={`block ${wide ? 'sm:col-span-2' : ''}`}>
+      <span className="block text-xs uppercase tracking-wide text-gray-400 mb-1">{label}</span>
+      {children}
+    </label>
   )
 }

@@ -127,9 +127,14 @@ export async function GET(
   }
 }
 
-// PATCH currently handles the Featured toggle. Same isAdmin gate; routes
-// the write through lib/airtable.ts:updateEvent so the sync mirror-back
-// converges on the same value next tick.
+// Admin event edits go through here in a single PATCH so updateEvent fires
+// once per save — the mirror + match-rerun pipeline that updateEvent triggers
+// is the expensive part, so batching every changed field into one call is the
+// whole reason the UI is grouped Edit/Save instead of inline. Same isAdmin
+// gate; the write fans through lib/airtable.ts:updateEvent so the sync
+// mirror-back converges on the same value next tick.
+const VALID_TYPES = new Set(['Conference', 'Dinner', 'Virtual', 'Other'])
+
 export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } },
@@ -143,15 +148,42 @@ export async function PATCH(
   }
 
   try {
-    const body = (await req.json().catch(() => ({}))) as { featured?: unknown }
-    if (typeof body.featured !== 'boolean') {
+    const body = (await req.json().catch(() => ({}))) as {
+      name?: unknown
+      type?: unknown
+      date?: unknown
+      location?: unknown
+      link?: unknown
+      audience?: unknown
+      description?: unknown
+      featured?: unknown
+    }
+
+    const update: Parameters<typeof updateEvent>[1] = {}
+    if (typeof body.name === 'string') update.name = body.name.trim()
+    if (typeof body.type === 'string' && VALID_TYPES.has(body.type)) {
+      update.type = body.type as 'Conference' | 'Dinner' | 'Virtual' | 'Other'
+    }
+    if (typeof body.date === 'string') update.date = body.date
+    if (typeof body.location === 'string') update.location = body.location.trim()
+    if (typeof body.link === 'string') update.link = body.link.trim()
+    if (typeof body.description === 'string') update.description = body.description
+    if (Array.isArray(body.audience)) {
+      update.audience = body.audience
+        .filter((a): a is string => typeof a === 'string')
+        .map((a) => a.trim())
+        .filter(Boolean)
+    }
+    if (typeof body.featured === 'boolean') update.featured = body.featured
+
+    if (Object.keys(update).length === 0) {
       return NextResponse.json(
-        { error: 'featured (boolean) required' },
+        { error: 'no editable fields in request body' },
         { status: 400 },
       )
     }
-    await updateEvent(eventId, { featured: body.featured })
-    return NextResponse.json({ ok: true, featured: body.featured })
+    await updateEvent(eventId, update)
+    return NextResponse.json({ ok: true, updated: Object.keys(update) })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     console.error('admin/events/[id] PATCH error:', message)
