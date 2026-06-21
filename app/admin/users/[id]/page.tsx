@@ -132,6 +132,8 @@ export default function AdminUserDetailPage() {
   const [editBusy, setEditBusy] = useState(false)
   const [editError, setEditError] = useState<string | null>(null)
   const isEditing = draft !== null
+  const [enrichBusy, setEnrichBusy] = useState(false)
+  const [enrichMessage, setEnrichMessage] = useState<string | null>(null)
 
   async function fetchDetail() {
     if (!userId) return
@@ -171,6 +173,44 @@ export default function AdminUserDetailPage() {
     setEditError(null)
     setDraft(null)
   }
+
+  async function handleEnrich() {
+    if (!userId || enrichBusy) return
+    if (!window.confirm('Re-run LinkedIn enrichment? This will overwrite Name, Function, and Seniority.')) return
+    setEnrichBusy(true)
+    setEnrichMessage(null)
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/enrich`, {
+        method: 'POST',
+        cache: 'no-store',
+      })
+      const data = (await res.json().catch(() => ({}))) as {
+        ok?: boolean
+        error?: string
+        result?: { function?: string[]; seniority?: string; functionFrom?: string }
+      }
+      if (!res.ok || !data.ok) {
+        setEnrichMessage(`Enrich failed: ${data.error || `HTTP ${res.status}`}`)
+        return
+      }
+      const fn = data.result?.function?.join(', ') || '?'
+      const sen = data.result?.seniority || '?'
+      const from = data.result?.functionFrom ? ` (from ${data.result.functionFrom})` : ''
+      setEnrichMessage(`Enriched → ${fn} / ${sen}${from}`)
+      await fetchDetail()
+    } catch (e) {
+      setEnrichMessage(`Enrich failed: ${e instanceof Error ? e.message : String(e)}`)
+    } finally {
+      setEnrichBusy(false)
+    }
+  }
+
+  // Clear the enrich message after a few seconds.
+  useEffect(() => {
+    if (!enrichMessage) return
+    const id = setTimeout(() => setEnrichMessage(null), 8000)
+    return () => clearTimeout(id)
+  }, [enrichMessage])
 
   async function saveEdit() {
     if (!userId || !user || !draft) return
@@ -235,12 +275,33 @@ export default function AdminUserDetailPage() {
             <img src="/logo.svg" alt="Whispered Events" className="h-7 w-auto" />
             <span className="text-xs uppercase tracking-widest text-gray-500">← Admin</span>
           </a>
-          <button
-            onClick={fetchDetail}
-            className="px-3 py-1.5 rounded-lg border border-[#E8DDD0] bg-white text-xs text-gray-700 hover:bg-[#F5EFE6] transition-colors shadow-sm"
-          >
-            Refresh
-          </button>
+          <div className="flex items-center gap-2">
+            {enrichMessage && (
+              <span
+                className={`text-xs ${enrichMessage.startsWith('Enrich failed') ? 'text-red-600' : 'text-gray-500'}`}
+              >
+                {enrichMessage}
+              </span>
+            )}
+            <button
+              onClick={handleEnrich}
+              disabled={enrichBusy || !user?.linkedin}
+              title={
+                user?.linkedin
+                  ? 'Re-run LinkedIn enrichment via AnySite'
+                  : 'No LinkedIn URL on record — add one to enable enrichment'
+              }
+              className="px-3 py-1.5 rounded-lg border border-[#E8DDD0] bg-white text-xs text-gray-700 hover:bg-[#F5EFE6] transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {enrichBusy ? 'Enriching…' : 'Enrich from LinkedIn'}
+            </button>
+            <button
+              onClick={fetchDetail}
+              className="px-3 py-1.5 rounded-lg border border-[#E8DDD0] bg-white text-xs text-gray-700 hover:bg-[#F5EFE6] transition-colors shadow-sm"
+            >
+              Refresh
+            </button>
+          </div>
         </div>
       </header>
 
@@ -334,7 +395,6 @@ export default function AdminUserDetailPage() {
               {!isEditing ? (
                 <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
                   <Field label="Active" value={user.active ? 'Yes' : 'No'} />
-                  <Field label="Status (raw)" value={user.status} />
                   <Field label="Frequency" value={user.frequency} />
                   <Field label="Location" value={user.location} />
                   <Field label="LatLon" value={user.lat !== null && user.lng !== null ? `${user.lat}, ${user.lng}` : ''} />
