@@ -1,19 +1,32 @@
 import { NextResponse } from 'next/server'
 import Airtable from 'airtable'
+import { createClient } from '@supabase/supabase-js'
 
-// Proxies the Airtable Image attachment for an Event so the browser sees a
-// stable URL. Airtable's v5 attachment URLs are signed and expire after ~2h;
-// the homepage caches /api/featured-events for 24h, so any signed URL inside
-// that cached JSON breaks long before the cache itself expires. By fetching
-// the bytes on the server and serving them ourselves with a long
-// Cache-Control, the Vercel CDN holds the image for 24h+ and we hit Airtable
-// at most once per event per day. Mirrors /api/partner-logo/[id].
+// Proxies the event Image attachment so the browser sees a stable URL. The
+// modern path: lib/sync.ts uploads each event's image to Supabase Storage at
+// sync time and stamps events.image_url with the public bucket URL. This
+// handler reads that column and 302-redirects to it, so the bytes never
+// round-trip through Vercel.
+//
+// Legacy fallback: any event whose image_url is still empty (a not-yet-synced
+// row, or one where the Storage upload tripped) falls through to the original
+// Airtable signed-URL fetch. Mirrors /api/partner-logo/[id].
 
 export const runtime = 'nodejs'
+
+const CACHE_HEADER =
+  'public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800'
 
 function getBase() {
   if (!process.env.AIRTABLE_API_KEY) throw new Error('AIRTABLE_API_KEY is not set')
   return new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base('appK8AqOvtEgIquRT')
+}
+
+function getSupabase() {
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set')
+  }
+  return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
 }
 
 export async function GET(
@@ -21,7 +34,23 @@ export async function GET(
   { params }: { params: { id: string } },
 ) {
   try {
-    // Same table as getFeaturedEvents() reads from.
+    // Fast path: image already persisted in Supabase Storage.
+    const supabase = getSupabase()
+    const { data: row } = await supabase
+      .from('events')
+      .select('image_url')
+      .eq('id', params.id)
+      .maybeSingle()
+    const storageUrl = (row as { image_url?: string } | null)?.image_url
+    if (storageUrl) {
+      return new NextResponse(null, {
+        status: 302,
+        headers: { Location: storageUrl, 'Cache-Control': CACHE_HEADER },
+      })
+    }
+
+    // Fallback: not-yet-synced event. Pull the signed URL from Airtable and
+    // serve the bytes inline, same as the original behavior.
     const record = await getBase()('tbltqCrPbZbETbQRl').find(params.id)
     const image = record.get('Image') as
       | Array<{
@@ -52,7 +81,7 @@ export async function GET(
       status: 200,
       headers: {
         'Content-Type': contentType,
-        'Cache-Control': 'public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800',
+        'Cache-Control': CACHE_HEADER,
       },
     })
   } catch (err) {

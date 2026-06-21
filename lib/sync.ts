@@ -113,7 +113,7 @@ const USER_FIELDS = [
 
 const EVENT_FIELDS = [
   'Name', 'Type', 'Date', 'Location', 'Description', 'Link', 'Audience',
-  'LatLon', 'Submitter', 'Source', 'Host',
+  'LatLon', 'Submitter', 'Source', 'Host', 'Image',
 ]
 
 export interface SyncStats {
@@ -220,6 +220,15 @@ export async function syncEventsToCache(): Promise<SyncStats> {
   const liveIds = new Set(rows.map((r) => r.id))
   const tombstoned = await tombstoneMissing(supabase, 'events_cache', liveIds)
   await tombstoneMissing(supabase, 'events', liveIds)
+
+  // Persist each event's image into Supabase Storage and stamp events.image_url
+  // with the public URL. Sequential — image-fetch + upload is ~200-500 ms per
+  // event and the volume is tiny, so the simpler serial loop wins over juggling
+  // concurrency. Failures don't abort the sync; the proxy's Airtable fallback
+  // continues to cover any row whose image_url is still empty.
+  for (const record of records) {
+    await uploadEventImageIfPresent(record.id, record as AirtableRecord, supabase)
+  }
 
   return { upserted: rows.length, tombstoned, durationMs: Date.now() - start }
 }
@@ -332,9 +341,10 @@ function eventRecordToRow(r: AirtableRecord): EventRow {
     lng,
     submitter_email: String(r.get('Submitter') || ''),
     source: String(r.get('Source') || ''),
-    // Image attachment URLs are short-lived; Phase 1 leaves the proxy path
-    // alone and stores empty. A future phase will fetch + persist to
-    // Supabase Storage so we can drop the Airtable read on images.
+    // image_url is populated by uploadEventImageIfPresent after the row
+    // upsert. Default to empty so freshly-created rows have a defined value
+    // until the upload step lands; the proxy at /api/event-image/[id] falls
+    // back to Airtable for any event whose image_url is still empty.
     image_url: '',
     host_ids: hostIds,
     // Existing events default to approved=true so backfill is a no-op for
@@ -345,6 +355,71 @@ function eventRecordToRow(r: AirtableRecord): EventRow {
       airtableCreatedTime(r) ?? new Date().toISOString(),
     airtable_deleted_at: null,
   }
+}
+
+const EVENT_IMAGES_BUCKET = 'event-images'
+
+// Persists an event's Airtable Image attachment into Supabase Storage and
+// updates events.image_url with the public bucket URL. Idempotent — overwrites
+// any existing object under the same key. Returns the public URL on success,
+// '' when the event has no image, and null on failure (caller logs and moves
+// on; the proxy still falls back to Airtable for any row whose image_url is
+// still empty).
+//
+// Called from both syncSingleEvent and the bulk sync loop after the row
+// upsert. We do the bytes work post-upsert so a Storage hiccup never blocks
+// the row from landing in Supabase.
+async function uploadEventImageIfPresent(
+  eventId: string,
+  record: AirtableRecord,
+  supabase: ReturnType<typeof getSupabase>,
+): Promise<string | null> {
+  const image = record.get('Image') as
+    | Array<{
+        url: string
+        type?: string
+        thumbnails?: { large?: { url?: string }; small?: { url?: string } }
+      }>
+    | undefined
+  // Prefer Airtable's resized large thumbnail (JPEG-encoded, smaller payload)
+  // and fall back to the original upload. Mirrors the proxy's selection.
+  const url = image?.[0]?.thumbnails?.large?.url || image?.[0]?.url
+  if (!url) return ''
+
+  const upstream = await fetch(url)
+  if (!upstream.ok) {
+    console.error(`uploadEventImageIfPresent(${eventId}): upstream ${upstream.status}`)
+    return null
+  }
+  const bytes = await upstream.arrayBuffer()
+  const contentType =
+    upstream.headers.get('content-type') || image?.[0]?.type || 'image/jpeg'
+
+  const key = `${eventId}.jpg`
+  const { error: uploadErr } = await supabase.storage
+    .from(EVENT_IMAGES_BUCKET)
+    .upload(key, bytes, { contentType, upsert: true })
+  if (uploadErr) {
+    console.error(`uploadEventImageIfPresent(${eventId}) upload failed:`, uploadErr)
+    return null
+  }
+
+  const { data } = supabase.storage.from(EVENT_IMAGES_BUCKET).getPublicUrl(key)
+  const publicUrl = data?.publicUrl ?? ''
+  if (!publicUrl) {
+    console.error(`uploadEventImageIfPresent(${eventId}): getPublicUrl returned empty`)
+    return null
+  }
+
+  const { error: updateErr } = await supabase
+    .from('events')
+    .update({ image_url: publicUrl })
+    .eq('id', eventId)
+  if (updateErr) {
+    console.error(`uploadEventImageIfPresent(${eventId}) image_url update failed:`, updateErr)
+    return null
+  }
+  return publicUrl
 }
 
 // Single-row sync used by the matching loop's event/user triggers. The
@@ -387,6 +462,10 @@ export async function syncSingleEvent(eventId: string): Promise<boolean> {
       console.error(`syncSingleEvent(${eventId}) upsert failed:`, error)
       return false
     }
+    // Non-fatal: log and continue if the image upload trips. The row landed,
+    // and the proxy falls back to Airtable for events whose image_url is
+    // still empty.
+    await uploadEventImageIfPresent(eventId, record as AirtableRecord, supabase)
     return true
   } catch (err) {
     console.error(`syncSingleEvent(${eventId}) failed:`, err)
