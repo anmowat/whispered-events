@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { syncUsersToCache, syncEventsToCache } from '@/lib/sync'
+import { isAdmin } from '@/lib/admin-auth'
 
 // Manual trigger for the Airtable → Supabase sync. Use for initial seed and
 // for forcing a fresh pull when debugging. Production traffic should be
 // handled by the cron at /api/cron/sync-airtable.
 //
-// Auth: either the x-webhook-secret header matching AIRTABLE_WEBHOOK_SECRET,
-// OR an Authorization: Bearer <CRON_SECRET> header (matches the cron route).
+// Auth: any of three paths is accepted. Cron and webhook use the secret
+// headers; the admin events page hits this via the user's session cookie.
+//   - x-webhook-secret matching AIRTABLE_WEBHOOK_SECRET (Airtable webhooks)
+//   - Authorization: Bearer <CRON_SECRET> (Vercel cron)
+//   - Session cookie owned by an ADMIN_EMAILS allowlisted user (in-app button)
 // Optional ?only=users or ?only=events to sync just one table.
 
 export const maxDuration = 300
@@ -20,7 +24,7 @@ function normalize(v: string | null | undefined): string {
   return s
 }
 
-function isAuthorized(req: NextRequest): boolean {
+async function isAuthorized(req: NextRequest): Promise<boolean> {
   const webhookSecret = normalize(process.env.AIRTABLE_WEBHOOK_SECRET)
   const sentWebhook = normalize(req.headers.get('x-webhook-secret'))
   if (webhookSecret && sentWebhook === webhookSecret) return true
@@ -29,11 +33,13 @@ function isAuthorized(req: NextRequest): boolean {
   const auth = req.headers.get('authorization') || ''
   if (cronSecret && auth === `Bearer ${cronSecret}`) return true
 
+  if (await isAdmin(req)) return true
+
   return false
 }
 
 export async function POST(req: NextRequest) {
-  if (!isAuthorized(req)) {
+  if (!(await isAuthorized(req))) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 
