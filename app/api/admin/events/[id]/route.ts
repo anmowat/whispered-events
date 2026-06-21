@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
 import { isAdmin } from '@/lib/admin-auth'
 import { getActiveUsers } from '@/lib/users'
 import { getEventById } from '@/lib/events'
@@ -34,10 +35,19 @@ export async function GET(
       return NextResponse.json({ error: 'event not found' }, { status: 404 })
     }
 
-    const [allUsers, matchRows] = await Promise.all([
+    // image_url isn't part of AirtableEvent (the public read shape), so
+    // fetch it directly here for the admin image management UI.
+    const supabase = createClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    )
+    const [allUsers, matchRows, { data: imageRow }] = await Promise.all([
       getActiveUsers(),
       getAllMatchesForEvent(eventId),
+      supabase.from('events').select('image_url').eq('id', eventId).maybeSingle(),
     ])
+    const imageUrl =
+      (imageRow as { image_url?: string } | null)?.image_url ?? ''
 
     const matchByUserId = new Map(matchRows.map((m) => [m.user_id, m]))
 
@@ -107,6 +117,7 @@ export async function GET(
         audience: event.audience,
         lat: event.lat ?? null,
         lng: event.lng ?? null,
+        imageUrl,
       },
       users,
       generatedAt: new Date().toISOString(),

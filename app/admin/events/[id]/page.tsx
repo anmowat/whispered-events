@@ -1,8 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
 import LoginModal from '@/components/LoginModal'
+
+const MAX_IMAGE_BYTES = 4 * 1024 * 1024
 
 interface EventDetail {
   id: string
@@ -15,6 +17,7 @@ interface EventDetail {
   audience: string[]
   lat: number | null
   lng: number | null
+  imageUrl: string
 }
 
 interface UserRow {
@@ -69,6 +72,13 @@ export default function AdminEventDetailPage() {
   const [authState, setAuthState] = useState<'unknown' | 'authorized' | 'unauthorized' | 'not_found' | 'error'>('unknown')
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [showLogin, setShowLogin] = useState(false)
+  // Bumped after every image upload/delete so the preview <img> bypasses the
+  // 24h Cache-Control on /api/event-image/[id] and shows the new bytes
+  // immediately. Initialized to 0 so first render reuses any browser cache.
+  const [imageVersion, setImageVersion] = useState(0)
+  const [imageBusy, setImageBusy] = useState(false)
+  const [imageError, setImageError] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   async function fetchDetail() {
     if (!eventId) return
@@ -95,6 +105,59 @@ export default function AdminEventDetailPage() {
     } catch (e) {
       setAuthState('error')
       setErrorMsg(e instanceof Error ? e.message : String(e))
+    }
+  }
+
+  async function handleImageUpload(file: File) {
+    if (!eventId) return
+    if (file.size > MAX_IMAGE_BYTES) {
+      setImageError(`File too large (max ${MAX_IMAGE_BYTES / 1024 / 1024}MB).`)
+      return
+    }
+    setImageError(null)
+    setImageBusy(true)
+    try {
+      const form = new FormData()
+      form.append('file', file)
+      const res = await fetch(`/api/admin/events/${eventId}/image`, {
+        method: 'POST',
+        body: form,
+      })
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string }
+        setImageError(data.error || `HTTP ${res.status}`)
+        return
+      }
+      setImageVersion((v) => v + 1)
+      await fetchDetail()
+    } catch (e) {
+      setImageError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setImageBusy(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
+  async function handleImageDelete() {
+    if (!eventId) return
+    if (!window.confirm('Remove the image for this event?')) return
+    setImageError(null)
+    setImageBusy(true)
+    try {
+      const res = await fetch(`/api/admin/events/${eventId}/image`, {
+        method: 'DELETE',
+      })
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string }
+        setImageError(data.error || `HTTP ${res.status}`)
+        return
+      }
+      setImageVersion((v) => v + 1)
+      await fetchDetail()
+    } catch (e) {
+      setImageError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setImageBusy(false)
     }
   }
 
@@ -184,6 +247,81 @@ export default function AdminEventDetailPage() {
                 <Field label="Audience" value={event.audience.join(', ')} />
                 <Field label="Description" value={event.description} multiline />
               </dl>
+            </div>
+
+            <div className="bg-white border border-[#E8DDD0] rounded-2xl p-6 shadow-sm mb-8">
+              <h3 className="text-xs uppercase tracking-widest font-medium mb-4" style={{ color: '#6E1F2B' }}>Image</h3>
+              <div className="flex flex-col sm:flex-row gap-6">
+                <div className="w-full sm:w-72 flex-shrink-0">
+                  {event.imageUrl ? (
+                    <img
+                      src={`/api/event-image/${event.id}?v=${imageVersion}`}
+                      alt=""
+                      className="w-full rounded-lg border border-[#E8DDD0] bg-[#FDFAF6] object-cover"
+                    />
+                  ) : (
+                    <div className="w-full aspect-[16/9] rounded-lg border border-dashed border-[#E8DDD0] bg-[#FDFAF6] flex items-center justify-center">
+                      <span className="text-xs text-gray-400 italic">no image</span>
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 flex flex-col gap-3">
+                  <div>
+                    <dt className="text-xs uppercase tracking-wide text-gray-400">image_url</dt>
+                    <dd className="text-xs text-gray-700 mt-1 break-all">
+                      {event.imageUrl ? (
+                        <a
+                          href={event.imageUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="underline decoration-[#D9CAB0] underline-offset-2"
+                        >
+                          {event.imageUrl}
+                        </a>
+                      ) : (
+                        <span className="text-gray-400 italic">empty (Airtable fallback)</span>
+                      )}
+                    </dd>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0]
+                        if (f) handleImageUpload(f)
+                      }}
+                    />
+                    <button
+                      type="button"
+                      disabled={imageBusy}
+                      onClick={() => fileInputRef.current?.click()}
+                      className="px-3 py-1.5 rounded-lg text-white text-xs font-medium disabled:opacity-50"
+                      style={{ background: '#6E1F2B' }}
+                    >
+                      {imageBusy ? 'Working…' : event.imageUrl ? 'Replace image' : 'Upload image'}
+                    </button>
+                    {event.imageUrl && (
+                      <button
+                        type="button"
+                        disabled={imageBusy}
+                        onClick={handleImageDelete}
+                        className="px-3 py-1.5 rounded-lg border border-[#E8DDD0] bg-white text-gray-700 text-xs font-medium hover:bg-[#FDFAF6] disabled:opacity-50"
+                      >
+                        Remove image
+                      </button>
+                    )}
+                  </div>
+                  {imageError && (
+                    <p className="text-xs text-red-600">{imageError}</p>
+                  )}
+                  <p className="text-[11px] text-gray-400">
+                    Max 4MB. JPEG/PNG/WebP. Mirrors to Airtable and persists in Supabase Storage so the public carousel serves it directly.
+                  </p>
+                </div>
+              </div>
             </div>
 
             <div className="mb-3">

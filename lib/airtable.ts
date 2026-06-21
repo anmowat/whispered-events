@@ -415,6 +415,14 @@ export async function updateEvent(
   if (fields.date) updateData['Date'] = fields.date
   if (fields.submitter) updateData['Submitter'] = fields.submitter
   if (hostUserId) updateData['Host'] = [hostUserId]
+  // Image is a sentinel: undefined means "leave alone", empty string means
+  // "clear the attachment", non-empty URL means "fetch and store". Lets the
+  // admin image route round-trip through here for both upload and delete
+  // without splitting into two helpers.
+  if (fields.image !== undefined) {
+    ;(updateData as Record<string, unknown>)['Image'] =
+      fields.image ? [{ url: fields.image }] : []
+  }
   await base(EVENTS_TABLE).update(id, updateData)
   await mirrorEventSafe(id, 'updateEvent')
 }
