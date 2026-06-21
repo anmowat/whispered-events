@@ -8,6 +8,10 @@ const config: Config = {
     './pages/**/*.{js,ts,jsx,tsx,mdx}',
     './components/**/*.{js,ts,jsx,tsx,mdx}',
     './app/**/*.{js,ts,jsx,tsx,mdx}',
+    // Shared helpers that build tailwind class strings (e.g. the status
+    // pill colors in lib/user-status.ts). Without this, JIT purges the
+    // bg-/text-/border- classes and the pills render uncolored.
+    './lib/**/*.{js,ts}',
   ],
   theme: {
     extend: {

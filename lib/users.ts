@@ -162,10 +162,20 @@ export async function getUsersForAdmin(opts: {
     .select('*')
     .is('airtable_deleted_at', null)
     .is('deleted_at', null)
+  // Predicates intentionally lean on the canonical `active` boolean rather
+  // than string-matching the status picklist. The Phase H sync derivation
+  // is already responsible for setting active=true iff status in
+  // (Live, Partner) — keeping the SQL on active aligns this with the
+  // matching loop exactly, and gracefully handles legacy rows where the
+  // status column still holds the pre-Phase-H raw "Active" text (those
+  // rows have active=true from the original sync, and would otherwise be
+  // excluded by an IN ('Live', 'Partner') string match).
   if (statusBucket === 'live') {
-    q = q.in('status', ['Live', 'Partner'])
+    q = q.eq('active', true)
   } else if (statusBucket === 'toApprove') {
-    q = q.eq('status', 'Pending')
+    // Anyone not yet active and not explicitly rejected/churned. Catches
+    // 'Pending' and legacy empty / unknown status values.
+    q = q.eq('active', false).not('status', 'in', '("Passed","Deactivated")')
   } else if (statusBucket === 'deactivated') {
     q = q.in('status', ['Passed', 'Deactivated'])
   }
