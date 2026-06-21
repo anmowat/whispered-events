@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import LoginModal from '@/components/LoginModal'
 import { AdminTabs } from '@/components/AdminTabs'
 import { formatEventDate } from '@/lib/dates'
-import { normalizeStatus, statusPillClass } from '@/lib/user-status'
+import { normalizeStatus, statusDotClass } from '@/lib/user-status'
 
 interface UserRow {
   id: string
@@ -708,7 +708,7 @@ export default function AdminPage() {
                           style={{ accentColor: '#8E2E3B' }}
                         />
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 min-w-[200px] whitespace-nowrap">
                         <a href={`/admin/users/${u.id}`} className="text-gold-700 hover:text-gold-600 underline underline-offset-2">
                           {displayName(u)}
                         </a>
@@ -716,14 +716,14 @@ export default function AdminPage() {
                           const s = normalizeStatus(u.status)
                           return (
                             <span
-                              className={`ml-2 inline-block w-2 h-2 rounded-full border align-middle ${statusPillClass(s)}`}
+                              className={`ml-2 inline-block w-2 h-2 rounded-full border align-middle ${statusDotClass(s)}`}
                               title={`Status: ${s}`}
                               aria-label={`Status: ${s}`}
                             />
                           )
                         })()}
                       </td>
-                      <td className="px-4 py-3 text-gray-600 truncate max-w-xs">
+                      <td className="px-4 py-3 text-gray-600 truncate max-w-[140px]">
                         {u.location || <span className="text-gray-400 italic">—</span>}
                       </td>
                       <td

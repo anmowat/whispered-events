@@ -19,8 +19,9 @@ export function normalizeStatus(raw: string): UserStatus {
 }
 
 // Tailwind class string for a status pill (border + bg + text color).
-// Same color logic in both the list and the detail page so the UI is
-// consistent across the admin surface.
+// Soft palette designed for use with text inside the pill — the detail
+// page renders the status name in the pill, so it needs readable
+// contrast between text and background.
 export function statusPillClass(s: UserStatus): string {
   switch (s) {
     case 'Live': return 'bg-green-100 text-green-800 border-green-200'
@@ -28,5 +29,18 @@ export function statusPillClass(s: UserStatus): string {
     case 'Passed': return 'bg-red-100 text-red-800 border-red-200'
     case 'Deactivated': return 'bg-gray-100 text-gray-600 border-gray-200'
     case 'Partner': return 'bg-purple-100 text-purple-800 border-purple-200'
+  }
+}
+
+// Bold solid bg + matching border for the no-text dot indicator used in
+// dense list rows. Higher saturation than the pill palette so the dot is
+// legible at 8px without text.
+export function statusDotClass(s: UserStatus): string {
+  switch (s) {
+    case 'Live': return 'bg-green-500 border-green-600'
+    case 'Pending': return 'bg-amber-500 border-amber-600'
+    case 'Passed': return 'bg-red-500 border-red-600'
+    case 'Deactivated': return 'bg-gray-400 border-gray-500'
+    case 'Partner': return 'bg-purple-500 border-purple-600'
   }
 }
