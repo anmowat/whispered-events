@@ -8,6 +8,7 @@ import ViewEventsTab from '@/components/ViewEventsTab'
 import LoginModal from '@/components/LoginModal'
 import PartnerMarquee from '@/components/PartnerMarquee'
 import { Partner, FeaturedEvent } from '@/lib/airtable'
+import { formatEventDate } from '@/lib/dates'
 
 type Mode = 'landing' | 'active'
 
@@ -894,9 +895,7 @@ function CarouselButton({
 }
 
 function FeaturedRow({ event }: { event: FeaturedEvent }) {
-  const dateText = event.date
-    ? new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase()
-    : ''
+  const dateText = formatEventDate(event.date, { month: 'short', day: 'numeric' }).toUpperCase()
   const body = (
     <div
       className="flex items-center justify-between gap-5 sm:gap-6 rounded-[14px] border px-5 sm:px-[30px] py-5 sm:py-[26px] transition-colors"

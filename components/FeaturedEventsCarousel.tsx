@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { FeaturedEvent } from '@/lib/airtable'
+import { formatEventDate } from '@/lib/dates'
 
 interface Props {
   events: FeaturedEvent[]
@@ -44,9 +45,7 @@ export default function FeaturedEventsCarousel({
   if (!events.length) return null
 
   const event = events[idx]
-  const dateText = event.date
-    ? new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-    : ''
+  const dateText = formatEventDate(event.date, { month: 'short', day: 'numeric' })
 
   return (
     <div

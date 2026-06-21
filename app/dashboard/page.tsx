@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { AirtableEvent } from '@/lib/airtable'
+import { formatEventDate } from '@/lib/dates'
 import Header from '@/components/Header'
 import MultiSelect from '@/components/MultiSelect'
 import TopicChips from '@/components/TopicChips'
@@ -1065,13 +1066,11 @@ function EventCard({
   const [showThanks, setShowThanks] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
-  const dateFormatted = event.date
-    ? new Date(event.date).toLocaleDateString('en-US', {
-        month: 'long',
-        day: 'numeric',
-        year: 'numeric',
-      })
-    : ''
+  const dateFormatted = formatEventDate(event.date, {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  })
 
   const matchPct =
     event.matchPercent !== null && event.matchPercent !== undefined
