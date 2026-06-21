@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server'
 import { getFeaturedEvents } from '@/lib/events'
 
-export const revalidate = 86400 // cache for 24 hours
+// Tight revalidation now that this is Supabase-backed: admin flips
+// a Feature checkbox, runs a sync, and expects the carousel to update
+// within a minute. The old 24h cache was a workaround for Airtable's
+// rate limit + signed-URL TTL, both irrelevant on the Supabase path.
+export const revalidate = 60
 
 export async function GET() {
   try {
