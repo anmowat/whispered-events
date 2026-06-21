@@ -658,6 +658,92 @@ export async function updateUserProfile(
   return { id: records[0].id }
 }
 
+// Admin-scoped sibling of updateUserProfile. Keyed by record id (not email),
+// accepts the full editable field set, and intentionally is the only path
+// that can flip Active/Grade — those are admin actions, not user
+// self-service. Same mirror-back pattern: write to Airtable, then immediately
+// upsert into Supabase via syncSingleUser so the admin sees the change
+// without waiting for the cron.
+//
+// `active` boolean maps to Airtable's text Active column as "Active" /
+// "Inactive" — the same shape the sync layer reads (activeRaw.toLowerCase()
+// === 'active'). Single-select fields (Seniority, Size, Employment,
+// Frequency, Grade) accept an empty string that we translate to `null` so
+// Airtable clears the cell instead of trying to create a new option named ''.
+export interface UserAdminUpdate {
+  name?: string
+  firstName?: string
+  function?: string
+  seniority?: string
+  grade?: 'A' | 'Polish' | 'B' | 'C' | ''
+  location?: string
+  interest?: string
+  employment?: string
+  companySize?: string
+  frequency?: string
+  linkedin?: string
+  learn?: string
+  active?: boolean
+}
+
+export async function updateUserAdmin(
+  id: string,
+  update: UserAdminUpdate,
+): Promise<void> {
+  const base = getBase()
+  const fields: Partial<FieldSet> = {}
+
+  if (update.name !== undefined) fields['Name'] = update.name
+  if (update.firstName !== undefined) fields['FirstName'] = update.firstName
+  if (update.function !== undefined) fields['Function'] = update.function
+  if (update.interest !== undefined) fields['Interest'] = update.interest
+  if (update.linkedin !== undefined) fields['LinkedIn'] = update.linkedin
+  if (update.learn !== undefined) fields['Learn'] = update.learn
+
+  if (update.location !== undefined) {
+    fields['Location'] = update.location
+    const geo = await geocodeLocation(update.location)
+    if (geo) {
+      fields['LatLon'] = formatLatLon(geo)
+    } else {
+      ;(fields as Record<string, unknown>)['LatLon'] = null
+      if (update.location) {
+        console.warn(`updateUserAdmin: could not geocode "${update.location}"`)
+      }
+    }
+  }
+
+  // Single-select fields: '' -> null (Airtable rejects '' as an option name).
+  if (update.seniority !== undefined) {
+    ;(fields as Record<string, unknown>)['Seniority'] =
+      update.seniority === '' ? null : update.seniority
+  }
+  if (update.companySize !== undefined) {
+    ;(fields as Record<string, unknown>)['Size'] =
+      update.companySize === '' ? null : update.companySize
+  }
+  if (update.employment !== undefined) {
+    ;(fields as Record<string, unknown>)['Employment'] =
+      update.employment === '' ? null : update.employment
+  }
+  if (update.frequency !== undefined) {
+    ;(fields as Record<string, unknown>)['Frequency'] =
+      update.frequency === '' ? null : update.frequency
+  }
+  if (update.grade !== undefined) {
+    ;(fields as Record<string, unknown>)['Grade'] =
+      update.grade === '' ? null : update.grade
+  }
+
+  if (update.active !== undefined) {
+    fields['Active'] = update.active ? 'Active' : 'Inactive'
+  }
+
+  if (Object.keys(fields).length === 0) return
+  await base(PROFILES_TABLE).update(id, fields)
+  await mirrorUserSafe(id, 'updateUserAdmin')
+}
+
 export async function clearUserMatchCheckbox(userId: string): Promise<void> {
   const base = getBase()
   await base(PROFILES_TABLE).update(userId, { Match: false } as Partial<FieldSet>)

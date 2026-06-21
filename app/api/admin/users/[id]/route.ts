@@ -3,6 +3,7 @@ import { isAdmin } from '@/lib/admin-auth'
 import { getUserById } from '@/lib/users'
 import { getFutureEvents } from '@/lib/events'
 import { getAllMatchesForUser, getContributionStats, getLastSeenForEmail } from '@/lib/supabase'
+import { updateUserAdmin, type UserAdminUpdate } from '@/lib/airtable'
 
 // Admin user detail: returns the user's profile fields plus every future
 // event scored against them, sorted by match % desc, with per-pair score
@@ -104,6 +105,58 @@ export async function GET(
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     console.error('admin/users/[id] error:', message)
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
+}
+
+// Batched user edits go through here. Same gate as GET; routes the write
+// through lib/airtable.ts:updateUserAdmin so the mirror-back to Supabase
+// fires once per save (and the match scorer reruns once, not per field).
+const VALID_GRADES = new Set(['A', 'Polish', 'B', 'C', ''])
+
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: { id: string } },
+) {
+  if (!(await isAdmin(req))) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  }
+  const userId = params.id
+  if (!userId) {
+    return NextResponse.json({ error: 'id required' }, { status: 400 })
+  }
+
+  try {
+    const body = (await req.json().catch(() => ({}))) as Record<string, unknown>
+    const update: UserAdminUpdate = {}
+
+    if (typeof body.name === 'string') update.name = body.name
+    if (typeof body.firstName === 'string') update.firstName = body.firstName
+    if (typeof body.function === 'string') update.function = body.function
+    if (typeof body.seniority === 'string') update.seniority = body.seniority
+    if (typeof body.grade === 'string' && VALID_GRADES.has(body.grade)) {
+      update.grade = body.grade as UserAdminUpdate['grade']
+    }
+    if (typeof body.location === 'string') update.location = body.location
+    if (typeof body.interest === 'string') update.interest = body.interest
+    if (typeof body.employment === 'string') update.employment = body.employment
+    if (typeof body.companySize === 'string') update.companySize = body.companySize
+    if (typeof body.frequency === 'string') update.frequency = body.frequency
+    if (typeof body.linkedin === 'string') update.linkedin = body.linkedin
+    if (typeof body.learn === 'string') update.learn = body.learn
+    if (typeof body.active === 'boolean') update.active = body.active
+
+    if (Object.keys(update).length === 0) {
+      return NextResponse.json(
+        { error: 'no editable fields in request body' },
+        { status: 400 },
+      )
+    }
+    await updateUserAdmin(userId, update)
+    return NextResponse.json({ ok: true, updated: Object.keys(update) })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    console.error('admin/users/[id] PATCH error:', message)
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }
