@@ -716,11 +716,10 @@ export default function AdminPage() {
                           const s = normalizeStatus(u.status)
                           return (
                             <span
-                              className={`ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full border text-[10px] font-medium align-middle ${statusPillClass(s)}`}
+                              className={`ml-2 inline-block w-2 h-2 rounded-full border align-middle ${statusPillClass(s)}`}
                               title={`Status: ${s}`}
-                            >
-                              {s}
-                            </span>
+                              aria-label={`Status: ${s}`}
+                            />
                           )
                         })()}
                       </td>
