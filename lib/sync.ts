@@ -114,7 +114,7 @@ const USER_FIELDS = [
 
 const EVENT_FIELDS = [
   'Name', 'Type', 'Date', 'Location', 'Description', 'Link', 'Audience',
-  'LatLon', 'Submitter', 'Source', 'Host', 'Image', 'Featured',
+  'LatLon', 'Submitter', 'Source', 'Host', 'Image', 'Feature',
 ]
 
 export interface SyncStats {
@@ -352,9 +352,10 @@ function eventRecordToRow(r: AirtableRecord): EventRow {
     // the matching loop. The admin "remove from matching" toggle will
     // flip this to false going forward.
     approved: true,
-    // Airtable Featured checkbox -> Supabase events.featured. Drives the
-    // public homepage carousel via lib/events.ts:getFeaturedEvents.
-    featured: r.get('Featured') === true,
+    // Airtable Feature checkbox (singular — the actual field name)
+    // -> Supabase events.featured. Drives the public homepage carousel
+    // via lib/events.ts:getFeaturedEvents.
+    featured: r.get('Feature') === true,
     airtable_created_at:
       airtableCreatedTime(r) ?? new Date().toISOString(),
     airtable_deleted_at: null,

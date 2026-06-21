@@ -424,7 +424,9 @@ export async function updateEvent(
       fields.image ? [{ url: fields.image }] : []
   }
   if (fields.featured !== undefined) {
-    ;(updateData as Record<string, unknown>)['Featured'] = !!fields.featured
+    // Airtable's checkbox field is singular ("Feature"); the Supabase mirror
+    // and the rest of the codebase use the semantically correct "featured".
+    ;(updateData as Record<string, unknown>)['Feature'] = !!fields.featured
   }
   await base(EVENTS_TABLE).update(id, updateData)
   await mirrorEventSafe(id, 'updateEvent')
