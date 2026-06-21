@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { waitUntil } from '@vercel/functions'
 import { createProfile } from '@/lib/airtable'
 import { sendUserAppliedEmail } from '@/lib/email'
 import { enrichUserFromLinkedIn } from '@/lib/enrich'
@@ -6,10 +7,10 @@ import { UserProfile } from '@/lib/types'
 import { upsertDigestState } from '@/lib/supabase'
 import { nextSundayAfter } from '@/lib/digest'
 
-// Per-request timeout extension — enrichment via AnySite can take 3–8s
-// depending on LinkedIn profile depth. Signup latency goes up but the
-// upside is a Function + Seniority already populated by the time admin
-// loads the user detail page.
+// maxDuration covers the foreground path (createProfile + email) plus any
+// background work waitUntil keeps alive after the response. Vercel kills
+// the function process at this deadline regardless, so enrichment must
+// fit inside it — AnySite takes 3-8s, so 60s leaves comfortable headroom.
 export const maxDuration = 60
 
 export async function POST(req: NextRequest) {
@@ -34,19 +35,33 @@ export async function POST(req: NextRequest) {
       console.error('submit-profile: upsertDigestState error:', e)
     }
 
-    // Enrichment from LinkedIn via AnySite. Replaces the Airtable
-    // automation that used to fire on new-user creation. Awaited so the
-    // request completes before the serverless function returns (fire-and-
-    // forget is unreliable on Vercel). Failures must not break signup.
+    // Enrichment runs in the background after the response is sent. waitUntil
+    // tells Vercel to keep the function alive until the promise settles, so
+    // the user isn't waiting 3-8s for AnySite. Replaces the awaited call we
+    // shipped initially in 60697f8 — that put enrichment on the critical
+    // path and added unacceptable signup latency.
+    //
+    // Failures inside the wrapped promise are logged but never surface to
+    // the user (the response has already returned). Outside Vercel,
+    // @vercel/functions' waitUntil is a no-op that still runs the promise;
+    // local dev keeps the existing await semantics implicitly.
     if (profile.linkedin) {
-      try {
-        const result = await enrichUserFromLinkedIn(id, profile.linkedin)
-        if (!result.ok) {
-          console.warn(`submit-profile: enrichment skipped (${result.reason})`)
-        }
-      } catch (e) {
-        console.error('submit-profile: enrichUserFromLinkedIn error:', e)
-      }
+      waitUntil(
+        (async () => {
+          try {
+            const result = await enrichUserFromLinkedIn(id, profile.linkedin)
+            if (!result.ok) {
+              console.warn(`submit-profile: enrichment skipped (${result.reason})`)
+            } else {
+              console.log(
+                `submit-profile: enriched ${id} → ${result.function?.join(', ') || '?'} / ${result.seniority || '?'}`,
+              )
+            }
+          } catch (e) {
+            console.error('submit-profile: enrichUserFromLinkedIn error:', e)
+          }
+        })(),
+      )
     }
 
     // Awaited so the in-flight Resend request isn't killed when the
