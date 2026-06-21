@@ -297,24 +297,28 @@ function userRecordToRow(r: AirtableRecord): UserRow {
   const { lat, lng } = parseLatLon(r.get('LatLon'))
 
   // Status is the canonical lifecycle picklist; Active is the deprecated
-  // legacy text field. While Airtable backfill is in progress, fall back to
-  // Active="Active" -> "Live" so users who haven't had their Status set yet
-  // keep matching. Once Airtable Status is fully populated this fallback is
-  // unreachable and can be deleted.
+  // legacy text field. Priority during the backfill cutover:
+  //   1. Status field holds a canonical picklist value → trust it.
+  //   2. Else Active="active" → derive "Live". Legacy Active signal wins
+  //      over any non-canonical Status text so existing live users don't
+  //      get demoted if their Status cell holds stray legacy data.
+  //   3. Else preserve raw Status text → treat as inactive but visible in
+  //      admin (status passes through for debugging).
+  //   4. Else (no signal at all) → "Pending" (default for new signups).
+  // Once Airtable Status is fully backfilled, rules 2-3 are unreachable.
   const statusRaw = String(r.get('Status') || '').trim()
   const activeRaw = String(r.get('Active') || '').toLowerCase().trim()
   let status: string
-  if (statusRaw) {
+  if (VALID_STATUSES.includes(statusRaw)) {
     status = statusRaw
   } else if (activeRaw === 'active') {
     status = 'Live'
+  } else if (statusRaw) {
+    status = statusRaw
   } else {
     status = 'Pending'
   }
-  const active =
-    status === 'Live' || status === 'Partner' ||
-    // Legacy values that don't fit the enum but mean "active". Drop after backfill.
-    (!VALID_STATUSES.includes(status) && status.toLowerCase() === 'active')
+  const active = status === 'Live' || status === 'Partner'
 
   return {
     id: r.id,
