@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import LoginModal from '@/components/LoginModal'
 import { AdminTabs } from '@/components/AdminTabs'
+import { formatEventDate } from '@/lib/dates'
 
 interface EventRow {
   id: string
@@ -311,8 +312,8 @@ export default function AdminEventsPage() {
                         </span>
                       </td>
                       <td className="px-3 py-3 text-gray-600 text-xs">{e.type || <span className="text-gray-400 italic">—</span>}</td>
-                      <td className="px-3 py-3 text-gray-600 text-xs" title={formatDate(e.date)}>
-                        {formatDateShort(e.date)}
+                      <td className="px-3 py-3 text-gray-600 text-xs" title={formatEventDate(e.date, { month: 'short', day: 'numeric', year: 'numeric' })}>
+                        {formatEventDate(e.date, { month: 'short', day: 'numeric' })}
                       </td>
                       <td className="px-3 py-3 text-gray-500 text-xs" title={e.created ? formatDate(e.created) : ''}>
                         {e.created ? formatDateShort(e.created) : <span className="text-gray-400 italic">—</span>}

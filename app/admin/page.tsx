@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import LoginModal from '@/components/LoginModal'
 import { AdminTabs } from '@/components/AdminTabs'
+import { formatEventDate } from '@/lib/dates'
 
 interface UserRow {
   id: string
@@ -1087,7 +1088,7 @@ function EventPicker({
           <span className="truncate text-gray-800">
             {selected.name}
             {selected.date && (
-              <span className="text-gray-400 ml-2">· {formatDate(selected.date)}</span>
+              <span className="text-gray-400 ml-2">· {formatEventDate(selected.date, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
             )}
           </span>
           <button
@@ -1120,7 +1121,7 @@ function EventPicker({
                 >
                   <div className="text-gray-800 truncate">{e.name}</div>
                   {e.date && (
-                    <div className="text-[11px] text-gray-400">{formatDate(e.date)}</div>
+                    <div className="text-[11px] text-gray-400">{formatEventDate(e.date, { month: 'short', day: 'numeric', year: 'numeric' })}</div>
                   )}
                 </button>
               ))}

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Header from '@/components/Header'
 import LoginModal from '@/components/LoginModal'
+import { formatEventDate } from '@/lib/dates'
 
 interface HostedEvent {
   id: string
@@ -17,9 +18,7 @@ type SortKey = 'date' | 'name'
 
 function formatDate(iso: string): string {
   if (!iso) return '—'
-  const d = new Date(iso)
-  if (isNaN(d.getTime())) return iso
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  return formatEventDate(iso, { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 export default function HostPage() {
