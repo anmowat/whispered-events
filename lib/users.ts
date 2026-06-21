@@ -144,6 +144,39 @@ export async function getActiveUsers(): Promise<AirtableUser[]> {
   return (data ?? []).map((row) => toAirtableUser(row as UserRow)).filter((u) => u.email)
 }
 
+// Admin users list reader. Mirrors getEventsForAdmin from Phase E — accepts
+// a status bucket and translates it into the right SQL predicate. Live =
+// matching-loop scope (Live + Partner statuses); toApprove = Pending;
+// deactivated = Passed + Deactivated; all = no status filter (still respects
+// soft-deletes). Default is 'live' so the admin dashboard's existing behavior
+// (active users only) carries over unchanged.
+export type StatusBucket = 'live' | 'toApprove' | 'deactivated' | 'all'
+
+export async function getUsersForAdmin(opts: {
+  statusBucket?: StatusBucket
+}): Promise<AirtableUser[]> {
+  const { statusBucket = 'live' } = opts
+  const supabase = getSupabase()
+  let q = supabase
+    .from('users')
+    .select('*')
+    .is('airtable_deleted_at', null)
+    .is('deleted_at', null)
+  if (statusBucket === 'live') {
+    q = q.in('status', ['Live', 'Partner'])
+  } else if (statusBucket === 'toApprove') {
+    q = q.eq('status', 'Pending')
+  } else if (statusBucket === 'deactivated') {
+    q = q.in('status', ['Passed', 'Deactivated'])
+  }
+  const { data, error } = await q
+  if (error) {
+    console.error('getUsersForAdmin error', { opts, error })
+    return []
+  }
+  return (data ?? []).map((row) => toAirtableUser(row as UserRow)).filter((u) => u.email)
+}
+
 export async function getPartnerUserByEmail(email: string): Promise<AirtableUser | null> {
   const trimmed = (email || '').trim()
   if (!trimmed) return null

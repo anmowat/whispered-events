@@ -9,7 +9,7 @@ import {
   getMatchesForEvent,
   getRatingCountsByEmail,
 } from '@/lib/supabase'
-import { getActiveUsers } from '@/lib/users'
+import { getUsersForAdmin, type StatusBucket } from '@/lib/users'
 import { getFutureEvents } from '@/lib/events'
 import { withinMiles } from '@/lib/geocode'
 
@@ -30,10 +30,19 @@ export async function GET(req: NextRequest) {
   // users whose match for that event is above the notify threshold. Used
   // by the admin filter popover to slice the list by "matched event".
   const eventIdFilter = req.nextUrl.searchParams.get('eventId') || ''
+  // Status bucket filter (Phase H Section C). Defaults to 'live' which is
+  // the matching-loop scope and matches today's "active users only" default.
+  const statusBucketRaw = req.nextUrl.searchParams.get('statusBucket') || 'live'
+  const statusBucket: StatusBucket =
+    statusBucketRaw === 'toApprove' ||
+    statusBucketRaw === 'deactivated' ||
+    statusBucketRaw === 'all'
+      ? statusBucketRaw
+      : 'live'
 
   try {
     const [activeUsers, futureEvents, contribStats, lastSeen, lastDigest, lastBlast, ratingCounts] = await Promise.all([
-      getActiveUsers(),
+      getUsersForAdmin({ statusBucket }),
       getFutureEvents(),
       getContributionTotalsByEmail(),
       getLastSeenByEmail(),
@@ -93,6 +102,7 @@ export async function GET(req: NextRequest) {
           location: u.location,
           frequency: u.frequency,
           grade: u.grade ?? null,
+          status: u.status || 'Pending',
           matchCount,
           nearbyEventCount: nearbyCount,
           localMatchPct,
@@ -122,8 +132,11 @@ export async function GET(req: NextRequest) {
       users,
       events,
       stats: {
+        // Name kept for client backwards compat; the count now reflects the
+        // active statusBucket rather than always being "active users".
         activeUserCount: users.length,
         futureEventCount: futureEvents.length,
+        statusBucket,
         generatedAt: new Date().toISOString(),
       },
     })

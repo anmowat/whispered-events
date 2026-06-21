@@ -670,6 +670,8 @@ export async function updateUserProfile(
 // === 'active'). Single-select fields (Seniority, Size, Employment,
 // Frequency, Grade) accept an empty string that we translate to `null` so
 // Airtable clears the cell instead of trying to create a new option named ''.
+export type UserStatus = 'Pending' | 'Live' | 'Passed' | 'Deactivated' | 'Partner'
+
 export interface UserAdminUpdate {
   name?: string
   firstName?: string
@@ -683,7 +685,12 @@ export interface UserAdminUpdate {
   frequency?: string
   linkedin?: string
   learn?: string
-  active?: boolean
+  // Canonical lifecycle picklist (replaces the legacy active boolean).
+  // Writes go to Airtable's Status field; sync derives the active and
+  // is_partner booleans from it. Pending = newly signed up, Live =
+  // approved + matching, Passed = rejected, Deactivated = was Live now off,
+  // Partner = special status that also matches.
+  status?: UserStatus
 }
 
 export async function updateUserAdmin(
@@ -735,8 +742,11 @@ export async function updateUserAdmin(
       update.grade === '' ? null : update.grade
   }
 
-  if (update.active !== undefined) {
-    fields['Active'] = update.active ? 'Active' : 'Inactive'
+  if (update.status !== undefined) {
+    // Status is the canonical lifecycle picklist. Sync reads this back into
+    // both events.active and events.is_partner derivations; no more writes
+    // to the legacy Active field.
+    fields['Status'] = update.status
   }
 
   if (Object.keys(fields).length === 0) return

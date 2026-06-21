@@ -283,13 +283,39 @@ type AirtableRecord = {
   _rawJson?: { createdTime?: string }
 }
 
+// Canonical lifecycle picklist. Empty Airtable Status -> Pending so signups
+// land in the "to approve" bucket automatically. Anything outside the enum
+// (legacy values like "Inactive") passes through to the status column as-is
+// but the user isn't active.
+const VALID_STATUSES = ['Pending', 'Live', 'Passed', 'Deactivated', 'Partner']
+
 function userRecordToRow(r: AirtableRecord): UserRow {
-  const activeRaw = String(r.get('Active') || '')
   const gradeRaw = String(r.get('Grade') || '').trim()
   const grade = gradeRaw === 'A' || gradeRaw === 'Polish' || gradeRaw === 'B' || gradeRaw === 'C'
     ? gradeRaw
     : null
   const { lat, lng } = parseLatLon(r.get('LatLon'))
+
+  // Status is the canonical lifecycle picklist; Active is the deprecated
+  // legacy text field. While Airtable backfill is in progress, fall back to
+  // Active="Active" -> "Live" so users who haven't had their Status set yet
+  // keep matching. Once Airtable Status is fully populated this fallback is
+  // unreachable and can be deleted.
+  const statusRaw = String(r.get('Status') || '').trim()
+  const activeRaw = String(r.get('Active') || '').toLowerCase().trim()
+  let status: string
+  if (statusRaw) {
+    status = statusRaw
+  } else if (activeRaw === 'active') {
+    status = 'Live'
+  } else {
+    status = 'Pending'
+  }
+  const active =
+    status === 'Live' || status === 'Partner' ||
+    // Legacy values that don't fit the enum but mean "active". Drop after backfill.
+    (!VALID_STATUSES.includes(status) && status.toLowerCase() === 'active')
+
   return {
     id: r.id,
     email: String(r.get('Email') || ''),
@@ -304,14 +330,14 @@ function userRecordToRow(r: AirtableRecord): UserRow {
     location: String(r.get('Location') || ''),
     lat,
     lng,
-    active: activeRaw.toLowerCase() === 'active',
-    status: activeRaw,
+    active,
+    status,
     frequency: String(r.get('Frequency') || ''),
     linkedin: String(r.get('LinkedIn') || ''),
     learn: String(r.get('Learn') || ''),
-    // Airtable Status is a distinct field from Active. Only consumer is the
-    // partner-only gate (getPartnerUserByEmail), which checks exactly this.
-    is_partner: String(r.get('Status') || '') === 'Partner',
+    // is_partner derived from the same Status picklist now. Partner users are
+    // also active for the matching loop.
+    is_partner: status === 'Partner',
     // Airtable record createdTime — the closest signal we have to "when
     // did this user originally exist". The Airtable JS client exposes it
     // on the private _rawJson; defensively fall back to now() if absent.

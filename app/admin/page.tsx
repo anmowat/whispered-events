@@ -14,6 +14,7 @@ interface UserRow {
   location: string
   frequency: string
   grade: 'A' | 'Polish' | 'B' | 'C' | null
+  status: string
   matchCount: number
   nearbyEventCount: number
   localMatchPct: number | null
@@ -230,6 +231,10 @@ export default function AdminPage() {
   const [rescoreResult, setRescoreResult] = useState<string | null>(null)
   const [refreshingCache, setRefreshingCache] = useState(false)
   const [cacheResult, setCacheResult] = useState<string | null>(null)
+  // Server-side status filter — translates to ?statusBucket= on the API
+  // call. Default 'live' preserves the dashboard's existing behavior
+  // (active users only); other buckets surface the rest of the funnel.
+  const [statusBucket, setStatusBucket] = useState<'live' | 'toApprove' | 'deactivated' | 'all'>('live')
 
   function toggleSort(key: SortKey) {
     if (sortBy === key) {
@@ -242,10 +247,10 @@ export default function AdminPage() {
 
   async function fetchCounts() {
     try {
-      const qs = filters.matchedEventId
-        ? `?eventId=${encodeURIComponent(filters.matchedEventId)}`
-        : ''
-      const res = await fetch(`/api/admin/dashboard-counts${qs}`, { cache: 'no-store' })
+      const params = new URLSearchParams()
+      params.set('statusBucket', statusBucket)
+      if (filters.matchedEventId) params.set('eventId', filters.matchedEventId)
+      const res = await fetch(`/api/admin/dashboard-counts?${params}`, { cache: 'no-store' })
       if (res.status === 401) {
         setAuthState('unauthorized')
         return
@@ -277,7 +282,7 @@ export default function AdminPage() {
     const id = setInterval(fetchCounts, POLL_MS)
     return () => clearInterval(id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters.matchedEventId])
+  }, [filters.matchedEventId, statusBucket])
 
   async function rescoreMissing() {
     if (rescoring) return
@@ -439,9 +444,14 @@ export default function AdminPage() {
           <>
             <div className="flex items-end justify-between mb-4 flex-wrap gap-2">
               <div>
-                <h1 className="text-2xl font-semibold text-gray-900">Active users</h1>
+                <h1 className="text-2xl font-semibold text-gray-900">
+                  {statusBucket === 'live' && 'Live users'}
+                  {statusBucket === 'toApprove' && 'Users to approve'}
+                  {statusBucket === 'deactivated' && 'Deactivated users'}
+                  {statusBucket === 'all' && 'All users'}
+                </h1>
                 <p className="text-xs text-gray-500 mt-1">
-                  {stats?.activeUserCount ?? 0} active users · {stats?.futureEventCount ?? 0} future events
+                  {stats?.activeUserCount ?? 0} users · {stats?.futureEventCount ?? 0} future events
                   {refreshedAt && ` · refreshed ${refreshedAt.toLocaleTimeString()}`}
                 </p>
               </div>
@@ -484,6 +494,18 @@ export default function AdminPage() {
                 placeholder="Search by name or email…"
                 className="flex-1 min-w-[200px] bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-800 placeholder-gray-400 focus:outline-none transition-colors shadow-sm"
               />
+
+              <select
+                value={statusBucket}
+                onChange={(e) => setStatusBucket(e.target.value as typeof statusBucket)}
+                title="Lifecycle bucket"
+                className="bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none transition-colors shadow-sm"
+              >
+                <option value="live">Live</option>
+                <option value="toApprove">To Approve</option>
+                <option value="deactivated">Deactivated</option>
+                <option value="all">All</option>
+              </select>
 
               <div className="relative">
                 <button

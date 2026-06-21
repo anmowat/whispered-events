@@ -113,6 +113,7 @@ export async function GET(
 // through lib/airtable.ts:updateUserAdmin so the mirror-back to Supabase
 // fires once per save (and the match scorer reruns once, not per field).
 const VALID_GRADES = new Set(['A', 'Polish', 'B', 'C', ''])
+const VALID_STATUSES = new Set(['Pending', 'Live', 'Passed', 'Deactivated', 'Partner'])
 
 export async function PATCH(
   req: NextRequest,
@@ -144,7 +145,11 @@ export async function PATCH(
     if (typeof body.frequency === 'string') update.frequency = body.frequency
     if (typeof body.linkedin === 'string') update.linkedin = body.linkedin
     if (typeof body.learn === 'string') update.learn = body.learn
-    if (typeof body.active === 'boolean') update.active = body.active
+    // Status replaces the old active boolean. Validate against the enum so a
+    // typo doesn't write a junk value to Airtable's Status field.
+    if (typeof body.status === 'string' && VALID_STATUSES.has(body.status)) {
+      update.status = body.status as UserAdminUpdate['status']
+    }
 
     if (Object.keys(update).length === 0) {
       return NextResponse.json(

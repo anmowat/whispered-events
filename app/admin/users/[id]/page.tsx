@@ -31,9 +31,12 @@ interface UserDetail {
 }
 
 // Draft mirrors UserDetail's editable subset. Email and the read-only
-// contribution/seen stats stay outside the form. Strings are kept as-is on
-// the wire; the active checkbox flips into the Airtable text column on
-// save via updateUserAdmin.
+// contribution/seen stats stay outside the form. Status is the canonical
+// lifecycle picklist — replaces the legacy active boolean we shipped in
+// Phase G. Sync derives active and is_partner from this value.
+type UserStatus = 'Pending' | 'Live' | 'Passed' | 'Deactivated' | 'Partner'
+const STATUS_OPTIONS: UserStatus[] = ['Pending', 'Live', 'Passed', 'Deactivated', 'Partner']
+
 interface UserDraft {
   name: string
   firstName: string
@@ -47,10 +50,18 @@ interface UserDraft {
   frequency: string
   linkedin: string
   learn: string
-  active: boolean
+  status: UserStatus
 }
 
 const GRADE_OPTIONS = ['', 'A', 'Polish', 'B', 'C'] as const
+
+function normalizeStatus(raw: string): UserStatus {
+  if ((STATUS_OPTIONS as string[]).includes(raw)) return raw as UserStatus
+  // Legacy values (empty string, "Active", "Inactive") map to the closest
+  // canonical option so the dropdown always has a valid selection.
+  if (raw.toLowerCase() === 'active') return 'Live'
+  return 'Pending'
+}
 
 function draftFromUser(u: UserDetail): UserDraft {
   return {
@@ -66,7 +77,19 @@ function draftFromUser(u: UserDetail): UserDraft {
     frequency: u.frequency,
     linkedin: u.linkedin,
     learn: u.learn,
-    active: u.active,
+    status: normalizeStatus(u.status),
+  }
+}
+
+// Pill color for each status. Drives the read-only badge and edit-mode
+// preview chip. Matches the visual logic admin uses on the events page.
+function statusPillClass(s: UserStatus): string {
+  switch (s) {
+    case 'Live': return 'bg-green-100 text-green-800 border-green-200'
+    case 'Pending': return 'bg-amber-100 text-amber-800 border-amber-200'
+    case 'Passed': return 'bg-red-100 text-red-800 border-red-200'
+    case 'Deactivated': return 'bg-gray-100 text-gray-600 border-gray-200'
+    case 'Partner': return 'bg-purple-100 text-purple-800 border-purple-200'
   }
 }
 
@@ -394,7 +417,16 @@ export default function AdminUserDetailPage() {
               )}
               {!isEditing ? (
                 <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
-                  <Field label="Active" value={user.active ? 'Yes' : 'No'} />
+                  <div>
+                    <dt className="text-xs uppercase tracking-wide text-gray-400">Status</dt>
+                    <dd className="mt-0.5">
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded-full border text-xs font-medium ${statusPillClass(normalizeStatus(user.status))}`}
+                      >
+                        {normalizeStatus(user.status)}
+                      </span>
+                    </dd>
+                  </div>
                   <Field label="Frequency" value={user.frequency} />
                   <Field label="Location" value={user.location} />
                   <Field label="LatLon" value={user.lat !== null && user.lng !== null ? `${user.lat}, ${user.lng}` : ''} />
@@ -541,15 +573,23 @@ function UserEditForm({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-4">
-        <label className="inline-flex items-center gap-2 text-sm text-gray-700 cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={draft.active}
+        <label className="inline-flex items-center gap-2 text-sm text-gray-700 select-none">
+          <span className={disabled ? 'opacity-50' : ''}>Status</span>
+          <select
+            value={draft.status}
             disabled={disabled}
-            onChange={(e) => update('active', e.target.checked)}
-            className="w-4 h-4 rounded border-[#E8DDD0] cursor-pointer accent-[#6E1F2B] disabled:opacity-50"
-          />
-          <span className={disabled ? 'opacity-50' : ''}>Active</span>
+            onChange={(e) => update('status', e.target.value as UserStatus)}
+            className="bg-white border border-[#E8DDD0] rounded-lg px-2 py-1 text-sm text-gray-800 focus:outline-none focus:border-[#6E1F2B] disabled:opacity-50 transition-colors"
+          >
+            {STATUS_OPTIONS.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+          <span
+            className={`inline-flex items-center px-2 py-0.5 rounded-full border text-xs font-medium ${statusPillClass(draft.status)}`}
+          >
+            {draft.status}
+          </span>
         </label>
         <div className="text-xs text-gray-400">
           Email <span className="text-gray-700 ml-1">{email}</span>
