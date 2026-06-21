@@ -217,24 +217,74 @@ export default function AdminEventDetailPage() {
 
         {authState === 'authorized' && event && users && (
           <>
-            <h1 className="text-2xl font-semibold text-gray-900 mb-1">
-              {event.link ? (
-                <a
-                  href={event.link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:underline transition-colors"
-                  style={{ color: '#6E1F2B' }}
-                >
-                  {event.name}
-                </a>
-              ) : (
-                event.name
-              )}
-            </h1>
-            <p className="text-sm text-gray-500 mb-6">
-              {[event.type, event.location, event.date].filter(Boolean).join(' · ')}
-            </p>
+            <div className="flex items-start justify-between gap-4 mb-6">
+              <div className="flex-1 min-w-0">
+                <h1 className="text-2xl font-semibold text-gray-900 mb-1">
+                  {event.link ? (
+                    <a
+                      href={event.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:underline transition-colors"
+                      style={{ color: '#6E1F2B' }}
+                    >
+                      {event.name}
+                    </a>
+                  ) : (
+                    event.name
+                  )}
+                </h1>
+                <p className="text-sm text-gray-500">
+                  {[event.type, event.location, event.date].filter(Boolean).join(' · ')}
+                </p>
+                {imageError && (
+                  <p className="text-xs text-red-600 mt-1">{imageError}</p>
+                )}
+              </div>
+
+              <div className="relative flex-shrink-0">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0]
+                    if (f) handleImageUpload(f)
+                  }}
+                />
+                {event.imageUrl ? (
+                  <>
+                    <img
+                      src={`/api/event-image/${event.id}?v=${imageVersion}`}
+                      alt=""
+                      onClick={() => !imageBusy && fileInputRef.current?.click()}
+                      title="Click to replace"
+                      className={`w-20 h-20 rounded-lg border border-[#E8DDD0] object-cover cursor-pointer transition-opacity ${imageBusy ? 'opacity-50' : ''}`}
+                    />
+                    <button
+                      type="button"
+                      disabled={imageBusy}
+                      onClick={handleImageDelete}
+                      title="Remove image"
+                      className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-white border border-[#E8DDD0] text-gray-500 text-xs leading-none flex items-center justify-center shadow-sm hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors disabled:opacity-50"
+                    >
+                      ×
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={imageBusy}
+                    onClick={() => fileInputRef.current?.click()}
+                    title="Upload image"
+                    className={`w-20 h-20 rounded-lg border border-dashed border-[#E8DDD0] bg-[#FDFAF6] text-3xl text-gray-300 hover:text-gray-500 hover:border-gray-300 transition-colors ${imageBusy ? 'opacity-50' : ''}`}
+                  >
+                    +
+                  </button>
+                )}
+              </div>
+            </div>
 
             <div className="bg-white border border-[#E8DDD0] rounded-2xl p-6 shadow-sm mb-8">
               <h3 className="text-xs uppercase tracking-widest text-gold-700 font-medium mb-4" style={{ color: '#6E1F2B' }}>Event</h3>
@@ -247,81 +297,6 @@ export default function AdminEventDetailPage() {
                 <Field label="Audience" value={event.audience.join(', ')} />
                 <Field label="Description" value={event.description} multiline />
               </dl>
-            </div>
-
-            <div className="bg-white border border-[#E8DDD0] rounded-2xl p-6 shadow-sm mb-8">
-              <h3 className="text-xs uppercase tracking-widest font-medium mb-4" style={{ color: '#6E1F2B' }}>Image</h3>
-              <div className="flex flex-col sm:flex-row gap-6">
-                <div className="w-full sm:w-72 flex-shrink-0">
-                  {event.imageUrl ? (
-                    <img
-                      src={`/api/event-image/${event.id}?v=${imageVersion}`}
-                      alt=""
-                      className="w-full rounded-lg border border-[#E8DDD0] bg-[#FDFAF6] object-cover"
-                    />
-                  ) : (
-                    <div className="w-full aspect-[16/9] rounded-lg border border-dashed border-[#E8DDD0] bg-[#FDFAF6] flex items-center justify-center">
-                      <span className="text-xs text-gray-400 italic">no image</span>
-                    </div>
-                  )}
-                </div>
-                <div className="flex-1 flex flex-col gap-3">
-                  <div>
-                    <dt className="text-xs uppercase tracking-wide text-gray-400">image_url</dt>
-                    <dd className="text-xs text-gray-700 mt-1 break-all">
-                      {event.imageUrl ? (
-                        <a
-                          href={event.imageUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="underline decoration-[#D9CAB0] underline-offset-2"
-                        >
-                          {event.imageUrl}
-                        </a>
-                      ) : (
-                        <span className="text-gray-400 italic">empty (Airtable fallback)</span>
-                      )}
-                    </dd>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => {
-                        const f = e.target.files?.[0]
-                        if (f) handleImageUpload(f)
-                      }}
-                    />
-                    <button
-                      type="button"
-                      disabled={imageBusy}
-                      onClick={() => fileInputRef.current?.click()}
-                      className="px-3 py-1.5 rounded-lg text-white text-xs font-medium disabled:opacity-50"
-                      style={{ background: '#6E1F2B' }}
-                    >
-                      {imageBusy ? 'Working…' : event.imageUrl ? 'Replace image' : 'Upload image'}
-                    </button>
-                    {event.imageUrl && (
-                      <button
-                        type="button"
-                        disabled={imageBusy}
-                        onClick={handleImageDelete}
-                        className="px-3 py-1.5 rounded-lg border border-[#E8DDD0] bg-white text-gray-700 text-xs font-medium hover:bg-[#FDFAF6] disabled:opacity-50"
-                      >
-                        Remove image
-                      </button>
-                    )}
-                  </div>
-                  {imageError && (
-                    <p className="text-xs text-red-600">{imageError}</p>
-                  )}
-                  <p className="text-[11px] text-gray-400">
-                    Max 4MB. JPEG/PNG/WebP. Mirrors to Airtable and persists in Supabase Storage so the public carousel serves it directly.
-                  </p>
-                </div>
-              </div>
             </div>
 
             <div className="mb-3">
