@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import LoginModal from '@/components/LoginModal'
 import { AdminTabs } from '@/components/AdminTabs'
 import { formatEventDate } from '@/lib/dates'
+import { normalizeStatus, statusPillClass } from '@/lib/user-status'
 
 interface UserRow {
   id: string
@@ -711,6 +712,17 @@ export default function AdminPage() {
                         <a href={`/admin/users/${u.id}`} className="text-gold-700 hover:text-gold-600 underline underline-offset-2">
                           {displayName(u)}
                         </a>
+                        {(() => {
+                          const s = normalizeStatus(u.status)
+                          return (
+                            <span
+                              className={`ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full border text-[10px] font-medium align-middle ${statusPillClass(s)}`}
+                              title={`Status: ${s}`}
+                            >
+                              {s}
+                            </span>
+                          )
+                        })()}
                       </td>
                       <td className="px-4 py-3 text-gray-600 truncate max-w-xs">
                         {u.location || <span className="text-gray-400 italic">—</span>}

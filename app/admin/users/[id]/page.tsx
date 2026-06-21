@@ -3,6 +3,12 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import LoginModal from '@/components/LoginModal'
+import {
+  STATUS_OPTIONS,
+  normalizeStatus,
+  statusPillClass,
+  type UserStatus,
+} from '@/lib/user-status'
 
 interface UserDetail {
   id: string
@@ -33,10 +39,9 @@ interface UserDetail {
 // Draft mirrors UserDetail's editable subset. Email and the read-only
 // contribution/seen stats stay outside the form. Status is the canonical
 // lifecycle picklist — replaces the legacy active boolean we shipped in
-// Phase G. Sync derives active and is_partner from this value.
-type UserStatus = 'Pending' | 'Live' | 'Passed' | 'Deactivated' | 'Partner'
-const STATUS_OPTIONS: UserStatus[] = ['Pending', 'Live', 'Passed', 'Deactivated', 'Partner']
-
+// Phase G. Sync derives active and is_partner from this value. The enum,
+// options, and pill classes live in @/lib/user-status so the user list
+// page shares the same source of truth.
 interface UserDraft {
   name: string
   firstName: string
@@ -54,14 +59,6 @@ interface UserDraft {
 }
 
 const GRADE_OPTIONS = ['', 'A', 'Polish', 'B', 'C'] as const
-
-function normalizeStatus(raw: string): UserStatus {
-  if ((STATUS_OPTIONS as string[]).includes(raw)) return raw as UserStatus
-  // Legacy values (empty string, "Active", "Inactive") map to the closest
-  // canonical option so the dropdown always has a valid selection.
-  if (raw.toLowerCase() === 'active') return 'Live'
-  return 'Pending'
-}
 
 function draftFromUser(u: UserDetail): UserDraft {
   return {
@@ -81,17 +78,6 @@ function draftFromUser(u: UserDetail): UserDraft {
   }
 }
 
-// Pill color for each status. Drives the read-only badge and edit-mode
-// preview chip. Matches the visual logic admin uses on the events page.
-function statusPillClass(s: UserStatus): string {
-  switch (s) {
-    case 'Live': return 'bg-green-100 text-green-800 border-green-200'
-    case 'Pending': return 'bg-amber-100 text-amber-800 border-amber-200'
-    case 'Passed': return 'bg-red-100 text-red-800 border-red-200'
-    case 'Deactivated': return 'bg-gray-100 text-gray-600 border-gray-200'
-    case 'Partner': return 'bg-purple-100 text-purple-800 border-purple-200'
-  }
-}
 
 function draftDiff(draft: UserDraft, original: UserDraft): Partial<UserDraft> {
   const diff: Partial<UserDraft> = {}

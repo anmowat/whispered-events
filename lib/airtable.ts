@@ -852,7 +852,7 @@ export async function createProfile(profile: UserProfile): Promise<string> {
   const existing = await base(PROFILES_TABLE)
     .select({
       filterByFormula: `LOWER({Email}) = '${email.replace(/'/g, "\\'")}'`,
-      fields: ['Email', 'Frequency'],
+      fields: ['Email', 'Frequency', 'Status'],
       maxRecords: 1,
     })
     .all()
@@ -866,6 +866,14 @@ export async function createProfile(profile: UserProfile): Promise<string> {
     } else if (!String(existing[0].get('Frequency') || '').trim()) {
       fields['Frequency'] = DEFAULT_FREQUENCY
     }
+    // Default Status to Pending only when the existing record has no status
+    // yet (e.g. the row was auto-created by a pre-signup event contribution).
+    // Returning Live / Partner / Deactivated users who re-submit the form
+    // keep their existing status — don't bounce them back into the approval
+    // queue.
+    if (!String(existing[0].get('Status') || '').trim()) {
+      fields['Status'] = 'Pending'
+    }
     await base(PROFILES_TABLE).update(existing[0].id, fields)
     // Attribute any prior pre-signup contributions to this freshly-known user.
     linkContributionsToUser(existing[0].id, email).catch((e) =>
@@ -876,6 +884,11 @@ export async function createProfile(profile: UserProfile): Promise<string> {
   }
 
   fields['Frequency'] = chosenFrequency
+  // Brand-new signup lands in the To Approve bucket. Explicit so the
+  // Airtable cell shows "Pending" rather than blank — the sync derivation
+  // would already infer Pending from empty, but matching the source of
+  // truth makes the admin's Airtable view less ambiguous.
+  fields['Status'] = 'Pending'
   const record = await base(PROFILES_TABLE).create(fields)
   linkContributionsToUser(record.id, email).catch((e) =>
     console.error('createProfile: linkContributionsToUser failed', e),
