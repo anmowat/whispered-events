@@ -124,61 +124,12 @@ export interface SyncStats {
 }
 
 export async function syncUsersToCache(): Promise<SyncStats> {
-  const start = Date.now()
-  const base = getBase()
-  const supabase = getSupabase()
-
-  const records = await base('Users').select({ fields: USER_FIELDS }).all()
-
-  const rows: UserRow[] = records.map(userRecordToRow)
-
-  // Legacy cache shape — keep populating until Phase 2 swaps the reader.
-  // Strip the new columns the cache table doesn't carry.
-  const cacheRows: UserCacheRow[] = rows.map((r) => {
-    const cache: UserCacheRow = {
-      id: r.id,
-      email: r.email,
-      name: r.name,
-      first_name: r.first_name,
-      fn: r.fn,
-      seniority: r.seniority,
-      grade: r.grade,
-      company_size: r.company_size,
-      interest: r.interest,
-      employment: r.employment,
-      location: r.location,
-      lat: r.lat,
-      lng: r.lng,
-      active: r.active,
-      status: r.status,
-      frequency: r.frequency,
-      airtable_deleted_at: null,
-    }
-    return cache
-  })
-
-  // Bulk upsert in chunks. Supabase has a per-request payload limit; 500
-  // rows × ~20 fields fits comfortably.
-  const CHUNK = 500
-  for (let i = 0; i < cacheRows.length; i += CHUNK) {
-    const chunk = cacheRows.slice(i, i + CHUNK)
-    const { error } = await supabase.from('users_cache').upsert(chunk, { onConflict: 'id' })
-    if (error) throw new Error(`users_cache upsert failed: ${error.message}`)
-  }
-  // New canonical table — written in parallel with the cache. Phase 2 will
-  // switch readers from Airtable / users_cache to this table.
-  for (let i = 0; i < rows.length; i += CHUNK) {
-    const chunk = rows.slice(i, i + CHUNK)
-    const { error } = await supabase.from('users').upsert(chunk, { onConflict: 'id' })
-    if (error) throw new Error(`users upsert failed: ${error.message}`)
-  }
-
-  // Tombstone rows that exist in cache but not in the current Airtable snapshot.
-  const liveIds = new Set(rows.map((r) => r.id))
-  const tombstoned = await tombstoneMissing(supabase, 'users_cache', liveIds)
-  await tombstoneMissing(supabase, 'users', liveIds)
-
-  return { upserted: rows.length, tombstoned, durationMs: Date.now() - start }
+  // Users are no longer synced from Airtable — Supabase is the canonical
+  // store. All write paths (signup, admin edit, profile edit) target the
+  // users table directly via lib/airtable.ts. Kept exported so the cron +
+  // admin sync endpoints can call it without conditional logic; returns an
+  // empty stats shape so existing response bodies stay valid.
+  return { upserted: 0, tombstoned: 0, durationMs: 0 }
 }
 
 export async function syncEventsToCache(): Promise<SyncStats> {
@@ -467,22 +418,11 @@ async function uploadEventImageIfPresent(
 // doesn't exist in Airtable (or the upsert failed). Callers treat
 // false as "row truly absent" and bail accordingly.
 export async function syncSingleUser(userId: string): Promise<boolean> {
-  if (!userId) return false
-  const base = getBase()
-  const supabase = getSupabase()
-  try {
-    const record = await base('Users').find(userId)
-    const row = userRecordToRow(record as AirtableRecord)
-    const { error } = await supabase.from('users').upsert(row, { onConflict: 'id' })
-    if (error) {
-      console.error(`syncSingleUser(${userId}) upsert failed:`, error)
-      return false
-    }
-    return true
-  } catch (err) {
-    console.error(`syncSingleUser(${userId}) failed:`, err)
-    return false
-  }
+  // Single-user sync no longer needed — Supabase is canonical and every
+  // write path updates it directly. Kept as a no-op so legacy callers
+  // (e.g. lib/airtable.ts:mirrorUserSafe) compile and don't fan out an
+  // unnecessary Airtable fetch on every admin save.
+  return Boolean(userId)
 }
 
 export async function syncSingleEvent(eventId: string): Promise<boolean> {

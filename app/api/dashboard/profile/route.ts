@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { waitUntil } from '@vercel/functions'
 import { verifySession, markAllMatchesNotifiedForUser } from '@/lib/supabase'
-import { getUserByEmail, updateUserProfile, UserProfileUpdate } from '@/lib/airtable'
+import { updateUserProfile, UserProfileUpdate } from '@/lib/airtable'
+import { getUserByEmail } from '@/lib/users'
 
 // Frequencies that result in an email digest. 'Paused' opts out.
 const DIGEST_FREQUENCIES = new Set(['As they arrive', 'Weekly', 'Monthly'])

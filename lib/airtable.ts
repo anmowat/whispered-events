@@ -1,9 +1,31 @@
 import Airtable, { FieldSet, Base } from 'airtable'
+import { createClient } from '@supabase/supabase-js'
 import { EventRecord, UserProfile } from './types'
 import stringSimilarity from 'string-similarity'
 import { geocodeLocation } from './geocode'
 import { linkContributionsToUser } from './supabase'
 import { syncSingleUser, syncSingleEvent } from './sync'
+import { newUserId } from './user-id'
+
+// User writes target Supabase directly — Airtable is no longer the source of
+// truth for the Users table. Helper mirrors the pattern used in lib/sync.ts
+// so the service-role key only lives in one set of env lookups.
+function getSupabase() {
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set')
+  }
+  return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
+}
+
+// Derived booleans from the canonical lifecycle picklist. Kept here so the
+// admin write path and any future Supabase-direct write paths produce
+// identical (status, active, is_partner) triples.
+function deriveLifecycle(status: string): { active: boolean; is_partner: boolean } {
+  return {
+    active: status === 'Live' || status === 'Partner',
+    is_partner: status === 'Partner',
+  }
+}
 
 // Mirror-fresh helpers. Every write in this file calls one of these at the
 // tail so the Supabase mirror reflects the just-written row before any
@@ -605,57 +627,73 @@ export async function updateUserProfile(
   email: string,
   update: UserProfileUpdate,
 ): Promise<{ id: string } | null> {
-  const base = getBase()
-  const records = await base(PROFILES_TABLE)
-    .select({
-      filterByFormula: `{Email} = '${email.replace(/'/g, "\\'")}'`,
-      fields: ['Email'],
-      maxRecords: 1,
-    })
-    .all()
+  const supabase = getSupabase()
+  const trimmedEmail = email.trim()
+  if (!trimmedEmail) return null
 
-  if (!records.length) return null
+  // Look up by case-insensitive email (mirrors the previous Airtable
+  // LOWER({Email}) lookup). Excludes tombstoned rows.
+  const { data: existing, error: lookupErr } = await supabase
+    .from('users')
+    .select('id')
+    .ilike('email', trimmedEmail)
+    .is('airtable_deleted_at', null)
+    .is('deleted_at', null)
+    .limit(1)
+    .maybeSingle()
+  if (lookupErr) {
+    console.error('updateUserProfile lookup error', { email: trimmedEmail, lookupErr })
+    return null
+  }
+  if (!existing) return null
 
-  const fields: Partial<FieldSet> = {}
+  const row: Record<string, unknown> = {}
   if (update.location !== undefined) {
-    fields['Location'] = update.location
-    const geo = await geocodeLocation(update.location)
-    if (geo) {
-      fields['LatLon'] = formatLatLon(geo)
-    } else {
-      ;(fields as Record<string, unknown>)['LatLon'] = null
-      if (update.location) {
+    row.location = update.location
+    if (update.location) {
+      const geo = await geocodeLocation(update.location)
+      if (geo) {
+        row.lat = geo.lat
+        row.lng = geo.lng
+      } else {
+        row.lat = null
+        row.lng = null
         console.warn(`updateUserProfile: could not geocode "${update.location}"`)
       }
+    } else {
+      row.lat = null
+      row.lng = null
     }
   }
-  if (update.interest !== undefined) fields['Interest'] = update.interest
-  if (update.function !== undefined) fields['Function'] = update.function
-
-  // Single-select fields: Airtable treats '' as "create new option ''",
-  // which fails with INVALID_MULTIPLE_CHOICE_OPTIONS. Send null instead
-  // to clear the cell. Same cast we already use for LatLon above.
+  if (update.interest !== undefined) row.interest = update.interest
+  if (update.function !== undefined) row.fn = update.function
+  // Empty-string -> null on the Supabase side too. The downstream column type
+  // is plain text so '' would technically store, but keeping it null means
+  // toAirtableUser surfaces a consistent '' when read and the UI's "missing"
+  // detection stays simple.
   if (update.employment !== undefined) {
-    ;(fields as Record<string, unknown>)['Employment'] =
-      update.employment === '' ? null : update.employment
+    row.employment = update.employment === '' ? null : update.employment
   }
   if (update.companySize !== undefined) {
-    ;(fields as Record<string, unknown>)['Size'] =
-      update.companySize === '' ? null : update.companySize
+    row.company_size = update.companySize === '' ? null : update.companySize
   }
   if (update.frequency !== undefined) {
-    ;(fields as Record<string, unknown>)['Frequency'] =
-      update.frequency === '' ? null : update.frequency
+    row.frequency = update.frequency === '' ? null : update.frequency
   }
   if (update.seniority !== undefined) {
-    ;(fields as Record<string, unknown>)['Seniority'] =
-      update.seniority === '' ? null : update.seniority
+    row.seniority = update.seniority === '' ? null : update.seniority
   }
 
-  if (Object.keys(fields).length === 0) return { id: records[0].id }
-  await base(PROFILES_TABLE).update(records[0].id, fields)
-  await mirrorUserSafe(records[0].id, 'updateUserProfile')
-  return { id: records[0].id }
+  if (Object.keys(row).length === 0) return { id: existing.id }
+  const { error: updateErr } = await supabase
+    .from('users')
+    .update(row)
+    .eq('id', existing.id)
+  if (updateErr) {
+    console.error('updateUserProfile update error', { id: existing.id, updateErr })
+    throw new Error(`updateUserProfile failed: ${updateErr.message}`)
+  }
+  return { id: existing.id }
 }
 
 // Admin-scoped sibling of updateUserProfile. Keyed by record id (not email),
@@ -697,61 +735,66 @@ export async function updateUserAdmin(
   id: string,
   update: UserAdminUpdate,
 ): Promise<void> {
-  const base = getBase()
-  const fields: Partial<FieldSet> = {}
+  const supabase = getSupabase()
+  const row: Record<string, unknown> = {}
 
-  if (update.name !== undefined) fields['Name'] = update.name
-  if (update.firstName !== undefined) fields['FirstName'] = update.firstName
-  if (update.function !== undefined) fields['Function'] = update.function
-  if (update.interest !== undefined) fields['Interest'] = update.interest
-  if (update.linkedin !== undefined) fields['LinkedIn'] = update.linkedin
-  if (update.learn !== undefined) fields['Learn'] = update.learn
+  if (update.name !== undefined) row.name = update.name
+  if (update.firstName !== undefined) row.first_name = update.firstName
+  if (update.function !== undefined) row.fn = update.function
+  if (update.interest !== undefined) row.interest = update.interest
+  if (update.linkedin !== undefined) row.linkedin = update.linkedin
+  if (update.learn !== undefined) row.learn = update.learn
 
   if (update.location !== undefined) {
-    fields['Location'] = update.location
-    const geo = await geocodeLocation(update.location)
-    if (geo) {
-      fields['LatLon'] = formatLatLon(geo)
-    } else {
-      ;(fields as Record<string, unknown>)['LatLon'] = null
-      if (update.location) {
+    row.location = update.location
+    if (update.location) {
+      const geo = await geocodeLocation(update.location)
+      if (geo) {
+        row.lat = geo.lat
+        row.lng = geo.lng
+      } else {
+        row.lat = null
+        row.lng = null
         console.warn(`updateUserAdmin: could not geocode "${update.location}"`)
       }
+    } else {
+      row.lat = null
+      row.lng = null
     }
   }
 
-  // Single-select fields: '' -> null (Airtable rejects '' as an option name).
   if (update.seniority !== undefined) {
-    ;(fields as Record<string, unknown>)['Seniority'] =
-      update.seniority === '' ? null : update.seniority
+    row.seniority = update.seniority === '' ? null : update.seniority
   }
   if (update.companySize !== undefined) {
-    ;(fields as Record<string, unknown>)['Size'] =
-      update.companySize === '' ? null : update.companySize
+    row.company_size = update.companySize === '' ? null : update.companySize
   }
   if (update.employment !== undefined) {
-    ;(fields as Record<string, unknown>)['Employment'] =
-      update.employment === '' ? null : update.employment
+    row.employment = update.employment === '' ? null : update.employment
   }
   if (update.frequency !== undefined) {
-    ;(fields as Record<string, unknown>)['Frequency'] =
-      update.frequency === '' ? null : update.frequency
+    row.frequency = update.frequency === '' ? null : update.frequency
   }
   if (update.grade !== undefined) {
-    ;(fields as Record<string, unknown>)['Grade'] =
-      update.grade === '' ? null : update.grade
+    row.grade = update.grade === '' ? null : update.grade
   }
 
   if (update.status !== undefined) {
-    // Status is the canonical lifecycle picklist. Sync reads this back into
-    // both events.active and events.is_partner derivations; no more writes
-    // to the legacy Active field.
-    fields['Status'] = update.status
+    // Status is the canonical lifecycle picklist. active and is_partner
+    // booleans are derived from it so the matching loop's `active = true`
+    // filter stays in sync with the picklist value the admin just picked.
+    row.status = update.status
+    const { active, is_partner } = deriveLifecycle(update.status)
+    row.active = active
+    row.is_partner = is_partner
   }
 
-  if (Object.keys(fields).length === 0) return
-  await base(PROFILES_TABLE).update(id, fields)
-  await mirrorUserSafe(id, 'updateUserAdmin')
+  if (Object.keys(row).length === 0) return
+  const { error } = await supabase.from('users').update(row).eq('id', id)
+  if (error) {
+    console.error('updateUserAdmin error', { id, error })
+    throw new Error(`updateUserAdmin failed: ${error.message}`)
+  }
 }
 
 export async function clearUserMatchCheckbox(userId: string): Promise<void> {
@@ -820,81 +863,111 @@ export async function getUserById(userId: string): Promise<AirtableUser | null> 
 export const DEFAULT_FREQUENCY = 'Monthly'
 
 export async function createProfile(profile: UserProfile): Promise<string> {
-  const base = getBase()
+  const supabase = getSupabase()
   const email = profile.email.trim().toLowerCase()
-  // Single-select fields (Employment, Size, Frequency) reject '' with
-  // INVALID_MULTIPLE_CHOICE_OPTIONS — Airtable treats it as "create new
-  // option ''". Send null instead so the cell is cleared. Same pattern
-  // used in updateUserProfile above.
-  const fields: Partial<FieldSet> = {
-    LinkedIn: cleanLinkedinUrl(profile.linkedin),
-    Interest: profile.interest,
-    Email: email,
-    Location: profile.location,
-    Learn: profile.learn,
-  }
-  ;(fields as Record<string, unknown>)['Employment'] =
-    profile.employment === '' ? null : profile.employment
-  ;(fields as Record<string, unknown>)['Size'] =
-    profile.companySize === '' ? null : profile.companySize
+
+  // Geocode upfront so the row write is a single round-trip.
+  let lat: number | null = null
+  let lng: number | null = null
   if (profile.location) {
     const geo = await geocodeLocation(profile.location)
     if (geo) {
-      fields['LatLon'] = formatLatLon(geo)
+      lat = geo.lat
+      lng = geo.lng
     } else {
       console.warn(`createProfile: could not geocode "${profile.location}"`)
     }
   }
 
-  // Upsert: if a record already exists for this email (e.g. a minimal user
-  // auto-created when they contributed an event), update it instead of
-  // creating a duplicate.
-  const existing = await base(PROFILES_TABLE)
-    .select({
-      filterByFormula: `LOWER({Email}) = '${email.replace(/'/g, "\\'")}'`,
-      fields: ['Email', 'Frequency', 'Status'],
-      maxRecords: 1,
-    })
-    .all()
-  const chosenFrequency = profile.frequency?.trim() || DEFAULT_FREQUENCY
+  // Upsert: if a Supabase row already exists for this email (e.g. a minimal
+  // user auto-created when they contributed an event pre-signup), update it
+  // instead of creating a duplicate.
+  const { data: existing, error: lookupErr } = await supabase
+    .from('users')
+    .select('id, frequency, status')
+    .ilike('email', email)
+    .is('airtable_deleted_at', null)
+    .is('deleted_at', null)
+    .limit(1)
+    .maybeSingle()
+  if (lookupErr) {
+    console.error('createProfile lookup error', { email, lookupErr })
+    throw new Error(`createProfile lookup failed: ${lookupErr.message}`)
+  }
 
-  if (existing.length) {
+  const chosenFrequency = profile.frequency?.trim() || DEFAULT_FREQUENCY
+  const cleanedLinkedin = cleanLinkedinUrl(profile.linkedin)
+  const baseFields: Record<string, unknown> = {
+    linkedin: cleanedLinkedin,
+    interest: profile.interest,
+    location: profile.location,
+    learn: profile.learn,
+    employment: profile.employment === '' ? null : profile.employment,
+    company_size: profile.companySize === '' ? null : profile.companySize,
+    lat,
+    lng,
+  }
+
+  if (existing) {
     // Overwrite Frequency if the user picked one in the chat; otherwise
     // preserve any existing choice and fall back to the default when blank.
     if (profile.frequency?.trim()) {
-      fields['Frequency'] = chosenFrequency
-    } else if (!String(existing[0].get('Frequency') || '').trim()) {
-      fields['Frequency'] = DEFAULT_FREQUENCY
+      baseFields.frequency = chosenFrequency
+    } else if (!String(existing.frequency || '').trim()) {
+      baseFields.frequency = DEFAULT_FREQUENCY
     }
-    // Default Status to Pending only when the existing record has no status
-    // yet (e.g. the row was auto-created by a pre-signup event contribution).
-    // Returning Live / Partner / Deactivated users who re-submit the form
-    // keep their existing status — don't bounce them back into the approval
-    // queue.
-    if (!String(existing[0].get('Status') || '').trim()) {
-      fields['Status'] = 'Pending'
+    // Default Status to Pending only when the existing row has no status yet
+    // (e.g. auto-created by a pre-signup contribution). Returning Live /
+    // Partner / Deactivated users who re-submit the form keep their status —
+    // don't bounce them back into the approval queue.
+    if (!String(existing.status || '').trim()) {
+      baseFields.status = 'Pending'
+      const { active, is_partner } = deriveLifecycle('Pending')
+      baseFields.active = active
+      baseFields.is_partner = is_partner
     }
-    await base(PROFILES_TABLE).update(existing[0].id, fields)
+    const { error: updateErr } = await supabase
+      .from('users')
+      .update(baseFields)
+      .eq('id', existing.id)
+    if (updateErr) {
+      console.error('createProfile update error', { id: existing.id, updateErr })
+      throw new Error(`createProfile update failed: ${updateErr.message}`)
+    }
     // Attribute any prior pre-signup contributions to this freshly-known user.
-    linkContributionsToUser(existing[0].id, email).catch((e) =>
+    linkContributionsToUser(existing.id, email).catch((e) =>
       console.error('createProfile: linkContributionsToUser failed', e),
     )
-    await mirrorUserSafe(existing[0].id, 'createProfile (upsert)')
-    return existing[0].id
+    return existing.id
   }
 
-  fields['Frequency'] = chosenFrequency
-  // Brand-new signup lands in the To Approve bucket. Explicit so the
-  // Airtable cell shows "Pending" rather than blank — the sync derivation
-  // would already infer Pending from empty, but matching the source of
-  // truth makes the admin's Airtable view less ambiguous.
-  fields['Status'] = 'Pending'
-  const record = await base(PROFILES_TABLE).create(fields)
-  linkContributionsToUser(record.id, email).catch((e) =>
+  // Brand-new signup. Generate an Airtable-shaped id so downstream foreign
+  // keys (matches.user_id, contributions.user_email, events.host_ids) stay
+  // consistent with the existing rec-prefixed format.
+  const id = newUserId()
+  const nowIso = new Date().toISOString()
+  const { active, is_partner } = deriveLifecycle('Pending')
+  const { error: insertErr } = await supabase.from('users').insert({
+    id,
+    email,
+    ...baseFields,
+    frequency: chosenFrequency,
+    status: 'Pending',
+    active,
+    is_partner,
+    // airtable_created_at preserves the "signed up at" semantic the admin
+    // dashboard reads; matches what sync used to mirror from Airtable's
+    // createdTime field.
+    airtable_created_at: nowIso,
+  })
+  if (insertErr) {
+    console.error('createProfile insert error', { id, email, insertErr })
+    throw new Error(`createProfile insert failed: ${insertErr.message}`)
+  }
+  linkContributionsToUser(id, email).catch((e) =>
     console.error('createProfile: linkContributionsToUser failed', e),
   )
-  await mirrorUserSafe(record.id, 'createProfile (new)')
-  return record.id
+  return id
 }
 
 // Future events where the given Airtable user id appears in the Host linked

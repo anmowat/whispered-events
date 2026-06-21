@@ -64,8 +64,10 @@ export async function POST(req: NextRequest) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
   if (type === 'user') {
-    // Re-geocode in case an admin edited Location directly. Awaited so the
-    // match fanout below sees the fresh LatLon.
+    // Legacy path. Users are no longer mirrored from Airtable — the admin app
+    // is the source of truth for profile edits. This branch is harmless if it
+    // fires (refreshes Airtable's LatLon, which nothing reads) and will go
+    // away when the Airtable Users automation is retired.
     try {
       await refreshUserLatLon(id)
     } catch (err) {
