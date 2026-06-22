@@ -3,7 +3,7 @@ import { waitUntil } from '@vercel/functions'
 import { verifySession, markAllMatchesNotifiedForUser } from '@/lib/supabase'
 import { updateUserProfile, UserProfileUpdate } from '@/lib/airtable'
 import { getUserByEmail } from '@/lib/users'
-import { notifyUserProfileUpdate } from '@/lib/slack'
+import { notifyUserProfileUpdate, type FieldChange } from '@/lib/slack'
 
 // Frequencies that result in an email digest. 'Paused' opts out.
 const DIGEST_FREQUENCIES = new Set(['As they arrive', 'Weekly', 'Monthly'])
@@ -43,14 +43,12 @@ export async function POST(req: NextRequest) {
     update.function !== undefined
 
   try {
-    // Capture the user's pre-update state so we can detect:
+    // Capture the user's pre-update state. Used by three downstream paths:
     //   (a) Dashboard-Only → digest frequency transitions (zero out backlog)
     //   (b) A location change (trigger the location-update digest email)
-    // Single Airtable read covers both cases.
-    const before =
-      update.frequency !== undefined || update.location !== undefined
-        ? await getUserByEmail(email)
-        : null
+    //   (c) The Slack profile-update notifier — diffs old vs new per field
+    // One Supabase read covers all three.
+    const before = await getUserByEmail(email)
 
     const updated = await updateUserProfile(email, update)
 
@@ -62,17 +60,26 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Internal Slack alert. Only fires when the user actually saved
-    // something (updated is non-null) and only includes the fields that
-    // were present in the request payload so the message stays terse.
-    if (updated) {
-      const changes: Record<string, string> = {}
-      if (update.location !== undefined) changes.location = update.location
-      if (update.interest !== undefined) changes.interest = update.interest
-      if (update.employment !== undefined) changes.employment = update.employment
-      if (update.companySize !== undefined) changes.companySize = update.companySize
-      if (update.frequency !== undefined) changes.frequency = update.frequency
-      if (update.function !== undefined) changes.function = update.function
+    // Internal Slack alert. Build per-field {from, to} diffs from `before`;
+    // only include fields that were in the request AND actually changed.
+    // No-op saves (user clicked Save without changing anything) ship no
+    // Slack message.
+    if (updated && before) {
+      const changes: Record<string, FieldChange> = {}
+      const fieldPairs: Array<[keyof UserProfileUpdate, string]> = [
+        ['location', before.location ?? ''],
+        ['interest', before.interest ?? ''],
+        ['employment', before.employment ?? ''],
+        ['companySize', before.companySize ?? ''],
+        ['frequency', before.frequency ?? ''],
+        ['function', before.function ?? ''],
+      ]
+      for (const [key, fromVal] of fieldPairs) {
+        if (update[key] === undefined) continue
+        const toVal = String(update[key] ?? '')
+        if (fromVal === toVal) continue
+        changes[key as string] = { from: fromVal, to: toVal }
+      }
       if (Object.keys(changes).length > 0) {
         waitUntil(
           notifyUserProfileUpdate({

@@ -81,21 +81,32 @@ const EVENT_FIELD_LABELS: Record<string, string> = {
   audience: 'Audience',
 }
 
+// Before/after pair for a single field change. Routes build the diff
+// against the pre-edit row (already in memory for auth / digest paths) and
+// hand it here so the Slack message shows "old → new" instead of just the
+// new value.
+export type FieldChange = { from: string; to: string }
+
+function renderValue(v: string, side: 'from' | 'to'): string {
+  if (v === '') return side === 'from' ? '(empty)' : '(cleared)'
+  return v
+}
+
 // User self-service profile edit at /dashboard/profile. The `changes`
 // argument should contain only the fields that actually changed (not the
 // entire profile), so most messages render as 1-2 lines.
 export async function notifyUserProfileUpdate(params: {
   email: string
   userId?: string
-  changes: Record<string, string>
+  changes: Record<string, FieldChange>
 }): Promise<void> {
   const { email, userId, changes } = params
-  const entries = Object.entries(changes).filter(([, v]) => v !== undefined)
+  const entries = Object.entries(changes)
   if (entries.length === 0) return
   const lines: string[] = [`*Profile update* ${email}`]
   for (const [k, v] of entries) {
     const label = PROFILE_FIELD_LABELS[k] || k
-    lines.push(`${label}: ${v || '(cleared)'}`)
+    lines.push(`${label}: ${renderValue(v.from, 'from')} → ${renderValue(v.to, 'to')}`)
   }
   if (userId) lines.push(`${APP_URL}/admin/users/${userId}`)
   await postSlack(lines.join('\n'))
@@ -108,10 +119,10 @@ export async function notifyHostEventUpdate(params: {
   eventName: string
   eventLink?: string
   hostEmail: string
-  changes: Record<string, string>
+  changes: Record<string, FieldChange>
 }): Promise<void> {
   const { eventId, eventName, eventLink, hostEmail, changes } = params
-  const entries = Object.entries(changes).filter(([, v]) => v !== undefined)
+  const entries = Object.entries(changes)
   if (entries.length === 0) return
   const lines: string[] = [
     `*Host updated event* ${eventName}`,
@@ -120,7 +131,7 @@ export async function notifyHostEventUpdate(params: {
   if (eventLink) lines.push(eventLink)
   for (const [k, v] of entries) {
     const label = EVENT_FIELD_LABELS[k] || k
-    lines.push(`${label}: ${v || '(cleared)'}`)
+    lines.push(`${label}: ${renderValue(v.from, 'from')} → ${renderValue(v.to, 'to')}`)
   }
   lines.push(`${APP_URL}/admin/events/${eventId}`)
   await postSlack(lines.join('\n'))

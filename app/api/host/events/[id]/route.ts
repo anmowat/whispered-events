@@ -5,7 +5,7 @@ import { updateEvent } from '@/lib/airtable'
 import { getActiveUsers } from '@/lib/users'
 import { getEventByIdIfHost } from '@/lib/events'
 import { getMatchesForEvent } from '@/lib/supabase'
-import { notifyHostEventUpdate } from '@/lib/slack'
+import { notifyHostEventUpdate, type FieldChange } from '@/lib/slack'
 import { EventRecord, VIRTUAL_LOCATION_RE } from '@/lib/types'
 
 // Per-event host view + edit. Auth: caller's Airtable user id must appear in
@@ -124,15 +124,27 @@ export async function PATCH(
   }
 
   // Internal Slack alert. Only fires for host edits — admin edits at
-  // /admin/events/[id] deliberately stay silent. Renders only the fields
-  // that were in the request payload so the message stays terse.
-  const changes: Record<string, string> = {}
-  if (update.name !== undefined) changes.name = update.name
-  if (update.type !== undefined) changes.type = update.type
-  if (update.date !== undefined) changes.date = update.date
-  if (update.location !== undefined) changes.location = update.location
-  if (update.description !== undefined) changes.description = update.description
-  if (update.audience !== undefined) changes.audience = update.audience.join(', ')
+  // /admin/events/[id] deliberately stay silent. Build per-field {from, to}
+  // diffs against the pre-edit event (already fetched for the host auth
+  // gate). Skip no-op fields so quiet saves stay quiet.
+  const changes: Record<string, FieldChange> = {}
+  const fieldPairs: Array<[keyof EventRecord, string, string | undefined]> = [
+    ['name', event.name ?? '', update.name],
+    ['type', event.type ?? '', update.type],
+    ['date', event.date ?? '', update.date],
+    ['location', event.location ?? '', update.location],
+    ['description', event.description ?? '', update.description],
+    [
+      'audience',
+      (event.audience ?? []).join(', '),
+      update.audience !== undefined ? update.audience.join(', ') : undefined,
+    ],
+  ]
+  for (const [key, fromVal, toVal] of fieldPairs) {
+    if (toVal === undefined) continue
+    if (fromVal === toVal) continue
+    changes[key as string] = { from: fromVal, to: toVal }
+  }
   if (Object.keys(changes).length > 0) {
     waitUntil(
       notifyHostEventUpdate({
