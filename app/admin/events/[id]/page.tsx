@@ -148,11 +148,45 @@ export default function AdminEventDetailPage() {
   // Hosts edit state. Parallel to `draft` (the field-bag) because hosts are
   // structured records, not free-text fields. Null when not editing.
   const [hostsDraft, setHostsDraft] = useState<Host[] | null>(null)
-  const [hostInputEmail, setHostInputEmail] = useState('')
-  const [hostAddError, setHostAddError] = useState<string | null>(null)
+  // Search query for the host-add typeahead. Debounced into a fetch against
+  // /api/admin/users/search which returns up to 10 matches by name/email.
+  const [hostSearch, setHostSearch] = useState('')
+  const [hostSearchResults, setHostSearchResults] = useState<Host[]>([])
+  const [hostSearchBusy, setHostSearchBusy] = useState(false)
   const [editBusy, setEditBusy] = useState(false)
   const [editError, setEditError] = useState<string | null>(null)
   const isEditing = draft !== null
+
+  // Typeahead: re-run the name search whenever the query changes, debounced
+  // so we don't fire on every keystroke. Empty query clears results.
+  useEffect(() => {
+    const q = hostSearch.trim()
+    if (!q) {
+      setHostSearchResults([])
+      return
+    }
+    let cancelled = false
+    setHostSearchBusy(true)
+    const id = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `/api/admin/users/search?q=${encodeURIComponent(q)}`,
+          { cache: 'no-store' },
+        )
+        if (!res.ok || cancelled) return
+        const data = (await res.json()) as { results: Host[] }
+        if (!cancelled) setHostSearchResults(data.results ?? [])
+      } catch (e) {
+        if (!cancelled) console.error('host search failed', e)
+      } finally {
+        if (!cancelled) setHostSearchBusy(false)
+      }
+    }, 200)
+    return () => {
+      cancelled = true
+      clearTimeout(id)
+    }
+  }, [hostSearch])
 
   async function fetchDetail() {
     if (!eventId) return
@@ -263,49 +297,25 @@ export default function AdminEventDetailPage() {
     setEditError(null)
     setDraft(draftFromEvent(event))
     setHostsDraft(event.hosts)
-    setHostInputEmail('')
-    setHostAddError(null)
+    setHostSearch('')
+    setHostSearchResults([])
   }
 
   function cancelEdit() {
     setEditError(null)
     setDraft(null)
     setHostsDraft(null)
-    setHostInputEmail('')
-    setHostAddError(null)
+    setHostSearch('')
+    setHostSearchResults([])
   }
 
-  // Resolve a typed email to a user via the admin user-detail lookup. We
-  // re-use /api/admin/users/lookup which the same admin session is already
-  // authorized for. On success the host gets appended to hostsDraft.
-  async function addHostByEmail() {
-    const email = hostInputEmail.trim().toLowerCase()
-    if (!email || !hostsDraft) return
-    if (hostsDraft.some((h) => h.email.toLowerCase() === email)) {
-      setHostAddError('already a host')
-      return
-    }
-    setHostAddError(null)
-    try {
-      const res = await fetch(
-        `/api/admin/users/lookup?email=${encodeURIComponent(email)}`,
-        { cache: 'no-store' },
-      )
-      if (res.status === 404) {
-        setHostAddError('no user with that email')
-        return
-      }
-      if (!res.ok) {
-        const data = (await res.json().catch(() => ({}))) as { error?: string }
-        setHostAddError(data.error || `HTTP ${res.status}`)
-        return
-      }
-      const data = (await res.json()) as Host
-      setHostsDraft([...hostsDraft, data])
-      setHostInputEmail('')
-    } catch (e) {
-      setHostAddError(e instanceof Error ? e.message : String(e))
-    }
+  // Add a host from the typeahead. Idempotent against already-added users.
+  function addHost(h: Host) {
+    if (!hostsDraft) return
+    if (hostsDraft.some((existing) => existing.id === h.id)) return
+    setHostsDraft([...hostsDraft, h])
+    setHostSearch('')
+    setHostSearchResults([])
   }
 
   function removeHost(id: string) {
@@ -361,8 +371,8 @@ export default function AdminEventDetailPage() {
       }
       setDraft(null)
       setHostsDraft(null)
-      setHostInputEmail('')
-      setHostAddError(null)
+      setHostSearch('')
+      setHostSearchResults([])
       await fetchDetail()
     } catch (e) {
       setEditError(e instanceof Error ? e.message : String(e))
@@ -613,36 +623,46 @@ export default function AdminEventDetailPage() {
                     ) : (
                       <p className="text-sm text-gray-400 italic">No hosts assigned.</p>
                     )}
-                    <div className="flex items-center gap-2">
+                    <div className="relative">
                       <input
-                        type="email"
-                        value={hostInputEmail}
-                        onChange={(e) => {
-                          setHostInputEmail(e.target.value)
-                          setHostAddError(null)
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault()
-                            addHostByEmail()
-                          }
-                        }}
-                        placeholder="Add host by email…"
+                        type="text"
+                        value={hostSearch}
+                        onChange={(e) => setHostSearch(e.target.value)}
+                        placeholder="Search to add a host (name or email)…"
                         disabled={editBusy}
-                        className="flex-1 min-w-[200px] bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#6E1F2B] disabled:opacity-50 transition-colors"
+                        className="w-full bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#6E1F2B] disabled:opacity-50 transition-colors"
                       />
-                      <button
-                        type="button"
-                        onClick={addHostByEmail}
-                        disabled={editBusy || !hostInputEmail.trim()}
-                        className="px-3 py-2 rounded-lg border border-[#E8DDD0] bg-white text-sm text-gray-700 hover:bg-[#F5EFE6] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        Add
-                      </button>
+                      {hostSearch.trim() && (
+                        <div className="absolute z-10 left-0 right-0 mt-1 bg-white border border-[#E8DDD0] rounded-lg shadow-popover max-h-72 overflow-auto">
+                          {hostSearchBusy && hostSearchResults.length === 0 ? (
+                            <div className="px-3 py-2 text-xs text-gray-400 italic">Searching…</div>
+                          ) : hostSearchResults.length === 0 ? (
+                            <div className="px-3 py-2 text-xs text-gray-400 italic">No matches.</div>
+                          ) : (
+                            hostSearchResults.map((h) => {
+                              const alreadyAdded = (hostsDraft ?? []).some((x) => x.id === h.id)
+                              return (
+                                <button
+                                  key={h.id}
+                                  type="button"
+                                  onClick={() => addHost(h)}
+                                  disabled={alreadyAdded || editBusy}
+                                  className="w-full text-left px-3 py-2 text-sm hover:bg-[#F5EFE6] transition-colors flex items-center justify-between gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white"
+                                >
+                                  <span className="flex flex-col">
+                                    <span className="font-medium text-gray-800">{hostDisplayName(h)}</span>
+                                    <span className="text-xs text-gray-400">{h.email}</span>
+                                  </span>
+                                  {alreadyAdded && (
+                                    <span className="text-[10px] uppercase tracking-widest text-gray-400">added</span>
+                                  )}
+                                </button>
+                              )
+                            })
+                          )}
+                        </div>
+                      )}
                     </div>
-                    {hostAddError && (
-                      <p className="text-xs text-red-600">{hostAddError}</p>
-                    )}
                   </div>
                 )}
               </div>

@@ -198,6 +198,30 @@ export async function getEventsForAdmin(opts: {
 // Returns the row's featured flag without ferrying the entire event shape.
 // Admin GET on /api/admin/events/[id] uses this alongside the existing
 // image_url select to avoid a wider SELECT *.
+// Set of every user id that hosts at least one future, approved, non-deleted
+// event. Used by the admin user list to flag hosts with a star next to
+// their name. One round-trip + a flatten, called once per dashboard refresh.
+export async function getFutureEventHostIds(): Promise<Set<string>> {
+  const supabase = getSupabase()
+  const { data, error } = await supabase
+    .from('events')
+    .select('host_ids')
+    .gte('date', todayIso())
+    .eq('approved', true)
+    .is('airtable_deleted_at', null)
+    .is('deleted_at', null)
+  if (error) {
+    console.error('getFutureEventHostIds error', error)
+    return new Set()
+  }
+  const ids = new Set<string>()
+  for (const row of data ?? []) {
+    const hostIds = (row as { host_ids: string[] | null }).host_ids ?? []
+    for (const id of hostIds) if (id) ids.add(id)
+  }
+  return ids
+}
+
 export async function getEventFlags(eventId: string): Promise<{
   image_url: string
   featured: boolean

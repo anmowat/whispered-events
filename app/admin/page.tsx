@@ -16,6 +16,7 @@ interface UserRow {
   frequency: string
   grade: 'A' | 'Polish' | 'B' | 'C' | null
   status: string
+  isHost: boolean
   matchCount: number
   nearbyEventCount: number
   localMatchPct: number | null
@@ -712,6 +713,15 @@ export default function AdminPage() {
                         <a href={`/admin/users/${u.id}`} className="text-gold-700 hover:text-gold-600 underline underline-offset-2">
                           {displayName(u)}
                         </a>
+                        {u.isHost && (
+                          <span
+                            className="ml-1 align-middle"
+                            title="Hosts at least one future event"
+                            aria-label="Host"
+                          >
+                            ⭐
+                          </span>
+                        )}
                         {(() => {
                           const s = normalizeStatus(u.status)
                           return (

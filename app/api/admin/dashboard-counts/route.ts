@@ -10,7 +10,7 @@ import {
   getRatingCountsByEmail,
 } from '@/lib/supabase'
 import { getUsersForAdmin, type StatusBucket } from '@/lib/users'
-import { getFutureEvents } from '@/lib/events'
+import { getFutureEvents, getFutureEventHostIds } from '@/lib/events'
 import { withinMiles } from '@/lib/geocode'
 
 const NEARBY_RADIUS_MILES = 100
@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
       : 'live'
 
   try {
-    const [activeUsers, futureEvents, contribStats, lastSeen, lastDigest, lastBlast, ratingCounts] = await Promise.all([
+    const [activeUsers, futureEvents, contribStats, lastSeen, lastDigest, lastBlast, ratingCounts, hostIds] = await Promise.all([
       getUsersForAdmin({ statusBucket }),
       getFutureEvents(),
       getContributionTotalsByEmail(),
@@ -49,6 +49,7 @@ export async function GET(req: NextRequest) {
       getLastDigestSentByEmail(),
       getLastBlastSentByEmail(),
       getRatingCountsByEmail(),
+      getFutureEventHostIds(),
     ])
     const futureEventIds = futureEvents.map((e) => e.id)
     const counts = await getMatchCountsByEmail(futureEventIds)
@@ -103,6 +104,7 @@ export async function GET(req: NextRequest) {
           frequency: u.frequency,
           grade: u.grade ?? null,
           status: u.status || 'Pending',
+          isHost: hostIds.has(u.id),
           matchCount,
           nearbyEventCount: nearbyCount,
           localMatchPct,

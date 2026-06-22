@@ -124,6 +124,37 @@ export async function getUserById(userId: string): Promise<AirtableUser | null> 
   return data ? toAirtableUser(data as UserRow) : null
 }
 
+// Name-prefix search for the admin host-add typeahead. Case-insensitive,
+// matches against both name and first_name. Excludes tombstoned rows.
+// Caller is admin-gated, so we don't worry about exposing emails here.
+export async function searchUsersByName(
+  query: string,
+  limit = 10,
+): Promise<AirtableUser[]> {
+  const q = query.trim()
+  if (!q) return []
+  const supabase = getSupabase()
+  // ilike with %pattern% gives substring match (case-insensitive). `or` ANDs
+  // the soft-delete filters with the union of name / first_name / email
+  // matches so the typeahead also handles users searched by their first
+  // typed characters of an email.
+  const pattern = `%${q.replace(/[%_]/g, (m) => `\\${m}`)}%`
+  const { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .or(`name.ilike.${pattern},first_name.ilike.${pattern},email.ilike.${pattern}`)
+    .is('airtable_deleted_at', null)
+    .is('deleted_at', null)
+    .limit(limit)
+  if (error) {
+    console.error('searchUsersByName error', { query: q, error })
+    return []
+  }
+  return (data ?? [])
+    .map((row) => toAirtableUser(row as UserRow))
+    .filter((u) => u.email)
+}
+
 // Bulk fetch by id. Used by the admin event detail page to resolve
 // host_ids -> {name, email} for display. Preserves the input order so
 // callers can rely on the array shape (deduped + missing-id-filtered).
