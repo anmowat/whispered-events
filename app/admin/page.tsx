@@ -465,9 +465,9 @@ export default function AdminPage() {
                   onClick={refreshCache}
                   disabled={refreshingCache}
                   className="px-3 py-1.5 rounded-lg border border-[#E8DDD0] bg-white text-xs text-gray-700 hover:bg-[#F5EFE6] transition-colors shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
-                  title="Bust the 24h cache on /api/partners, /api/featured-events, and /api/events-count so Airtable edits show on the homepage immediately."
+                  title="Flush the 24h cache on the public homepage (partners list, featured events, event count). Use after editing a partner or toggling Featured on an event."
                 >
-                  {refreshingCache ? 'Refreshing…' : 'Refresh from Airtable'}
+                  {refreshingCache ? 'Refreshing…' : 'Refresh homepage'}
                 </button>
                 {rescoreResult && (
                   <span className="text-xs text-gray-500">{rescoreResult}</span>
