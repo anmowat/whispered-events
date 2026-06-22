@@ -1117,10 +1117,10 @@ function renderInlineCoaching(safeLocation: string, nearbyCount: number): string
     const locationPhrase = safeLocation || 'your area'
     return `
 <p style="font-family:${SANS};font-size:14.5px;line-height:1.6;color:${C.ink2};margin:14px 0 0;">
-  <strong style="color:${C.ink};">1. Help us build a presence in ${locationPhrase}</strong> — share events you see, email any link to <a href="${NEW_EVENT_MAILTO}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">event@whispered.com</a> and we'll add it in!
+  <strong style="color:${C.ink};">1. Update your location</strong> on your <a href="${DASHBOARD_LINK}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">dashboard</a> — shift to a different location, maybe a top-tier city where you're traveling to for events.
 </p>
 <p style="font-family:${SANS};font-size:14.5px;line-height:1.6;color:${C.ink2};margin:10px 0 0;">
-  <strong style="color:${C.ink};">2. Update your location</strong> on your <a href="${DASHBOARD_LINK}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">dashboard</a> if you've moved or are traveling — your matches will re-run automatically.
+  <strong style="color:${C.ink};">2. Help us build the flywheel in ${locationPhrase}</strong> — share events you see, email any link to <a href="${NEW_EVENT_MAILTO}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">event@whispered.com</a> and we'll add it in!
 </p>
 `.trim()
   }
@@ -1132,7 +1132,7 @@ function renderInlineCoaching(safeLocation: string, nearbyCount: number): string
   <strong style="color:${C.ink};">1. Update your profile</strong> on your <a href="${DASHBOARD_LINK}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">dashboard</a> — update the function we pulled from LinkedIn and your topics you are interested in.
 </p>
 <p style="font-family:${SANS};font-size:14.5px;line-height:1.6;color:${C.ink2};margin:10px 0 0;">
-  <strong style="color:${C.ink};">2. Share events in topics you care about</strong> — email any link to <a href="${NEW_EVENT_MAILTO}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">event@whispered.com</a> to help build momentum.
+  <strong style="color:${C.ink};">2. Help us build the flywheel</strong> — share events in topics you care about, email any link to <a href="${NEW_EVENT_MAILTO}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">event@whispered.com</a>.
 </p>
 `.trim()
 }
@@ -1141,8 +1141,8 @@ function inlineCoachingTextLines(location: string, nearbyCount: number): string[
   if (nearbyCount === 0) {
     const locationPhrase = location || 'your area'
     return [
-      `1. Help us build a presence in ${locationPhrase} — share events you see, email any link to event@whispered.com and we'll add it in!`,
-      `2. Update your location on your dashboard if you've moved or are traveling — your matches will re-run automatically.`,
+      `1. Update your location on your dashboard — shift to a different location, maybe a top-tier city where you're traveling to for events.`,
+      `2. Help us build the flywheel in ${locationPhrase} — share events you see, email any link to event@whispered.com and we'll add it in!`,
     ]
   }
   const locationPhrase = location || 'you'
@@ -1151,7 +1151,7 @@ function inlineCoachingTextLines(location: string, nearbyCount: number): string[
     `We do have ${nearbyCount} upcoming ${noun} within 100 miles of ${locationPhrase} — your profile just isn't matching them yet.`,
     '',
     `1. Update your profile on your dashboard — update the function we pulled from LinkedIn and your topics you are interested in.`,
-    `2. Share events in topics you care about — email any link to event@whispered.com to help build momentum.`,
+    `2. Help us build the flywheel — share events in topics you care about, email any link to event@whispered.com.`,
   ]
 }
 
