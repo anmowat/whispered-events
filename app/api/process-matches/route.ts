@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { AirtableEvent, AirtableUser } from '@/lib/airtable'
 import { getActiveUsers, getUserById } from '@/lib/users'
 import { getFutureEvents } from '@/lib/events'
-import { syncSingleEvent, syncSingleUser } from '@/lib/sync'
 import { withinMiles } from '@/lib/geocode'
 import {
   scoreEventUser,
@@ -45,12 +44,9 @@ function countNearbyEvents(user: AirtableUser, events: AirtableEvent[]): number 
 }
 
 async function processEventTrigger(eventId: string) {
-  // Brand-new events fire this trigger before the cron sync has a chance
-  // to mirror them into Supabase. Pull just this row straight from
-  // Airtable so the subsequent getFutureEvents() Supabase read sees the
-  // freshly-created event. Idempotent — re-runs just refresh the row.
-  await syncSingleEvent(eventId)
-
+  // createEvent inserts the canonical Supabase row at submission time, so
+  // by the time this trigger fires the event is already readable from
+  // getFutureEvents(). No pre-fetch needed.
   const events = await getFutureEvents()
   const event = events.find((e) => e.id === eventId)
   if (!event) {
@@ -91,11 +87,8 @@ async function processUserTrigger(
   userId: string,
   options: { noEmail?: boolean; welcome?: boolean; locationChanged?: boolean } = {},
 ) {
-  // Just-approved or just-edited users fire this trigger before the cron
-  // sync runs. Pull this row straight from Airtable so active / interests
-  // / location reflect the latest admin action.
-  await syncSingleUser(userId)
-
+  // Users are Supabase-canonical — getUserById reads the latest admin save
+  // directly. No pre-fetch from Airtable needed.
   const targetUser = await getUserById(userId)
   if (!targetUser) {
     console.log(`process-matches: user ${userId} not found, skipping`)

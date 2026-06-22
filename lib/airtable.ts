@@ -1,15 +1,15 @@
 import Airtable, { FieldSet, Base } from 'airtable'
 import { createClient } from '@supabase/supabase-js'
+import { waitUntil } from '@vercel/functions'
 import { EventRecord, UserProfile } from './types'
 import stringSimilarity from 'string-similarity'
 import { geocodeLocation } from './geocode'
 import { linkContributionsToUser } from './supabase'
-import { syncSingleUser, syncSingleEvent } from './sync'
 import { newUserId } from './user-id'
 
-// User writes target Supabase directly — Airtable is no longer the source of
-// truth for the Users table. Helper mirrors the pattern used in lib/sync.ts
-// so the service-role key only lives in one set of env lookups.
+// Supabase is canonical for both Users and Events. Airtable still receives a
+// best-effort follower write on event edits so the admin's Airtable view
+// stays current as a mirror. Helper centralises the supabase client init.
 function getSupabase() {
   if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
     throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set')
@@ -27,23 +27,21 @@ function deriveLifecycle(status: string): { active: boolean; is_partner: boolean
   }
 }
 
-// Mirror-fresh helpers. Every write in this file calls one of these at the
-// tail so the Supabase mirror reflects the just-written row before any
-// downstream read fires. Failures are non-fatal — the next cron sync
-// repairs the gap, so a Supabase hiccup never poisons a successful Airtable
-// write. Kept local so each write site reads as "do the work, then mirror".
-async function mirrorUserSafe(id: string, label: string): Promise<void> {
+// One-way push of an event update to Airtable. Fire-and-forget at the call
+// site via waitUntil so the admin save returns fast. Errors land in
+// console.error with the id + payload so manual replay is trivial; we don't
+// surface them to the user because Supabase is canonical and already updated.
+async function pushEventToAirtable(
+  id: string,
+  fields: Partial<FieldSet>,
+  label: string,
+): Promise<void> {
+  if (!id || Object.keys(fields).length === 0) return
   try {
-    await syncSingleUser(id)
+    const base = getBase()
+    await base(EVENTS_TABLE).update(id, fields)
   } catch (err) {
-    console.error(`${label}: syncSingleUser failed`, err)
-  }
-}
-async function mirrorEventSafe(id: string, label: string): Promise<void> {
-  try {
-    await syncSingleEvent(id)
-  } catch (err) {
-    console.error(`${label}: syncSingleEvent failed`, err)
+    console.error(`${label}: airtable push failed`, { id, fields, err })
   }
 }
 
@@ -279,14 +277,45 @@ export async function getEventHostEmails(eventId: string): Promise<string[]> {
 // reads see the new host immediately.
 export async function addEventHost(eventId: string, userId: string): Promise<void> {
   if (!eventId || !userId) return
-  const base = getBase()
-  const record = await base(EVENTS_TABLE).find(eventId)
-  const existing = (record.get('Host') as string[] | undefined) ?? []
-  if (existing.includes(userId)) return
-  await base(EVENTS_TABLE).update(eventId, {
-    Host: [...existing, userId],
-  } as Partial<FieldSet>)
-  await mirrorEventSafe(eventId, 'addEventHost')
+  const supabase = getSupabase()
+
+  // Read-modify-write append with idempotency. Concurrent claims on the same
+  // event are rare enough that the lost-update race here isn't worth a
+  // Postgres RPC; if it becomes a problem, wrap this in a function that does
+  // array_append atomically.
+  const { data: existing, error: readErr } = await supabase
+    .from('events')
+    .select('host_ids')
+    .eq('id', eventId)
+    .maybeSingle()
+  if (readErr) {
+    console.error('addEventHost read failed', { eventId, userId, readErr })
+    throw new Error(`addEventHost read failed: ${readErr.message}`)
+  }
+  if (!existing) return
+  const currentHosts: string[] = Array.isArray(existing.host_ids) ? existing.host_ids : []
+  if (currentHosts.includes(userId)) return
+  const nextHosts = [...currentHosts, userId]
+
+  const { error: writeErr } = await supabase
+    .from('events')
+    .update({ host_ids: nextHosts })
+    .eq('id', eventId)
+  if (writeErr) {
+    console.error('addEventHost write failed', { eventId, userId, writeErr })
+    throw new Error(`addEventHost write failed: ${writeErr.message}`)
+  }
+
+  // Mirror the new host list to Airtable's Host linked field. Fire-and-forget
+  // via waitUntil so the partner's claim returns fast and an Airtable hiccup
+  // is recoverable by re-claiming.
+  waitUntil(
+    pushEventToAirtable(
+      eventId,
+      { Host: nextHosts } as Partial<FieldSet>,
+      'addEventHost',
+    ),
+  )
 }
 
 const USER_FIELDS = [
@@ -393,10 +422,11 @@ export async function createEvent(
   if (event.description) fields['Description'] = event.description
   if (event.audience.length) fields['Audience'] = event.audience.join(', ')
   if (event.image) {
-    // Airtable attachment fields accept an array of { url } and fetch
-    // the bytes themselves, then serve back from their own CDN. If the
-    // source URL is unreachable Airtable silently leaves the field
-    // empty — we don't try to verify here.
+    // Airtable attachment fields accept an array of { url } and fetch the
+    // bytes themselves, then serve back from their own CDN. The proxy at
+    // /api/event-image/[id] falls back to Airtable for any Supabase row
+    // whose image_url is still empty, so new chat-submitted events keep
+    // displaying images without an extra Supabase Storage upload step.
     ;(fields as Record<string, unknown>)['Image'] = [{ url: event.image }]
   }
 
@@ -408,8 +438,39 @@ export async function createEvent(
   }
   if (hostUserId) fields['Host'] = [hostUserId]
   if (source) fields['Source'] = source
+
+  // Airtable .create() first so we inherit its recXXX id as the canonical
+  // Supabase id. Downstream foreign keys (matches.event_id, host links)
+  // already use this format; preserving it avoids a schema migration.
   const record = await base(EVENTS_TABLE).create(fields)
-  await mirrorEventSafe(record.id, 'createEvent')
+
+  // Then explicit Supabase insert with the same data. No more sync mirror
+  // — this is the canonical row going forward.
+  const supabase = getSupabase()
+  const nowIso = new Date().toISOString()
+  const { error } = await supabase.from('events').insert({
+    id: record.id,
+    name: event.name,
+    type: event.type,
+    date: event.date || null,
+    location: event.location || '',
+    description: event.description || '',
+    link: cleanEventLink(event.link),
+    audience: event.audience || [],
+    lat: geo?.lat ?? null,
+    lng: geo?.lng ?? null,
+    submitter_email: event.submitter || '',
+    source: source || '',
+    image_url: '',
+    host_ids: hostUserId ? [hostUserId] : [],
+    approved: true,
+    featured: false,
+    airtable_created_at: nowIso,
+  })
+  if (error) {
+    console.error('createEvent supabase insert failed', { id: record.id, error })
+    throw new Error(`createEvent supabase insert failed: ${error.message}`)
+  }
   return record.id
 }
 
@@ -418,40 +479,88 @@ export async function updateEvent(
   fields: Partial<EventRecord>,
   hostUserId?: string
 ): Promise<void> {
-  const base = getBase()
-  const updateData: Partial<FieldSet> = {}
-  if (fields.name) updateData['Name'] = fields.name
-  if (fields.location) {
-    updateData['Location'] = fields.location
-    const geo = await geocodeLocation(fields.location)
-    if (geo) {
-      updateData['LatLon'] = formatLatLon(geo)
+  const airtableFields: Partial<FieldSet> = {}
+  const supabaseRow: Record<string, unknown> = {}
+
+  if (fields.name !== undefined) {
+    airtableFields['Name'] = fields.name
+    supabaseRow.name = fields.name
+  }
+  if (fields.location !== undefined) {
+    airtableFields['Location'] = fields.location
+    supabaseRow.location = fields.location
+    if (fields.location) {
+      const geo = await geocodeLocation(fields.location)
+      if (geo) {
+        airtableFields['LatLon'] = formatLatLon(geo)
+        supabaseRow.lat = geo.lat
+        supabaseRow.lng = geo.lng
+      } else {
+        ;(airtableFields as Record<string, unknown>)['LatLon'] = null
+        supabaseRow.lat = null
+        supabaseRow.lng = null
+        console.warn(`updateEvent: could not geocode "${fields.location}"`)
+      }
     } else {
-      ;(updateData as Record<string, unknown>)['LatLon'] = null
-      console.warn(`updateEvent: could not geocode "${fields.location}"`)
+      ;(airtableFields as Record<string, unknown>)['LatLon'] = null
+      supabaseRow.lat = null
+      supabaseRow.lng = null
     }
   }
-  if (fields.description) updateData['Description'] = fields.description
-  if (fields.audience?.length) updateData['Audience'] = fields.audience.join(', ')
-  if (fields.type) updateData['Type'] = fields.type
-  if (fields.date) updateData['Date'] = fields.date
-  if (fields.submitter) updateData['Submitter'] = fields.submitter
-  if (hostUserId) updateData['Host'] = [hostUserId]
+  if (fields.description !== undefined) {
+    airtableFields['Description'] = fields.description
+    supabaseRow.description = fields.description
+  }
+  if (fields.audience !== undefined) {
+    airtableFields['Audience'] = fields.audience.join(', ')
+    supabaseRow.audience = fields.audience
+  }
+  if (fields.type !== undefined) {
+    airtableFields['Type'] = fields.type
+    supabaseRow.type = fields.type
+  }
+  if (fields.date !== undefined) {
+    airtableFields['Date'] = fields.date
+    // Empty Airtable date -> NULL on the date column (rejects '').
+    supabaseRow.date = fields.date || null
+  }
+  if (fields.submitter !== undefined) {
+    airtableFields['Submitter'] = fields.submitter
+    supabaseRow.submitter_email = fields.submitter
+  }
+  if (hostUserId) {
+    airtableFields['Host'] = [hostUserId]
+    supabaseRow.host_ids = [hostUserId]
+  }
   // Image is a sentinel: undefined means "leave alone", empty string means
-  // "clear the attachment", non-empty URL means "fetch and store". Lets the
-  // admin image route round-trip through here for both upload and delete
-  // without splitting into two helpers.
+  // "clear", non-empty URL means "set". Airtable side mirrors as an
+  // attachment; Supabase side stores the public URL string.
   if (fields.image !== undefined) {
-    ;(updateData as Record<string, unknown>)['Image'] =
+    ;(airtableFields as Record<string, unknown>)['Image'] =
       fields.image ? [{ url: fields.image }] : []
+    supabaseRow.image_url = fields.image || ''
   }
   if (fields.featured !== undefined) {
-    // Airtable's checkbox field is singular ("Feature"); the Supabase mirror
-    // and the rest of the codebase use the semantically correct "featured".
-    ;(updateData as Record<string, unknown>)['Feature'] = !!fields.featured
+    // Airtable's checkbox field is singular ("Feature"); the Supabase column
+    // is semantically correct ("featured").
+    ;(airtableFields as Record<string, unknown>)['Feature'] = !!fields.featured
+    supabaseRow.featured = !!fields.featured
   }
-  await base(EVENTS_TABLE).update(id, updateData)
-  await mirrorEventSafe(id, 'updateEvent')
+
+  // Supabase first as the canonical write. Failures bubble up — caller
+  // (admin save) needs to know if the change didn't land.
+  if (Object.keys(supabaseRow).length > 0) {
+    const supabase = getSupabase()
+    const { error } = await supabase.from('events').update(supabaseRow).eq('id', id)
+    if (error) {
+      console.error('updateEvent supabase update failed', { id, error })
+      throw new Error(`updateEvent supabase update failed: ${error.message}`)
+    }
+  }
+
+  // Then mirror to Airtable as the follower write. waitUntil so admin save
+  // returns fast and an Airtable hiccup doesn't bounce the response.
+  waitUntil(pushEventToAirtable(id, airtableFields, 'updateEvent'))
 }
 
 export interface Partner {
@@ -797,58 +906,6 @@ export async function updateUserAdmin(
   }
 }
 
-export async function clearUserMatchCheckbox(userId: string): Promise<void> {
-  const base = getBase()
-  await base(PROFILES_TABLE).update(userId, { Match: false } as Partial<FieldSet>)
-}
-
-// Same pattern for an Event row's Match checkbox. Used by the admin
-// workflow: edit fields on the Event in Airtable -> tick Match -> the
-// automation pings /api/airtable-rematch?type=event -> we re-score
-// against every eligible user, then uncheck the box.
-export async function clearEventMatchCheckbox(eventId: string): Promise<void> {
-  const base = getBase()
-  await base(EVENTS_TABLE).update(eventId, { Match: false } as Partial<FieldSet>)
-}
-
-// Re-geocode the user's Location and write LatLon. Used when an admin may
-// have edited Location directly in Airtable (no app-side write to trigger
-// geocoding). Safe to call even when Location is unchanged — idempotent.
-export async function refreshUserLatLon(userId: string): Promise<void> {
-  const base = getBase()
-  const record = await base(PROFILES_TABLE).find(userId)
-  const location = String(record.get('Location') || '').trim()
-  if (!location) return
-  const geo = await geocodeLocation(location)
-  if (!geo) {
-    console.warn(`refreshUserLatLon: could not geocode "${location}" for ${userId}`)
-    return
-  }
-  const fresh = formatLatLon(geo)
-  if (String(record.get('LatLon') || '') === fresh) return
-  await base(PROFILES_TABLE).update(userId, { LatLon: fresh } as Partial<FieldSet>)
-  await mirrorUserSafe(userId, 'refreshUserLatLon')
-}
-
-// Companion for an Event row — admin may edit Location directly without
-// going through the host/event update endpoint, leaving LatLon stale.
-// Same shape as refreshUserLatLon: idempotent, skips write when geocode
-// result is unchanged.
-export async function refreshEventLatLon(eventId: string): Promise<void> {
-  const base = getBase()
-  const record = await base(EVENTS_TABLE).find(eventId)
-  const location = String(record.get('Location') || '').trim()
-  if (!location) return
-  const geo = await geocodeLocation(location)
-  if (!geo) {
-    console.warn(`refreshEventLatLon: could not geocode "${location}" for ${eventId}`)
-    return
-  }
-  const fresh = formatLatLon(geo)
-  if (String(record.get('LatLon') || '') === fresh) return
-  await base(EVENTS_TABLE).update(eventId, { LatLon: fresh } as Partial<FieldSet>)
-  await mirrorEventSafe(eventId, 'refreshEventLatLon')
-}
 
 export async function getUserById(userId: string): Promise<AirtableUser | null> {
   const base = getBase()
@@ -1191,6 +1248,11 @@ export async function upsertPartnerApplication(
     userFields,
   )
 
-  await mirrorUserSafe(userId, 'upsertPartnerApplication')
+  // Partner-application user row is written to Airtable Users only. Pre-
+  // 83580c0 this called mirrorUserSafe(userId) so the Supabase users table
+  // picked it up via syncSingleUser; now both are no-ops, which means
+  // getPartnerUserByEmail (Supabase-backed) won't find this user until the
+  // partner flow is migrated separately. Tracked under the Partners-table
+  // out-of-scope item.
   return { partnerId, userId }
 }

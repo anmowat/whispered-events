@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { waitUntil } from '@vercel/functions'
 import { createClient } from '@supabase/supabase-js'
 import { isAdmin } from '@/lib/admin-auth'
 import { updateEvent } from '@/lib/airtable'
@@ -77,10 +78,15 @@ export async function POST(
       return NextResponse.json({ error: updateErr.message }, { status: 500 })
     }
 
-    // Mirror to Airtable so the next bulk sync converges on the same bytes
-    // instead of clobbering our manual upload with a stale (or absent)
-    // Airtable Image field. Airtable fetches asynchronously from publicUrl.
-    await updateEvent(eventId, { image: publicUrl })
+    // Mirror to Airtable as a follower write so the admin's Airtable view
+    // stays current. Supabase already has image_url + bytes; the Airtable
+    // push is best-effort and runs in the background via waitUntil so this
+    // route returns as soon as the canonical store is updated.
+    waitUntil(
+      updateEvent(eventId, { image: publicUrl }).catch((e) =>
+        console.error('admin image POST: updateEvent push failed', e),
+      ),
+    )
 
     return NextResponse.json({ ok: true, image_url: publicUrl })
   } catch (err) {
@@ -123,7 +129,11 @@ export async function DELETE(
       return NextResponse.json({ error: updateErr.message }, { status: 500 })
     }
 
-    await updateEvent(eventId, { image: '' })
+    waitUntil(
+      updateEvent(eventId, { image: '' }).catch((e) =>
+        console.error('admin image DELETE: updateEvent push failed', e),
+      ),
+    )
 
     return NextResponse.json({ ok: true })
   } catch (err) {

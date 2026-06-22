@@ -133,56 +133,12 @@ export async function syncUsersToCache(): Promise<SyncStats> {
 }
 
 export async function syncEventsToCache(): Promise<SyncStats> {
-  const start = Date.now()
-  const base = getBase()
-  const supabase = getSupabase()
-
-  const records = await base('Events').select({ fields: EVENT_FIELDS }).all()
-
-  const rows: EventRow[] = records.map(eventRecordToRow)
-
-  // Legacy cache shape — keep populating until Phase 2 swaps the reader.
-  const cacheRows: EventCacheRow[] = rows.map((r) => ({
-    id: r.id,
-    name: r.name,
-    type: r.type,
-    date: r.date ?? '',
-    location: r.location,
-    description: r.description,
-    link: r.link,
-    audience: r.audience,
-    lat: r.lat,
-    lng: r.lng,
-    airtable_deleted_at: null,
-  }))
-
-  const CHUNK = 500
-  for (let i = 0; i < cacheRows.length; i += CHUNK) {
-    const chunk = cacheRows.slice(i, i + CHUNK)
-    const { error } = await supabase.from('events_cache').upsert(chunk, { onConflict: 'id' })
-    if (error) throw new Error(`events_cache upsert failed: ${error.message}`)
-  }
-  // New canonical table.
-  for (let i = 0; i < rows.length; i += CHUNK) {
-    const chunk = rows.slice(i, i + CHUNK)
-    const { error } = await supabase.from('events').upsert(chunk, { onConflict: 'id' })
-    if (error) throw new Error(`events upsert failed: ${error.message}`)
-  }
-
-  const liveIds = new Set(rows.map((r) => r.id))
-  const tombstoned = await tombstoneMissing(supabase, 'events_cache', liveIds)
-  await tombstoneMissing(supabase, 'events', liveIds)
-
-  // Persist each event's image into Supabase Storage and stamp events.image_url
-  // with the public URL. Sequential — image-fetch + upload is ~200-500 ms per
-  // event and the volume is tiny, so the simpler serial loop wins over juggling
-  // concurrency. Failures don't abort the sync; the proxy's Airtable fallback
-  // continues to cover any row whose image_url is still empty.
-  for (const record of records) {
-    await uploadEventImageIfPresent(record.id, record as AirtableRecord, supabase)
-  }
-
-  return { upserted: rows.length, tombstoned, durationMs: Date.now() - start }
+  // Events are no longer synced from Airtable — Supabase is the canonical
+  // store. createEvent inserts the row Supabase-direct at submission time,
+  // and updateEvent/addEventHost push follower writes to Airtable so the
+  // Airtable Events table stays current as a mirror. Kept exported so the
+  // /api/admin/sync-airtable endpoint can call it without conditional logic.
+  return { upserted: 0, tombstoned: 0, durationMs: 0 }
 }
 
 async function tombstoneMissing(
@@ -426,24 +382,8 @@ export async function syncSingleUser(userId: string): Promise<boolean> {
 }
 
 export async function syncSingleEvent(eventId: string): Promise<boolean> {
-  if (!eventId) return false
-  const base = getBase()
-  const supabase = getSupabase()
-  try {
-    const record = await base('Events').find(eventId)
-    const row = eventRecordToRow(record as AirtableRecord)
-    const { error } = await supabase.from('events').upsert(row, { onConflict: 'id' })
-    if (error) {
-      console.error(`syncSingleEvent(${eventId}) upsert failed:`, error)
-      return false
-    }
-    // Non-fatal: log and continue if the image upload trips. The row landed,
-    // and the proxy falls back to Airtable for events whose image_url is
-    // still empty.
-    await uploadEventImageIfPresent(eventId, record as AirtableRecord, supabase)
-    return true
-  } catch (err) {
-    console.error(`syncSingleEvent(${eventId}) failed:`, err)
-    return false
-  }
+  // No-op for the same reason syncEventsToCache no-ops: Supabase is canonical
+  // for events. createEvent inserts the canonical row at submission time;
+  // there's no Airtable-to-Supabase mirror to keep fresh anymore.
+  return Boolean(eventId)
 }
