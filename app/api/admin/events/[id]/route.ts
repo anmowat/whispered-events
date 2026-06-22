@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { isAdmin } from '@/lib/admin-auth'
-import { getActiveUsers } from '@/lib/users'
+import { getActiveUsers, getUsersByIds, getUserByEmail } from '@/lib/users'
 import { getEventById, getEventFlags } from '@/lib/events'
 import { getAllMatchesForEvent } from '@/lib/supabase'
 import { withinMiles } from '@/lib/geocode'
@@ -35,9 +35,10 @@ export async function GET(
       return NextResponse.json({ error: 'event not found' }, { status: 404 })
     }
 
-    // image_url and featured aren't part of AirtableEvent (the public read
-    // shape), so fetch them via lib/events.ts:getEventFlags for the admin
-    // image management UI and the Featured toggle.
+    // image_url, featured, and host_ids aren't part of AirtableEvent (the
+    // public read shape), so fetch them via lib/events.ts:getEventFlags
+    // for the admin image management UI, the Featured toggle, and the
+    // hosts list.
     const [allUsers, matchRows, flags] = await Promise.all([
       getActiveUsers(),
       getAllMatchesForEvent(eventId),
@@ -45,6 +46,14 @@ export async function GET(
     ])
     const imageUrl = flags?.image_url ?? ''
     const featured = flags?.featured ?? false
+    const hostIds = flags?.host_ids ?? []
+    const hostUsers = await getUsersByIds(hostIds)
+    const hosts = hostUsers.map((u) => ({
+      id: u.id,
+      email: u.email,
+      name: u.name,
+      firstName: u.firstName,
+    }))
 
     const matchByUserId = new Map(matchRows.map((m) => [m.user_id, m]))
 
@@ -116,6 +125,7 @@ export async function GET(
         lng: event.lng ?? null,
         imageUrl,
         featured,
+        hosts,
       },
       users,
       generatedAt: new Date().toISOString(),
@@ -157,6 +167,7 @@ export async function PATCH(
       audience?: unknown
       description?: unknown
       featured?: unknown
+      hostEmails?: unknown
     }
 
     const update: Parameters<typeof updateEvent>[1] = {}
@@ -176,14 +187,41 @@ export async function PATCH(
     }
     if (typeof body.featured === 'boolean') update.featured = body.featured
 
-    if (Object.keys(update).length === 0) {
+    // hostEmails is the canonical edit surface for the host list. Resolve
+    // each email to a user id; any unresolved email blocks the save with
+    // a clear error so the admin can fix the typo.
+    let hostIds: string[] | undefined
+    if (Array.isArray(body.hostEmails)) {
+      const emails = body.hostEmails
+        .filter((e): e is string => typeof e === 'string')
+        .map((e) => e.trim())
+        .filter(Boolean)
+      const resolved: string[] = []
+      const missing: string[] = []
+      for (const email of emails) {
+        const u = await getUserByEmail(email)
+        if (u) resolved.push(u.id)
+        else missing.push(email)
+      }
+      if (missing.length > 0) {
+        return NextResponse.json(
+          { error: `no user found for: ${missing.join(', ')}` },
+          { status: 400 },
+        )
+      }
+      hostIds = Array.from(new Set(resolved))
+    }
+
+    if (Object.keys(update).length === 0 && hostIds === undefined) {
       return NextResponse.json(
         { error: 'no editable fields in request body' },
         { status: 400 },
       )
     }
-    await updateEvent(eventId, update)
-    return NextResponse.json({ ok: true, updated: Object.keys(update) })
+    await updateEvent(eventId, update, hostIds)
+    const updated = Object.keys(update)
+    if (hostIds !== undefined) updated.push('hostIds')
+    return NextResponse.json({ ok: true, updated })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     console.error('admin/events/[id] PATCH error:', message)

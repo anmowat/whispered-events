@@ -477,7 +477,7 @@ export async function createEvent(
 export async function updateEvent(
   id: string,
   fields: Partial<EventRecord>,
-  hostUserId?: string
+  hostIds?: string[]
 ): Promise<void> {
   const airtableFields: Partial<FieldSet> = {}
   const supabaseRow: Record<string, unknown> = {}
@@ -528,9 +528,12 @@ export async function updateEvent(
     airtableFields['Submitter'] = fields.submitter
     supabaseRow.submitter_email = fields.submitter
   }
-  if (hostUserId) {
-    airtableFields['Host'] = [hostUserId]
-    supabaseRow.host_ids = [hostUserId]
+  if (hostIds !== undefined) {
+    // Replace the full host list. Pass `[]` to clear, an array to set.
+    // The admin event detail page is the canonical edit surface; the
+    // legacy claim-as-host path still uses addEventHost (atomic append).
+    airtableFields['Host'] = hostIds
+    supabaseRow.host_ids = hostIds
   }
   // Image is a sentinel: undefined means "leave alone", empty string means
   // "clear", non-empty URL means "set". Airtable side mirrors as an

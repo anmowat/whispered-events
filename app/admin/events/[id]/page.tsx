@@ -6,6 +6,13 @@ import LoginModal from '@/components/LoginModal'
 
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024
 
+interface Host {
+  id: string
+  email: string
+  name: string
+  firstName: string
+}
+
 interface EventDetail {
   id: string
   name: string
@@ -19,11 +26,14 @@ interface EventDetail {
   lng: number | null
   imageUrl: string
   featured: boolean
+  hosts: Host[]
 }
 
 // Draft mirrors EventDetail's editable fields. audience is a comma-joined
 // string while editing so the input doesn't have to manage chip state; we
-// split on save.
+// split on save. Hosts are managed in a separate piece of state since they
+// flow through the API as resolved email -> id pairs, not as a single
+// string field.
 interface EventDraft {
   name: string
   type: string
@@ -33,6 +43,12 @@ interface EventDraft {
   description: string
   audience: string
   featured: boolean
+}
+
+function hostDisplayName(h: Host): string {
+  if (h.name && h.name !== 'DEFAULT') return h.name
+  if (h.firstName && h.firstName !== 'DEFAULT') return h.firstName
+  return h.email
 }
 
 const EVENT_TYPE_OPTIONS = ['Conference', 'Dinner', 'Virtual', 'Other'] as const
@@ -129,6 +145,11 @@ export default function AdminEventDetailPage() {
   // session rather than once per keystroke or per field. Draft starts at
   // null and is populated from event when the admin clicks Edit.
   const [draft, setDraft] = useState<EventDraft | null>(null)
+  // Hosts edit state. Parallel to `draft` (the field-bag) because hosts are
+  // structured records, not free-text fields. Null when not editing.
+  const [hostsDraft, setHostsDraft] = useState<Host[] | null>(null)
+  const [hostInputEmail, setHostInputEmail] = useState('')
+  const [hostAddError, setHostAddError] = useState<string | null>(null)
   const [editBusy, setEditBusy] = useState(false)
   const [editError, setEditError] = useState<string | null>(null)
   const isEditing = draft !== null
@@ -241,19 +262,75 @@ export default function AdminEventDetailPage() {
     if (!event) return
     setEditError(null)
     setDraft(draftFromEvent(event))
+    setHostsDraft(event.hosts)
+    setHostInputEmail('')
+    setHostAddError(null)
   }
 
   function cancelEdit() {
     setEditError(null)
     setDraft(null)
+    setHostsDraft(null)
+    setHostInputEmail('')
+    setHostAddError(null)
+  }
+
+  // Resolve a typed email to a user via the admin user-detail lookup. We
+  // re-use /api/admin/users/lookup which the same admin session is already
+  // authorized for. On success the host gets appended to hostsDraft.
+  async function addHostByEmail() {
+    const email = hostInputEmail.trim().toLowerCase()
+    if (!email || !hostsDraft) return
+    if (hostsDraft.some((h) => h.email.toLowerCase() === email)) {
+      setHostAddError('already a host')
+      return
+    }
+    setHostAddError(null)
+    try {
+      const res = await fetch(
+        `/api/admin/users/lookup?email=${encodeURIComponent(email)}`,
+        { cache: 'no-store' },
+      )
+      if (res.status === 404) {
+        setHostAddError('no user with that email')
+        return
+      }
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string }
+        setHostAddError(data.error || `HTTP ${res.status}`)
+        return
+      }
+      const data = (await res.json()) as Host
+      setHostsDraft([...hostsDraft, data])
+      setHostInputEmail('')
+    } catch (e) {
+      setHostAddError(e instanceof Error ? e.message : String(e))
+    }
+  }
+
+  function removeHost(id: string) {
+    if (!hostsDraft) return
+    setHostsDraft(hostsDraft.filter((h) => h.id !== id))
   }
 
   async function saveEdit() {
     if (!eventId || !event || !draft) return
     const original = draftFromEvent(event)
     const diff = draftDiff(draft, original)
-    if (Object.keys(diff).length === 0) {
+
+    // Hosts diff: compare the id sets between the original event and the
+    // working draft. Same length + same membership = unchanged; otherwise
+    // include hostEmails in the PATCH so the server replaces the full list.
+    const originalIds = event.hosts.map((h) => h.id).sort()
+    const draftHosts = hostsDraft ?? event.hosts
+    const draftIds = draftHosts.map((h) => h.id).sort()
+    const hostsChanged =
+      originalIds.length !== draftIds.length ||
+      originalIds.some((id, i) => id !== draftIds[i])
+
+    if (Object.keys(diff).length === 0 && !hostsChanged) {
       setDraft(null)
+      setHostsDraft(null)
       return
     }
     setEditError(null)
@@ -269,6 +346,9 @@ export default function AdminEventDetailPage() {
           .map((s) => s.trim())
           .filter(Boolean)
       }
+      if (hostsChanged) {
+        body.hostEmails = draftHosts.map((h) => h.email)
+      }
       const res = await fetch(`/api/admin/events/${eventId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -280,6 +360,9 @@ export default function AdminEventDetailPage() {
         return
       }
       setDraft(null)
+      setHostsDraft(null)
+      setHostInputEmail('')
+      setHostAddError(null)
       await fetchDetail()
     } catch (e) {
       setEditError(e instanceof Error ? e.message : String(e))
@@ -480,6 +563,89 @@ export default function AdminEventDetailPage() {
               ) : (
                 <EventEditForm draft={draft!} onChange={setDraft} disabled={editBusy} />
               )}
+
+              <div className="mt-6 pt-6 border-t border-[#E8DDD0]">
+                <h3 className="text-[11px] uppercase tracking-widest text-gray-500 font-medium mb-3">
+                  Hosts {event.hosts.length > 0 && `· ${event.hosts.length}`}
+                </h3>
+                {!isEditing ? (
+                  event.hosts.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {event.hosts.map((h) => (
+                        <a
+                          key={h.id}
+                          href={`/admin/users/${h.id}`}
+                          className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full border border-[#E8DDD0] bg-white text-xs text-gray-700 hover:bg-[#F5EFE6] transition-colors"
+                          title={h.email}
+                        >
+                          <span className="font-medium">{hostDisplayName(h)}</span>
+                          <span className="text-gray-400">{h.email}</span>
+                        </a>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-400 italic">No hosts assigned.</p>
+                  )
+                ) : (
+                  <div className="space-y-3">
+                    {(hostsDraft ?? []).length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {(hostsDraft ?? []).map((h) => (
+                          <span
+                            key={h.id}
+                            className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full border border-[#E8DDD0] bg-white text-xs text-gray-700"
+                            title={h.email}
+                          >
+                            <span className="font-medium">{hostDisplayName(h)}</span>
+                            <span className="text-gray-400">{h.email}</span>
+                            <button
+                              type="button"
+                              onClick={() => removeHost(h.id)}
+                              disabled={editBusy}
+                              className="ml-1 text-gray-400 hover:text-[#6E1F2B] transition-colors disabled:opacity-50"
+                              aria-label={`Remove ${hostDisplayName(h)}`}
+                            >
+                              ×
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-400 italic">No hosts assigned.</p>
+                    )}
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="email"
+                        value={hostInputEmail}
+                        onChange={(e) => {
+                          setHostInputEmail(e.target.value)
+                          setHostAddError(null)
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            addHostByEmail()
+                          }
+                        }}
+                        placeholder="Add host by email…"
+                        disabled={editBusy}
+                        className="flex-1 min-w-[200px] bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#6E1F2B] disabled:opacity-50 transition-colors"
+                      />
+                      <button
+                        type="button"
+                        onClick={addHostByEmail}
+                        disabled={editBusy || !hostInputEmail.trim()}
+                        className="px-3 py-2 rounded-lg border border-[#E8DDD0] bg-white text-sm text-gray-700 hover:bg-[#F5EFE6] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Add
+                      </button>
+                    </div>
+                    {hostAddError && (
+                      <p className="text-xs text-red-600">{hostAddError}</p>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="mb-3">

@@ -201,12 +201,13 @@ export async function getEventsForAdmin(opts: {
 export async function getEventFlags(eventId: string): Promise<{
   image_url: string
   featured: boolean
+  host_ids: string[]
 } | null> {
   if (!eventId) return null
   const supabase = getSupabase()
   const { data, error } = await supabase
     .from('events')
-    .select('image_url, featured')
+    .select('image_url, featured, host_ids')
     .eq('id', eventId)
     .maybeSingle()
   if (error) {
@@ -214,10 +215,15 @@ export async function getEventFlags(eventId: string): Promise<{
     return null
   }
   if (!data) return null
-  const row = data as { image_url: string | null; featured: boolean | null }
+  const row = data as {
+    image_url: string | null
+    featured: boolean | null
+    host_ids: string[] | null
+  }
   return {
     image_url: row.image_url ?? '',
     featured: row.featured === true,
+    host_ids: row.host_ids ?? [],
   }
 }
 

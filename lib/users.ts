@@ -124,6 +124,32 @@ export async function getUserById(userId: string): Promise<AirtableUser | null> 
   return data ? toAirtableUser(data as UserRow) : null
 }
 
+// Bulk fetch by id. Used by the admin event detail page to resolve
+// host_ids -> {name, email} for display. Preserves the input order so
+// callers can rely on the array shape (deduped + missing-id-filtered).
+export async function getUsersByIds(ids: string[]): Promise<AirtableUser[]> {
+  const unique = Array.from(new Set(ids.filter(Boolean)))
+  if (unique.length === 0) return []
+  const supabase = getSupabase()
+  const { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .in('id', unique)
+  if (error) {
+    console.error('getUsersByIds error', { ids: unique, error })
+    return []
+  }
+  const byId = new Map<string, AirtableUser>(
+    (data ?? []).map((row) => [
+      (row as UserRow).id,
+      toAirtableUser(row as UserRow),
+    ]),
+  )
+  return unique
+    .map((id) => byId.get(id))
+    .filter((u): u is AirtableUser => Boolean(u))
+}
+
 // All active, non-deleted users. Matching loop scope. The matching code
 // already filters out users with missing Grade/Function/Seniority downstream
 // (via isMatchEligible), so we don't pre-filter on those here — the contract
