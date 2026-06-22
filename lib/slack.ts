@@ -30,12 +30,11 @@ export async function postSlack(text: string): Promise<void> {
 
 // New user signup. Mirrors the existing Airtable automation format —
 // LinkedIn, Employment+Size, Interest, email, "Find" (how they heard about
-// us). Deep links to the admin user detail page so admin can triage in one
-// click.
+// us, sourced from UserProfile.learn). Deep links to the admin user detail
+// page so admin can triage in one click.
 export async function notifyNewUser(
   profile: UserProfile,
   userId: string,
-  howTheyHeard?: string,
 ): Promise<void> {
   const lines: string[] = ['*New user*']
   if (profile.linkedin) lines.push(profile.linkedin)
@@ -43,7 +42,7 @@ export async function notifyNewUser(
   if (employmentLine) lines.push(`*Employment* (${employmentLine})`)
   if (profile.interest) lines.push(`*Interest* (${profile.interest})`)
   if (profile.email) lines.push(profile.email)
-  if (howTheyHeard) lines.push(`*Find* (${howTheyHeard})`)
+  if (profile.learn) lines.push(`*Find* (${profile.learn})`)
   lines.push(`${APP_URL}/admin/users/${userId}`)
   await postSlack(lines.join('\n'))
 }
