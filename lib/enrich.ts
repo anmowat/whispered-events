@@ -78,12 +78,35 @@ export interface EnrichmentResult {
   reason?: string
 }
 
+// Strip surrounding quotes + whitespace from an env-var value. Common
+// paste-from-terminal artifact (e.g. `"abc123"\n`) silently breaks header
+// auth otherwise. Mirrors the `normalize` helper used elsewhere for
+// webhook-secret comparisons.
+function normalizeSecret(v: string | undefined): string {
+  if (!v) return ''
+  let s = v.trim()
+  if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
+    s = s.slice(1, -1)
+  }
+  return s
+}
+
+// Fingerprint a secret so we can verify the value matches what's expected
+// without exposing it in logs. Same shape as the airtable-rematch debug
+// log: first 2 + last 2 chars + length.
+function fingerprint(v: string): string {
+  if (!v) return '<empty>'
+  if (v.length <= 4) return `<short len=${v.length}>`
+  return `${v.slice(0, 2)}…${v.slice(-2)}(len=${v.length})`
+}
+
 export async function enrichUserFromLinkedIn(
   userId: string,
   linkedinUrl: string,
 ): Promise<EnrichmentResult> {
   if (!linkedinUrl) return { ok: false, reason: 'no linkedin url on record' }
-  if (!process.env.ANYSITE_API_KEY) {
+  const apiKey = normalizeSecret(process.env.ANYSITE_API_KEY)
+  if (!apiKey) {
     return { ok: false, reason: 'ANYSITE_API_KEY not set' }
   }
 
@@ -94,13 +117,24 @@ export async function enrichUserFromLinkedIn(
       method: 'POST',
       headers: {
         // AnySite uses access-token, NOT Authorization: Bearer.
-        'access-token': process.env.ANYSITE_API_KEY,
+        'access-token': apiKey,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ user: handle, with_experience: true }),
     })
   } catch (err) {
     return { ok: false, reason: `AnySite fetch failed: ${err instanceof Error ? err.message : String(err)}` }
+  }
+
+  // 401 means the access-token header didn't authenticate. Log a fingerprint
+  // of the key so admin can compare against the AnySite dashboard value
+  // without exposing the secret in plaintext.
+  if (resp.status === 401) {
+    console.error('enrichUserFromLinkedIn: AnySite 401', {
+      handle,
+      keyFingerprint: fingerprint(apiKey),
+      rawEnvLen: process.env.ANYSITE_API_KEY?.length ?? 0,
+    })
   }
 
   if (!resp.ok) {
