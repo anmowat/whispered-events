@@ -3,6 +3,7 @@ import { waitUntil } from '@vercel/functions'
 import { verifySession, markAllMatchesNotifiedForUser } from '@/lib/supabase'
 import { updateUserProfile, UserProfileUpdate } from '@/lib/airtable'
 import { getUserByEmail } from '@/lib/users'
+import { notifyUserProfileUpdate } from '@/lib/slack'
 
 // Frequencies that result in an email digest. 'Paused' opts out.
 const DIGEST_FREQUENCIES = new Set(['As they arrive', 'Weekly', 'Monthly'])
@@ -58,6 +59,30 @@ export async function POST(req: NextRequest) {
       const nowDigest = DIGEST_FREQUENCIES.has(update.frequency)
       if (wasNonDigest && nowDigest) {
         await markAllMatchesNotifiedForUser(updated.id)
+      }
+    }
+
+    // Internal Slack alert. Only fires when the user actually saved
+    // something (updated is non-null) and only includes the fields that
+    // were present in the request payload so the message stays terse.
+    if (updated) {
+      const changes: Record<string, string> = {}
+      if (update.location !== undefined) changes.location = update.location
+      if (update.interest !== undefined) changes.interest = update.interest
+      if (update.employment !== undefined) changes.employment = update.employment
+      if (update.companySize !== undefined) changes.companySize = update.companySize
+      if (update.frequency !== undefined) changes.frequency = update.frequency
+      if (update.function !== undefined) changes.function = update.function
+      if (Object.keys(changes).length > 0) {
+        waitUntil(
+          notifyUserProfileUpdate({
+            email,
+            userId: updated.id,
+            changes,
+          }).catch((e) =>
+            console.error('dashboard/profile: notifyUserProfileUpdate failed', e),
+          ),
+        )
       }
     }
 

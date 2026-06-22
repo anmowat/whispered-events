@@ -5,6 +5,7 @@ import { getPartnerUserByEmail } from '@/lib/users'
 import { checkDuplicate } from '@/lib/events'
 import { recordContribution, getContributionStats } from '@/lib/supabase'
 import { sendEventSubmittedEmail } from '@/lib/email'
+import { notifyNewEvent } from '@/lib/slack'
 import { EventRecord, VIRTUAL_LOCATION_RE } from '@/lib/types'
 
 // Create-only endpoint as of the host-flow cleanup. Editing existing events
@@ -66,6 +67,14 @@ export async function POST(req: NextRequest) {
     }
 
     const id = await createEvent(event, hostUserId, 'Dashboard')
+
+    // Internal Slack alert for the new event. Background so a Slack
+    // outage doesn't slow the submitter response.
+    waitUntil(
+      notifyNewEvent(event, id).catch((e) =>
+        console.error('submit-event: notifyNewEvent failed', e),
+      ),
+    )
 
     // Record + count + confirmation email all chain inside one
     // waitUntil so the submitter response stays fast but the email

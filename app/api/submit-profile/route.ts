@@ -3,6 +3,7 @@ import { waitUntil } from '@vercel/functions'
 import { createProfile } from '@/lib/airtable'
 import { sendUserAppliedEmail } from '@/lib/email'
 import { enrichUserFromLinkedIn } from '@/lib/enrich'
+import { notifyNewUser } from '@/lib/slack'
 import { UserProfile } from '@/lib/types'
 import { upsertDigestState } from '@/lib/supabase'
 import { nextSundayAfter } from '@/lib/digest'
@@ -25,7 +26,18 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const id = await createProfile(profile)
+    const { id, isNew } = await createProfile(profile)
+
+    // Fire the internal Slack alert for brand-new signups only. Returning
+    // users who re-submit the form (e.g. to fix a typo) don't ping. Runs in
+    // the background — Slack outages don't block the response.
+    if (isNew) {
+      waitUntil(
+        notifyNewUser(profile, id).catch((e) =>
+          console.error('submit-profile: notifyNewUser failed', e),
+        ),
+      )
+    }
 
     // Seed monthly digest anchor: first monthly digest fires the Sunday after
     // signup, then advances 28 days each tick. Harmless for non-monthly users.

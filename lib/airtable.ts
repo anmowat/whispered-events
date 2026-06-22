@@ -925,7 +925,12 @@ export async function getUserById(userId: string): Promise<AirtableUser | null> 
 
 export const DEFAULT_FREQUENCY = 'Monthly'
 
-export async function createProfile(profile: UserProfile): Promise<string> {
+// Returns the user id along with isNew so callers can fire one-time-only
+// signup side effects (Slack alert, welcome email) without re-pinging on
+// re-submissions by existing users.
+export async function createProfile(
+  profile: UserProfile,
+): Promise<{ id: string; isNew: boolean }> {
   const supabase = getSupabase()
   const email = profile.email.trim().toLowerCase()
 
@@ -1001,7 +1006,7 @@ export async function createProfile(profile: UserProfile): Promise<string> {
     linkContributionsToUser(existing.id, email).catch((e) =>
       console.error('createProfile: linkContributionsToUser failed', e),
     )
-    return existing.id
+    return { id: existing.id, isNew: false }
   }
 
   // Brand-new signup. Generate an Airtable-shaped id so downstream foreign
@@ -1030,7 +1035,7 @@ export async function createProfile(profile: UserProfile): Promise<string> {
   linkContributionsToUser(id, email).catch((e) =>
     console.error('createProfile: linkContributionsToUser failed', e),
   )
-  return id
+  return { id, isNew: true }
 }
 
 // Future events where the given Airtable user id appears in the Host linked
