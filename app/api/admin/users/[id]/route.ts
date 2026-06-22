@@ -7,6 +7,7 @@ import { getAllMatchesForUser, getContributionStats, getLastSeenForEmail } from 
 import { updateUserAdmin, type UserAdminUpdate } from '@/lib/airtable'
 import { triggerUserApprovedFlow } from '@/lib/user-approval'
 import { withinMiles } from '@/lib/geocode'
+import { SENIORITY_OPTIONS } from '@/lib/seniority'
 
 const NEARBY_RADIUS_MILES = 100
 
@@ -137,6 +138,9 @@ export async function GET(
 // fires once per save (and the match scorer reruns once, not per field).
 const VALID_GRADES = new Set(['A', 'Polish', 'B', 'C', ''])
 const VALID_STATUSES = new Set(['Pending', 'Live', 'Passed', 'Deactivated', 'Partner'])
+// Empty string allowed so admin can clear a legacy non-canonical value
+// (e.g. "Senior") that pre-dated the picklist.
+const VALID_SENIORITIES = new Set<string>([...SENIORITY_OPTIONS, ''])
 
 export async function PATCH(
   req: NextRequest,
@@ -157,7 +161,9 @@ export async function PATCH(
     if (typeof body.name === 'string') update.name = body.name
     if (typeof body.firstName === 'string') update.firstName = body.firstName
     if (typeof body.function === 'string') update.function = body.function
-    if (typeof body.seniority === 'string') update.seniority = body.seniority
+    if (typeof body.seniority === 'string' && VALID_SENIORITIES.has(body.seniority)) {
+      update.seniority = body.seniority
+    }
     if (typeof body.grade === 'string' && VALID_GRADES.has(body.grade)) {
       update.grade = body.grade as UserAdminUpdate['grade']
     }

@@ -9,6 +9,7 @@ import {
   statusPillClass,
   type UserStatus,
 } from '@/lib/user-status'
+import { SENIORITY_OPTIONS, normalizeSeniority } from '@/lib/seniority'
 
 interface UserDetail {
   id: string
@@ -611,14 +612,17 @@ function UserEditForm({
           />
         </FormField>
         <FormField label="Seniority">
-          <input
-            type="text"
-            value={draft.seniority}
+          <select
+            value={normalizeSeniority(draft.seniority)}
             disabled={disabled}
             onChange={(e) => update('seniority', e.target.value)}
-            placeholder="leave blank to clear"
             className={input}
-          />
+          >
+            <option value="">— blank —</option>
+            {SENIORITY_OPTIONS.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
         </FormField>
         <FormField label="Grade">
           <select

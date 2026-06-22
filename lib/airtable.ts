@@ -27,6 +27,20 @@ function deriveLifecycle(status: string): { active: boolean; is_partner: boolean
   }
 }
 
+// First-token-of-name helper. Mirrors the Airtable formula
+//   IF(FIND(" ", Name & " ") > 1, LEFT(Name, FIND(" ", Name & " ") - 1), Name)
+// so freshly enriched users (where AnySite returns a full name and admin
+// hasn't set FirstName yet) get a usable first_name automatically. The
+// space-or-fallback shape handles single-token names ("Madonna") without
+// returning an empty string.
+function deriveFirstName(fullName: string): string {
+  const trimmed = (fullName || '').trim()
+  if (!trimmed) return ''
+  const spaceIdx = trimmed.indexOf(' ')
+  if (spaceIdx <= 0) return trimmed
+  return trimmed.slice(0, spaceIdx)
+}
+
 // One-way push of an event update to Airtable. Fire-and-forget at the call
 // site via waitUntil so the admin save returns fast. Errors land in
 // console.error with the id + payload so manual replay is trivial; we don't
@@ -855,6 +869,16 @@ export async function updateUserAdmin(
 
   if (update.name !== undefined) row.name = update.name
   if (update.firstName !== undefined) row.first_name = update.firstName
+  // Auto-derive first_name from name (matches the Airtable formula
+  // LEFT(Name, FIND(" ", Name)-1)). Fires when name is in the patch but
+  // firstName isn't — e.g. enrichment populates the full name from
+  // LinkedIn without touching firstName. An explicit firstName in the
+  // same patch always wins, so admin can manually override when the
+  // first-token heuristic gets it wrong (e.g. "Mary Ann Smith" -> admin
+  // sets firstName="Mary Ann").
+  if (update.name !== undefined && update.firstName === undefined) {
+    row.first_name = deriveFirstName(update.name)
+  }
   if (update.function !== undefined) row.fn = update.function
   if (update.interest !== undefined) row.interest = update.interest
   if (update.linkedin !== undefined) row.linkedin = update.linkedin
