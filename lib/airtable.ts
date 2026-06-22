@@ -6,6 +6,11 @@ import stringSimilarity from 'string-similarity'
 import { geocodeLocation } from './geocode'
 import { linkContributionsToUser } from './supabase'
 import { newUserId } from './user-id'
+import { inferLikelyGender } from './gender'
+
+// Topics field already contains a Women-coded term (matches matching.ts
+// gate so the auto-tag never duplicates an existing opt-in).
+const WOMEN_TOPIC_RE = /\bwomen\b|\bwomxn\b|\bfemale\b/i
 
 // Supabase is canonical for both Users and Events. Airtable still receives a
 // best-effort follower write on event edits so the admin's Airtable view
@@ -881,6 +886,40 @@ export async function updateUserAdmin(
   }
   if (update.function !== undefined) row.fn = update.function
   if (update.interest !== undefined) row.interest = update.interest
+
+  // Auto-tag Women on first_name writes when the inferred gender is female
+  // and the user hasn't already opted in. Enrichment writes (name → derived
+  // first_name) catch new signups; the /api/admin/backfill-women-tag
+  // endpoint handles existing rows. Self-service edits via
+  // /dashboard/profile don't touch name and so don't trigger this — users
+  // can still remove the tag from their topics on the dashboard if they
+  // prefer not to receive women-only event matches.
+  const effectiveFirstName =
+    update.firstName !== undefined
+      ? update.firstName
+      : update.name !== undefined
+        ? deriveFirstName(update.name)
+        : null
+  if (
+    effectiveFirstName &&
+    inferLikelyGender(effectiveFirstName) === 'female'
+  ) {
+    let baseInterest: string | null = null
+    if (typeof update.interest === 'string') {
+      baseInterest = update.interest
+    } else {
+      const { data: existing } = await supabase
+        .from('users')
+        .select('interest')
+        .eq('id', id)
+        .maybeSingle()
+      baseInterest = String(existing?.interest ?? '')
+    }
+    if (!WOMEN_TOPIC_RE.test(baseInterest)) {
+      const trimmed = baseInterest.trim()
+      row.interest = trimmed ? `${trimmed}, Women` : 'Women'
+    }
+  }
   if (update.linkedin !== undefined) row.linkedin = update.linkedin
   if (update.learn !== undefined) row.learn = update.learn
 

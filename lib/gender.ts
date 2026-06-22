@@ -171,15 +171,17 @@ const MALE_NAMES = new Set<string>([
   'thierry', 'thibault', 'pascal', 'sebastien', 'sébastien', 'gaspard',
 ])
 
-// Strips accents + lowercases + trims so the lookup is robust to
-// "André" vs "andre", "  John" vs "john", etc. We intentionally don't
-// split tokens — `firstName` is already first-name-only from Airtable.
+// Strips accents + lowercases + trims, then takes the first whitespace-
+// separated token so callers can pass a full name when no firstName is
+// available ("John Smith" -> "john"). Robust to "André" vs "andre",
+// "  John" vs "john", "Mary Ann Smith" -> "mary", etc.
 function normalizeFirstName(raw: string): string {
   return raw
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
     .trim()
     .toLowerCase()
+    .split(/\s+/)[0] || ''
 }
 
 export function inferLikelyGender(

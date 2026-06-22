@@ -258,7 +258,11 @@ function shouldExcludeFromWomenOnlyEvent(
 ): boolean {
   if (!isWomenOnlyAudience(event.audience)) return false
   if (topicsIncludeWomen(user.interest)) return false
-  return inferLikelyGender(user.firstName ?? user.name ?? '') === 'male'
+  // `||` (not `??`) so empty-string firstName falls back to the full name.
+  // ?? only catches null/undefined — legacy rows with first_name='' would
+  // pass empty into inferLikelyGender otherwise and slip through the gate.
+  const inferenceSource = user.firstName || user.name || ''
+  return inferLikelyGender(inferenceSource) === 'male'
 }
 
 export async function scoreEventUser(
