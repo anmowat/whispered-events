@@ -146,15 +146,9 @@ export function cleanEventLink(raw: string): string {
   return url.toString()
 }
 
-// The 90-second in-memory user/event caches that used to live here are
-// gone with Phase 2 — every read now goes to Supabase via lib/users.ts
-// and lib/events.ts. getActiveUsers / getFutureEvents below are kept as
-// fallback paths for code that still imports from this module, but no
-// caller does today. Writes (createEvent / updateEvent / etc.) used to
-// call invalidate* to bust the cache before downstream reads; that's no
-// longer necessary because there's no cache to bust. The matching loop
-// handles read-after-write staleness via syncSingleEvent / syncSingleUser
-// in lib/sync.ts.
+// Every read now goes to Supabase via lib/users.ts and lib/events.ts. The
+// fallback getActiveUsers / getFutureEvents Airtable readers below are dead
+// code — kept temporarily for grep history; safe to delete in a follow-up.
 
 export async function getEventsCount(): Promise<number> {
   const base = getBase()
@@ -463,12 +457,9 @@ export async function createEvent(
     source: source || '',
     image_url: '',
     host_ids: hostUserId ? [hostUserId] : [],
-    // approved is the soft-deprecated legacy column; keep it true so any
-    // reader that still references it gets the right answer for events
-    // that haven't been triaged yet. status='Pending' is the canonical gate
-    // — getFutureEvents and friends filter on status='Live' so a freshly
-    // submitted event won't appear in user dashboards until admin approves.
-    approved: true,
+    // status='Pending' is the canonical gate — getFutureEvents and friends
+    // filter on status='Live' so a freshly submitted event won't appear in
+    // user dashboards until admin approves.
     status: 'Pending',
     featured: false,
     airtable_created_at: nowIso,
@@ -828,16 +819,10 @@ export async function updateUserProfile(
 
 // Admin-scoped sibling of updateUserProfile. Keyed by record id (not email),
 // accepts the full editable field set, and intentionally is the only path
-// that can flip Active/Grade — those are admin actions, not user
-// self-service. Same mirror-back pattern: write to Airtable, then immediately
-// upsert into Supabase via syncSingleUser so the admin sees the change
-// without waiting for the cron.
-//
-// `active` boolean maps to Airtable's text Active column as "Active" /
-// "Inactive" — the same shape the sync layer reads (activeRaw.toLowerCase()
-// === 'active'). Single-select fields (Seniority, Size, Employment,
-// Frequency, Grade) accept an empty string that we translate to `null` so
-// Airtable clears the cell instead of trying to create a new option named ''.
+// that can flip Status / Grade — those are admin actions, not user
+// self-service. Writes Supabase directly; Airtable Users is no longer
+// touched (since 83580c0). Empty single-select values clear to null on the
+// Supabase side, matching the shape callers expect.
 export type UserStatus = 'Pending' | 'Live' | 'Passed' | 'Deactivated' | 'Partner'
 
 export interface UserAdminUpdate {

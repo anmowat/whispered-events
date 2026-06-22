@@ -19,9 +19,10 @@ function getSupabase() {
   return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
 }
 
-// Shape of the row coming back from public.events. Mirrors what lib/sync.ts
-// writes today, plus the Phase 1 fields (host_ids, submitter_email, source,
-// image_url, approved). Kept private; callers see AirtableEvent.
+// Shape of the row coming back from public.events. Kept private; callers
+// see AirtableEvent. status is the lifecycle gate (added in
+// 20260622180000_event_status.sql); the legacy approved boolean was dropped
+// in 20260622200000_drop_event_approved.sql.
 interface EventRow {
   id: string
   name: string
@@ -37,9 +38,6 @@ interface EventRow {
   source: string | null
   image_url: string | null
   host_ids: string[] | null
-  approved: boolean
-  // Lifecycle picklist added in 20260622180000_event_status.sql. Canonical
-  // gate going forward; `approved` stays as a soft-deprecated compat shim.
   status: string | null
   featured: boolean
   airtable_created_at: string | null
