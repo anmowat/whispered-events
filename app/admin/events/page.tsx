@@ -129,8 +129,6 @@ export default function AdminEventsPage() {
   // Defaulting to future + all keeps the page's existing behavior.
   const [scope, setScope] = useState<Scope>('future')
   const [featuredFilter, setFeaturedFilter] = useState<FeaturedFilter>('all')
-  const [syncing, setSyncing] = useState(false)
-  const [syncMessage, setSyncMessage] = useState<string | null>(null)
 
   function toggleSort(key: SortKey) {
     if (sortBy === key) {
@@ -165,45 +163,6 @@ export default function AdminEventsPage() {
       setErrorMsg(e instanceof Error ? e.message : String(e))
     }
   }
-
-  async function handleSync() {
-    if (syncing) return
-    setSyncing(true)
-    setSyncMessage(null)
-    try {
-      const res = await fetch('/api/admin/sync-airtable?only=events', {
-        method: 'POST',
-        cache: 'no-store',
-      })
-      const data = (await res.json().catch(() => ({}))) as {
-        ok?: boolean
-        error?: string
-        stats?: { events?: { upserted?: number; tombstoned?: number } }
-      }
-      if (!res.ok) {
-        setSyncMessage(`Sync failed: ${data.error || `HTTP ${res.status}`}`)
-        return
-      }
-      const ev = data.stats?.events
-      setSyncMessage(
-        ev
-          ? `Synced ${ev.upserted ?? 0} events${ev.tombstoned ? ` · tombstoned ${ev.tombstoned}` : ''}`
-          : 'Synced.',
-      )
-      await fetchEvents()
-    } catch (e) {
-      setSyncMessage(`Sync failed: ${e instanceof Error ? e.message : String(e)}`)
-    } finally {
-      setSyncing(false)
-    }
-  }
-
-  // Clear the sync message after a few seconds so it doesn't linger.
-  useEffect(() => {
-    if (!syncMessage) return
-    const id = setTimeout(() => setSyncMessage(null), 6000)
-    return () => clearTimeout(id)
-  }, [syncMessage])
 
   useEffect(() => {
     fetchEvents()
@@ -305,21 +264,6 @@ export default function AdminEventsPage() {
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                {syncMessage && (
-                  <span
-                    className={`text-xs ${syncMessage.startsWith('Sync failed') ? 'text-red-600' : 'text-gray-500'}`}
-                  >
-                    {syncMessage}
-                  </span>
-                )}
-                <button
-                  onClick={handleSync}
-                  disabled={syncing}
-                  className="px-3 py-1.5 rounded-lg border border-[#E8DDD0] bg-white text-xs text-gray-700 hover:bg-[#F5EFE6] transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                  title="Pull the latest Airtable events into Supabase"
-                >
-                  {syncing ? 'Syncing…' : 'Sync from Airtable'}
-                </button>
                 <button
                   onClick={fetchEvents}
                   className="px-3 py-1.5 rounded-lg border border-[#E8DDD0] bg-white text-xs text-gray-700 hover:bg-[#F5EFE6] transition-colors shadow-sm"
