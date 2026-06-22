@@ -37,9 +37,16 @@ export async function GET(req: NextRequest) {
     }
   })
 
+  // Hard hide thumbs-down: once a user rates a match `down`, it drops off
+  // their dashboard. The matches row still carries the rating (admin
+  // analytics + the internal notification email still fire), but the user
+  // doesn't see the event again on this page. ?all=1 bypasses both filters
+  // for admin/debug viewing.
   const filtered = showAll
     ? withScores
-    : withScores.filter((e) => (e.matchScore ?? 0) >= NOTIFY_THRESHOLD)
+    : withScores.filter(
+        (e) => (e.matchScore ?? 0) >= NOTIFY_THRESHOLD && e.rating !== 'down',
+      )
 
   const events = filtered.sort((a, b) => a.date.localeCompare(b.date))
   return NextResponse.json({ events })
