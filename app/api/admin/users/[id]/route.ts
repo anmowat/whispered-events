@@ -6,6 +6,9 @@ import { getFutureEvents } from '@/lib/events'
 import { getAllMatchesForUser, getContributionStats, getLastSeenForEmail } from '@/lib/supabase'
 import { updateUserAdmin, type UserAdminUpdate } from '@/lib/airtable'
 import { triggerUserApprovedFlow } from '@/lib/user-approval'
+import { withinMiles } from '@/lib/geocode'
+
+const NEARBY_RADIUS_MILES = 100
 
 // Admin user detail: returns the user's profile fields plus every future
 // event scored against them, sorted by match % desc, with per-pair score
@@ -41,9 +44,27 @@ export async function GET(
 
     const byEventId = new Map(matchRows.map((m) => [m.event_id, m]))
 
-    // Build one row per future event. Events with no match row get null
-    // scores and fall to the bottom of the sort.
-    const events = futureEvents
+    // Restrict to events within 100mi of the user. Out-of-range events drop
+    // off the list entirely so admin sees only events the user could
+    // realistically attend. Events missing lat/lng or users missing lat/lng
+    // are excluded too — both signal a geocoding issue that needs fixing on
+    // the source row before the match makes sense.
+    const userPoint =
+      typeof user.lat === 'number' && typeof user.lng === 'number'
+        ? { lat: user.lat, lng: user.lng }
+        : null
+    const inRange = userPoint
+      ? futureEvents.filter(
+          (e) =>
+            typeof e.lat === 'number' &&
+            typeof e.lng === 'number' &&
+            withinMiles(userPoint, { lat: e.lat, lng: e.lng }, NEARBY_RADIUS_MILES),
+        )
+      : []
+
+    // Build one row per in-range event. Events with no match row get null
+    // scores and fall to the bottom of the sort (treated as 0%).
+    const events = inRange
       .map((e) => {
         const m = byEventId.get(e.id)
         return {
