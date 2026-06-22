@@ -634,7 +634,7 @@ function renderCoachingNoMatches(
       { mt: 14 },
     )}
     <p style="font-family:${SANS};font-size:14.5px;line-height:1.6;color:${C.ink2};margin:14px 0 0;">
-      <strong style="color:${C.ink};">1. Update your topics</strong> on your <a href="${DASHBOARD_LINK}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">dashboard</a> — add subjects you want events about (e.g. "RevOps", "GTM", "AI agents", specific industries).
+      <strong style="color:${C.ink};">1. Update your profile</strong> on your <a href="${DASHBOARD_LINK}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">dashboard</a> — update the function we pulled from LinkedIn and your topics you are interested in.
     </p>
     <p style="font-family:${SANS};font-size:14.5px;line-height:1.6;color:${C.ink2};margin:10px 0 0;">
       <strong style="color:${C.ink};">2. Share events in topics you care about</strong> — email any link to <a href="${NEW_EVENT_MAILTO}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">event@whispered.com</a> to help build momentum.
@@ -648,7 +648,7 @@ function renderCoachingNoMatches(
     '',
     `We have ${nearbyCount} upcoming ${noun} within 100 miles of ${locationPhrase}, but none are matching your profile yet. Two ways to fix that:`,
     '',
-    `1. Update your topics on your dashboard — add subjects you want events about (e.g. "RevOps", "GTM", "AI agents", specific industries).`,
+    `1. Update your profile on your dashboard — update the function we pulled from LinkedIn and your topics you are interested in.`,
     `2. Share events in topics you care about — email any link to event@whispered.com to help build momentum.`,
     '',
     ...digestFooterTextLines(firstName),
@@ -1129,7 +1129,7 @@ function renderInlineCoaching(safeLocation: string, nearbyCount: number): string
   return `
 <p style="font-family:${SANS};font-size:14.5px;line-height:1.6;color:${C.ink2};margin:14px 0 0;">We do have ${nearbyCount} upcoming ${noun} within 100 miles of ${locationPhrase} — your profile just isn't matching them yet.</p>
 <p style="font-family:${SANS};font-size:14.5px;line-height:1.6;color:${C.ink2};margin:10px 0 0;">
-  <strong style="color:${C.ink};">1. Update your topics</strong> on your <a href="${DASHBOARD_LINK}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">dashboard</a> — add subjects you want events about (e.g. "RevOps", "GTM", "AI agents", specific industries).
+  <strong style="color:${C.ink};">1. Update your profile</strong> on your <a href="${DASHBOARD_LINK}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">dashboard</a> — update the function we pulled from LinkedIn and your topics you are interested in.
 </p>
 <p style="font-family:${SANS};font-size:14.5px;line-height:1.6;color:${C.ink2};margin:10px 0 0;">
   <strong style="color:${C.ink};">2. Share events in topics you care about</strong> — email any link to <a href="${NEW_EVENT_MAILTO}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">event@whispered.com</a> to help build momentum.
@@ -1150,7 +1150,7 @@ function inlineCoachingTextLines(location: string, nearbyCount: number): string[
   return [
     `We do have ${nearbyCount} upcoming ${noun} within 100 miles of ${locationPhrase} — your profile just isn't matching them yet.`,
     '',
-    `1. Update your topics on your dashboard — add subjects you want events about (e.g. "RevOps", "GTM", "AI agents", specific industries).`,
+    `1. Update your profile on your dashboard — update the function we pulled from LinkedIn and your topics you are interested in.`,
     `2. Share events in topics you care about — email any link to event@whispered.com to help build momentum.`,
   ]
 }
