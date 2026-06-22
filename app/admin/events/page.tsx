@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import LoginModal from '@/components/LoginModal'
 import { AdminTabs } from '@/components/AdminTabs'
 import { formatEventDate } from '@/lib/dates'
+import { normalizeEventStatus, eventStatusDotClass } from '@/lib/event-status'
 
 interface EventRow {
   id: string
@@ -19,6 +20,7 @@ interface EventRow {
   usersInRange: number
   matchPct: number | null
   featured: boolean
+  status: string
 }
 
 interface Stats {
@@ -129,6 +131,10 @@ export default function AdminEventsPage() {
   // Defaulting to future + all keeps the page's existing behavior.
   const [scope, setScope] = useState<Scope>('future')
   const [featuredFilter, setFeaturedFilter] = useState<FeaturedFilter>('all')
+  // Lifecycle bucket. Default 'live' = matching-loop scope (what the rest of
+  // the app sees). toApprove surfaces pending events for admin review;
+  // deactivated shows things admin previously pulled.
+  const [statusBucket, setStatusBucket] = useState<'live' | 'toApprove' | 'deactivated' | 'all'>('live')
 
   function toggleSort(key: SortKey) {
     if (sortBy === key) {
@@ -141,7 +147,7 @@ export default function AdminEventsPage() {
 
   async function fetchEvents() {
     try {
-      const qs = new URLSearchParams({ scope, featured: featuredFilter })
+      const qs = new URLSearchParams({ scope, featured: featuredFilter, statusBucket })
       const res = await fetch(`/api/admin/events?${qs}`, { cache: 'no-store' })
       if (res.status === 401) {
         setAuthState('unauthorized')
@@ -171,7 +177,7 @@ export default function AdminEventsPage() {
     // Refetch whenever the server-side filters change. Linter warns about
     // fetchEvents identity but it closes over both deps so this is correct.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scope, featuredFilter])
+  }, [scope, featuredFilter, statusBucket])
 
   const visible = useMemo(() => {
     if (!events) return []
@@ -258,6 +264,10 @@ export default function AdminEventsPage() {
                 <h1 className="text-2xl font-semibold text-gray-900">{SCOPE_LABEL[scope]}</h1>
                 <p className="text-xs text-gray-500 mt-1">
                   {stats?.futureEventCount ?? 0} events
+                  {statusBucket === 'live' && ' · live'}
+                  {statusBucket === 'toApprove' && ' · to approve'}
+                  {statusBucket === 'deactivated' && ' · deactivated'}
+                  {statusBucket === 'all' && ' · all statuses'}
                   {featuredFilter === 'yes' && ' · featured only'}
                   {featuredFilter === 'no' && ' · unfeatured only'}
                   {refreshedAt && ` · refreshed ${refreshedAt.toLocaleTimeString()}`}
@@ -281,6 +291,17 @@ export default function AdminEventsPage() {
                 placeholder="Search by name, location, or audience…"
                 className="flex-1 min-w-[200px] bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-800 placeholder-gray-400 focus:outline-none transition-colors shadow-sm"
               />
+              <select
+                value={statusBucket}
+                onChange={(e) => setStatusBucket(e.target.value as typeof statusBucket)}
+                title="Lifecycle bucket"
+                className="bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none transition-colors shadow-sm"
+              >
+                <option value="live">Live</option>
+                <option value="toApprove">To Approve</option>
+                <option value="deactivated">Deactivated</option>
+                <option value="all">All</option>
+              </select>
               <select
                 value={scope}
                 onChange={(e) => setScope(e.target.value as Scope)}
@@ -362,6 +383,16 @@ export default function AdminEventsPage() {
                         <span className="text-gray-800 underline decoration-[#D9CAB0] underline-offset-2 hover:decoration-gold-700">
                           {e.name}
                         </span>
+                        {(() => {
+                          const s = normalizeEventStatus(e.status)
+                          return (
+                            <span
+                              className={`ml-2 inline-block w-2 h-2 rounded-full border align-middle ${eventStatusDotClass(s)}`}
+                              title={`Status: ${s}`}
+                              aria-label={`Status: ${s}`}
+                            />
+                          )
+                        })()}
                       </td>
                       <td className="px-3 py-3 text-gray-600 text-xs">{e.type || <span className="text-gray-400 italic">—</span>}</td>
                       <td className="px-3 py-3 text-gray-600 text-xs" title={formatEventDate(e.date, { month: 'short', day: 'numeric', year: 'numeric' })}>

@@ -38,6 +38,9 @@ interface EventRow {
   image_url: string | null
   host_ids: string[] | null
   approved: boolean
+  // Lifecycle picklist added in 20260622180000_event_status.sql. Canonical
+  // gate going forward; `approved` stays as a soft-deprecated compat shim.
+  status: string | null
   featured: boolean
   airtable_created_at: string | null
   airtable_deleted_at: string | null
@@ -64,6 +67,7 @@ function toAirtableEvent(row: EventRow): AirtableEvent {
     // created_at (Supabase insert time) is meaningless post-Phase-1.
     created: row.airtable_created_at ?? row.created_at ?? '',
     featured: row.featured === true,
+    status: row.status ?? 'Pending',
   }
 }
 
@@ -77,7 +81,7 @@ export async function getEventsCount(): Promise<number> {
     .from('events')
     .select('id', { count: 'exact', head: true })
     .gte('date', todayIso())
-    .eq('approved', true)
+    .eq('status', 'Live')
     .is('airtable_deleted_at', null)
     .is('deleted_at', null)
   if (error) {
@@ -87,16 +91,16 @@ export async function getEventsCount(): Promise<number> {
   return count ?? 0
 }
 
-// Every future, approved, non-deleted event. Matching loop scope. Approved
-// gate is Phase 4 work; existing rows backfilled with approved=true so the
-// initial Phase 2 swap is behaviour-equivalent to the Airtable read.
+// Every future, Live, non-deleted event. Matching-loop scope and the read
+// for every public event surface (dashboard, digest, etc.). Pending and
+// Deactivated events drop out so admin gating is the canonical filter.
 export async function getFutureEvents(): Promise<AirtableEvent[]> {
   const supabase = getSupabase()
   const { data, error } = await supabase
     .from('events')
     .select('*')
     .gte('date', todayIso())
-    .eq('approved', true)
+    .eq('status', 'Live')
     .is('airtable_deleted_at', null)
     .is('deleted_at', null)
   if (error) {
@@ -133,7 +137,7 @@ export async function getFeaturedEvents(): Promise<FeaturedEvent[]> {
     .from('events')
     .select('id, name, description, link, date, location, image_url')
     .eq('featured', true)
-    .eq('approved', true)
+    .eq('status', 'Live')
     .neq('image_url', '')
     .lt('date', todayIso())
     .is('airtable_deleted_at', null)
@@ -168,20 +172,28 @@ export type FeaturedFilter = 'all' | 'yes' | 'no'
 
 // Admin events list reader. Mirrors getFutureEvents' shape but accepts a date
 // scope and featured filter so the list page can show past + featured rows.
-// approved gate matches the matching-loop semantics; admin sees only the same
-// universe of events the rest of the app does.
+// Admin events list. statusBucket controls the lifecycle filter:
+//   live (default)  status = 'Live'      matches the rest of the app
+//   toApprove        status = 'Pending'   admin triage queue
+//   deactivated      status = 'Deactivated'
+//   all              no status filter — every event regardless of lifecycle
+export type EventStatusBucket = 'live' | 'toApprove' | 'deactivated' | 'all'
+
 export async function getEventsForAdmin(opts: {
   scope?: EventScope
   featured?: FeaturedFilter
+  statusBucket?: EventStatusBucket
 }): Promise<AirtableEvent[]> {
-  const { scope = 'future', featured = 'all' } = opts
+  const { scope = 'future', featured = 'all', statusBucket = 'live' } = opts
   const supabase = getSupabase()
   let q = supabase
     .from('events')
     .select('*')
-    .eq('approved', true)
     .is('airtable_deleted_at', null)
     .is('deleted_at', null)
+  if (statusBucket === 'live') q = q.eq('status', 'Live')
+  else if (statusBucket === 'toApprove') q = q.eq('status', 'Pending')
+  else if (statusBucket === 'deactivated') q = q.eq('status', 'Deactivated')
   const today = todayIso()
   if (scope === 'future') q = q.gte('date', today)
   else if (scope === 'past') q = q.lt('date', today)
@@ -207,7 +219,7 @@ export async function getFutureEventHostIds(): Promise<Set<string>> {
     .from('events')
     .select('host_ids')
     .gte('date', todayIso())
-    .eq('approved', true)
+    .eq('status', 'Live')
     .is('airtable_deleted_at', null)
     .is('deleted_at', null)
   if (error) {
@@ -226,12 +238,13 @@ export async function getEventFlags(eventId: string): Promise<{
   image_url: string
   featured: boolean
   host_ids: string[]
+  status: string
 } | null> {
   if (!eventId) return null
   const supabase = getSupabase()
   const { data, error } = await supabase
     .from('events')
-    .select('image_url, featured, host_ids')
+    .select('image_url, featured, host_ids, status')
     .eq('id', eventId)
     .maybeSingle()
   if (error) {
@@ -243,11 +256,13 @@ export async function getEventFlags(eventId: string): Promise<{
     image_url: string | null
     featured: boolean | null
     host_ids: string[] | null
+    status: string | null
   }
   return {
     image_url: row.image_url ?? '',
     featured: row.featured === true,
     host_ids: row.host_ids ?? [],
+    status: row.status ?? 'Pending',
   }
 }
 

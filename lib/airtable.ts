@@ -463,7 +463,13 @@ export async function createEvent(
     source: source || '',
     image_url: '',
     host_ids: hostUserId ? [hostUserId] : [],
+    // approved is the soft-deprecated legacy column; keep it true so any
+    // reader that still references it gets the right answer for events
+    // that haven't been triaged yet. status='Pending' is the canonical gate
+    // — getFutureEvents and friends filter on status='Live' so a freshly
+    // submitted event won't appear in user dashboards until admin approves.
     approved: true,
+    status: 'Pending',
     featured: false,
     airtable_created_at: nowIso,
   })
@@ -548,6 +554,12 @@ export async function updateEvent(
     // is semantically correct ("featured").
     ;(airtableFields as Record<string, unknown>)['Feature'] = !!fields.featured
     supabaseRow.featured = !!fields.featured
+  }
+  if (fields.status !== undefined) {
+    // Status is Supabase-only for now — Airtable Events table doesn't have a
+    // Status field today. If the admin adds one later, wire it into
+    // airtableFields here. Tracked under the Airtable-mirror cleanup item.
+    supabaseRow.status = fields.status
   }
 
   // Supabase first as the canonical write. Failures bubble up — caller
@@ -659,6 +671,12 @@ export interface AirtableEvent {
   created: string
   /** True when the Featured checkbox is ticked. Drives the homepage carousel. */
   featured?: boolean
+  /**
+   * Lifecycle picklist: Pending (new submission, awaiting admin review),
+   * Live (admin approved, matched + visible to users), Deactivated (admin
+   * pulled, drops out of dashboards). New events default to Pending.
+   */
+  status?: string
 }
 
 export async function getActiveUsers(): Promise<AirtableUser[]> {

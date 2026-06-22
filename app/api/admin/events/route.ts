@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { isAdmin } from '@/lib/admin-auth'
 import { getActiveUsers } from '@/lib/users'
-import { getEventsForAdmin, type EventScope, type FeaturedFilter } from '@/lib/events'
+import { getEventsForAdmin, type EventScope, type FeaturedFilter, type EventStatusBucket } from '@/lib/events'
 import { getMatchCountsByEventId } from '@/lib/supabase'
 import { withinMiles } from '@/lib/geocode'
 
@@ -22,15 +22,26 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url)
   const scope = (url.searchParams.get('scope') as EventScope | null) ?? 'future'
   const featured = (url.searchParams.get('featured') as FeaturedFilter | null) ?? 'all'
+  const statusBucketRaw = url.searchParams.get('statusBucket') || 'live'
   const validScope: EventScope =
     scope === 'past' || scope === 'all' ? scope : 'future'
   const validFeatured: FeaturedFilter =
     featured === 'yes' || featured === 'no' ? featured : 'all'
+  const validStatusBucket: EventStatusBucket =
+    statusBucketRaw === 'toApprove' ||
+    statusBucketRaw === 'deactivated' ||
+    statusBucketRaw === 'all'
+      ? statusBucketRaw
+      : 'live'
 
   try {
     const [allUsers, scopedEvents] = await Promise.all([
       getActiveUsers(),
-      getEventsForAdmin({ scope: validScope, featured: validFeatured }),
+      getEventsForAdmin({
+        scope: validScope,
+        featured: validFeatured,
+        statusBucket: validStatusBucket,
+      }),
     ])
     const eventIds = scopedEvents.map((e) => e.id)
     const matchCounts = await getMatchCountsByEventId(eventIds)
@@ -68,6 +79,7 @@ export async function GET(req: NextRequest) {
         usersInRange,
         matchPct,
         featured: e.featured === true,
+        status: e.status || 'Pending',
       }
     })
 

@@ -22,6 +22,10 @@ export interface EventRecord {
   // Toggled from admin to surface this event on the public homepage
   // carousel. Mirrored to Supabase events.featured by the sync layer.
   featured?: boolean
+  // Lifecycle picklist: Pending (default for new submissions),
+  // Live (admin approved, matched + visible), Deactivated (admin pulled).
+  // Only ever set via the admin event detail page; never by createEvent.
+  status?: 'Pending' | 'Live' | 'Deactivated'
 }
 
 export interface ParsedEvent {

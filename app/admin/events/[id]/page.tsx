@@ -3,6 +3,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
 import LoginModal from '@/components/LoginModal'
+import {
+  EVENT_STATUS_OPTIONS,
+  normalizeEventStatus,
+  eventStatusPillClass,
+  type EventStatus,
+} from '@/lib/event-status'
 
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024
 
@@ -27,6 +33,7 @@ interface EventDetail {
   imageUrl: string
   featured: boolean
   hosts: Host[]
+  status: string
 }
 
 // Draft mirrors EventDetail's editable fields. audience is a comma-joined
@@ -43,6 +50,7 @@ interface EventDraft {
   description: string
   audience: string
   featured: boolean
+  status: EventStatus
 }
 
 function hostDisplayName(h: Host): string {
@@ -63,6 +71,7 @@ function draftFromEvent(e: EventDetail): EventDraft {
     description: e.description,
     audience: e.audience.join(', '),
     featured: e.featured,
+    status: normalizeEventStatus(e.status),
   }
 }
 
@@ -561,6 +570,21 @@ export default function AdminEventDetailPage() {
               )}
               {!isEditing ? (
                 <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+                  <div>
+                    <dt className="text-xs uppercase tracking-wide text-gray-400">Status</dt>
+                    <dd className="mt-0.5">
+                      {(() => {
+                        const s = normalizeEventStatus(event.status)
+                        return (
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded-full border text-xs font-medium ${eventStatusPillClass(s)}`}
+                          >
+                            {s}
+                          </span>
+                        )
+                      })()}
+                    </dd>
+                  </div>
                   <Field label="Name" value={event.name} />
                   <Field label="Type" value={event.type} />
                   <Field label="Date" value={event.date} />
@@ -769,16 +793,36 @@ function EventEditForm({
     'w-full bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:border-[#6E1F2B] disabled:opacity-50 transition-colors'
   return (
     <div className="space-y-4">
-      <label className="inline-flex items-center gap-2 text-sm text-gray-700 cursor-pointer select-none">
-        <input
-          type="checkbox"
-          checked={draft.featured}
-          disabled={disabled}
-          onChange={(e) => update('featured', e.target.checked)}
-          className="w-4 h-4 rounded border-[#E8DDD0] cursor-pointer accent-[#6E1F2B] disabled:opacity-50"
-        />
-        <span className={disabled ? 'opacity-50' : ''}>Featured on homepage</span>
-      </label>
+      <div className="flex flex-wrap items-center gap-4">
+        <label className="inline-flex items-center gap-2 text-sm text-gray-700 select-none">
+          <span className={disabled ? 'opacity-50' : ''}>Status</span>
+          <select
+            value={draft.status}
+            disabled={disabled}
+            onChange={(e) => update('status', e.target.value as EventStatus)}
+            className="bg-white border border-[#E8DDD0] rounded-lg px-2 py-1 text-sm text-gray-800 focus:outline-none focus:border-[#6E1F2B] disabled:opacity-50 transition-colors"
+          >
+            {EVENT_STATUS_OPTIONS.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+          <span
+            className={`inline-flex items-center px-2 py-0.5 rounded-full border text-xs font-medium ${eventStatusPillClass(draft.status)}`}
+          >
+            {draft.status}
+          </span>
+        </label>
+        <label className="inline-flex items-center gap-2 text-sm text-gray-700 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={draft.featured}
+            disabled={disabled}
+            onChange={(e) => update('featured', e.target.checked)}
+            className="w-4 h-4 rounded border-[#E8DDD0] cursor-pointer accent-[#6E1F2B] disabled:opacity-50"
+          />
+          <span className={disabled ? 'opacity-50' : ''}>Featured on homepage</span>
+        </label>
+      </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 text-sm">
         <FormField label="Name">
           <input

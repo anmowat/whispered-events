@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { waitUntil } from '@vercel/functions'
 import { isAdmin } from '@/lib/admin-auth'
 import { getActiveUsers, getUsersByIds, getUserByEmail } from '@/lib/users'
 import { getEventById, getEventFlags } from '@/lib/events'
@@ -47,6 +48,7 @@ export async function GET(
     const imageUrl = flags?.image_url ?? ''
     const featured = flags?.featured ?? false
     const hostIds = flags?.host_ids ?? []
+    const status = flags?.status ?? 'Pending'
     const hostUsers = await getUsersByIds(hostIds)
     const hosts = hostUsers.map((u) => ({
       id: u.id,
@@ -126,6 +128,7 @@ export async function GET(
         imageUrl,
         featured,
         hosts,
+        status,
       },
       users,
       generatedAt: new Date().toISOString(),
@@ -138,12 +141,11 @@ export async function GET(
 }
 
 // Admin event edits go through here in a single PATCH so updateEvent fires
-// once per save — the mirror + match-rerun pipeline that updateEvent triggers
-// is the expensive part, so batching every changed field into one call is the
-// whole reason the UI is grouped Edit/Save instead of inline. Same isAdmin
-// gate; the write fans through lib/airtable.ts:updateEvent so the sync
-// mirror-back converges on the same value next tick.
+// once per save. Same isAdmin gate as the GET; the write fans through
+// lib/airtable.ts:updateEvent (Supabase canonical + best-effort Airtable
+// follower push).
 const VALID_TYPES = new Set(['Conference', 'Dinner', 'Virtual', 'Other'])
+const VALID_EVENT_STATUSES = new Set(['Pending', 'Live', 'Deactivated'])
 
 export async function PATCH(
   req: NextRequest,
@@ -168,6 +170,7 @@ export async function PATCH(
       description?: unknown
       featured?: unknown
       hostEmails?: unknown
+      status?: unknown
     }
 
     const update: Parameters<typeof updateEvent>[1] = {}
@@ -186,6 +189,9 @@ export async function PATCH(
         .filter(Boolean)
     }
     if (typeof body.featured === 'boolean') update.featured = body.featured
+    if (typeof body.status === 'string' && VALID_EVENT_STATUSES.has(body.status)) {
+      update.status = body.status as 'Pending' | 'Live' | 'Deactivated'
+    }
 
     // hostEmails is the canonical edit surface for the host list. Resolve
     // each email to a user id; any unresolved email blocks the save with
@@ -218,9 +224,31 @@ export async function PATCH(
         { status: 400 },
       )
     }
+    // Snapshot prior status before the write so we can detect a transition
+    // into Live and fan out match generation. Only fetched when status is
+    // in the patch — saves an extra read on field-only edits.
+    let priorStatus: string | null = null
+    if (update.status !== undefined) {
+      const priorFlags = await getEventFlags(eventId)
+      priorStatus = priorFlags?.status ?? null
+    }
+
     await updateEvent(eventId, update, hostIds)
     const updated = Object.keys(update)
     if (hostIds !== undefined) updated.push('hostIds')
+
+    // Pending/Deactivated -> Live transition: score this event against
+    // every eligible user so matches are populated by the time users
+    // refresh their dashboards. waitUntil keeps the admin save fast.
+    if (update.status === 'Live' && priorStatus !== 'Live') {
+      const appUrl = new URL(req.url).origin
+      waitUntil(
+        fetch(`${appUrl}/api/process-matches?trigger=event&id=${eventId}`).catch(
+          (e) => console.error('admin/events/[id] PATCH: trigger event match failed', e),
+        ),
+      )
+    }
+
     return NextResponse.json({ ok: true, updated })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
