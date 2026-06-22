@@ -105,6 +105,14 @@ export async function GET(req: NextRequest) {
           grade: u.grade ?? null,
           status: u.status || 'Pending',
           isHost: hostIds.has(u.id),
+          // Fields used by the "To Approve" column set. Cheap to include
+          // unconditionally; payload bump is a few hundred bytes per user.
+          function: u.function || '',
+          seniority: u.seniority || '',
+          employment: u.employment || '',
+          learn: u.learn || '',
+          lat: typeof u.lat === 'number' ? u.lat : null,
+          lng: typeof u.lng === 'number' ? u.lng : null,
           matchCount,
           nearbyEventCount: nearbyCount,
           localMatchPct,

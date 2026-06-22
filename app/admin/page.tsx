@@ -17,6 +17,13 @@ interface UserRow {
   grade: 'A' | 'Polish' | 'B' | 'C' | null
   status: string
   isHost: boolean
+  // Surfaced for the To Approve column set. Live / All views ignore them.
+  function: string
+  seniority: string
+  employment: string
+  learn: string
+  lat: number | null
+  lng: number | null
   matchCount: number
   nearbyEventCount: number
   localMatchPct: number | null
@@ -234,9 +241,12 @@ export default function AdminPage() {
   const [refreshingCache, setRefreshingCache] = useState(false)
   const [cacheResult, setCacheResult] = useState<string | null>(null)
   // Server-side status filter — translates to ?statusBucket= on the API
-  // call. Default 'live' preserves the dashboard's existing behavior
-  // (active users only); other buckets surface the rest of the funnel.
-  const [statusBucket, setStatusBucket] = useState<'live' | 'toApprove' | 'deactivated' | 'all'>('live')
+  // call. Defaults to 'toApprove' so admin lands on the triage queue first;
+  // if the queue is empty, the first fetch auto-switches to 'live'. The
+  // hasAutoFallenBack flag stops the auto-switch from firing again so admin
+  // can stay on the empty queue if they explicitly navigate back.
+  const [statusBucket, setStatusBucket] = useState<'live' | 'toApprove' | 'deactivated' | 'all'>('toApprove')
+  const [hasAutoFallenBack, setHasAutoFallenBack] = useState(false)
 
   function toggleSort(key: SortKey) {
     if (sortBy === key) {
@@ -273,6 +283,19 @@ export default function AdminPage() {
       setStats(data.stats)
       setAuthState('authorized')
       setRefreshedAt(new Date())
+
+      // First-mount default lands on toApprove. If the queue is empty, fall
+      // back to live so admin sees the active list instead of an empty page.
+      // Guarded by hasAutoFallenBack so we don't fight admin who navigates
+      // back to To Approve manually after triaging.
+      if (
+        statusBucket === 'toApprove' &&
+        !hasAutoFallenBack &&
+        data.users.length === 0
+      ) {
+        setHasAutoFallenBack(true)
+        setStatusBucket('live')
+      }
     } catch (e) {
       setAuthState('error')
       setErrorMsg(e instanceof Error ? e.message : String(e))
@@ -605,91 +628,105 @@ export default function AdminPage() {
                         style={{ accentColor: '#8E2E3B' }}
                       />
                     </th>
-                    <SortHeader label="Name" sortKey="name" align="left" sortBy={sortBy} sortDir={sortDir} onToggle={toggleSort} />
-                    <SortHeader label="Location" sortKey="location" align="left" sortBy={sortBy} sortDir={sortDir} onToggle={toggleSort} />
-                    <SortHeader label="Frequency" sortKey="frequency" align="left" sortBy={sortBy} sortDir={sortDir} onToggle={toggleSort} />
-                    <SortHeader
-                      label="Grade"
-                      sortKey="grade"
-                      align="left"
-                      sortBy={sortBy}
-                      sortDir={sortDir}
-                      onToggle={toggleSort}
-                      title="Vetting grade from Airtable. A = strongest fit (quality multiplier 1.5), Polish = solid baseline (1.0), B = down-weighted (0.5), C = won't reach notify threshold (0.25, short-circuited from scoring)."
-                    />
-                    <SortHeader label="Matches" sortKey="matches" align="right" sortBy={sortBy} sortDir={sortDir} onToggle={toggleSort} />
-                    <SortHeader
-                      label="Local"
-                      sortKey="localMatch"
-                      align="right"
-                      sortBy={sortBy}
-                      sortDir={sortDir}
-                      onToggle={toggleSort}
-                      title="Matches divided by total future events within 100 miles of this user's location, as a percentage. Hover any cell in this column for the raw N of M breakdown."
-                    />
-                    <SortHeader
-                      label="Cont"
-                      sortKey="contributions"
-                      align="right"
-                      sortBy={sortBy}
-                      sortDir={sortDir}
-                      onToggle={toggleSort}
-                      title="Contributions — total number of events this user has shared all time (via the contribute chat, by emailing event@whispered.com, or by being recorded as the duplicate-spotter on an existing event)."
-                    />
-                    <SortHeader
-                      label="LastCont"
-                      sortKey="lastContribution"
-                      align="right"
-                      sortBy={sortBy}
-                      sortDir={sortDir}
-                      onToggle={toggleSort}
-                      title="Last contribution — date the user most recently shared / spotted an event (whichever is more recent)."
-                    />
-                    <SortHeader
-                      label="Rating"
-                      sortKey="ratings"
-                      align="right"
-                      sortBy={sortBy}
-                      sortDir={sortDir}
-                      onToggle={toggleSort}
-                      title="Lifetime thumbs-up / thumbs-down ratings the user has submitted on their dashboard. Format: up / down. Sorted by total (up + down)."
-                    />
-                    <SortHeader
-                      label="Sent"
-                      sortKey="lastDigestSent"
-                      align="right"
-                      sortBy={sortBy}
-                      sortDir={sortDir}
-                      onToggle={toggleSort}
-                      title="Last sent — last time we actually emailed this user a digest containing events OR a coaching nudge (the Monday cron fires coaching to dormant users with no matches; counts the same as a digest for cadence purposes). The Monday cron skips any Weekly/Monthly user whose Sent value is within the last 7 days, so a manual re-run mid-week won't be piled on top of by Sunday's cron. Excludes admin blasts, silent stamps from frequency-flip backlog suppression, and transactional emails (login link, application received, event-added confirmations)."
-                    />
-                    <SortHeader
-                      label="Blast"
-                      sortKey="lastBlastSent"
-                      align="right"
-                      sortBy={sortBy}
-                      sortDir={sortDir}
-                      onToggle={toggleSort}
-                      title="Last blast — last time this user received an admin-composed broadcast email from /admin/blast. Separate from Sent so the digest-with-events column stays meaningful."
-                    />
-                    <SortHeader
-                      label="Seen"
-                      sortKey="lastSeen"
-                      align="right"
-                      sortBy={sortBy}
-                      sortDir={sortDir}
-                      onToggle={toggleSort}
-                      title="Last seen — last time this user had an active session on the site (refreshed on any page load while logged in, throttled to once per 5 minutes per session). Empty means they've never logged in or sessions have all expired."
-                    />
-                    <SortHeader
-                      label="Create"
-                      sortKey="created"
-                      align="right"
-                      sortBy={sortBy}
-                      sortDir={sortDir}
-                      onToggle={toggleSort}
-                      title="Created — when this user record was first added to Airtable. Pulled from the record's createdTime."
-                    />
+                    {statusBucket === 'toApprove' ? (
+                      <>
+                        <th className="text-left px-4 py-3 text-[11px] uppercase tracking-widest text-gray-500 font-medium">Name</th>
+                        <th className="text-left px-4 py-3 text-[11px] uppercase tracking-widest text-gray-500 font-medium">Function</th>
+                        <th className="text-left px-4 py-3 text-[11px] uppercase tracking-widest text-gray-500 font-medium">Seniority</th>
+                        <th className="text-left px-4 py-3 text-[11px] uppercase tracking-widest text-gray-500 font-medium">Location</th>
+                        <th className="text-left px-4 py-3 text-[11px] uppercase tracking-widest text-gray-500 font-medium">LatLon</th>
+                        <th className="text-left px-4 py-3 text-[11px] uppercase tracking-widest text-gray-500 font-medium">Employment</th>
+                        <th className="text-left px-4 py-3 text-[11px] uppercase tracking-widest text-gray-500 font-medium">How heard</th>
+                      </>
+                    ) : (
+                      <>
+                        <SortHeader label="Name" sortKey="name" align="left" sortBy={sortBy} sortDir={sortDir} onToggle={toggleSort} />
+                        <SortHeader label="Location" sortKey="location" align="left" sortBy={sortBy} sortDir={sortDir} onToggle={toggleSort} />
+                        <SortHeader label="Frequency" sortKey="frequency" align="left" sortBy={sortBy} sortDir={sortDir} onToggle={toggleSort} />
+                        <SortHeader
+                          label="Grade"
+                          sortKey="grade"
+                          align="left"
+                          sortBy={sortBy}
+                          sortDir={sortDir}
+                          onToggle={toggleSort}
+                          title="Vetting grade from Airtable. A = strongest fit (quality multiplier 1.5), Polish = solid baseline (1.0), B = down-weighted (0.5), C = won't reach notify threshold (0.25, short-circuited from scoring)."
+                        />
+                        <SortHeader label="Matches" sortKey="matches" align="right" sortBy={sortBy} sortDir={sortDir} onToggle={toggleSort} />
+                        <SortHeader
+                          label="Local"
+                          sortKey="localMatch"
+                          align="right"
+                          sortBy={sortBy}
+                          sortDir={sortDir}
+                          onToggle={toggleSort}
+                          title="Matches divided by total future events within 100 miles of this user's location, as a percentage. Hover any cell in this column for the raw N of M breakdown."
+                        />
+                        <SortHeader
+                          label="Cont"
+                          sortKey="contributions"
+                          align="right"
+                          sortBy={sortBy}
+                          sortDir={sortDir}
+                          onToggle={toggleSort}
+                          title="Contributions — total number of events this user has shared all time (via the contribute chat, by emailing event@whispered.com, or by being recorded as the duplicate-spotter on an existing event)."
+                        />
+                        <SortHeader
+                          label="LastCont"
+                          sortKey="lastContribution"
+                          align="right"
+                          sortBy={sortBy}
+                          sortDir={sortDir}
+                          onToggle={toggleSort}
+                          title="Last contribution — date the user most recently shared / spotted an event (whichever is more recent)."
+                        />
+                        <SortHeader
+                          label="Rating"
+                          sortKey="ratings"
+                          align="right"
+                          sortBy={sortBy}
+                          sortDir={sortDir}
+                          onToggle={toggleSort}
+                          title="Lifetime thumbs-up / thumbs-down ratings the user has submitted on their dashboard. Format: up / down. Sorted by total (up + down)."
+                        />
+                        <SortHeader
+                          label="Sent"
+                          sortKey="lastDigestSent"
+                          align="right"
+                          sortBy={sortBy}
+                          sortDir={sortDir}
+                          onToggle={toggleSort}
+                          title="Last sent — last time we actually emailed this user a digest containing events OR a coaching nudge (the Monday cron fires coaching to dormant users with no matches; counts the same as a digest for cadence purposes). The Monday cron skips any Weekly/Monthly user whose Sent value is within the last 7 days, so a manual re-run mid-week won't be piled on top of by Sunday's cron. Excludes admin blasts, silent stamps from frequency-flip backlog suppression, and transactional emails (login link, application received, event-added confirmations)."
+                        />
+                        <SortHeader
+                          label="Blast"
+                          sortKey="lastBlastSent"
+                          align="right"
+                          sortBy={sortBy}
+                          sortDir={sortDir}
+                          onToggle={toggleSort}
+                          title="Last blast — last time this user received an admin-composed broadcast email from /admin/blast. Separate from Sent so the digest-with-events column stays meaningful."
+                        />
+                        <SortHeader
+                          label="Seen"
+                          sortKey="lastSeen"
+                          align="right"
+                          sortBy={sortBy}
+                          sortDir={sortDir}
+                          onToggle={toggleSort}
+                          title="Last seen — last time this user had an active session on the site (refreshed on any page load while logged in, throttled to once per 5 minutes per session). Empty means they've never logged in or sessions have all expired."
+                        />
+                        <SortHeader
+                          label="Create"
+                          sortKey="created"
+                          align="right"
+                          sortBy={sortBy}
+                          sortDir={sortDir}
+                          onToggle={toggleSort}
+                          title="Created — when this user record was first added to Airtable. Pulled from the record's createdTime."
+                        />
+                      </>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
@@ -733,74 +770,104 @@ export default function AdminPage() {
                           )
                         })()}
                       </td>
-                      <td className="px-4 py-3 text-gray-600 truncate max-w-[140px]">
-                        {u.location || <span className="text-gray-400 italic">—</span>}
-                      </td>
-                      <td
-                        className={`px-4 py-3 whitespace-nowrap ${u.frequency ? 'text-gray-600' : 'text-gray-400'}`}
-                        title={u.frequency || ''}
-                      >
-                        {u.frequency
-                          ? shortFrequency(u.frequency)
-                          : <span className="italic">—</span>}
-                      </td>
-                      <td className={`px-4 py-3 ${u.grade ? 'text-gray-600' : 'text-gray-400'}`}>
-                        {u.grade || <span className="italic">—</span>}
-                      </td>
-                      <td className={`px-4 py-3 text-right tabular-nums font-medium ${u.matchCount === 0 ? 'text-gray-400' : 'text-gray-800'}`}>
-                        {u.matchCount}
-                      </td>
-                      <td
-                        className={`px-4 py-3 text-right tabular-nums whitespace-nowrap ${u.localMatchPct === null ? 'text-gray-400' : 'text-gray-800'}`}
-                        title={
-                          u.localMatchPct === null
-                            ? 'No nearby events (or user has no geocoded location)'
-                            : `${u.matchCount} of ${u.nearbyEventCount} events within 100mi`
-                        }
-                      >
-                        {u.localMatchPct === null ? '—' : `${u.localMatchPct}%`}
-                      </td>
-                      <td className={`px-4 py-3 text-right tabular-nums ${u.totalContributions === 0 ? 'text-gray-400' : 'text-gray-800'}`}>
-                        {u.totalContributions}
-                      </td>
-                      <td
-                        className={`px-4 py-3 text-right tabular-nums whitespace-nowrap ${u.lastContribution ? 'text-gray-800' : 'text-gray-400'}`}
-                        title={formatDate(u.lastContribution)}
-                      >
-                        {formatDateShort(u.lastContribution)}
-                      </td>
-                      <td
-                        className={`px-4 py-3 text-right tabular-nums whitespace-nowrap ${u.ratingsUp === 0 && u.ratingsDown === 0 ? 'text-gray-400' : 'text-gray-800'}`}
-                        title={`${u.ratingsUp} thumbs up, ${u.ratingsDown} thumbs down`}
-                      >
-                        {u.ratingsUp + u.ratingsDown === 0
-                          ? '—'
-                          : `${u.ratingsUp} / ${u.ratingsDown}`}
-                      </td>
-                      <td
-                        className={`px-4 py-3 text-right tabular-nums whitespace-nowrap ${u.lastDigestSent ? 'text-gray-800' : 'text-gray-400'}`}
-                        title={formatDate(u.lastDigestSent)}
-                      >
-                        {formatDateShort(u.lastDigestSent)}
-                      </td>
-                      <td
-                        className={`px-4 py-3 text-right tabular-nums whitespace-nowrap ${u.lastBlastSent ? 'text-gray-800' : 'text-gray-400'}`}
-                        title={formatDate(u.lastBlastSent)}
-                      >
-                        {formatDateShort(u.lastBlastSent)}
-                      </td>
-                      <td
-                        className={`px-4 py-3 text-right tabular-nums whitespace-nowrap ${u.lastSeen ? 'text-gray-800' : 'text-gray-400'}`}
-                        title={formatDate(u.lastSeen)}
-                      >
-                        {formatDateShort(u.lastSeen)}
-                      </td>
-                      <td
-                        className={`px-4 py-3 text-right tabular-nums whitespace-nowrap ${u.created ? 'text-gray-800' : 'text-gray-400'}`}
-                        title={formatDate(u.created)}
-                      >
-                        {formatDateShort(u.created)}
-                      </td>
+                      {statusBucket === 'toApprove' ? (
+                        <>
+                          <td className={`px-4 py-3 ${u.function ? 'text-gray-600' : 'text-gray-400'}`}>
+                            {u.function || <span className="italic">—</span>}
+                          </td>
+                          <td className={`px-4 py-3 ${u.seniority ? 'text-gray-600' : 'text-gray-400'}`}>
+                            {u.seniority || <span className="italic">—</span>}
+                          </td>
+                          <td className={`px-4 py-3 ${u.location ? 'text-gray-600' : 'text-gray-400'}`}>
+                            {u.location || <span className="italic">—</span>}
+                          </td>
+                          <td
+                            className={`px-4 py-3 whitespace-nowrap tabular-nums ${u.lat !== null && u.lng !== null ? 'text-gray-600' : 'text-gray-400'}`}
+                            title={u.lat !== null && u.lng !== null ? `${u.lat}, ${u.lng}` : 'Not geocoded'}
+                          >
+                            {u.lat !== null && u.lng !== null
+                              ? `${u.lat.toFixed(4)}, ${u.lng.toFixed(4)}`
+                              : <span className="italic">—</span>}
+                          </td>
+                          <td className={`px-4 py-3 ${u.employment ? 'text-gray-600' : 'text-gray-400'}`}>
+                            {u.employment || <span className="italic">—</span>}
+                          </td>
+                          <td className={`px-4 py-3 ${u.learn ? 'text-gray-600' : 'text-gray-400'}`} title={u.learn}>
+                            {u.learn || <span className="italic">—</span>}
+                          </td>
+                        </>
+                      ) : (
+                        <>
+                          <td className="px-4 py-3 text-gray-600 truncate max-w-[140px]">
+                            {u.location || <span className="text-gray-400 italic">—</span>}
+                          </td>
+                          <td
+                            className={`px-4 py-3 whitespace-nowrap ${u.frequency ? 'text-gray-600' : 'text-gray-400'}`}
+                            title={u.frequency || ''}
+                          >
+                            {u.frequency
+                              ? shortFrequency(u.frequency)
+                              : <span className="italic">—</span>}
+                          </td>
+                          <td className={`px-4 py-3 ${u.grade ? 'text-gray-600' : 'text-gray-400'}`}>
+                            {u.grade || <span className="italic">—</span>}
+                          </td>
+                          <td className={`px-4 py-3 text-right tabular-nums font-medium ${u.matchCount === 0 ? 'text-gray-400' : 'text-gray-800'}`}>
+                            {u.matchCount}
+                          </td>
+                          <td
+                            className={`px-4 py-3 text-right tabular-nums whitespace-nowrap ${u.localMatchPct === null ? 'text-gray-400' : 'text-gray-800'}`}
+                            title={
+                              u.localMatchPct === null
+                                ? 'No nearby events (or user has no geocoded location)'
+                                : `${u.matchCount} of ${u.nearbyEventCount} events within 100mi`
+                            }
+                          >
+                            {u.localMatchPct === null ? '—' : `${u.localMatchPct}%`}
+                          </td>
+                          <td className={`px-4 py-3 text-right tabular-nums ${u.totalContributions === 0 ? 'text-gray-400' : 'text-gray-800'}`}>
+                            {u.totalContributions}
+                          </td>
+                          <td
+                            className={`px-4 py-3 text-right tabular-nums whitespace-nowrap ${u.lastContribution ? 'text-gray-800' : 'text-gray-400'}`}
+                            title={formatDate(u.lastContribution)}
+                          >
+                            {formatDateShort(u.lastContribution)}
+                          </td>
+                          <td
+                            className={`px-4 py-3 text-right tabular-nums whitespace-nowrap ${u.ratingsUp === 0 && u.ratingsDown === 0 ? 'text-gray-400' : 'text-gray-800'}`}
+                            title={`${u.ratingsUp} thumbs up, ${u.ratingsDown} thumbs down`}
+                          >
+                            {u.ratingsUp + u.ratingsDown === 0
+                              ? '—'
+                              : `${u.ratingsUp} / ${u.ratingsDown}`}
+                          </td>
+                          <td
+                            className={`px-4 py-3 text-right tabular-nums whitespace-nowrap ${u.lastDigestSent ? 'text-gray-800' : 'text-gray-400'}`}
+                            title={formatDate(u.lastDigestSent)}
+                          >
+                            {formatDateShort(u.lastDigestSent)}
+                          </td>
+                          <td
+                            className={`px-4 py-3 text-right tabular-nums whitespace-nowrap ${u.lastBlastSent ? 'text-gray-800' : 'text-gray-400'}`}
+                            title={formatDate(u.lastBlastSent)}
+                          >
+                            {formatDateShort(u.lastBlastSent)}
+                          </td>
+                          <td
+                            className={`px-4 py-3 text-right tabular-nums whitespace-nowrap ${u.lastSeen ? 'text-gray-800' : 'text-gray-400'}`}
+                            title={formatDate(u.lastSeen)}
+                          >
+                            {formatDateShort(u.lastSeen)}
+                          </td>
+                          <td
+                            className={`px-4 py-3 text-right tabular-nums whitespace-nowrap ${u.created ? 'text-gray-800' : 'text-gray-400'}`}
+                            title={formatDate(u.created)}
+                          >
+                            {formatDateShort(u.created)}
+                          </td>
+                        </>
+                      )}
                     </tr>
                   ))}
                 </tbody>
