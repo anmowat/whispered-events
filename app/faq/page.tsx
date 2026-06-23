@@ -118,7 +118,7 @@ export default function FaqPage() {
             style={{ color: 'var(--ink-2)' }}
           >
             <Dimension label="Location">
-              We match you to events within 100 miles of your location. You can
+              We match you to events within 150 miles of your location (higher match score for closer events). You can
               update your location anytime in your{' '}
               <Link href="/dashboard">dashboard</Link> (e.g. if you&apos;re
               traveling to a city for work) to have your matches re-run.
