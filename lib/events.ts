@@ -66,6 +66,7 @@ function toAirtableEvent(row: EventRow): AirtableEvent {
     created: row.airtable_created_at ?? row.created_at ?? '',
     featured: row.featured === true,
     status: row.status ?? 'Pending',
+    hostIds: row.host_ids ?? [],
   }
 }
 

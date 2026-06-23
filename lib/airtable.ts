@@ -687,6 +687,8 @@ export interface AirtableEvent {
    * pulled, drops out of dashboards). New events default to Pending.
    */
   status?: string
+  /** Supabase user IDs of people who host this event. */
+  hostIds?: string[]
 }
 
 export async function getActiveUsers(): Promise<AirtableUser[]> {

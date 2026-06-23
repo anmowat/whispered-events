@@ -80,6 +80,7 @@ export async function GET(req: NextRequest) {
         matchPct,
         featured: e.featured === true,
         status: e.status || 'Pending',
+        hostCount: (e.hostIds ?? []).length,
       }
     })
 

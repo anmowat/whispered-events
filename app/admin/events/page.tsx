@@ -21,6 +21,7 @@ interface EventRow {
   matchPct: number | null
   featured: boolean
   status: string
+  hostCount: number
 }
 
 interface Stats {
@@ -371,15 +372,6 @@ export default function AdminEventsPage() {
                       className="border-b border-[#F0E8DC] last:border-b-0 hover:bg-[#FDFAF6] transition-colors cursor-pointer"
                     >
                       <td className="px-3 py-3 max-w-sm">
-                        {e.featured && (
-                          <span
-                            className="mr-1.5 text-[11px] align-middle"
-                            style={{ color: '#6E1F2B' }}
-                            title="Featured on homepage"
-                          >
-                            ★
-                          </span>
-                        )}
                         <span className="text-gray-800 underline decoration-[#D9CAB0] underline-offset-2 hover:decoration-gold-700">
                           {e.name}
                         </span>
@@ -393,6 +385,23 @@ export default function AdminEventsPage() {
                             />
                           )
                         })()}
+                        {e.featured && (
+                          <span
+                            className="ml-1 text-[11px] align-middle"
+                            style={{ color: '#6E1F2B' }}
+                            title="Featured on homepage"
+                          >
+                            ★
+                          </span>
+                        )}
+                        {e.hostCount > 0 && (
+                          <span
+                            className="ml-1 text-[13px] align-middle"
+                            title="Has a host"
+                          >
+                            👋🏽
+                          </span>
+                        )}
                       </td>
                       <td className="px-3 py-3 text-gray-600 text-xs">{e.type || <span className="text-gray-400 italic">—</span>}</td>
                       <td className="px-3 py-3 text-gray-600 text-xs" title={formatEventDate(e.date, { month: 'short', day: 'numeric', year: 'numeric' })}>
