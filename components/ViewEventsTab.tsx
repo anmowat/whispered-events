@@ -53,7 +53,7 @@ const QUESTIONS: Record<Step, string> = {
   learn:
     "👀 **How did you learn about Whispered events?**\n\nKnowing who pointed you our way — the community, partner, post or friend — helps us connect more people with great events.",
   location:
-    "**What city are you based in?**\n\nWe'll send events within 100 miles. Pick one primary city — you can change it anytime you travel.",
+    "**What city are you based in?**\n\nWe'll send events in your metro area (closer to you match higher).",
   linkedin:
     "**What's your LinkedIn profile URL?**\n\nWe'll use your profile to automatically enrich your function and seniority.",
   // Rendered as custom JSX below (see InterestPrompt) so the title can
@@ -527,19 +527,23 @@ export default function ViewEventsTab({
 
       </div>
 
+      {step === 'interest' && (
+        <div className="mt-4 animate-slide-up">
+          <TopicChips value={input} onChange={setInput} />
+        </div>
+      )}
+
       {showComposer && (
         <Composer
           value={input}
           onChange={setInput}
           onSend={() => handleSend()}
-          placeholder="Type your answer…"
+          placeholder={
+            step === 'interest'
+              ? 'Pick popular topics + write your own in too'
+              : 'Type your answer…'
+          }
         />
-      )}
-
-      {step === 'interest' && (
-        <div className="mt-4 animate-slide-up">
-          <TopicChips value={input} onChange={setInput} />
-        </div>
       )}
     </div>
   )
