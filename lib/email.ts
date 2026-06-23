@@ -57,6 +57,8 @@ const FONT_LINK = `<link href="https://fonts.googleapis.com/css2?family=Cormoran
 
 const DASHBOARD_LINK = 'https://www.whisperedevents.com/dashboard'
 const FAQ_LINK = 'https://www.whisperedevents.com/faq'
+const HOST_LINK = 'https://www.whisperedevents.com/host'
+const PARTNER_APPLY_LINK = 'https://www.whisperedevents.com/?apply=partner'
 
 // Appends ?email=<encoded> when we know the recipient. The dashboard
 // not-logged-in page reads this and pre-fills the magic-link form so
@@ -332,13 +334,23 @@ export async function sendEventSubmittedEmail(
   const safeName = escapeHtml(eventName)
   const firstName = firstNameFromEmail(email)
   const milestone = contributionMilestone(contributionsTotal)
-  const countLine = `You've added ${contributionsTotal} event${contributionsTotal === 1 ? '' : 's'} so far! We'll be adding new features for top contributors soon.`
+  const eventCountPhrase = `You've added ${contributionsTotal} event${contributionsTotal === 1 ? '' : 's'} so far! We'll be adding new features for top contributors soon.`
+  // Single combined sentence per the new copy: event name + cumulative count
+  // + features teaser in one paragraph. The "host of this event?" CTA moves
+  // to its own paragraph so the inline links read cleanly.
+  const summaryHtml = `<strong style="color:${C.ink};">"${safeName}"</strong> has been added. ${eventCountPhrase}`
+  const summaryText = `"${eventName}" has been added. ${eventCountPhrase}`
+  // Inline links for the host / partner CTA. "reply to this email" framing
+  // dropped because clicking the link is the canonical path now.
+  const linkStyle = `color:${C.accent};text-decoration:underline;text-underline-offset:3px;`
+  const hostCtaHtml = `If you are the host of the event, <a href="${HOST_LINK}" style="${linkStyle}">get host access</a> and <a href="${PARTNER_APPLY_LINK}" style="${linkStyle}">apply to be a partner</a> for additional features.`
+  const hostCtaText = `If you are the host of the event, get host access (${HOST_LINK}) and apply to be a partner (${PARTNER_APPLY_LINK}) for additional features.`
   const html = shell(`
     ${h1(`Event <span style="font-style:italic;">added</span>.`)}
     ${p('Thanks for adding an event — Whispered Events is driven by contributions like yours!', { mt: 14 })}
-    ${p(`<strong style="color:${C.ink};">"${safeName}"</strong> has been added. If you are the host of the event, reply to this email to get host access and apply to be a partner for additional features.`, { mt: 12 })}
+    ${p(summaryHtml, { mt: 12 })}
     ${milestone ? p(`<strong style="color:${C.ink};">${milestone}</strong>`, { mt: 12 }) : ''}
-    ${p(countLine, { mt: 12 })}
+    ${p(hostCtaHtml, { mt: 12 })}
     ${p('Enjoy your next event!', { mt: 12 })}
     ${digestFooterHtml(firstName)}
   `)
@@ -347,10 +359,10 @@ export async function sendEventSubmittedEmail(
     '',
     'Thanks for adding an event — Whispered Events is driven by contributions like yours!',
     '',
-    `"${eventName}" has been added. If you are the host of the event, reply to this email to get host access and apply to be a partner for additional features.`,
+    summaryText,
     '',
     ...(milestone ? [milestone, ''] : []),
-    countLine,
+    hostCtaText,
     '',
     'Enjoy your next event!',
     '',
