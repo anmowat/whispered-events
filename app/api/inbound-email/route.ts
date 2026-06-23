@@ -8,6 +8,7 @@ import { getUserByEmail } from '@/lib/users'
 import { checkDuplicate } from '@/lib/events'
 import { recordContribution, getContributionStats } from '@/lib/supabase'
 import { sendEventCouldNotReadEmail, sendEventSubmittedEmail } from '@/lib/email'
+import { notifyNewEvent } from '@/lib/slack'
 import { EventRecord, VIRTUAL_LOCATION_RE } from '@/lib/types'
 
 export const maxDuration = 60
@@ -218,6 +219,12 @@ export async function POST(req: NextRequest) {
     }
     return NextResponse.json({ ok: true, reason: 'create failed' })
   }
+
+  waitUntil(
+    notifyNewEvent(eventToCreate, id).catch((e) =>
+      console.error('inbound-email: notifyNewEvent failed', e),
+    ),
+  )
 
   // Await record-then-count so the confirmation email reflects the
   // running total post-insert (used to surface contribution
