@@ -642,9 +642,6 @@ function EventReviewForm({
       audience: localAudience.split(',').map((s) => s.trim()).filter(Boolean),
     })
   }
-  // Inline notice shows when host is checked AND we don't have positive
-  // confirmation the submitter is a Partner.
-  const showHostWarning = !!event.host && isPartner !== true
   return (
     <div
       className="rounded-card border p-5 space-y-4"
@@ -718,49 +715,31 @@ function EventReviewForm({
           className={inputCls}
         />
       </Field>
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <input
-            id="host-check"
-            type="checkbox"
-            checked={event.host || false}
-            onChange={(e) => update('host', e.target.checked)}
-            style={{ accentColor: 'var(--accent)' }}
-          />
-          <label
-            htmlFor="host-check"
-            className="text-[13px]"
-            style={{ color: 'var(--ink-2)' }}
-          >
-            I am hosting this event
-          </label>
-        </div>
-        {showHostWarning && (
-          <div
-            className="rounded-input border px-3 py-2.5 text-[12px] leading-relaxed"
-            style={{
-              background: 'var(--accent-soft)',
-              borderColor: 'var(--accent)',
-              color: 'var(--accent)',
-            }}
-          >
-            Only Whispered Partners can claim Host status on an event. If you&apos;d like
-            to partner with us,{' '}
-            {onShowPartner ? (
-              <button
-                onClick={onShowPartner}
-                className="font-medium underline"
-                style={{ color: 'var(--accent)', textUnderlineOffset: 3 }}
-              >
-                head to the Partner tab
-              </button>
-            ) : (
-              <span className="font-medium">head to the Partner tab</span>
-            )}{' '}
-            to get in touch.
+      {/* Host claim is gated on partner status. We hide the checkbox
+          entirely for non-partners (and while the check is still in
+          flight) so the option only surfaces when we can honor it.
+          Server-side, /api/submit-event also gates host assignment by
+          getPartnerUserByEmail — the UI hide is the friendly half. */}
+      {isPartner === true && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <input
+              id="host-check"
+              type="checkbox"
+              checked={event.host || false}
+              onChange={(e) => update('host', e.target.checked)}
+              style={{ accentColor: 'var(--accent)' }}
+            />
+            <label
+              htmlFor="host-check"
+              className="text-[13px]"
+              style={{ color: 'var(--ink-2)' }}
+            >
+              I am hosting this event
+            </label>
           </div>
-        )}
-      </div>
+        </div>
+      )}
       <button
         onClick={onContinue}
         disabled={!event.name || !event.link}
