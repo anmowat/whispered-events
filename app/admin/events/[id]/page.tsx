@@ -88,6 +88,12 @@ function draftDiff(draft: EventDraft, original: EventDraft): Partial<EventDraft>
   return diff
 }
 
+function hostsChanged(original: Host[], drafted: Host[]): boolean {
+  const a = original.map((h) => h.id).sort()
+  const b = drafted.map((h) => h.id).sort()
+  return a.length !== b.length || a.some((id, i) => id !== b[i])
+}
+
 interface UserRow {
   id: string
   email: string
@@ -337,17 +343,13 @@ export default function AdminEventDetailPage() {
     const original = draftFromEvent(event)
     const diff = draftDiff(draft, original)
 
-    // Hosts diff: compare the id sets between the original event and the
-    // working draft. Same length + same membership = unchanged; otherwise
-    // include hostEmails in the PATCH so the server replaces the full list.
-    const originalIds = event.hosts.map((h) => h.id).sort()
+    // Hosts diff: compare id sets between the original event and the
+    // working draft. If unchanged, omit hostEmails from the PATCH so the
+    // server doesn't rewrite the link field.
     const draftHosts = hostsDraft ?? event.hosts
-    const draftIds = draftHosts.map((h) => h.id).sort()
-    const hostsChanged =
-      originalIds.length !== draftIds.length ||
-      originalIds.some((id, i) => id !== draftIds[i])
+    const hostsDirty = hostsChanged(event.hosts, draftHosts)
 
-    if (Object.keys(diff).length === 0 && !hostsChanged) {
+    if (Object.keys(diff).length === 0 && !hostsDirty) {
       setDraft(null)
       setHostsDraft(null)
       return
@@ -365,7 +367,7 @@ export default function AdminEventDetailPage() {
           .map((s) => s.trim())
           .filter(Boolean)
       }
-      if (hostsChanged) {
+      if (hostsDirty) {
         body.hostEmails = draftHosts.map((h) => h.email)
       }
       const res = await fetch(`/api/admin/events/${eventId}`, {
@@ -544,7 +546,11 @@ export default function AdminEventDetailPage() {
                       <button
                         type="button"
                         onClick={saveEdit}
-                        disabled={editBusy || Object.keys(draftDiff(draft!, draftFromEvent(event))).length === 0}
+                        disabled={
+                          editBusy ||
+                          (Object.keys(draftDiff(draft!, draftFromEvent(event))).length === 0 &&
+                            !hostsChanged(event.hosts, hostsDraft ?? event.hosts))
+                        }
                         className="px-3 py-1.5 rounded-lg text-white text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                         style={{ background: '#6E1F2B' }}
                       >
