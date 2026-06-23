@@ -1,6 +1,6 @@
 # How Whispered Events scores matches
 
-A match score answers one question: *should this user be emailed about this event?* Every (user, event) pair gets a single number between 0 and 3.375. Anything at or above 1.0 (≈ 30%) clears the threshold and enters the user's dashboard + digest pool.
+A match score answers one question: *should this user be emailed about this event?* Every (user, event) pair gets a single number between 0 and 3.7125. Anything at or above 1.0 (≈ 27%) clears the threshold and enters the user's dashboard + digest pool.
 
 The score is a product of four signals — three deterministic, one judged by an LLM. Multiplicative on purpose: a weak signal anywhere drags the total down, so we never email someone who fails on location, level, or fit.
 
@@ -10,19 +10,28 @@ score = location × audience × quality × preferences
 
 | Signal       | Range          | Who decides            | What it captures                                  |
 |--------------|----------------|------------------------|---------------------------------------------------|
-| Location     | 0 or 1         | Deterministic (geo)    | Is the user within 100 miles of the event city?   |
+| Location     | 0 – 1.1        | Deterministic (geo)    | How close is the user to the event city?          |
 | Audience     | 0.0 – 1.5      | LLM (Claude Haiku)     | Does the event's stated audience match the user's role + seniority? |
 | Quality      | 0.25 – 1.5     | Deterministic (grade)  | How vetted is this user?                          |
 | Preferences  | 0.0 – 1.5      | LLM (Claude Haiku)     | Does the event match what the user said they want to attend? |
 
-Max possible score: `1 × 1.5 × 1.5 × 1.5 = 3.375` (≈ 100%).
-Notify threshold: `1.0` (≈ 30%).
+Max possible score: `1.1 × 1.5 × 1.5 × 1.5 = 3.7125` (≈ 100%).
+Notify threshold: `1.0` (≈ 27%).
 
 ---
 
-## 1. Location (0 or 1)
+## 1. Location (0 – 1.1)
 
-Binary. The event has a geocoded location, the user has a geocoded location, and the great-circle distance between them is **≤ 100 miles**. If yes, 1. If no, 0.
+Gradient based on great-circle distance between the user's geocoded location and the event city. Closer events get a small boost; far events get a soft penalty; anything beyond 150 miles short-circuits.
+
+| Distance | Score |
+|----------|-------|
+| ≤ 10 miles | 1.1 |
+| ≤ 20 miles | 1.05 |
+| ≤ 30 miles | 1.0 |
+| ≤ 60 miles | 0.85 |
+| ≤ 150 miles | 0.7 |
+| > 150 miles | 0 |
 
 Virtual events score 0 by definition — we no longer accept them, and any that slip through get filtered out here.
 

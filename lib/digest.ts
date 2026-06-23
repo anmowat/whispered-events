@@ -134,7 +134,7 @@ const RESEND_THROTTLE_MS = 250
 // week. 'As they arrive' is unaffected — it already has its own 28-day
 // coaching floor.
 const CRON_RECENT_TOUCH_DAYS = 7
-const NEARBY_RADIUS_MILES = 100
+const NEARBY_RADIUS_MILES = 150
 
 function isCoachingEligible(
   user: AirtableUser,

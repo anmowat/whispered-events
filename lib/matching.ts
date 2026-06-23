@@ -1,16 +1,16 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { createHash } from 'crypto'
 import { AirtableEvent, AirtableUser } from './airtable'
-import { withinMiles } from './geocode'
+import { haversineMiles } from './geocode'
 import { VIRTUAL_LOCATION_RE } from './types'
 import { inferLikelyGender } from './gender'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
-const MAX_MILES = 100
+const MAX_MILES = 150
 const FREE_TEXT_CAP = 500
-// 1 (location) × 1.5 (audience) × 1.5 (quality A) × 1.5 (preferences).
-const MAX_SCORE = 3.375
+// 1.1 (location ≤10mi) × 1.5 (audience) × 1.5 (quality A) × 1.5 (preferences).
+const MAX_SCORE = 3.7125
 const QUALITY_MULTIPLIER: Record<'A' | 'Polish' | 'B' | 'C', number> = {
   A: 1.5,
   Polish: 1.0,
@@ -21,7 +21,7 @@ const QUALITY_MULTIPLIER: Record<'A' | 'Polish' | 'B' | 'C', number> = {
 // Bumped any time the scoring rubric / prompt / formula changes so the
 // inputs hash on every cached row turns stale. The admin rescore-missing
 // endpoint then picks them up and refreshes under the new model.
-const MATCHING_VERSION = 8
+const MATCHING_VERSION = 9
 
 export type SkippedReason = 'grade_c' | 'location_zero' | 'women_only_audience'
 
@@ -75,12 +75,22 @@ function isVirtualEvent(event: AirtableEvent): boolean {
   return VIRTUAL_LOCATION_RE.test(event.location || '')
 }
 
-export function computeLocationScore(event: AirtableEvent, user: AirtableUser): 0 | 1 {
+function locationMultiplier(dist: number): number {
+  if (dist <= 10) return 1.1
+  if (dist <= 20) return 1.05
+  if (dist <= 30) return 1.0
+  if (dist <= 60) return 0.85
+  if (dist <= 150) return 0.7
+  return 0
+}
+
+export function computeLocationScore(event: AirtableEvent, user: AirtableUser): number {
   // Virtual events are no longer accepted; treat any that slip through as location=0.
   if (isVirtualEvent(event)) return 0
   if (event.lat == null || event.lng == null) return 0
   if (user.lat == null || user.lng == null) return 0
-  return withinMiles({ lat: user.lat, lng: user.lng }, { lat: event.lat, lng: event.lng }, MAX_MILES) ? 1 : 0
+  const dist = haversineMiles({ lat: user.lat, lng: user.lng }, { lat: event.lat, lng: event.lng })
+  return locationMultiplier(dist)
 }
 
 function buildToPercent(score: number): number {
@@ -88,7 +98,7 @@ function buildToPercent(score: number): number {
 }
 
 function emptyResult(opts: {
-  location: 0 | 1
+  location: number
   quality: number
   reason: string
   skippedReason: SkippedReason | null
@@ -297,7 +307,7 @@ export async function scoreEventUser(
     return emptyResult({
       location: 0,
       quality,
-      reason: 'Skipped: user not within 100 miles of event city',
+      reason: 'Skipped: user not within 150 miles of event city',
       skippedReason: 'location_zero',
       inputsHash,
     })

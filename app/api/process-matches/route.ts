@@ -26,7 +26,7 @@ const SCORE_THRESHOLD = 1.0
 // set of matches their dashboard shows.
 const DIGEST_THRESHOLD = 1.35
 const BATCH_SIZE = 50
-const NEARBY_RADIUS_MILES = 100
+const NEARBY_RADIUS_MILES = 150
 
 // How many future events are within 100mi of the user. Used to pick
 // which inline coaching variant the no-match welcome should carry
