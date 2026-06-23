@@ -120,6 +120,15 @@ export interface MatchLog {
   skippedReason?: 'grade_c' | 'location_zero' | 'women_only_audience' | null
 }
 
+// NOTE: We deliberately do NOT include notified_at in the upsert payload.
+// On INSERT, the column's schema default applies (must be NULL — we hit a
+// production bug where someone set `default now()` via the Supabase
+// dashboard, every new match got auto-stamped, the daily cron found zero
+// unnotified rows, and no digests went out for days). On UPDATE (existing
+// match rescore), notified_at must be preserved so matches that were
+// already emailed don't re-fire. Both invariants depend on notified_at
+// NEVER appearing in this payload. If you add a default back to the column
+// in Supabase, you re-introduce the bug.
 export async function logMatch(entry: MatchLog): Promise<void> {
   const supabase = getClient()
   const { error } = await supabase.from('matches').upsert(
