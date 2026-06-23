@@ -600,7 +600,7 @@ function renderCoachingNoNearby(
     ${eyebrow(`A nudge · ${eb}`)}
     ${h1(`Hi <span style="font-style:italic;">${safeName}</span>.`)}
     ${p(
-      `We don't have any upcoming Whispered Events within 100 miles of ${locationPhrase} yet. Two quick ways to change that:`,
+      `We don't have any upcoming Whispered Events near ${locationPhrase} yet. Two quick ways to change that:`,
       { mt: 14 },
     )}
     <p style="font-family:${SANS};font-size:14.5px;line-height:1.6;color:${C.ink2};margin:14px 0 0;">
@@ -616,7 +616,7 @@ function renderCoachingNoNearby(
     '',
     `Hi ${safeName}.`,
     '',
-    `We don't have any upcoming Whispered Events within 100 miles of ${locationPhrase} yet. Two quick ways to change that:`,
+    `We don't have any upcoming Whispered Events near ${locationPhrase} yet. Two quick ways to change that:`,
     '',
     `1. Help us build a presence in ${locationPhrase} — share events you see, email any link to event@whispered.com and we'll add it in!`,
     `2. Update your location on your dashboard if you've moved or are traveling — your matches will re-run automatically.`,
@@ -642,7 +642,7 @@ function renderCoachingNoMatches(
     ${eyebrow(`A nudge · ${eb}`)}
     ${h1(`Hi <span style="font-style:italic;">${safeName}</span>.`)}
     ${p(
-      `We have ${nearbyCount} upcoming ${noun} within 100 miles of ${locationPhrase}, but none are matching your profile yet. Two ways to fix that:`,
+      `We have ${nearbyCount} upcoming ${noun} near ${locationPhrase}, but none are matching your profile yet. Two ways to fix that:`,
       { mt: 14 },
     )}
     <p style="font-family:${SANS};font-size:14.5px;line-height:1.6;color:${C.ink2};margin:14px 0 0;">
@@ -658,7 +658,7 @@ function renderCoachingNoMatches(
     '',
     `Hi ${safeName}.`,
     '',
-    `We have ${nearbyCount} upcoming ${noun} within 100 miles of ${locationPhrase}, but none are matching your profile yet. Two ways to fix that:`,
+    `We have ${nearbyCount} upcoming ${noun} near ${locationPhrase}, but none are matching your profile yet. Two ways to fix that:`,
     '',
     `1. Update your profile on your dashboard — update the function we pulled from LinkedIn and your topics you are interested in.`,
     `2. Share events in topics you care about — email any link to event@whispered.com to help build momentum.`,
@@ -702,7 +702,7 @@ export async function sendRecap(
     ${eyebrow(`Quick recap · ${eb}`)}
     ${h1(`Hi <span style="font-style:italic;">${safeName}</span>.`)}
     ${p(
-      `Quick recap — we have ${nearbyCount} upcoming ${nearbyNoun} within 100 miles of ${locationPhrase}, and your profile ${matchVerb} ${totalMatchCount} of them. Here are your top ${matchNoun}:`,
+      `Quick recap — we have ${nearbyCount} upcoming ${nearbyNoun} near ${locationPhrase}, and your profile ${matchVerb} ${totalMatchCount} of them. Here are your top ${matchNoun}:`,
       { mt: 14 },
     )}
     ${renderEntries(annotated.topMatches)}
@@ -718,7 +718,7 @@ export async function sendRecap(
     '',
     `Hi ${firstName}.`,
     '',
-    `Quick recap — we have ${nearbyCount} upcoming ${nearbyNoun} within 100 miles of ${user.location || 'your area'}, and your profile ${matchVerb} ${totalMatchCount} of them. Here are your top ${matchNoun}:`,
+    `Quick recap — we have ${nearbyCount} upcoming ${nearbyNoun} near ${user.location || 'your area'}, and your profile ${matchVerb} ${totalMatchCount} of them. Here are your top ${matchNoun}:`,
     '',
   ]
   for (const entry of annotated.topMatches) {
@@ -1139,7 +1139,7 @@ function renderInlineCoaching(safeLocation: string, nearbyCount: number): string
   const locationPhrase = safeLocation || 'you'
   const noun = nearbyCount === 1 ? 'event' : 'events'
   return `
-<p style="font-family:${SANS};font-size:14.5px;line-height:1.6;color:${C.ink2};margin:14px 0 0;">We do have ${nearbyCount} upcoming ${noun} within 100 miles of ${locationPhrase} — your profile just isn't matching them yet.</p>
+<p style="font-family:${SANS};font-size:14.5px;line-height:1.6;color:${C.ink2};margin:14px 0 0;">We do have ${nearbyCount} upcoming ${noun} near ${locationPhrase} — your profile just isn't matching them yet.</p>
 <p style="font-family:${SANS};font-size:14.5px;line-height:1.6;color:${C.ink2};margin:10px 0 0;">
   <strong style="color:${C.ink};">1. Update your profile</strong> on your <a href="${DASHBOARD_LINK}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">dashboard</a> — update the function we pulled from LinkedIn and your topics you are interested in.
 </p>
@@ -1160,7 +1160,7 @@ function inlineCoachingTextLines(location: string, nearbyCount: number): string[
   const locationPhrase = location || 'you'
   const noun = nearbyCount === 1 ? 'event' : 'events'
   return [
-    `We do have ${nearbyCount} upcoming ${noun} within 100 miles of ${locationPhrase} — your profile just isn't matching them yet.`,
+    `We do have ${nearbyCount} upcoming ${noun} near ${locationPhrase} — your profile just isn't matching them yet.`,
     '',
     `1. Update your profile on your dashboard — update the function we pulled from LinkedIn and your topics you are interested in.`,
     `2. Help us build the flywheel — share events in topics you care about, email any link to event@whispered.com.`,
