@@ -759,6 +759,30 @@ export async function getLastSeenForEmail(email: string): Promise<string | null>
   return (data as { last_seen_at: string } | null)?.last_seen_at ?? null
 }
 
+// Most recent email of ANY kind sent to this user (digest OR admin blast OR
+// welcome/coaching). Powers the "Last email sent" field on the admin user
+// detail card. Different from getLastDigestSentByEmail which deliberately
+// excludes blasts so the dashboard's Sent column stays semantically scoped
+// to event-bearing digests — for the detail card the admin just wants to
+// know when we last reached out, period.
+export async function getLastEmailSentForEmail(email: string): Promise<string | null> {
+  const cleaned = (email || '').trim().toLowerCase()
+  if (!cleaned) return null
+  const supabase = getClient()
+  const { data, error } = await supabase
+    .from('digest_sends')
+    .select('sent_at')
+    .ilike('user_email', cleaned)
+    .order('sent_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (error) {
+    console.error('getLastEmailSentForEmail error', error)
+    return null
+  }
+  return (data as { sent_at: string } | null)?.sent_at ?? null
+}
+
 export async function deleteSession(token: string): Promise<void> {
   const supabase = getClient()
   await supabase.from('sessions').delete().eq('token', token)

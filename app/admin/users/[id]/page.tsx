@@ -35,6 +35,7 @@ interface UserDetail {
   contributionsLast30: number
   contributionsLast90: number
   lastSeen: string | null
+  lastEmailSent: string | null
 }
 
 // Draft mirrors UserDetail's editable subset. Email and the read-only
@@ -445,6 +446,18 @@ export default function AdminUserDetailPage() {
                     value={
                       user.lastSeen
                         ? new Date(user.lastSeen).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                          })
+                        : ''
+                    }
+                  />
+                  <Field
+                    label="Last email sent"
+                    value={
+                      user.lastEmailSent
+                        ? new Date(user.lastEmailSent).toLocaleDateString('en-US', {
                             month: 'short',
                             day: 'numeric',
                             year: 'numeric',

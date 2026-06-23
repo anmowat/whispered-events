@@ -3,7 +3,7 @@ import { waitUntil } from '@vercel/functions'
 import { isAdmin } from '@/lib/admin-auth'
 import { getUserById } from '@/lib/users'
 import { getFutureEvents } from '@/lib/events'
-import { getAllMatchesForUser, getContributionStats, getLastSeenForEmail } from '@/lib/supabase'
+import { getAllMatchesForUser, getContributionStats, getLastSeenForEmail, getLastEmailSentForEmail } from '@/lib/supabase'
 import { updateUserAdmin, type UserAdminUpdate } from '@/lib/airtable'
 import { triggerUserApprovedFlow } from '@/lib/user-approval'
 import { withinMiles } from '@/lib/geocode'
@@ -36,11 +36,12 @@ export async function GET(
       return NextResponse.json({ error: 'user not found' }, { status: 404 })
     }
 
-    const [futureEvents, matchRows, contributions, lastSeen] = await Promise.all([
+    const [futureEvents, matchRows, contributions, lastSeen, lastEmailSent] = await Promise.all([
       getFutureEvents(),
       getAllMatchesForUser(user.email),
       getContributionStats(user.email),
       getLastSeenForEmail(user.email),
+      getLastEmailSentForEmail(user.email),
     ])
 
     const byEventId = new Map(matchRows.map((m) => [m.event_id, m]))
@@ -122,6 +123,7 @@ export async function GET(
         contributionsLast30: contributions.last30,
         contributionsLast90: contributions.last90,
         lastSeen,
+        lastEmailSent,
       },
       events,
       generatedAt: new Date().toISOString(),
