@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { upsertPartnerApplication, PartnerApplication } from '@/lib/airtable'
 
 // Receives a finished Partner-tab application. Validates input shape and a
-// few high-signal fields (email format, LinkedIn looks real, volume not
-// empty) then delegates the dedupe + write to lib/airtable. Admins still
-// manually flip Status='Live' / 'Partner' in Airtable after reviewing.
+// few high-signal fields (email format, LinkedIn looks real) then delegates
+// the dedupe + write to lib/airtable. Admins still manually flip Status to
+// 'Partner' in Airtable after reviewing.
 
 export const maxDuration = 30
 
@@ -26,16 +26,15 @@ export async function POST(req: NextRequest) {
   const email = body.email?.trim() || ''
   const company = body.company?.trim() || ''
   const audience = body.audience?.trim() || ''
-  const volume = body.volume?.trim() || ''
   const description = body.description?.trim() || ''
   const linkedin = body.linkedin?.trim() || ''
 
   if (!email || !EMAIL_RE.test(email)) {
     return NextResponse.json({ error: 'valid email is required' }, { status: 400 })
   }
-  if (!company || !audience || !volume || !description) {
+  if (!company || !audience || !description) {
     return NextResponse.json(
-      { error: 'company, audience, volume, and description are required' },
+      { error: 'company, audience, and description are required' },
       { status: 400 },
     )
   }
@@ -47,15 +46,14 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { partnerId, userId } = await upsertPartnerApplication({
+    const { partnerId } = await upsertPartnerApplication({
       email,
       company,
       audience,
-      volume,
       description,
       linkedin,
     })
-    return NextResponse.json({ ok: true, partnerId, userId })
+    return NextResponse.json({ ok: true, partnerId })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     console.error('submit-partner error:', message)

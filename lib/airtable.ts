@@ -1212,7 +1212,6 @@ export interface PartnerApplication {
   email: string
   company: string
   audience: string
-  volume: string
   description: string
   linkedin: string
 }
@@ -1265,24 +1264,17 @@ async function writeWithKnownFields(
 
 export async function upsertPartnerApplication(
   app: PartnerApplication,
-): Promise<{ partnerId: string; userId: string }> {
+): Promise<{ partnerId: string }> {
   const base = getBase()
-  const email = app.email.trim().toLowerCase()
   const companyName = app.company.trim()
   const sanitizedCompany = companyName.replace(/'/g, "\\'")
 
-  // Volume is a Number column in Airtable. The client normalizes vague
-  // answers ("a lot", "many") to a stringified midpoint when possible;
-  // anything that doesn't parse as an integer we omit entirely rather
-  // than 422'ing the application.
-  const volumeNum = parseInt(app.volume, 10)
   const partnerFields: Partial<FieldSet> = {
     Name: companyName,
+    Email: app.email.trim().toLowerCase(),
     Audience: app.audience.trim(),
     Description: app.description.trim(),
-  }
-  if (Number.isFinite(volumeNum)) {
-    partnerFields.Volume = volumeNum
+    LinkedIn: cleanLinkedinUrl(app.linkedin),
   }
 
   const existingPartner = await base(PARTNERS_TABLE)
@@ -1299,34 +1291,5 @@ export async function upsertPartnerApplication(
     partnerFields,
   )
 
-  const sanitizedEmail = email.replace(/'/g, "\\'")
-  const existingUser = await base(PROFILES_TABLE)
-    .select({
-      filterByFormula: `LOWER({Email}) = '${sanitizedEmail}'`,
-      fields: ['Email'],
-      maxRecords: 1,
-    })
-    .all()
-
-  const linkedinValue = cleanLinkedinUrl(app.linkedin)
-  // Existing user: don't rewrite Email (preserves casing/history).
-  // New user: include Email. 'Partners' is the link field on the Users
-  // table pointing back to the Partners table.
-  const userFields: Partial<FieldSet> = existingUser.length
-    ? { LinkedIn: linkedinValue, Partners: [partnerId] }
-    : { Email: email, LinkedIn: linkedinValue, Partners: [partnerId] }
-
-  const userId = await writeWithKnownFields(
-    PROFILES_TABLE,
-    existingUser.length ? existingUser[0].id : null,
-    userFields,
-  )
-
-  // Partner-application user row is written to Airtable Users only. Pre-
-  // 83580c0 this called mirrorUserSafe(userId) so the Supabase users table
-  // picked it up via syncSingleUser; now both are no-ops, which means
-  // getPartnerUserByEmail (Supabase-backed) won't find this user until the
-  // partner flow is migrated separately. Tracked under the Partners-table
-  // out-of-scope item.
-  return { partnerId, userId }
+  return { partnerId }
 }
