@@ -621,14 +621,19 @@ export async function getPartners(): Promise<Partner[]> {
   const base = getBase()
   const records = await base('Partners')
     .select({
-      filterByFormula: "{Status} = 'Live'",
-      fields: ['Name', 'Logo', 'Site', 'Type', 'Description', 'Featured'],
+      // PartnerPage drives both surfaces:
+      //   'Featured' → marquee scroll + /partners directory
+      //   'Live'     → /partners directory only (no scroll)
+      // 'Site' is the legacy value for 'Live' — treated identically.
+      filterByFormula: "OR({PartnerPage} = 'Featured', {PartnerPage} = 'Live', {PartnerPage} = 'Site')",
+      fields: ['Name', 'Logo', 'Site', 'Type', 'Description', 'PartnerPage'],
     })
     .all()
 
   return records
     .map((record) => {
       const logo = record.get('Logo') as Array<{ url: string }> | undefined
+      const partnerPage = String(record.get('PartnerPage') || '')
       return {
         id: record.id,
         name: String(record.get('Name') || ''),
@@ -638,7 +643,7 @@ export async function getPartners(): Promise<Partner[]> {
         logoUrl: logo?.[0]?.url ? `/api/partner-logo/${record.id}` : '',
         website: String(record.get('Site') || ''),
         description: String(record.get('Description') || ''),
-        featured: record.get('Featured') === true,
+        featured: partnerPage === 'Featured',
       }
     })
     .filter((p) => p.logoUrl)
