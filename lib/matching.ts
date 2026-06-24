@@ -21,7 +21,7 @@ const QUALITY_MULTIPLIER: Record<'A' | 'Polish' | 'B' | 'C', number> = {
 // Bumped any time the scoring rubric / prompt / formula changes so the
 // inputs hash on every cached row turns stale. The admin rescore-missing
 // endpoint then picks them up and refreshes under the new model.
-const MATCHING_VERSION = 9
+const MATCHING_VERSION = 10
 
 export type SkippedReason = 'grade_c' | 'location_zero' | 'women_only_audience'
 
@@ -60,6 +60,7 @@ export function computeInputsHash(event: AirtableEvent, user: AirtableUser): str
       grade: user.grade ?? '',
       lat: user.lat ?? null,
       lng: user.lng ?? null,
+      gender: inferLikelyGender(user.firstName || user.name || ''),
     },
   }
   return createHash('sha256').update(JSON.stringify(payload)).digest('hex')
