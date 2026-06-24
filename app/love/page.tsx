@@ -21,6 +21,14 @@ const POSTS: LovePost[] = [
     linkedinUrl:
       'https://www.linkedin.com/posts/dahmadi_whispered-events-activity-7473518191915335680-hg5Q',
   },
+  {
+    id: 'melissa-moody',
+    author: 'Melissa Moody',
+    role: 'GTM leader & investor',
+    imageUrl: '/love/melissa-moody.png',
+    linkedinUrl:
+      'https://www.linkedin.com/posts/melissammoody_in-person-events-are-so-hot-right-now-activity-7472416088685801472-W4X3',
+  },
 ]
 
 export default function LovePage() {
