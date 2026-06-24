@@ -1199,23 +1199,15 @@ export async function getEventById(eventId: string): Promise<AirtableEvent | nul
   }
 }
 
-// Single-shot mutation used by /api/submit-partner. Owns the dedupe rules
-// for both tables so the route stays thin:
-//   - Partners: match by case-insensitive Name. If found, overwrite the
-//     application fields (Audience/Volume/Description) per product spec;
-//     if not, create a new row with Status left blank so it doesn't show
-//     up on the public /partners directory until admin review.
-//   - Users: match by case-insensitive Email. If found, overwrite LinkedIn
-//     and (re)link Company; if not, create a new row.
-//
-// LinkedIn is always written from the application (overwriting any stale
-// value) because the applicant just told us their current profile.
+// Single-shot mutation used by /api/submit-partner. Match Partners by
+// case-insensitive Name — if found, overwrite the application fields; if
+// not, create a new row with Status left blank so it doesn't show on the
+// public /partners directory until admin review.
 export interface PartnerApplication {
   email: string
   company: string
   audience: string
   description: string
-  linkedin: string
 }
 
 // Airtable rejects an ENTIRE write with a 422 if any single field name
@@ -1276,7 +1268,6 @@ export async function upsertPartnerApplication(
     Email: app.email.trim().toLowerCase(),
     Audience: app.audience.trim(),
     Description: app.description.trim(),
-    LinkedIn: cleanLinkedinUrl(app.linkedin),
   }
 
   const existingPartner = await base(PARTNERS_TABLE)

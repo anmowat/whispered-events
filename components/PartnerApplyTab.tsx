@@ -16,14 +16,11 @@ type Step =
   | 'company'
   | 'audience'
   | 'description'
-  | 'linkedin'
-  | 'linkedin-clarify'
   | 'submitting'
   | 'submitted'
   | 'error'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-const LINKEDIN_RE = /(^|\.)linkedin\.com\/(in|company|pub)\//i
 
 const FIRST_QUESTION =
   "Partnering is free for people who host great executive events. We'll ask a few quick questions, then our team reviews — typically within 24 hours.\n\n**First, what's your email?**"
@@ -34,8 +31,7 @@ const STEP_PROMPTS: Partial<Record<Step, string>> = {
   audience:
     "Great to connect. **To start, can you describe your target audience(s) for your events?** Roles and levels are most useful — e.g. CROs, VPs of Sales, GTM leaders at $50M+ ARR companies.",
   description:
-    "If we approve you, we'll list you on our partner directory. **Can you share a short description of what your company does?**",
-  linkedin: "Last one — **what's your LinkedIn profile URL?**",
+    "Last one — if we approve you, we'll list you on our partner directory. **Can you share a short description of what your company does?**",
 }
 
 // Where each step goes when back is pressed. Steps not listed here call onDone.
@@ -43,8 +39,6 @@ const PREV_STEP: Partial<Record<Step, Step>> = {
   company: 'email',
   audience: 'company',
   description: 'audience',
-  linkedin: 'description',
-  'linkedin-clarify': 'description',
 }
 
 const STEP_INDEX: Partial<Record<Step, number>> = {
@@ -52,20 +46,11 @@ const STEP_INDEX: Partial<Record<Step, number>> = {
   company: 2,
   audience: 3,
   description: 4,
-  linkedin: 5,
-  'linkedin-clarify': 5,
-  submitting: 5,
-  submitted: 5,
-  error: 5,
+  submitting: 4,
+  submitted: 4,
+  error: 4,
 }
-const TOTAL_STEPS = 5
-
-function normalizeLinkedin(raw: string): string {
-  const trimmed = raw.trim()
-  if (!trimmed) return ''
-  if (/^https?:\/\//i.test(trimmed)) return trimmed
-  return `https://${trimmed}`
-}
+const TOTAL_STEPS = 4
 
 export default function PartnerApplyTab({ onDone }: { onDone?: () => void }) {
   const [step, setStep] = useState<Step>('email')
@@ -77,7 +62,6 @@ export default function PartnerApplyTab({ onDone }: { onDone?: () => void }) {
     company: '',
     audience: '',
     description: '',
-    linkedin: '',
   })
 
   function handleBack() {
@@ -124,22 +108,7 @@ export default function PartnerApplyTab({ onDone }: { onDone?: () => void }) {
     }
 
     if (step === 'description') {
-      setForm((f) => ({ ...f, description: value }))
-      setAssistantContent(STEP_PROMPTS.linkedin!)
-      setStep('linkedin')
-      return
-    }
-
-    if (step === 'linkedin' || step === 'linkedin-clarify') {
-      const normalized = normalizeLinkedin(value)
-      if (!LINKEDIN_RE.test(normalized)) {
-        setAssistantContent(
-          "That doesn't look like a LinkedIn URL. Please paste a link that starts with linkedin.com/in/ or linkedin.com/company/.",
-        )
-        setStep('linkedin-clarify')
-        return
-      }
-      const finalForm = { ...form, linkedin: normalized }
+      const finalForm = { ...form, description: value }
       setForm(finalForm)
       setStep('submitting')
       setIsLoading(true)
@@ -172,8 +141,6 @@ export default function PartnerApplyTab({ onDone }: { onDone?: () => void }) {
     company: 'Acme Corp',
     audience: 'e.g. CROs, VPs of Sales at $50M+ ARR companies',
     description: 'A 1-2 sentence description of what your company does',
-    linkedin: 'https://www.linkedin.com/in/…',
-    'linkedin-clarify': 'https://www.linkedin.com/in/…',
   }
 
   const inputDisabled =
