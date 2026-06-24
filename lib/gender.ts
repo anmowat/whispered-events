@@ -141,7 +141,7 @@ const MALE_NAMES = new Set<string>([
   'mayur', 'mihir', 'mohan', 'mohit', 'mukesh', 'naveen', 'navin', 'nikhil',
   'nilesh', 'nitin', 'om', 'pankaj', 'parag', 'paresh', 'pawan', 'piyush',
   'pradeep', 'prakash', 'pranav', 'prasad', 'prashant', 'praveen', 'prem',
-  'punit', 'rahul', 'raj', 'rajat', 'rajeev', 'rajendra', 'rajesh', 'raju',
+  'punit', 'rachit', 'rahul', 'raj', 'rajat', 'rajeev', 'rajendra', 'rajesh', 'raju',
   'ram', 'ramakrishna', 'ramesh', 'ranjit', 'ravi', 'rohan', 'rohit', 'roshan',
   'sachin', 'salman', 'samir', 'sandeep', 'sanjay', 'sanjeev', 'sanket',
   'satish', 'satya', 'saurabh', 'shailesh', 'shantanu', 'shashank', 'shashi',
