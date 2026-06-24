@@ -140,6 +140,7 @@ export async function GET(
 // fires once per save (and the match scorer reruns once, not per field).
 const VALID_GRADES = new Set(['A', 'Polish', 'B', 'C', ''])
 const VALID_STATUSES = new Set(['Pending', 'Live', 'Passed', 'Deactivated', 'Partner'])
+const VALID_FREQUENCIES = new Set(['As they arrive', 'Weekly', 'Monthly', 'Paused'])
 // Empty string allowed so admin can clear a legacy non-canonical value
 // (e.g. "Senior") that pre-dated the picklist.
 const VALID_SENIORITIES = new Set<string>([...SENIORITY_OPTIONS, ''])
@@ -173,7 +174,9 @@ export async function PATCH(
     if (typeof body.interest === 'string') update.interest = body.interest
     if (typeof body.employment === 'string') update.employment = body.employment
     if (typeof body.companySize === 'string') update.companySize = body.companySize
-    if (typeof body.frequency === 'string') update.frequency = body.frequency
+    if (typeof body.frequency === 'string' && VALID_FREQUENCIES.has(body.frequency)) {
+      update.frequency = body.frequency
+    }
     if (typeof body.linkedin === 'string') update.linkedin = body.linkedin
     if (typeof body.learn === 'string') update.learn = body.learn
     // Status replaces the old active boolean. Validate against the enum so a

@@ -61,6 +61,7 @@ interface UserDraft {
 }
 
 const GRADE_OPTIONS = ['', 'A', 'Polish', 'B', 'C'] as const
+const FREQUENCY_OPTIONS = ['As they arrive', 'Weekly', 'Monthly', 'Paused'] as const
 
 function draftFromUser(u: UserDetail): UserDraft {
   return {
@@ -650,14 +651,16 @@ function UserEditForm({
           </select>
         </FormField>
         <FormField label="Frequency">
-          <input
-            type="text"
+          <select
             value={draft.frequency}
             disabled={disabled}
             onChange={(e) => update('frequency', e.target.value)}
-            placeholder="leave blank to clear"
             className={input}
-          />
+          >
+            {FREQUENCY_OPTIONS.map((f) => (
+              <option key={f} value={f}>{f}</option>
+            ))}
+          </select>
         </FormField>
         <FormField label="Employment">
           <input
