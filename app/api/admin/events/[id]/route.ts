@@ -49,6 +49,7 @@ export async function GET(
     const featured = flags?.featured ?? false
     const hostIds = flags?.host_ids ?? []
     const status = flags?.status ?? 'Pending'
+    const submitterEmail = flags?.submitter_email ?? ''
     const hostUsers = await getUsersByIds(hostIds)
     const hosts = hostUsers.map((u) => ({
       id: u.id,
@@ -129,6 +130,7 @@ export async function GET(
         featured,
         hosts,
         status,
+        submitterEmail,
       },
       users,
       generatedAt: new Date().toISOString(),

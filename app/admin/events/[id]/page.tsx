@@ -34,6 +34,7 @@ interface EventDetail {
   featured: boolean
   hosts: Host[]
   status: string
+  submitterEmail: string
 }
 
 // Draft mirrors EventDetail's editable fields. audience is a comma-joined
@@ -597,6 +598,7 @@ export default function AdminEventDetailPage() {
                   <Field label="Location" value={event.location} />
                   <Field label="LatLon" value={event.lat !== null && event.lng !== null ? `${event.lat}, ${event.lng}` : ''} />
                   <Field label="Link" value={event.link} />
+                  <Field label="Submitter" value={event.submitterEmail} />
                   <Field label="Audience" value={event.audience.join(', ')} />
                   <Field label="Description" value={event.description} multiline />
                 </dl>

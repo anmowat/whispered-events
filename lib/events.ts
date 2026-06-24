@@ -238,12 +238,13 @@ export async function getEventFlags(eventId: string): Promise<{
   featured: boolean
   host_ids: string[]
   status: string
+  submitter_email: string
 } | null> {
   if (!eventId) return null
   const supabase = getSupabase()
   const { data, error } = await supabase
     .from('events')
-    .select('image_url, featured, host_ids, status')
+    .select('image_url, featured, host_ids, status, submitter_email')
     .eq('id', eventId)
     .maybeSingle()
   if (error) {
@@ -256,12 +257,14 @@ export async function getEventFlags(eventId: string): Promise<{
     featured: boolean | null
     host_ids: string[] | null
     status: string | null
+    submitter_email: string | null
   }
   return {
     image_url: row.image_url ?? '',
     featured: row.featured === true,
     host_ids: row.host_ids ?? [],
     status: row.status ?? 'Pending',
+    submitter_email: row.submitter_email ?? '',
   }
 }
 
