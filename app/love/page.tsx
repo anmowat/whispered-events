@@ -88,7 +88,7 @@ export default function LovePage() {
           className="mt-3 max-w-[560px]"
           style={{ fontSize: 14.5, color: 'var(--ink-2)', lineHeight: 1.6 }}
         >
-          Real words from the GTM community — unprompted, unfiltered.
+          Real words from executives and partners.
         </p>
 
         <div className="mt-10 columns-1 sm:columns-2 gap-5">
