@@ -420,12 +420,8 @@ export default function AdminUserDetailPage() {
                   <Field label="Location" value={user.location} />
                   <Field label="LatLon" value={user.lat !== null && user.lng !== null ? `${user.lat}, ${user.lng}` : ''} />
                   <Field label="Function" value={user.function} />
-                  <Field label="Seniority" value={user.seniority} />
-                  <Field label="Grade" value={user.grade} />
-                  <Field label="Employment" value={user.employment} />
-                  <Field label="Company Size" value={user.companySize} />
                   <Field label="Topics" value={user.interest} multiline />
-                  <Field label="How they heard" value={user.learn} multiline />
+                  <Field label="Grade" value={user.grade} />
                   <Field
                     label="Last Contribution"
                     value={
@@ -438,10 +434,7 @@ export default function AdminUserDetailPage() {
                         : ''
                     }
                   />
-                  <Field
-                    label="Contributions (total / 30d / 90d)"
-                    value={`${user.totalContributions} / ${user.contributionsLast30} / ${user.contributionsLast90}`}
-                  />
+                  <Field label="Company Size" value={user.companySize} />
                   <Field
                     label="Last seen"
                     value={
@@ -453,6 +446,13 @@ export default function AdminUserDetailPage() {
                           })
                         : ''
                     }
+                  />
+                  <Field label="Seniority" value={user.seniority} />
+                  <Field label="How they heard" value={user.learn} multiline />
+                  <Field label="Employment" value={user.employment} />
+                  <Field
+                    label="Contributions (total / 30d / 90d)"
+                    value={`${user.totalContributions} / ${user.contributionsLast30} / ${user.contributionsLast90}`}
                   />
                   <Field
                     label="Last email sent"
