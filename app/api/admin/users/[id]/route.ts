@@ -201,12 +201,12 @@ export async function PATCH(
 
     await updateUserAdmin(userId, update)
 
-    // Pending -> Live transition was historically driven by the Airtable
-    // "User Approved" automation. Now that Users live in Supabase, fire the
-    // same flow here so approving someone in /admin still ships the welcome
-    // email + first matches.
+    // Pending -> Live (or Partner) transition: fire the approval flow so the
+    // welcome email + first matches go out regardless of which active status
+    // the admin picks. Guard excludes already-active statuses so re-saves
+    // don't re-send.
     if (
-      update.status === 'Live' &&
+      (update.status === 'Live' || update.status === 'Partner') &&
       priorStatus !== 'Live' &&
       priorStatus !== 'Partner'
     ) {
