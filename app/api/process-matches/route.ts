@@ -121,19 +121,35 @@ async function processUserTrigger(
   )
 
   const scored: Array<{ event: AirtableEvent; outcome: ScoreOutcome }> = []
+  let failedCount = 0
 
+  // Per-event try/catch isolates failures: a single 429 or timeout
+  // shouldn't nuke the entire user's rescore. Failed events log + skip;
+  // every successful event is written. Without this isolation a single
+  // bad LLM call would reject the whole Promise.all and the user would
+  // see "nothing happened" after a long Refresh.
   for (let i = 0; i < events.length; i += BATCH_SIZE) {
     const batch = events.slice(i, i + BATCH_SIZE)
     const results = await Promise.all(
       batch.map(async (event) => {
-        const outcome = await scoreFresh(event, targetUser!, 'user')
-        return { event, outcome }
+        try {
+          const outcome = await scoreFresh(event, targetUser!, 'user')
+          return { event, outcome }
+        } catch (err) {
+          console.error(
+            `process-matches: scoreFresh failed for user ${targetUser!.email} / event ${event.id}:`,
+            err,
+          )
+          failedCount++
+          return null
+        }
       }),
     )
-    scored.push(...results)
+    for (const r of results) if (r) scored.push(r)
   }
 
-  // Every row above was freshly scored — write them all.
+  // Write each fresh match. logMatch failures (transient Supabase blips)
+  // also isolated so the rest of the batch still persists.
   await Promise.all(
     scored.map((s) =>
       logMatch({
@@ -147,8 +163,17 @@ async function processUserTrigger(
         preferenceScore: s.outcome.result.preferences,
         inputsHash: s.outcome.result.inputsHash,
         skippedReason: s.outcome.result.skippedReason,
+      }).catch((err) => {
+        console.error(
+          `process-matches: logMatch failed for user ${targetUser!.email} / event ${s.event.id}:`,
+          err,
+        )
       }),
     ),
+  )
+
+  console.log(
+    `process-matches: user "${targetUser.email}" done — scored ${scored.length}, failed ${failedCount} (of ${events.length})`,
   )
 
   if (options.noEmail) return
