@@ -20,7 +20,7 @@ const QUALITY_MULTIPLIER: Record<'A' | 'Polish' | 'B' | 'C', number> = {
 // Bumped any time the scoring rubric / prompt / formula changes so the
 // inputs hash on every cached row turns stale. The admin rescore-missing
 // endpoint then picks them up and refreshes under the new model.
-const MATCHING_VERSION = 11
+const MATCHING_VERSION = 12
 
 export type SkippedReason = 'grade_c' | 'location_zero' | 'women_only_audience'
 
@@ -272,6 +272,61 @@ function shouldExcludeFromWomenOnlyEvent(
   return !topicsIncludeWomen(user.interest)
 }
 
+// Broad-role aliases that the rubric says cap audience at 0.8 — but
+// the LLM keeps under-applying them when Director-level functions
+// show up at "Revenue Leaders" / "GTM Leaders" / etc. events. This
+// deterministic floor enforces the rubric's intent: if the event's
+// audience uses a broad-role term AND the user's function is in that
+// alias's list AND they're at Director+ seniority, the audience leg
+// is at least 0.8 regardless of what the model returned.
+const BROAD_ALIAS_FLOORS: Array<{ audience: RegExp; functions: RegExp }> = [
+  {
+    audience: /\b(gtm|revenue|go.?to.?market|growth)\s+leader/i,
+    functions: /\b(sales|revops|rev ops|marketing|customer success|cs)\b/i,
+  },
+  {
+    audience: /\bengineering\s+leader/i,
+    functions: /\b(engineering|platform|infrastructure|devops|data)\b/i,
+  },
+  {
+    audience: /\bproduct\s+leader/i,
+    functions: /\b(product|design|product marketing)\b/i,
+  },
+  {
+    audience: /\b(operations|ops)\s+leader/i,
+    functions: /\b(operations|ops|supply chain|strategy)\b/i,
+  },
+]
+
+const SENIOR_PLUS = /\b(director|vp|head|c.?level|chief|founder|ceo|cmo|cro|cfo|cto|coo|cpo)\b/i
+
+function matchesBroadAlias(event: AirtableEvent, user: AirtableUser): boolean {
+  if (!SENIOR_PLUS.test(user.seniority || '')) return false
+  const audienceText = (event.audience ?? []).join(' | ')
+  const userFn = user.function ?? ''
+  return BROAD_ALIAS_FLOORS.some(
+    (a) => a.audience.test(audienceText) && a.functions.test(userFn),
+  )
+}
+
+// Post-LLM deterministic floors on the audience leg. Keeps the rubric
+// the source of truth for the typical case but stops two recurring
+// underscores cold:
+//   - Women audience + Women topic: explicit two-way opt-in lands at
+//     the literal-match tier (1.2) regardless of the model's read.
+//   - Senior+ function fits a broad-role alias the event names: 0.8,
+//     per the rubric tier that the LLM keeps mis-applying.
+function audienceFloor(event: AirtableEvent, user: AirtableUser): number {
+  let floor = 0
+  if (isWomenOnlyAudience(event.audience) && topicsIncludeWomen(user.interest)) {
+    floor = Math.max(floor, 1.2)
+  }
+  if (matchesBroadAlias(event, user)) {
+    floor = Math.max(floor, 0.8)
+  }
+  return floor
+}
+
 export async function scoreEventUser(
   event: AirtableEvent,
   user: AirtableUser,
@@ -327,12 +382,17 @@ export async function scoreEventUser(
   // when interest is missing. This keeps the code paths uniform.
   const llm = await callLLM(event, user, fixedSide)
 
-  const score = location * llm.audience * quality * llm.preferences
+  // Deterministic floors on the audience leg — see audienceFloor() for
+  // the policy. The model's read sets the ceiling; the floor stops two
+  // recurring underscores (women opt-in, broad-role alias) from
+  // killing otherwise-good matches.
+  const audience = Math.max(llm.audience, audienceFloor(event, user))
+  const score = location * audience * quality * llm.preferences
   return {
     score,
     matchPercent: buildToPercent(score),
     location,
-    audience: llm.audience,
+    audience,
     quality,
     preferences: llm.preferences,
     reason: llm.reason,
