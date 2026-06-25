@@ -1413,6 +1413,10 @@ function RescoreConfirmationModal({ onClose }: { onClose: () => void }) {
   const POLL_INTERVAL_MS = 3_000
   const TIMEOUT_MS = 90_000
   const [phase, setPhase] = useState<'polling' | 'done' | 'timeout'>('polling')
+  // Shown as "N of M done" so the user sees real progress rather than
+  // an opaque spinner. done = total - pending; total locks on the first
+  // successful poll so a transient hiccup doesn't reset the counter.
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -1426,7 +1430,12 @@ function RescoreConfirmationModal({ onClose }: { onClose: () => void }) {
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         const data = (await res.json()) as { pending?: number; total?: number }
         if (cancelled) return
-        if ((data.pending ?? 1) === 0) {
+        const total = data.total ?? 0
+        const pending = data.pending ?? 0
+        if (total > 0) {
+          setProgress({ done: Math.max(0, total - pending), total })
+        }
+        if (pending === 0) {
           setPhase('done')
           // Brief "Done" flash before the reload so the user sees the
           // success state, not a blank navigation jump.
@@ -1499,7 +1508,13 @@ function RescoreConfirmationModal({ onClose }: { onClose: () => void }) {
                   borderTopColor: 'var(--accent)',
                 }}
               />
-              <span>{phase === 'done' ? 'Done — refreshing…' : 'Re-running matches…'}</span>
+              <span>
+                {phase === 'done'
+                  ? 'Done — refreshing…'
+                  : progress
+                    ? `Re-scored ${progress.done} of ${progress.total} matches…`
+                    : 'Re-running matches…'}
+              </span>
             </div>
           </>
         )}

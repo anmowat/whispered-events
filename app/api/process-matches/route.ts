@@ -6,7 +6,6 @@ import { withinMiles } from '@/lib/geocode'
 import {
   scoreEventUser,
   isMatchEligible,
-  computeInputsHash,
   NEARBY_RADIUS_MILES,
   ScoreResult,
 } from '@/lib/matching'
@@ -21,12 +20,16 @@ import { DIGEST_CAP_PER_SECTION } from '@/lib/digest'
 
 export const maxDuration = 300
 
-const SCORE_THRESHOLD = 1.0
 // Align welcome digest threshold with everywhere else (dashboard, cron digest,
 // each-new-event email) so the first email a new user gets contains the same
 // set of matches their dashboard shows.
 const DIGEST_THRESHOLD = 1.35
-const BATCH_SIZE = 50
+// Conservative concurrency. Anthropic Haiku is ~50 RPM on our tier;
+// fanning out 50 calls per batch invites 429s. 8-at-a-time keeps a
+// per-user rescore (~40 events) well inside the rate limit even when
+// other jobs (cron, event triggers) overlap, with callWithRetry
+// covering any leftover transient throttling.
+const BATCH_SIZE = 8
 
 // How many future events are within range of the user. Used to pick
 // which inline coaching variant the no-match welcome should carry
@@ -65,7 +68,6 @@ async function processEventTrigger(eventId: string) {
   // Tally per-user outcomes so silent failures surface in logs. Without
   // this, a one-off Claude/Supabase blip for a single user is invisible.
   let scored = 0
-  let cached = 0
   let failed = 0
   for (let i = 0; i < users.length; i += BATCH_SIZE) {
     const batch = users.slice(i, i + BATCH_SIZE)
@@ -73,13 +75,12 @@ async function processEventTrigger(eventId: string) {
       batch.map((user) => scoreAndNotify(event, user, 'event')),
     )
     for (const r of results) {
-      if (r === 'cached') cached++
-      else if (r === 'scored') scored++
+      if (r === 'scored') scored++
       else failed++
     }
   }
   console.log(
-    `process-matches: event "${event.name}" done — scored ${scored}, cached ${cached}, failed ${failed} (of ${users.length})`,
+    `process-matches: event "${event.name}" done — scored ${scored}, failed ${failed} (of ${users.length})`,
   )
 }
 
@@ -125,31 +126,29 @@ async function processUserTrigger(
     const batch = events.slice(i, i + BATCH_SIZE)
     const results = await Promise.all(
       batch.map(async (event) => {
-        const outcome = await scoreOrReuse(event, targetUser!, 'user')
+        const outcome = await scoreFresh(event, targetUser!, 'user')
         return { event, outcome }
       }),
     )
     scored.push(...results)
   }
 
-  // Persist freshly-computed rows. Cached rows are already up to date, skip writing.
+  // Every row above was freshly scored — write them all.
   await Promise.all(
-    scored
-      .filter((s) => !s.outcome.cached)
-      .map((s) =>
-        logMatch({
-          eventId: s.event.id,
-          userId: targetUser!.id,
-          score: s.outcome.result.score,
-          matchPercent: s.outcome.result.matchPercent,
-          locationScore: s.outcome.result.location,
-          audienceScore: s.outcome.result.audience,
-          qualityScore: s.outcome.result.quality,
-          preferenceScore: s.outcome.result.preferences,
-          inputsHash: s.outcome.result.inputsHash,
-          skippedReason: s.outcome.result.skippedReason,
-        }),
-      ),
+    scored.map((s) =>
+      logMatch({
+        eventId: s.event.id,
+        userId: targetUser!.id,
+        score: s.outcome.result.score,
+        matchPercent: s.outcome.result.matchPercent,
+        locationScore: s.outcome.result.location,
+        audienceScore: s.outcome.result.audience,
+        qualityScore: s.outcome.result.quality,
+        preferenceScore: s.outcome.result.preferences,
+        inputsHash: s.outcome.result.inputsHash,
+        skippedReason: s.outcome.result.skippedReason,
+      }),
+    ),
   )
 
   if (options.noEmail) return
@@ -160,14 +159,15 @@ async function processUserTrigger(
   // ongoing match delivery is gated by their frequency preference downstream.
   if (!options.welcome && targetUser.frequency === 'Paused') return
 
-  // "New" = top 3 freshly-scored matches above threshold (haven't been
-  // included in an earlier email). "Top Matches" = top 3 of ALL matches
-  // above threshold (cached or fresh); may overlap with New, in which case
-  // the email template renders the overlapping rows compactly.
+  // "New" = top 3 freshly-scored matches above threshold that the user
+  // hasn't been told about yet (previousNotifiedAt is null). "Top Matches"
+  // = top 3 of all matches above threshold this run.
   const allAboveThreshold = scored
     .filter((s) => s.outcome.result.score >= DIGEST_THRESHOLD)
     .sort((a, b) => b.outcome.result.score - a.outcome.result.score)
-  const freshAboveThreshold = allAboveThreshold.filter((s) => !s.outcome.cached)
+  const freshAboveThreshold = allAboveThreshold.filter(
+    (s) => s.outcome.previousNotifiedAt === null,
+  )
 
   const toEntry = (s: { event: AirtableEvent; outcome: ScoreOutcome }) => ({
     event: s.event,
@@ -245,7 +245,7 @@ async function processUserTrigger(
   )
 }
 
-type ScoreOutcomeStatus = 'scored' | 'cached' | 'failed'
+type ScoreOutcomeStatus = 'scored' | 'failed'
 
 async function scoreAndNotify(
   event: AirtableEvent,
@@ -253,12 +253,7 @@ async function scoreAndNotify(
   fixedSide: 'event' | 'user',
 ): Promise<ScoreOutcomeStatus> {
   try {
-    const outcome = await scoreOrReuse(event, user, fixedSide)
-
-    if (outcome.cached) {
-      // Already persisted with the same inputs; user was already notified at this score.
-      return 'cached'
-    }
+    const outcome = await scoreFresh(event, user, fixedSide)
 
     const result = outcome.result
     await logMatch({
@@ -273,8 +268,6 @@ async function scoreAndNotify(
       inputsHash: result.inputsHash,
       skippedReason: result.skippedReason,
     })
-
-    if (result.score < SCORE_THRESHOLD) return 'scored'
 
     // Frequency routes delivery — all three batched paths now flow
     // through cron, so this function's job is just to log the match:
@@ -292,7 +285,6 @@ async function scoreAndNotify(
 }
 
 interface ScoreOutcome {
-  cached: boolean
   result: ScoreResult
   // notified_at on the (event, user) match row BEFORE the upsert
   // re-stamps anything. Used by the 'As they arrive' delivery decision
@@ -302,35 +294,26 @@ interface ScoreOutcome {
   previousNotifiedAt: string | null
 }
 
-async function scoreOrReuse(
+// Every trigger of process-matches re-runs the AI from scratch.
+// Triggers are rare and user-initiated (admin Refresh, a profile save,
+// event create/edit, status flip) — they're the moments where the
+// admin actively wants the latest rules applied. Skipping the AI here
+// is what caused Michelle's CMO score to stay stale: the inputs hash
+// matched her old cached row, the code thought "no work to do," and
+// her new audience-floor boost never landed.
+//
+// The bulk /api/admin/rescore-missing button still uses inputs_hash
+// to skip pairs that haven't changed — that's where the optimization
+// actually matters (thousands of pairs, slow LLM calls).
+async function scoreFresh(
   event: AirtableEvent,
   user: AirtableUser,
   fixedSide: 'event' | 'user',
 ): Promise<ScoreOutcome> {
-  const hash = computeInputsHash(event, user)
   const existing = await getExistingMatch(event.id, user.id)
   const previousNotifiedAt = existing?.notified_at ?? null
-  if (existing && existing.inputs_hash === hash) {
-    return {
-      cached: true,
-      previousNotifiedAt,
-      result: {
-        score: existing.score,
-        matchPercent:
-          existing.match_percent ??
-          Math.max(0, Math.min(100, Math.round((existing.score / 3.0) * 100))),
-        location: 0,
-        audience: null,
-        quality: 0,
-        preferences: null,
-        reason: 'cached',
-        skippedReason: null,
-        inputsHash: hash,
-      },
-    }
-  }
   const result = await scoreEventUser(event, user, fixedSide)
-  return { cached: false, previousNotifiedAt, result }
+  return { previousNotifiedAt, result }
 }
 
 export async function GET(req: NextRequest) {
