@@ -13,12 +13,16 @@ import {
   cloneAndRemove,
   cloneAndReplace,
   countConditions,
+  emptyGeoValue,
   emptyRoot,
   evalGroup,
   newCondition,
   newGroup,
+  parseGeoValue,
+  stringifyGeoValue,
   type Condition,
   type Conjunction,
+  type GeoValue,
   type Group,
   type Node as FilterNode,
   type OperatorId,
@@ -1064,11 +1068,19 @@ function ConditionRow({
     // equals/= depending on type) so the row stays usable.
     const sameOp = nextOps.find((o) => o.id === condition.operator)
     const nextOp = sameOp ?? nextOps[0]
+    // Geo fields stash a structured JSON value; seed it so the input
+    // never has to parse an empty string on first render.
+    const nextValue =
+      next.type === 'geo'
+        ? stringifyGeoValue(emptyGeoValue())
+        : nextOp.needsValue
+          ? condition.value
+          : ''
     onChange({
       ...condition,
       fieldId: nextFieldId,
       operator: nextOp.id,
-      value: nextOp.needsValue ? condition.value : '',
+      value: nextValue,
     })
   }
 
@@ -1183,6 +1195,10 @@ function ConditionValueInput({
     )
   }
 
+  if (field.type === 'geo') {
+    return <GeoValueInput value={value} onChange={onChange} />
+  }
+
   // text fallback
   return (
     <input
@@ -1192,6 +1208,141 @@ function ConditionValueInput({
       placeholder="value"
       className={inputCls}
     />
+  )
+}
+
+// Custom value input for geo conditions. Two controls:
+//   [ city text · ✓/…/✗ ]   within  [ miles number ]  miles
+// Typing in the city box debounces 400ms, then POSTs to the admin
+// geocode proxy (Nominatim can't be called from the browser due to CORS
+// + the throttle). Each new keystroke aborts the previous in-flight
+// request so a fast typist doesn't get stale lat/lng written over a
+// fresh resolution. The whole GeoValue (city, lat, lng, miles) is
+// serialized to JSON in the condition's value string.
+function GeoValueInput({
+  value,
+  onChange,
+}: {
+  value: string
+  onChange: (v: string) => void
+}) {
+  const initial = useMemo<GeoValue>(() => parseGeoValue(value || stringifyGeoValue(emptyGeoValue())), [value])
+  // Local city/miles state so typing feels instant while the parent
+  // only sees resolved values + miles changes.
+  const [city, setCity] = useState(initial.city)
+  const [miles, setMiles] = useState(String(initial.miles))
+  const [status, setStatus] = useState<'idle' | 'loading' | 'ok' | 'fail'>(
+    initial.city && initial.lat !== null && initial.lng !== null ? 'ok' : 'idle',
+  )
+  const latRef = useRef<number | null>(initial.lat)
+  const lngRef = useRef<number | null>(initial.lng)
+  const abortRef = useRef<AbortController | null>(null)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Re-emit JSON whenever any field changes. Sourced from refs (for
+  // coords) + state (for inputs) so a city resolve and a miles edit
+  // both produce a fresh, valid JSON value.
+  function emit(nextCity: string, nextMiles: string, lat: number | null, lng: number | null) {
+    const m = Number(nextMiles)
+    onChange(
+      stringifyGeoValue({
+        city: nextCity,
+        lat,
+        lng,
+        miles: Number.isFinite(m) && m > 0 ? m : initial.miles,
+      }),
+    )
+  }
+
+  function scheduleLookup(nextCity: string) {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    if (abortRef.current) abortRef.current.abort()
+    const trimmed = nextCity.trim()
+    if (!trimmed) {
+      latRef.current = null
+      lngRef.current = null
+      setStatus('idle')
+      emit(nextCity, miles, null, null)
+      return
+    }
+    setStatus('loading')
+    debounceRef.current = setTimeout(async () => {
+      const controller = new AbortController()
+      abortRef.current = controller
+      try {
+        const res = await fetch(`/api/admin/geocode?q=${encodeURIComponent(trimmed)}`, {
+          signal: controller.signal,
+          cache: 'no-store',
+        })
+        if (!res.ok) {
+          latRef.current = null
+          lngRef.current = null
+          setStatus('fail')
+          emit(nextCity, miles, null, null)
+          return
+        }
+        const data = (await res.json()) as { lat: number; lng: number }
+        latRef.current = data.lat
+        lngRef.current = data.lng
+        setStatus('ok')
+        emit(nextCity, miles, data.lat, data.lng)
+      } catch (e) {
+        if ((e as { name?: string }).name === 'AbortError') return
+        setStatus('fail')
+        latRef.current = null
+        lngRef.current = null
+        emit(nextCity, miles, null, null)
+      }
+    }, 400)
+  }
+
+  function onCityChange(v: string) {
+    setCity(v)
+    scheduleLookup(v)
+  }
+
+  function onMilesChange(v: string) {
+    setMiles(v)
+    emit(city, v, latRef.current, lngRef.current)
+  }
+
+  const indicator =
+    status === 'ok' ? '✓' : status === 'loading' ? '…' : status === 'fail' ? '✗' : ''
+  const indicatorColor =
+    status === 'ok' ? '#2F7A36' : status === 'fail' ? '#A1241E' : '#9CA3AF'
+  const indicatorTitle =
+    status === 'fail' ? "Couldn't find that city" : status === 'loading' ? 'Looking up…' : ''
+
+  return (
+    <div className="flex items-center gap-2 flex-wrap">
+      <div className="relative">
+        <input
+          type="text"
+          value={city}
+          onChange={(e) => onCityChange(e.target.value)}
+          placeholder="city"
+          className="bg-white border border-[#E8DDD0] rounded-lg pl-3 pr-8 py-2 text-sm text-gray-700 focus:outline-none transition-colors min-w-[180px]"
+        />
+        {indicator && (
+          <span
+            title={indicatorTitle}
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-sm font-medium leading-none"
+            style={{ color: indicatorColor }}
+          >
+            {indicator}
+          </span>
+        )}
+      </div>
+      <span className="text-sm text-gray-500">within</span>
+      <input
+        type="number"
+        min={1}
+        value={miles}
+        onChange={(e) => onMilesChange(e.target.value)}
+        className="bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none transition-colors w-20"
+      />
+      <span className="text-sm text-gray-500">miles</span>
+    </div>
   )
 }
 

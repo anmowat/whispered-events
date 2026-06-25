@@ -3,6 +3,8 @@
 // evalGroup is the runtime that decides whether a given row passes. Adding
 // a new filterable field is a one-line append to FIELDS.
 
+import { withinMiles } from './geocode'
+
 // Row shape the admin page renders — kept here so this module and the
 // page agree on field names. The dashboard-counts API response should
 // mirror these keys.
@@ -38,7 +40,7 @@ export interface UserRow {
   ratingsDown: number
 }
 
-export type FieldType = 'text' | 'enum' | 'number' | 'date' | 'boolean'
+export type FieldType = 'text' | 'enum' | 'number' | 'date' | 'boolean' | 'geo'
 
 export type OperatorId =
   // text
@@ -64,6 +66,8 @@ export type OperatorId =
   // boolean
   | 'isTrue'
   | 'isFalse'
+  // geo
+  | 'withinMilesOf'
   // shared
   | 'isEmpty'
   | 'isNotEmpty'
@@ -111,6 +115,9 @@ export const OPERATORS_BY_TYPE: Record<FieldType, OperatorDef[]> = {
     { id: 'isTrue', label: 'is true', needsValue: false },
     { id: 'isFalse', label: 'is false', needsValue: false },
   ],
+  geo: [
+    { id: 'withinMilesOf', label: 'is within N miles of', needsValue: true },
+  ],
 }
 
 export interface EnumOption {
@@ -118,11 +125,18 @@ export interface EnumOption {
   label: string
 }
 
+export interface LatLngPair {
+  lat: number | null
+  lng: number | null
+}
+
+export type FieldValue = string | number | boolean | LatLngPair | null
+
 export interface FieldDef<R> {
   id: string
   label: string
   type: FieldType
-  accessor: (row: R) => string | number | boolean | null
+  accessor: (row: R) => FieldValue
   enumOptions?: EnumOption[]
 }
 
@@ -197,7 +211,49 @@ export const FIELDS: FieldDef<UserRow>[] = [
   { id: 'lastBlastSent', label: 'Last blast sent', type: 'date', accessor: (r) => r.lastBlastSent },
   // Boolean
   { id: 'isHost', label: 'Is host', type: 'boolean', accessor: (r) => r.isHost },
+  // Geo — accessor hands the row's coords to the predicate; the typed
+  // city + radius live in the condition's value as JSON (see GeoValue).
+  {
+    id: 'distanceFromCity',
+    label: 'Distance from city',
+    type: 'geo',
+    accessor: (r) => ({ lat: r.lat, lng: r.lng }),
+  },
 ]
+
+// Default radius shown when an admin first adds a geo condition. Freely
+// editable in the row's miles input — there's no hardcoded ceiling.
+export const DEFAULT_GEO_MILES = 50
+
+export interface GeoValue {
+  city: string
+  lat: number | null
+  lng: number | null
+  miles: number
+}
+
+export function emptyGeoValue(): GeoValue {
+  return { city: '', lat: null, lng: null, miles: DEFAULT_GEO_MILES }
+}
+
+export function parseGeoValue(raw: string): GeoValue {
+  if (!raw) return emptyGeoValue()
+  try {
+    const parsed = JSON.parse(raw) as Partial<GeoValue>
+    return {
+      city: typeof parsed.city === 'string' ? parsed.city : '',
+      lat: typeof parsed.lat === 'number' ? parsed.lat : null,
+      lng: typeof parsed.lng === 'number' ? parsed.lng : null,
+      miles: typeof parsed.miles === 'number' && parsed.miles > 0 ? parsed.miles : DEFAULT_GEO_MILES,
+    }
+  } catch {
+    return emptyGeoValue()
+  }
+}
+
+export function stringifyGeoValue(v: GeoValue): string {
+  return JSON.stringify(v)
+}
 
 export const FIELDS_BY_ID: Record<string, FieldDef<UserRow>> = Object.fromEntries(
   FIELDS.map((f) => [f.id, f]),
@@ -395,6 +451,25 @@ export function evalCondition<R>(row: R, cond: Condition, fields: Record<string,
     return true
   }
 
+  if (field.type === 'geo') {
+    if (cond.operator !== 'withinMilesOf') return true
+    const geo = parseGeoValue(cond.value)
+    // Half-typed: no city yet, unresolved, or non-positive radius → fail
+    // open so the table doesn't blank while the admin is mid-edit.
+    if (!geo.city.trim()) return true
+    if (geo.lat === null || geo.lng === null) return true
+    if (!Number.isFinite(geo.miles) || geo.miles <= 0) return true
+    // User row with no coords → exclude. Matches how the matching
+    // pipeline treats no-geocode users.
+    if (!isLatLngPair(rawValue)) return false
+    if (rawValue.lat === null || rawValue.lng === null) return false
+    return withinMiles(
+      { lat: rawValue.lat, lng: rawValue.lng },
+      { lat: geo.lat, lng: geo.lng },
+      geo.miles,
+    )
+  }
+
   return true
 }
 
@@ -413,15 +488,21 @@ function evalNode<R>(row: R, node: Node, fields: Record<string, FieldDef<R>>): b
 
 // Helpers ----------------------------------------------------------------
 
-function isEmptyValue(v: string | number | boolean | null | undefined): boolean {
+function isLatLngPair(v: FieldValue): v is LatLngPair {
+  return typeof v === 'object' && v !== null && 'lat' in v && 'lng' in v
+}
+
+function isEmptyValue(v: FieldValue): boolean {
   if (v === null || v === undefined) return true
+  if (isLatLngPair(v)) return v.lat === null || v.lng === null
   if (typeof v === 'string') return v.trim() === ''
   if (typeof v === 'number') return !Number.isFinite(v)
   return false
 }
 
-function stringify(v: string | number | boolean | null | undefined): string {
+function stringify(v: FieldValue): string {
   if (v === null || v === undefined) return ''
+  if (isLatLngPair(v)) return ''
   return String(v)
 }
 
