@@ -3,7 +3,6 @@ import { createHash } from 'crypto'
 import { AirtableEvent, AirtableUser } from './airtable'
 import { haversineMiles } from './geocode'
 import { VIRTUAL_LOCATION_RE } from './types'
-import { inferLikelyGender } from './gender'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -21,7 +20,7 @@ const QUALITY_MULTIPLIER: Record<'A' | 'Polish' | 'B' | 'C', number> = {
 // Bumped any time the scoring rubric / prompt / formula changes so the
 // inputs hash on every cached row turns stale. The admin rescore-missing
 // endpoint then picks them up and refreshes under the new model.
-const MATCHING_VERSION = 10
+const MATCHING_VERSION = 11
 
 export type SkippedReason = 'grade_c' | 'location_zero' | 'women_only_audience'
 
@@ -60,7 +59,6 @@ export function computeInputsHash(event: AirtableEvent, user: AirtableUser): str
       grade: user.grade ?? '',
       lat: user.lat ?? null,
       lng: user.lng ?? null,
-      gender: inferLikelyGender(user.firstName || user.name || ''),
     },
   }
   return createHash('sha256').update(JSON.stringify(payload)).digest('hex')
@@ -268,12 +266,10 @@ function shouldExcludeFromWomenOnlyEvent(
   user: AirtableUser,
 ): boolean {
   if (!isWomenOnlyAudience(event.audience)) return false
-  if (topicsIncludeWomen(user.interest)) return false
-  // `||` (not `??`) so empty-string firstName falls back to the full name.
-  // ?? only catches null/undefined — legacy rows with first_name='' would
-  // pass empty into inferLikelyGender otherwise and slip through the gate.
-  const inferenceSource = user.firstName || user.name || ''
-  return inferLikelyGender(inferenceSource) === 'male'
+  // Topic opt-in is the only gate: women-only events match users who
+  // explicitly picked Women as a topic. No gender inference — names
+  // are noisy, and an explicit topic is the user's stated intent.
+  return !topicsIncludeWomen(user.interest)
 }
 
 export async function scoreEventUser(
