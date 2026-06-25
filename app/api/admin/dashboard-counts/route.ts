@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { isAdmin } from '@/lib/admin-auth'
 import {
-  getMatchCountsByEmail,
-  getContributionTotalsByEmail,
-  getLastSeenByEmail,
-  getLastDigestSentByEmail,
-  getLastBlastSentByEmail,
+  getMatchCountsByUserId,
+  getContributionTotalsByUserId,
+  getLastSeenByUserId,
+  getLastDigestSentByUserId,
+  getLastBlastSentByUserId,
   getMatchesForEvent,
-  getRatingCountsByEmail,
+  getRatingCountsByUserId,
 } from '@/lib/supabase'
 import { getUsersForAdmin, type StatusBucket } from '@/lib/users'
 import { getFutureEvents, getFutureEventHostIds } from '@/lib/events'
@@ -44,22 +44,22 @@ export async function GET(req: NextRequest) {
     const [activeUsers, futureEvents, contribStats, lastSeen, lastDigest, lastBlast, ratingCounts, hostIds] = await Promise.all([
       getUsersForAdmin({ statusBucket }),
       getFutureEvents(),
-      getContributionTotalsByEmail(),
-      getLastSeenByEmail(),
-      getLastDigestSentByEmail(),
-      getLastBlastSentByEmail(),
-      getRatingCountsByEmail(),
+      getContributionTotalsByUserId(),
+      getLastSeenByUserId(),
+      getLastDigestSentByUserId(),
+      getLastBlastSentByUserId(),
+      getRatingCountsByUserId(),
       getFutureEventHostIds(),
     ])
     const futureEventIds = futureEvents.map((e) => e.id)
-    const counts = await getMatchCountsByEmail(futureEventIds)
+    const counts = await getMatchCountsByUserId(futureEventIds)
 
     // When eventId is set, intersect users against the match set for
     // that event (already-threshold-filtered by getMatchesForEvent).
-    let matchedEmails: Set<string> | null = null
+    let matchedUserIds: Set<string> | null = null
     if (eventIdFilter) {
       const rows = await getMatchesForEvent(eventIdFilter)
-      matchedEmails = new Set(rows.map((r) => r.user_email.trim().toLowerCase()))
+      matchedUserIds = new Set(rows.map((r) => r.user_id))
     }
 
     // For each user, count future events within 100mi of their location.
@@ -84,16 +84,15 @@ export async function GET(req: NextRequest) {
 
     const users = activeUsers
       .filter((u) => u.email)
-      .filter((u) => !matchedEmails || matchedEmails.has(u.email.trim().toLowerCase()))
+      .filter((u) => !matchedUserIds || matchedUserIds.has(u.id))
       .map((u) => {
-        const key = u.email.trim().toLowerCase()
-        const c = contribStats.get(key)
-        const matchCount = counts.get(u.email) ?? 0
+        const c = contribStats.get(u.id)
+        const matchCount = counts.get(u.id) ?? 0
         const nearbyCount = nearbyByUserId.get(u.id) ?? 0
         const localMatchPct = nearbyCount > 0
           ? Math.round((matchCount / nearbyCount) * 100)
           : null
-        const ratings = ratingCounts.get(u.email) ?? { up: 0, down: 0 }
+        const ratings = ratingCounts.get(u.id) ?? { up: 0, down: 0 }
         return {
           id: u.id,
           created: u.created || null,
@@ -121,9 +120,9 @@ export async function GET(req: NextRequest) {
           localMatchPct,
           totalContributions: c?.total ?? 0,
           lastContribution: c?.lastAt ?? null,
-          lastSeen: lastSeen.get(key) ?? null,
-          lastDigestSent: lastDigest.get(key) ?? null,
-          lastBlastSent: lastBlast.get(key) ?? null,
+          lastSeen: lastSeen.get(u.id) ?? null,
+          lastDigestSent: lastDigest.get(u.id) ?? null,
+          lastBlastSent: lastBlast.get(u.id) ?? null,
           ratingsUp: ratings.up,
           ratingsDown: ratings.down,
         }

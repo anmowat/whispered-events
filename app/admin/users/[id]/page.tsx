@@ -45,6 +45,7 @@ interface UserDetail {
 // options, and pill classes live in @/lib/user-status so the user list
 // page shares the same source of truth.
 interface UserDraft {
+  email: string
   name: string
   firstName: string
   function: string
@@ -65,6 +66,7 @@ const FREQUENCY_OPTIONS = ['As they arrive', 'Weekly', 'Monthly', 'Paused'] as c
 
 function draftFromUser(u: UserDetail): UserDraft {
   return {
+    email: u.email,
     name: u.name,
     firstName: u.firstName,
     function: u.function,
@@ -491,7 +493,6 @@ export default function AdminUserDetailPage() {
               ) : (
                 <UserEditForm
                   draft={draft!}
-                  email={user.email}
                   onChange={setDraft}
                   disabled={editBusy}
                 />
@@ -578,12 +579,10 @@ function Field({ label, value, multiline }: { label: string; value: string; mult
 
 function UserEditForm({
   draft,
-  email,
   onChange,
   disabled,
 }: {
   draft: UserDraft
-  email: string
   onChange: (next: UserDraft) => void
   disabled: boolean
 }) {
@@ -613,12 +612,18 @@ function UserEditForm({
             {draft.status}
           </span>
         </label>
-        <div className="text-xs text-gray-400">
-          Email <span className="text-gray-700 ml-1">{email}</span>
-          <span className="ml-2 italic">(read-only)</span>
-        </div>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 text-sm">
+        <FormField label="Email">
+          <input
+            type="email"
+            value={draft.email}
+            disabled={disabled}
+            onChange={(e) => update('email', e.target.value)}
+            placeholder="user@example.com"
+            className={input}
+          />
+        </FormField>
         <FormField label="Name">
           <input
             type="text"

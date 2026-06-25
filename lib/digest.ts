@@ -10,10 +10,10 @@ import type { DigestEventEntry } from './email'
 import { withinMiles } from './geocode'
 import {
   DigestMatchRow,
-  getMatchCountsByEmail,
+  getMatchCountsByUserId,
   getUnnotifiedMatchesForUser,
   getUpcomingMatchesForUser,
-  getLastDigestSentByEmail,
+  getLastDigestSentByUserId,
   markMatchesNotified,
   getDigestState,
   upsertDigestState,
@@ -209,12 +209,12 @@ export async function runDigests(now: Date): Promise<{
   const futureEvents = await getFutureEvents()
   const futureById = new Map(futureEvents.map((e) => [e.id, e]))
   const futureIds = futureEvents.map((e) => e.id)
-  const lastSentByEmail = await getLastDigestSentByEmail()
+  const lastSentByUserId = await getLastDigestSentByUserId()
   const nearbyByUserId = buildNearbyCountMap(allUsers, futureEvents)
   // Total above-threshold match count per user — used to distinguish
   // 'no matches at all' (true coaching path) from 'has matches but
   // none unnotified' (recap path). Single bulk query covers everyone.
-  const matchCountByEmail = await getMatchCountsByEmail(futureIds)
+  const matchCountByUserId = await getMatchCountsByUserId(futureIds)
 
   const weekly: FrequencyStats = { processed: 0, sent: 0, recapped: 0, coached: 0, skippedRecent: 0 }
   const monthly: FrequencyStats = { processed: 0, sent: 0, recapped: 0, coached: 0, skippedRecent: 0 }
@@ -222,12 +222,11 @@ export async function runDigests(now: Date): Promise<{
   let arriveCoached = 0
 
   for (const user of allUsers) {
-    const lastSent = lastSentByEmail.get(user.email.trim().toLowerCase()) ?? null
+    const lastSent = lastSentByUserId.get(user.id) ?? null
     const nearbyCount = nearbyByUserId.get(user.id) ?? 0
-    // matchCount uses the raw email key (matches the lookup pattern in
-    // admin/dashboard-counts). Total events at-or-above NOTIFY_THRESHOLD
-    // for this user, future events only, skipped rows excluded.
-    const matchCount = matchCountByEmail.get(user.email) ?? 0
+    // Total events at-or-above NOTIFY_THRESHOLD for this user, future
+    // events only, skipped rows excluded.
+    const matchCount = matchCountByUserId.get(user.id) ?? 0
     // 7-day floor blocks cron from piling on top of a recent manual
     // re-run or mid-week per-event send. We don't touch their Monthly
     // due date when we skip — they re-enter next Monday.
@@ -342,7 +341,7 @@ export async function runDailyArriveDigests(now: Date): Promise<{
   const allUsers = (await getActiveUsers()).filter(isMatchEligible)
   const futureEvents = await getFutureEvents()
   const futureById = new Map(futureEvents.map((e) => [e.id, e]))
-  const lastSentByEmail = await getLastDigestSentByEmail()
+  const lastSentByUserId = await getLastDigestSentByUserId()
 
   const arrive: FrequencyStats = {
     processed: 0,
@@ -354,7 +353,7 @@ export async function runDailyArriveDigests(now: Date): Promise<{
 
   for (const user of allUsers) {
     if (user.frequency !== 'As they arrive') continue
-    const lastSent = lastSentByEmail.get(user.email.trim().toLowerCase()) ?? null
+    const lastSent = lastSentByUserId.get(user.id) ?? null
     if (recentlyTouched(lastSent, now, DAILY_RECENT_TOUCH_DAYS)) {
       arrive.skippedRecent += 1
       continue

@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { waitUntil } from '@vercel/functions'
 import { isAdmin } from '@/lib/admin-auth'
-import { getUserById } from '@/lib/users'
+import { getUserById, getUserByEmail } from '@/lib/users'
 import { getFutureEvents } from '@/lib/events'
-import { getAllMatchesForUser, getContributionStats, getLastSeenForEmail, getLastEmailSentForEmail } from '@/lib/supabase'
+import { getAllMatchesForUser, getContributionStatsForUser, getLastSeenForUser, getLastEmailSentForUser } from '@/lib/supabase'
 import { updateUserAdmin, type UserAdminUpdate } from '@/lib/airtable'
 import { triggerUserApprovedFlow } from '@/lib/user-approval'
 import { withinMiles } from '@/lib/geocode'
@@ -38,10 +38,10 @@ export async function GET(
 
     const [futureEvents, matchRows, contributions, lastSeen, lastEmailSent] = await Promise.all([
       getFutureEvents(),
-      getAllMatchesForUser(user.email),
-      getContributionStats(user.email),
-      getLastSeenForEmail(user.email),
-      getLastEmailSentForEmail(user.email),
+      getAllMatchesForUser(user.id),
+      getContributionStatsForUser(user.id),
+      getLastSeenForUser(user.id),
+      getLastEmailSentForUser(user.id),
     ])
 
     const byEventId = new Map(matchRows.map((m) => [m.event_id, m]))
@@ -144,6 +144,9 @@ const VALID_FREQUENCIES = new Set(['As they arrive', 'Weekly', 'Monthly', 'Pause
 // Empty string allowed so admin can clear a legacy non-canonical value
 // (e.g. "Senior") that pre-dated the picklist.
 const VALID_SENIORITIES = new Set<string>([...SENIORITY_OPTIONS, ''])
+// Email format check — matches the magic-link signup regex so admin
+// can't write a value that would later fail to receive mail.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export async function PATCH(
   req: NextRequest,
@@ -160,6 +163,29 @@ export async function PATCH(
   try {
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>
     const update: UserAdminUpdate = {}
+
+    // Email change is a privileged write — validate format AND uniqueness
+    // against active users before letting it through. No-op if the new
+    // value matches the current one (case-insensitive trim) so a save with
+    // no email change doesn't burn the validation queries.
+    if (typeof body.email === 'string') {
+      const nextEmail = body.email.trim()
+      if (!EMAIL_RE.test(nextEmail)) {
+        return NextResponse.json({ error: 'invalid email format' }, { status: 400 })
+      }
+      const current = await getUserById(userId)
+      const currentEmail = (current?.email ?? '').trim().toLowerCase()
+      if (nextEmail.toLowerCase() !== currentEmail) {
+        const collision = await getUserByEmail(nextEmail)
+        if (collision && collision.id !== userId) {
+          return NextResponse.json(
+            { error: 'email already in use by another user' },
+            { status: 400 },
+          )
+        }
+        update.email = nextEmail
+      }
+    }
 
     if (typeof body.name === 'string') update.name = body.name
     if (typeof body.firstName === 'string') update.firstName = body.firstName

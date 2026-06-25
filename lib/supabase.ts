@@ -109,7 +109,6 @@ export async function getExistingMatch(
 export interface MatchLog {
   eventId: string
   userId: string
-  userEmail: string
   score: number
   matchPercent: number
   locationScore: number | null
@@ -129,13 +128,16 @@ export interface MatchLog {
 // already emailed don't re-fire. Both invariants depend on notified_at
 // NEVER appearing in this payload. If you add a default back to the column
 // in Supabase, you re-introduce the bug.
+//
+// user_email is intentionally not written here — every reader now joins
+// by user_id. Old rows still carry user_email; a later migration drops
+// the column.
 export async function logMatch(entry: MatchLog): Promise<void> {
   const supabase = getClient()
   const { error } = await supabase.from('matches').upsert(
     {
       event_id: entry.eventId,
       user_id: entry.userId,
-      user_email: entry.userEmail,
       score: entry.score,
       match_percent: entry.matchPercent,
       location_score: entry.locationScore,
@@ -155,12 +157,12 @@ export async function logMatch(entry: MatchLog): Promise<void> {
 
 const NOTIFY_THRESHOLD = 1.35
 
-export async function getMatchedEventIds(userEmail: string): Promise<Set<string>> {
+export async function getMatchedEventIdsForUser(userId: string): Promise<Set<string>> {
   const supabase = getClient()
   const { data } = await supabase
     .from('matches')
     .select('event_id')
-    .eq('user_email', userEmail)
+    .eq('user_id', userId)
     .gte('score', NOTIFY_THRESHOLD)
   return new Set((data ?? []).map((m: { event_id: string }) => m.event_id))
 }
@@ -175,13 +177,13 @@ export interface UserMatchScore {
 }
 
 export async function getMatchScoresForUser(
-  userEmail: string,
+  userId: string,
 ): Promise<Map<string, UserMatchScore>> {
   const supabase = getClient()
   const { data } = await supabase
     .from('matches')
     .select('event_id, score, match_percent, rating, rating_reason')
-    .eq('user_email', userEmail)
+    .eq('user_id', userId)
   const scores = new Map<string, UserMatchScore>()
   for (const row of data ?? []) {
     const r = row as {
@@ -210,7 +212,7 @@ export async function getMatchScoresForUser(
 // rating that didn't actually land.
 export async function setMatchRating(params: {
   eventId: string
-  userEmail: string
+  userId: string
   rating: MatchRating | null
   reason: string | null
 }): Promise<boolean> {
@@ -225,7 +227,7 @@ export async function setMatchRating(params: {
       rated_at: params.rating ? new Date().toISOString() : null,
     })
     .eq('event_id', params.eventId)
-    .eq('user_email', params.userEmail)
+    .eq('user_id', params.userId)
     .select('event_id')
   if (error) throw new Error(`setMatchRating failed: ${error.message}`)
   return (data?.length ?? 0) > 0
@@ -234,23 +236,23 @@ export async function setMatchRating(params: {
 // Aggregates lifetime up/down counts per user_email. Drives the "Rating"
 // column on the admin users list. One bulk read; counted in app code so
 // we don't depend on a Postgres aggregate function on Supabase's PostgREST.
-export async function getRatingCountsByEmail(): Promise<
+export async function getRatingCountsByUserId(): Promise<
   Map<string, { up: number; down: number }>
 > {
   const supabase = getClient()
   const { data, error } = await supabase
     .from('matches')
-    .select('user_email, rating')
+    .select('user_id, rating')
     .not('rating', 'is', null)
-  if (error) throw new Error(`getRatingCountsByEmail failed: ${error.message}`)
+  if (error) throw new Error(`getRatingCountsByUserId failed: ${error.message}`)
   const counts = new Map<string, { up: number; down: number }>()
   for (const row of data ?? []) {
-    const r = row as { user_email: string; rating: MatchRating | null }
-    if (!r.user_email || !r.rating) continue
-    const c = counts.get(r.user_email) ?? { up: 0, down: 0 }
+    const r = row as { user_id: string; rating: MatchRating | null }
+    if (!r.user_id || !r.rating) continue
+    const c = counts.get(r.user_id) ?? { up: 0, down: 0 }
     if (r.rating === 'up') c.up++
     else if (r.rating === 'down') c.down++
-    counts.set(r.user_email, c)
+    counts.set(r.user_id, c)
   }
   return counts
 }
@@ -310,34 +312,34 @@ export async function getUpcomingMatchesForUser(
   return (data ?? []) as DigestMatchRow[]
 }
 
-// Returns email -> count of distinct future event matches above NOTIFY_THRESHOLD
+// Returns user_id -> count of distinct future event matches above NOTIFY_THRESHOLD
 // for every user that has at least one. Mirrors the filter the user dashboard
 // applies (score >= 1.0, skipped_reason IS NULL, future event_id). Single
 // Supabase query so the admin overview page stays sub-second.
-export async function getMatchCountsByEmail(
+export async function getMatchCountsByUserId(
   futureEventIds: string[],
 ): Promise<Map<string, number>> {
   if (futureEventIds.length === 0) return new Map()
   const supabase = getClient()
   const { data, error } = await supabase
     .from('matches')
-    .select('user_email, event_id')
+    .select('user_id, event_id')
     .gte('score', NOTIFY_THRESHOLD)
     .is('skipped_reason', null)
     .in('event_id', futureEventIds)
-  if (error) throw new Error(`getMatchCountsByEmail failed: ${error.message}`)
-  // Dedupe (user_email, event_id) pairs in case of stray duplicates, then count.
+  if (error) throw new Error(`getMatchCountsByUserId failed: ${error.message}`)
+  // Dedupe (user_id, event_id) pairs in case of stray duplicates, then count.
   // forEach (rather than for-of) avoids needing the downlevelIteration tsconfig flag.
   const seen = new Map<string, Set<string>>()
   for (const row of data ?? []) {
-    const r = row as { user_email: string; event_id: string }
-    if (!r.user_email || !r.event_id) continue
-    const set = seen.get(r.user_email) ?? new Set<string>()
+    const r = row as { user_id: string; event_id: string }
+    if (!r.user_id || !r.event_id) continue
+    const set = seen.get(r.user_id) ?? new Set<string>()
     set.add(r.event_id)
-    seen.set(r.user_email, set)
+    seen.set(r.user_id, set)
   }
   const counts = new Map<string, number>()
-  seen.forEach((set, email) => counts.set(email, set.size))
+  seen.forEach((set, userId) => counts.set(userId, set.size))
   return counts
 }
 
@@ -373,7 +375,6 @@ export async function getMatchCountsByEventId(
 
 export interface EventMatchRow {
   user_id: string
-  user_email: string
   score: number
   match_percent: number | null
   location_score: number | null
@@ -392,7 +393,7 @@ export async function getAllMatchesForEvent(eventId: string): Promise<EventMatch
   const { data, error } = await supabase
     .from('matches')
     .select(
-      'user_id, user_email, score, match_percent, location_score, audience_score, quality_score, preference_score, skipped_reason',
+      'user_id, score, match_percent, location_score, audience_score, quality_score, preference_score, skipped_reason',
     )
     .eq('event_id', eventId)
   if (error) {
@@ -409,7 +410,7 @@ export async function getMatchesForEvent(eventId: string): Promise<EventMatchRow
   const supabase = getClient()
   const { data, error } = await supabase
     .from('matches')
-    .select('user_id, user_email, score, match_percent, location_score, audience_score, quality_score, preference_score')
+    .select('user_id, score, match_percent, location_score, audience_score, quality_score, preference_score')
     .eq('event_id', eventId)
     .gte('score', NOTIFY_THRESHOLD)
     .is('skipped_reason', null)
@@ -515,12 +516,12 @@ export async function upsertDigestState(
   }
 }
 
-export async function getAllMatchesForUser(userEmail: string): Promise<MatchAuditRow[]> {
+export async function getAllMatchesForUser(userId: string): Promise<MatchAuditRow[]> {
   const supabase = getClient()
   const { data } = await supabase
     .from('matches')
     .select('event_id, score, match_percent, location_score, audience_score, quality_score, preference_score, skipped_reason')
-    .eq('user_email', userEmail)
+    .eq('user_id', userId)
     .order('score', { ascending: false })
   return (data ?? []) as MatchAuditRow[]
 }
@@ -556,11 +557,16 @@ export async function verifyMagicToken(token: string): Promise<string | null> {
   return data.email
 }
 
-export async function createSession(email: string): Promise<string> {
+// Sessions store both user_id and email during the transition window.
+// user_id is the join key going forward; email is kept for one deploy
+// cycle so a rollback is possible. A later migration drops the email
+// column once nothing reads it.
+export async function createSession(userId: string, email: string): Promise<string> {
   const supabase = getClient()
   const token = crypto.randomUUID()
   const expiresAt = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000) // 60 days
   const { error } = await supabase.from('sessions').insert({
+    user_id: userId,
     email,
     token,
     expires_at: expiresAt.toISOString(),
@@ -574,11 +580,17 @@ export async function createSession(email: string): Promise<string> {
 // precision for "last visited."
 const SESSION_TOUCH_THROTTLE_MS = 5 * 60_000
 
-export async function verifySession(token: string): Promise<string | null> {
+// Returns { userId, email } for a valid session token, or null if the
+// token is invalid/expired. Callers should treat userId as the join key
+// for any downstream Supabase reads (matches, digest_sends, etc.) and
+// use email purely as a display attribute.
+export async function verifySession(
+  token: string,
+): Promise<{ userId: string; email: string } | null> {
   const supabase = getClient()
   let { data, error } = await supabase
     .from('sessions')
-    .select('email, expires_at, last_seen_at')
+    .select('user_id, email, expires_at, last_seen_at')
     .eq('token', token)
     .maybeSingle()
 
@@ -588,7 +600,7 @@ export async function verifySession(token: string): Promise<string | null> {
     console.warn('verifySession: last_seen_at column missing, falling back', error.message)
     const fallback = await supabase
       .from('sessions')
-      .select('email, expires_at')
+      .select('user_id, email, expires_at')
       .eq('token', token)
       .maybeSingle()
     data = fallback.data as typeof data
@@ -618,27 +630,34 @@ export async function verifySession(token: string): Promise<string | null> {
     }
   }
 
-  return data.email
+  // Pre-migration sessions may have a NULL user_id (backfill catches
+  // active rows but rare edge cases slip through). Fail closed so the
+  // user is forced to re-login rather than getting a half-broken state.
+  if (!data.user_id) {
+    console.warn('verifySession: session has null user_id', { token: token.slice(0, 8) })
+    return null
+  }
+
+  return { userId: data.user_id, email: data.email }
 }
 
-// Returns email -> ISO last_seen_at (latest across all of that email's
+// Returns user_id -> ISO last_seen_at (latest across all of that user's
 // sessions). Used by the admin overview as a "last visit" signal.
-export async function getLastSeenByEmail(): Promise<Map<string, string>> {
+export async function getLastSeenByUserId(): Promise<Map<string, string>> {
   const supabase = getClient()
   const { data, error } = await supabase
     .from('sessions')
-    .select('email, last_seen_at')
+    .select('user_id, last_seen_at')
     .order('last_seen_at', { ascending: false })
   if (error) {
-    console.error('getLastSeenByEmail error', error)
+    console.error('getLastSeenByUserId error', error)
     return new Map()
   }
   const out = new Map<string, string>()
-  for (const row of (data ?? []) as Array<{ email: string; last_seen_at: string | null }>) {
-    const key = (row.email || '').trim().toLowerCase()
-    if (!key || !row.last_seen_at) continue
+  for (const row of (data ?? []) as Array<{ user_id: string | null; last_seen_at: string | null }>) {
+    if (!row.user_id || !row.last_seen_at) continue
     // First row per key wins (data is sorted by last_seen_at desc).
-    if (!out.has(key)) out.set(key, row.last_seen_at)
+    if (!out.has(row.user_id)) out.set(row.user_id, row.last_seen_at)
   }
   return out
 }
@@ -671,7 +690,6 @@ export async function getExistingMatchHashes(
 
 export interface DigestSendLog {
   userId: string
-  userEmail: string
   kind: 'per_event' | 'cron' | 'welcome' | 'blast' | 'coaching' | 'recap'
   eventIds: string[]
 }
@@ -682,6 +700,9 @@ export interface DigestSendLog {
 // events (those should never reach this function — sendUserDigest early-
 // returns when the digest is empty). Welcome / blast / coaching always
 // log, even with empty eventIds, so the 'Last sent' clock catches them.
+//
+// user_email is intentionally not written — every reader joins by
+// user_id. Old rows still carry user_email; a later migration drops it.
 export async function logDigestSend(entry: DigestSendLog): Promise<void> {
   if (
     entry.eventIds.length === 0 &&
@@ -694,7 +715,6 @@ export async function logDigestSend(entry: DigestSendLog): Promise<void> {
   const supabase = getClient()
   const { error } = await supabase.from('digest_sends').insert({
     user_id: entry.userId,
-    user_email: entry.userEmail,
     kind: entry.kind,
     event_ids: entry.eventIds,
   })
@@ -703,66 +723,63 @@ export async function logDigestSend(entry: DigestSendLog): Promise<void> {
   }
 }
 
-// Returns email -> ISO timestamp of the most recent digest send. Reads from
-// digest_sends so it includes ONLY emails that contained events — never the
-// silent notified_at stamps from a Frequency flip. Excludes admin blast
-// sends (kind='blast') so the admin 'Last sent' column stays semantically
-// "last matching-event digest."
-export async function getLastDigestSentByEmail(): Promise<Map<string, string>> {
+// Returns user_id -> ISO timestamp of the most recent digest send. Reads
+// from digest_sends so it includes ONLY emails that contained events —
+// never the silent notified_at stamps from a Frequency flip. Excludes
+// admin blast sends (kind='blast') so the admin 'Last sent' column stays
+// semantically "last matching-event digest."
+export async function getLastDigestSentByUserId(): Promise<Map<string, string>> {
   const supabase = getClient()
   const { data, error } = await supabase
     .from('digest_sends')
-    .select('user_email, sent_at')
+    .select('user_id, sent_at')
     .neq('kind', 'blast')
     .order('sent_at', { ascending: false })
   if (error) {
-    console.error('getLastDigestSentByEmail error', error)
+    console.error('getLastDigestSentByUserId error', error)
     return new Map()
   }
   const out = new Map<string, string>()
-  for (const row of (data ?? []) as Array<{ user_email: string; sent_at: string | null }>) {
-    const key = (row.user_email || '').trim().toLowerCase()
-    if (!key || !row.sent_at) continue
-    if (!out.has(key)) out.set(key, row.sent_at)
+  for (const row of (data ?? []) as Array<{ user_id: string | null; sent_at: string | null }>) {
+    if (!row.user_id || !row.sent_at) continue
+    if (!out.has(row.user_id)) out.set(row.user_id, row.sent_at)
   }
   return out
 }
 
 // Companion reader: last admin blast send per user. Same digest_sends
 // table, filtered to kind='blast'.
-export async function getLastBlastSentByEmail(): Promise<Map<string, string>> {
+export async function getLastBlastSentByUserId(): Promise<Map<string, string>> {
   const supabase = getClient()
   const { data, error } = await supabase
     .from('digest_sends')
-    .select('user_email, sent_at')
+    .select('user_id, sent_at')
     .eq('kind', 'blast')
     .order('sent_at', { ascending: false })
   if (error) {
-    console.error('getLastBlastSentByEmail error', error)
+    console.error('getLastBlastSentByUserId error', error)
     return new Map()
   }
   const out = new Map<string, string>()
-  for (const row of (data ?? []) as Array<{ user_email: string; sent_at: string | null }>) {
-    const key = (row.user_email || '').trim().toLowerCase()
-    if (!key || !row.sent_at) continue
-    if (!out.has(key)) out.set(key, row.sent_at)
+  for (const row of (data ?? []) as Array<{ user_id: string | null; sent_at: string | null }>) {
+    if (!row.user_id || !row.sent_at) continue
+    if (!out.has(row.user_id)) out.set(row.user_id, row.sent_at)
   }
   return out
 }
 
-export async function getLastSeenForEmail(email: string): Promise<string | null> {
-  const cleaned = (email || '').trim().toLowerCase()
-  if (!cleaned) return null
+export async function getLastSeenForUser(userId: string): Promise<string | null> {
+  if (!userId) return null
   const supabase = getClient()
   const { data, error } = await supabase
     .from('sessions')
     .select('last_seen_at')
-    .ilike('email', cleaned)
+    .eq('user_id', userId)
     .order('last_seen_at', { ascending: false })
     .limit(1)
     .maybeSingle()
   if (error) {
-    console.error('getLastSeenForEmail error', error)
+    console.error('getLastSeenForUser error', error)
     return null
   }
   return (data as { last_seen_at: string } | null)?.last_seen_at ?? null
@@ -774,19 +791,18 @@ export async function getLastSeenForEmail(email: string): Promise<string | null>
 // excludes blasts so the dashboard's Sent column stays semantically scoped
 // to event-bearing digests — for the detail card the admin just wants to
 // know when we last reached out, period.
-export async function getLastEmailSentForEmail(email: string): Promise<string | null> {
-  const cleaned = (email || '').trim().toLowerCase()
-  if (!cleaned) return null
+export async function getLastEmailSentForUser(userId: string): Promise<string | null> {
+  if (!userId) return null
   const supabase = getClient()
   const { data, error } = await supabase
     .from('digest_sends')
     .select('sent_at')
-    .ilike('user_email', cleaned)
+    .eq('user_id', userId)
     .order('sent_at', { ascending: false })
     .limit(1)
     .maybeSingle()
   if (error) {
-    console.error('getLastEmailSentForEmail error', error)
+    console.error('getLastEmailSentForUser error', error)
     return null
   }
   return (data as { sent_at: string } | null)?.sent_at ?? null
@@ -860,7 +876,11 @@ export async function linkContributionsToUser(
   return (data ?? []).length
 }
 
-export async function getContributionStats(email: string): Promise<ContributionStats> {
+// Email-based contribution stats. Use for pre-signup paths (check-email,
+// inbound-email, submit-event) where the contributor has no user_id yet.
+// Post-signup paths should call getContributionStatsForUser instead so the
+// answer is keyed by the canonical join.
+export async function getContributionStatsByEmail(email: string): Promise<ContributionStats> {
   const cleaned = (email || '').trim().toLowerCase()
   if (!cleaned) return { total: 0, last30: 0, last90: 0, lastAt: null }
   const supabase = getClient()
@@ -870,10 +890,28 @@ export async function getContributionStats(email: string): Promise<ContributionS
     .ilike('submitter_email', cleaned)
     .order('submitted_at', { ascending: false })
   if (error) {
-    console.error('getContributionStats error', { cleaned, error })
+    console.error('getContributionStatsByEmail error', { cleaned, error })
     return { total: 0, last30: 0, last90: 0, lastAt: null }
   }
-  const rows = (data ?? []) as Array<{ submitted_at: string }>
+  return computeContributionStats(data ?? [])
+}
+
+export async function getContributionStatsForUser(userId: string): Promise<ContributionStats> {
+  if (!userId) return { total: 0, last30: 0, last90: 0, lastAt: null }
+  const supabase = getClient()
+  const { data, error } = await supabase
+    .from('contributions')
+    .select('submitted_at')
+    .eq('airtable_user_id', userId)
+    .order('submitted_at', { ascending: false })
+  if (error) {
+    console.error('getContributionStatsForUser error', { userId, error })
+    return { total: 0, last30: 0, last90: 0, lastAt: null }
+  }
+  return computeContributionStats(data ?? [])
+}
+
+function computeContributionStats(rows: Array<{ submitted_at: string }>): ContributionStats {
   const now = Date.now()
   const day = 86_400_000
   let last30 = 0
@@ -893,23 +931,26 @@ export async function getContributionStats(email: string): Promise<ContributionS
   }
 }
 
-// Bulk version of getContributionStats — one query, returns total + lastAt
-// keyed by lowercased email. Used by the admin overview to avoid N round-trips.
-export async function getContributionTotalsByEmail(): Promise<
+// Bulk version of getContributionStatsForUser — one query, returns total
+// + lastAt keyed by user_id. Used by the admin overview to avoid N
+// round-trips. Pre-signup contributions (airtable_user_id IS NULL) are
+// excluded — they aren't owned by a user yet.
+export async function getContributionTotalsByUserId(): Promise<
   Map<string, { total: number; lastAt: string | null }>
 > {
   const supabase = getClient()
   const { data, error } = await supabase
     .from('contributions')
-    .select('submitter_email, submitted_at')
+    .select('airtable_user_id, submitted_at')
+    .not('airtable_user_id', 'is', null)
     .order('submitted_at', { ascending: false })
   if (error) {
-    console.error('getContributionTotalsByEmail error', error)
+    console.error('getContributionTotalsByUserId error', error)
     return new Map()
   }
   const out = new Map<string, { total: number; lastAt: string | null }>()
-  for (const row of (data ?? []) as Array<{ submitter_email: string; submitted_at: string }>) {
-    const key = (row.submitter_email || '').trim().toLowerCase()
+  for (const row of (data ?? []) as Array<{ airtable_user_id: string | null; submitted_at: string }>) {
+    const key = row.airtable_user_id
     if (!key) continue
     const cur = out.get(key)
     if (cur) {

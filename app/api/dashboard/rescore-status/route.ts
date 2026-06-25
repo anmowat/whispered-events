@@ -27,14 +27,14 @@ export async function GET(req: NextRequest) {
   if (!sessionToken) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
-  const email = await verifySession(sessionToken)
-  if (!email) {
+  const session = await verifySession(sessionToken)
+  if (!session) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 
   try {
     const [user, events] = await Promise.all([
-      getUserByEmail(email),
+      getUserByEmail(session.email),
       getFutureEvents(),
     ])
     if (!user) {

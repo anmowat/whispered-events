@@ -847,6 +847,11 @@ export async function updateUserProfile(
 export type UserStatus = 'Pending' | 'Live' | 'Passed' | 'Deactivated' | 'Partner'
 
 export interface UserAdminUpdate {
+  // Email is editable from the admin user detail page. Safe to change
+  // because every cached relation joins by user_id; email is now just a
+  // profile attribute. The PATCH route validates format + active-user
+  // uniqueness before this layer ever sees the new value.
+  email?: string
   name?: string
   firstName?: string
   function?: string
@@ -874,6 +879,7 @@ export async function updateUserAdmin(
   const supabase = getSupabase()
   const row: Record<string, unknown> = {}
 
+  if (update.email !== undefined) row.email = update.email
   if (update.name !== undefined) row.name = update.name
   if (update.firstName !== undefined) row.first_name = update.firstName
   // Auto-derive first_name from name (matches the Airtable formula
@@ -1041,8 +1047,8 @@ export async function createProfile(
   }
 
   // Brand-new signup. Generate an Airtable-shaped id so downstream foreign
-  // keys (matches.user_id, contributions.user_email, events.host_ids) stay
-  // consistent with the existing rec-prefixed format.
+  // keys (matches.user_id, contributions.airtable_user_id, events.host_ids)
+  // stay consistent with the existing rec-prefixed format.
   const id = newUserId()
   const nowIso = new Date().toISOString()
   const { active, is_partner } = deriveLifecycle('Pending')

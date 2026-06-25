@@ -8,11 +8,11 @@ import { verifySession } from './supabase'
 export async function isAdmin(req: NextRequest): Promise<boolean> {
   const token = req.cookies.get('session')?.value
   if (!token) return false
-  const email = await verifySession(token)
-  if (!email) return false
+  const session = await verifySession(token)
+  if (!session) return false
   const allow = (process.env.ADMIN_EMAILS || '')
     .split(',')
     .map((s) => s.trim().toLowerCase())
     .filter(Boolean)
-  return allow.includes(email.toLowerCase())
+  return allow.includes(session.email.toLowerCase())
 }

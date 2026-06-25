@@ -16,10 +16,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 
-  const email = await verifySession(sessionToken)
-  if (!email) {
+  const session = await verifySession(sessionToken)
+  if (!session) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
+  const email = session.email
 
   const body = (await req.json()) as {
     eventId?: unknown
@@ -53,7 +54,7 @@ export async function POST(req: NextRequest) {
   try {
     const ok = await setMatchRating({
       eventId,
-      userEmail: email,
+      userId: session.userId,
       rating,
       reason,
     })

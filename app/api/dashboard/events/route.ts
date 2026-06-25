@@ -13,9 +13,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 
-  const email = await verifySession(sessionToken)
+  const session = await verifySession(sessionToken)
 
-  if (!email) {
+  if (!session) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 
@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
 
   const [futureEvents, scores] = await Promise.all([
     getFutureEvents(),
-    getMatchScoresForUser(email),
+    getMatchScoresForUser(session.userId),
   ])
 
   const withScores = futureEvents.map((e) => {

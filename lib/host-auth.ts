@@ -11,7 +11,7 @@ import { getUserByEmail } from './users'
 export async function getSessionUser(req: NextRequest): Promise<AirtableUser | null> {
   const token = req.cookies.get('session')?.value
   if (!token) return null
-  const email = await verifySession(token)
-  if (!email) return null
-  return await getUserByEmail(email)
+  const session = await verifySession(token)
+  if (!session) return null
+  return await getUserByEmail(session.email)
 }

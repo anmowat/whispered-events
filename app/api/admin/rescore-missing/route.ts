@@ -96,7 +96,6 @@ export async function POST(req: NextRequest) {
           await logMatch({
             eventId: event.id,
             userId: user.id,
-            userEmail: user.email,
             score: result.score,
             matchPercent: result.matchPercent,
             locationScore: result.location,

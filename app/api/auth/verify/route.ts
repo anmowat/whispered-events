@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyMagicToken, createSession } from '@/lib/supabase'
+import { getUserByEmail } from '@/lib/users'
 import { safeNext } from '@/lib/auth-redirect'
 
 // Two-step magic-link flow:
@@ -53,7 +54,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.redirect(new URL('/?auth=invalid', req.nextUrl.origin), { status: 303 })
   }
 
-  const sessionToken = await createSession(email)
+  // Sessions are keyed by user_id; look up the user once at session-
+  // create time so verifySession on every subsequent request can hand
+  // both id and email to callers without another round-trip.
+  const user = await getUserByEmail(email)
+  if (!user) {
+    return NextResponse.redirect(new URL('/?auth=invalid', req.nextUrl.origin), { status: 303 })
+  }
+
+  const sessionToken = await createSession(user.id, email)
 
   // safeNext re-validates the form value against the allow-list — even
   // a tampered URL can only land on a known internal route.

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getContributionStats } from '@/lib/supabase'
+import { getContributionStatsByEmail } from '@/lib/supabase'
 import { getUserByEmail } from '@/lib/users'
 
 export async function POST(req: NextRequest) {
@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return NextResponse.json({ contributions: 0 })
     }
-    const { total } = await getContributionStats(email)
+    const { total } = await getContributionStatsByEmail(email)
     return NextResponse.json({ contributions: total })
   } catch (err) {
     console.error('check-email error:', err instanceof Error ? err.message : String(err))

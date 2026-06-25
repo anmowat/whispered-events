@@ -3,7 +3,7 @@ import { waitUntil } from '@vercel/functions'
 import { createEvent } from '@/lib/airtable'
 import { getPartnerUserByEmail } from '@/lib/users'
 import { checkDuplicate } from '@/lib/events'
-import { recordContribution, getContributionStats } from '@/lib/supabase'
+import { recordContribution, getContributionStatsByEmail } from '@/lib/supabase'
 import { sendEventSubmittedEmail } from '@/lib/email'
 import { notifyNewEvent } from '@/lib/slack'
 import { EventRecord, VIRTUAL_LOCATION_RE } from '@/lib/types'
@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
         }
         let total = 0
         try {
-          const stats = await getContributionStats(event.submitter)
+          const stats = await getContributionStatsByEmail(event.submitter)
           total = stats.total
         } catch (e) {
           console.error('submit-event: getContributionStats failed', e)

@@ -6,7 +6,7 @@ import { parseEventContent } from '@/lib/claude'
 import { createEvent } from '@/lib/airtable'
 import { getUserByEmail } from '@/lib/users'
 import { checkDuplicate } from '@/lib/events'
-import { recordContribution, getContributionStats } from '@/lib/supabase'
+import { recordContribution, getContributionStatsByEmail } from '@/lib/supabase'
 import { sendEventCouldNotReadEmail, sendEventSubmittedEmail } from '@/lib/email'
 import { notifyNewEvent } from '@/lib/slack'
 import { EventRecord, VIRTUAL_LOCATION_RE } from '@/lib/types'
@@ -243,7 +243,7 @@ export async function POST(req: NextRequest) {
   }
   let contributionsTotal = 0
   try {
-    const stats = await getContributionStats(senderEmail)
+    const stats = await getContributionStatsByEmail(senderEmail)
     contributionsTotal = stats.total
   } catch (e) {
     console.error('inbound-email: getContributionStats failed', e)

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifySession, getContributionStats } from '@/lib/supabase'
+import { verifySession, getContributionStatsForUser } from '@/lib/supabase'
 import { getUserByEmail } from '@/lib/users'
 
 export async function GET(req: NextRequest) {
@@ -9,15 +9,15 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ user: null })
   }
 
-  const email = await verifySession(sessionToken)
+  const session = await verifySession(sessionToken)
 
-  if (!email) {
+  if (!session) {
     return NextResponse.json({ user: null })
   }
 
   const [user, stats] = await Promise.all([
-    getUserByEmail(email),
-    getContributionStats(email),
+    getUserByEmail(session.email),
+    getContributionStatsForUser(session.userId),
   ])
 
   if (!user) {

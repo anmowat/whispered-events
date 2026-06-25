@@ -36,13 +36,11 @@ export async function GET(
       getActiveUsers(),
     ])
 
-    const usersByEmail = new Map(
-      activeUsers.map((u) => [u.email.trim().toLowerCase(), u]),
-    )
+    const usersById = new Map(activeUsers.map((u) => [u.id, u]))
 
     const matches = []
     for (const m of matchRows) {
-      const u = usersByEmail.get(m.user_email.trim().toLowerCase())
+      const u = usersById.get(m.user_id)
       if (!u) continue
       const displayName =
         u.name && u.name !== 'DEFAULT'
