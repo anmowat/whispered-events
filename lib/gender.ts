@@ -126,6 +126,12 @@ const MALE_NAMES = new Set<string>([
   'perry', 'preston', 'rocky', 'rodrigo', 'rolando', 'rufus', 'sergio',
   'sidney', 'silas', 'solomon', 'stewart', 'sylvester', 'reginald',
   'rene', 'ricky', 'rick', 'jeffery', 'jeff', 'jesse', 'jimmy', 'jim',
+  // Common Western nicknames / short forms (full forms above; these
+  // are the everyday names users actually go by)
+  'nick', 'mike', 'dave', 'dan', 'andy', 'ben', 'bob', 'ron', 'will',
+  'ed', 'eddie', 'greg', 'doug', 'rich', 'rob', 'ken', 'matt', 'tim',
+  'steve', 'nate', 'zach', 'josh', 'phil', 'pete', 'ray', 'sal',
+  'chuck', 'charlie', 'frankie', 'gabe', 'manny', 'marty', 'mickey',
   'tomas', 'tomás', 'enrique', 'ernesto', 'fernando', 'francisco', 'gilberto',
   'guillermo', 'hector', 'horacio', 'humberto', 'ignacio', 'ismael', 'javier',
   'jorge', 'lazaro', 'leonel', 'mauricio', 'orlando', 'osvaldo',
