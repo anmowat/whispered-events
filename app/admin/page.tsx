@@ -671,7 +671,7 @@ export default function AdminPage() {
                           sortBy={sortBy}
                           sortDir={sortDir}
                           onToggle={toggleSort}
-                          title="Matches divided by total future events within 100 miles of this user's location, as a percentage. Hover any cell in this column for the raw N of M breakdown."
+                          title="Matches divided by total future events in range of this user's location, as a percentage. Hover any cell in this column for the raw N of M breakdown."
                         />
                         <SortHeader
                           label="Cont"
@@ -831,7 +831,7 @@ export default function AdminPage() {
                             title={
                               u.localMatchPct === null
                                 ? 'No nearby events (or user has no geocoded location)'
-                                : `${u.matchCount} of ${u.nearbyEventCount} events within 100mi`
+                                : `${u.matchCount} of ${u.nearbyEventCount} events in range`
                             }
                           >
                             {u.localMatchPct === null ? '—' : `${u.localMatchPct}%`}

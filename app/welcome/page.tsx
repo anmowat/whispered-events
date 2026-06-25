@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import Header from '@/components/Header'
 import TopicChips from '@/components/TopicChips'
 import { UserProfile } from '@/lib/types'
+import { NEARBY_RADIUS_MILES } from '@/lib/matching'
 
 // Invite-style quick-signup landing. Email + LinkedIn + Learn arrive in
 // the URL (?email=...&linkedin=...&learn=...) — the visitor only fills
@@ -245,7 +246,7 @@ function WelcomePageInner() {
                 </Field>
               )}
 
-              <Field label="What city are you based in?" hint="We'll send events within 100 miles. Pick one primary city — you can change it anytime if you travel.">
+              <Field label="What city are you based in?" hint={`We'll send events within ${NEARBY_RADIUS_MILES} miles. Pick one primary city — you can change it anytime if you travel.`}>
                 <input
                   type="text"
                   value={city}

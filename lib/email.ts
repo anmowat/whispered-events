@@ -540,7 +540,7 @@ function htmlToText(html: string): string {
 
 // Cron-fired nudge for dormant users — those with no matching events in
 // their pipeline. Branches on whether they have ANY future events within
-// 100 miles of their location:
+// range of their location:
 //   nearbyCount === 0 → Variant A (we have nothing in their area)
 //   nearbyCount >= 1 → Variant B (we have events nearby but their
 //                                 interests / profile aren't matching)

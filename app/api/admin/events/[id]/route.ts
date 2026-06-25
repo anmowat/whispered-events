@@ -5,12 +5,11 @@ import { getActiveUsers, getUsersByIds, getUserByEmail } from '@/lib/users'
 import { getEventById, getEventFlags } from '@/lib/events'
 import { getAllMatchesForEvent } from '@/lib/supabase'
 import { withinMiles } from '@/lib/geocode'
+import { NEARBY_RADIUS_MILES } from '@/lib/matching'
 import { updateEvent } from '@/lib/airtable'
 
-const NEARBY_RADIUS_MILES = 100
-
 // Admin event detail: returns the event + every active user within
-// 100mi, each row paired with their match score (and breakdown) if
+// range, each row paired with their match score (and breakdown) if
 // scored. Unscored users get null scores; skipped users carry their
 // skip reason. Lets us drill in to "who's the marketing VP in SF who
 // didn't match this event, and why."

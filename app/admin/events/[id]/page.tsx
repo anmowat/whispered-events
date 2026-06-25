@@ -725,7 +725,7 @@ export default function AdminEventDetailPage() {
 
             <div className="mb-3">
               <h3 className="text-xs uppercase tracking-widest font-medium" style={{ color: '#6E1F2B' }}>
-                Users within 100mi · {users.length}
+                Users in range · {users.length}
                 {' · '}
                 {matched.length} matched ({users.length > 0 ? Math.round((matched.length / users.length) * 100) : 0}%)
               </h3>
@@ -786,7 +786,7 @@ export default function AdminEventDetailPage() {
               </table>
               {visible.length === 0 && (
                 <p className="px-4 py-6 text-sm text-gray-500 text-center">
-                  No users within 100mi.
+                  No users in range.
                 </p>
               )}
             </div>

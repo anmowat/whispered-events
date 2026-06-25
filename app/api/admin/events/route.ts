@@ -4,12 +4,11 @@ import { getActiveUsers } from '@/lib/users'
 import { getEventsForAdmin, type EventScope, type FeaturedFilter, type EventStatusBucket } from '@/lib/events'
 import { getMatchCountsByEventId } from '@/lib/supabase'
 import { withinMiles } from '@/lib/geocode'
-
-const NEARBY_RADIUS_MILES = 100
+import { NEARBY_RADIUS_MILES } from '@/lib/matching'
 
 // Admin events list with per-event match stats:
 //   matchCount = unique users with a match row above NOTIFY_THRESHOLD
-//   usersInRange = active users whose location is geocoded within 100mi
+//   usersInRange = active users whose location is geocoded within range
 //   matchPct = matchCount / usersInRange (or null when usersInRange = 0)
 
 export const maxDuration = 60

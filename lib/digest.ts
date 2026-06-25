@@ -4,7 +4,7 @@ import {
   getActiveUsers,
   getFutureEvents,
 } from './airtable'
-import { isMatchEligible } from './matching'
+import { isMatchEligible, NEARBY_RADIUS_MILES } from './matching'
 import { sendUserDigest, sendCoaching, sendRecap } from './email'
 import type { DigestEventEntry } from './email'
 import { withinMiles } from './geocode'
@@ -134,7 +134,6 @@ const RESEND_THROTTLE_MS = 250
 // week. 'As they arrive' is unaffected — it already has its own 28-day
 // coaching floor.
 const CRON_RECENT_TOUCH_DAYS = 7
-const NEARBY_RADIUS_MILES = 150
 
 function isCoachingEligible(
   user: AirtableUser,
@@ -165,7 +164,7 @@ function sleep(ms: number): Promise<void> {
 }
 
 // Reused inline pattern from app/api/admin/dashboard-counts/route.ts —
-// count future events within 100mi of each user's geocoded location.
+// count future events within range of each user's geocoded location.
 // Users with no lat/lng get 0 (which routes them to Variant A copy).
 function buildNearbyCountMap(
   users: AirtableUser[],

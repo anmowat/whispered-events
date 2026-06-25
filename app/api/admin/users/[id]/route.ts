@@ -7,9 +7,8 @@ import { getAllMatchesForUser, getContributionStatsForUser, getLastSeenForUser, 
 import { updateUserAdmin, type UserAdminUpdate } from '@/lib/airtable'
 import { triggerUserApprovedFlow } from '@/lib/user-approval'
 import { withinMiles } from '@/lib/geocode'
+import { NEARBY_RADIUS_MILES } from '@/lib/matching'
 import { SENIORITY_OPTIONS } from '@/lib/seniority'
-
-const NEARBY_RADIUS_MILES = 100
 
 // Admin user detail: returns the user's profile fields plus every future
 // event scored against them, sorted by match % desc, with per-pair score
@@ -46,7 +45,7 @@ export async function GET(
 
     const byEventId = new Map(matchRows.map((m) => [m.event_id, m]))
 
-    // Restrict to events within 100mi of the user. Out-of-range events drop
+    // Restrict to events within NEARBY_RADIUS_MILES of the user. Out-of-range events drop
     // off the list entirely so admin sees only events the user could
     // realistically attend. Events missing lat/lng or users missing lat/lng
     // are excluded too — both signal a geocoding issue that needs fixing on

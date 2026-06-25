@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
+import { NEARBY_RADIUS_MILES } from '@/lib/matching'
 
 // Quality check for user-entered locations at signup + dashboard edit.
 // Catches three failure modes the downstream Nominatim geocoder will
@@ -69,7 +70,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<CheckResponse
       messages: [
         {
           role: 'user',
-          content: `You evaluate user-entered "Location" answers for an executive event matching platform. We feed the location to a geocoder (OpenStreetMap Nominatim) to compute lat/lng, then match the user to events within 100 miles.
+          content: `You evaluate user-entered "Location" answers for an executive event matching platform. We feed the location to a geocoder (OpenStreetMap Nominatim) to compute lat/lng, then match the user to events within ${NEARBY_RADIUS_MILES} miles.
 
 Ideal format is "City, State, Country" or "City, Country". Famous cities are fine bare: "San Francisco", "NYC", "New York", "Atlanta", "London", "Paris", "Tokyo".
 

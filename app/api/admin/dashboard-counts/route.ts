@@ -12,8 +12,7 @@ import {
 import { getUsersForAdmin, type StatusBucket } from '@/lib/users'
 import { getFutureEvents, getFutureEventHostIds } from '@/lib/events'
 import { withinMiles } from '@/lib/geocode'
-
-const NEARBY_RADIUS_MILES = 100
+import { NEARBY_RADIUS_MILES } from '@/lib/matching'
 
 // Admin overview: each active user's id/name/email/location + match count for
 // events on their dashboard + contribution totals + last-seen timestamp.
@@ -62,7 +61,7 @@ export async function GET(req: NextRequest) {
       matchedUserIds = new Set(rows.map((r) => r.user_id))
     }
 
-    // For each user, count future events within 100mi of their location.
+    // For each user, count future events within range of their location.
     // 53 users × 21 events ≈ 1k cheap distance calcs — fine to do inline.
     const geocodedEvents = futureEvents.filter(
       (e): e is typeof e & { lat: number; lng: number } =>

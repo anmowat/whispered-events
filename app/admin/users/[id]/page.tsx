@@ -501,7 +501,7 @@ export default function AdminUserDetailPage() {
 
             {/* Future events sorted by % match */}
             <div className="flex items-end justify-between mb-3 flex-wrap gap-2">
-              <h3 className="text-xs uppercase tracking-widest text-gold-700 font-medium">Future events within 100mi · {events.length}</h3>
+              <h3 className="text-xs uppercase tracking-widest text-gold-700 font-medium">Future events within range · {events.length}</h3>
               <p className="text-xs text-gray-400">Hover the % to see the score breakdown · Green ≥ 40%, red below</p>
             </div>
             <div className="bg-white border border-[#E8DDD0] rounded-2xl overflow-hidden shadow-sm">

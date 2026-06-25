@@ -7,6 +7,7 @@ import {
   scoreEventUser,
   isMatchEligible,
   computeInputsHash,
+  NEARBY_RADIUS_MILES,
   ScoreResult,
 } from '@/lib/matching'
 import { getExistingMatch, logMatch, markMatchesNotified } from '@/lib/supabase'
@@ -26,9 +27,8 @@ const SCORE_THRESHOLD = 1.0
 // set of matches their dashboard shows.
 const DIGEST_THRESHOLD = 1.35
 const BATCH_SIZE = 50
-const NEARBY_RADIUS_MILES = 150
 
-// How many future events are within 100mi of the user. Used to pick
+// How many future events are within range of the user. Used to pick
 // which inline coaching variant the no-match welcome should carry
 // (variant A when 0, variant B when >=1). Returns 0 when the user has
 // no geocoded location, which is the safe fallback (variant A).
