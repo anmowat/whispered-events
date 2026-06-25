@@ -37,40 +37,47 @@ interface ColorTokens {
 }
 
 // Tuned for the dark "after-hours" theme — the only surface where the
-// chip picker renders today. Unselected uses a saturated tinted fill
-// that pops against #1b1814 with dark text inside. Selected darkens
-// the fill and flips text to white for a clear pressed state.
+// chip picker renders today.
+//
+// Unselected = faint outline + barely-there tint, so the chip reads as
+// "available, not currently picked." Earlier this used a saturated tint
+// which was too close in vibrance to the selected state — users
+// couldn't tell what they'd clicked.
+//
+// Selected = full saturated fill + white text — unambiguous "picked"
+// state. Same colours we shipped originally, just now with a much
+// stronger contrast against the unselected resting state.
 const PALETTE: Record<ChipGroup['color'], ColorTokens> = {
   sage: {
-    bg: '#C5E0B4',
+    bg: 'rgba(107, 142, 84, 0.12)',
     bgActive: '#6B8E54',
-    border: '#9BC68A',
+    border: 'rgba(155, 198, 138, 0.55)',
     borderActive: '#6B8E54',
-    text: '#2F4A1F',
+    text: '#9BC68A',
     textActive: '#FFFFFF',
   },
   burgundy: {
-    bg: '#E8B4BC',
+    bg: 'rgba(138, 42, 56, 0.12)',
     bgActive: '#8A2A38',
-    border: '#C9818C',
+    border: 'rgba(201, 129, 140, 0.55)',
     borderActive: '#8A2A38',
-    text: '#5A1822',
+    text: '#E8B4BC',
     textActive: '#FFFFFF',
   },
   slate: {
-    bg: '#C4D0E0',
+    bg: 'rgba(74, 90, 117, 0.18)',
     bgActive: '#4A5A75',
-    border: '#8B9AB5',
+    border: 'rgba(139, 154, 181, 0.55)',
     borderActive: '#4A5A75',
-    text: '#2E3849',
+    text: '#C4D0E0',
     textActive: '#FFFFFF',
   },
   gold: {
-    bg: '#E5CC91',
+    bg: 'rgba(155, 118, 38, 0.12)',
     bgActive: '#9B7626',
-    border: '#BFA055',
+    border: 'rgba(191, 160, 85, 0.55)',
     borderActive: '#9B7626',
-    text: '#5C4416',
+    text: '#E5CC91',
     textActive: '#FFFFFF',
   },
 }
@@ -146,14 +153,19 @@ export default function TopicChips({
             <div className="flex flex-wrap gap-1.5">
               {group.topics.map((topic) => {
                 if (readonly) {
+                  // FAQ surface — render every chip in the filled
+                  // "selected" style so the row reads as solid category
+                  // labels, not as unclicked buttons. The new faint
+                  // outline used for unselected interactive chips would
+                  // look clickable here, which we explicitly don't want.
                   return (
                     <span
                       key={topic}
                       className="px-2.5 py-1 rounded-pill border text-[12.5px]"
                       style={{
-                        background: c.bg,
-                        borderColor: c.border,
-                        color: c.text,
+                        background: c.bgActive,
+                        borderColor: c.borderActive,
+                        color: c.textActive,
                       }}
                     >
                       {topic}
