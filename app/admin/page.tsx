@@ -5,36 +5,25 @@ import LoginModal from '@/components/LoginModal'
 import { AdminTabs } from '@/components/AdminTabs'
 import { formatEventDate } from '@/lib/dates'
 import { normalizeStatus, statusDotClass } from '@/lib/user-status'
-
-interface UserRow {
-  id: string
-  created: string | null
-  email: string
-  name: string
-  firstName: string
-  location: string
-  frequency: string
-  grade: 'A' | 'Polish' | 'B' | 'C' | null
-  status: string
-  isHost: boolean
-  // Surfaced for the To Approve column set. Live / All views ignore them.
-  function: string
-  seniority: string
-  employment: string
-  learn: string
-  lat: number | null
-  lng: number | null
-  matchCount: number
-  nearbyEventCount: number
-  localMatchPct: number | null
-  totalContributions: number
-  lastContribution: string | null
-  lastSeen: string | null
-  lastDigestSent: string | null
-  lastBlastSent: string | null
-  ratingsUp: number
-  ratingsDown: number
-}
+import {
+  FIELDS,
+  FIELDS_BY_ID,
+  OPERATORS_BY_TYPE,
+  cloneAndAppend,
+  cloneAndRemove,
+  cloneAndReplace,
+  countConditions,
+  emptyRoot,
+  evalGroup,
+  newCondition,
+  newGroup,
+  type Condition,
+  type Conjunction,
+  type Group,
+  type Node as FilterNode,
+  type OperatorId,
+  type UserRow,
+} from '@/lib/admin-filters'
 
 interface Stats {
   activeUserCount: number
@@ -79,15 +68,11 @@ const DEFAULT_DIR: Record<SortKey, SortDir> = {
 
 const POLL_MS = 10_000
 
-const FREQUENCY_FILTERS = ['All', 'As they arrive', 'Weekly', 'Monthly', 'Paused']
-
 // Display-only shortening. Keeps backend value 'As they arrive' intact
 // (Airtable picklist relies on the exact string).
 function shortFrequency(f: string): string {
   return f === 'As they arrive' ? 'Arrive' : f
 }
-
-const GRADE_FILTERS = ['All', 'A', 'Polish', 'B', 'C'] as const
 
 // Quality ordering for sorting Grade asc/desc. Aligns with the quality
 // multiplier in lib/matching.ts — higher rank = better fit.
@@ -98,82 +83,26 @@ const GRADE_RANK: Record<string, number> = {
   C: 1,
 }
 
-// Date filter buckets. 'never' = only show users with no value in that
-// column; numeric strings = within that many days. Stored as strings
-// because that's what <select> hands back.
-type DateBucket = 'any' | '7' | '30' | '90' | 'never'
-const DATE_OPTIONS: { value: DateBucket; label: string }[] = [
-  { value: 'any', label: 'Any' },
-  { value: '7', label: 'Within 7 days' },
-  { value: '30', label: 'Within 30 days' },
-  { value: '90', label: 'Within 90 days' },
-  { value: 'never', label: 'Never' },
-]
-
 interface EventOption {
   id: string
   name: string
   date: string
 }
 
-interface Filters {
-  frequency: string
-  grade: string
+// Page-level filter state. The condition tree handles every row-level
+// predicate; matchedEventId is its own slot because it drives the
+// server fetch (eventId query param), not the client-side filter pass.
+interface AdminFilterState {
   matchedEventId: string
-  minMatches: string
-  minContributions: string
-  minLocalPct: string
-  maxLocalPct: string
-  created: DateBucket
-  lastContribution: DateBucket
-  lastSent: DateBucket
-  lastBlast: DateBucket
-  lastSeen: DateBucket
+  root: Group
 }
 
-function emptyFilters(): Filters {
-  return {
-    frequency: 'All',
-    grade: 'All',
-    matchedEventId: '',
-    minMatches: '',
-    minContributions: '',
-    minLocalPct: '',
-    maxLocalPct: '',
-    created: 'any',
-    lastContribution: 'any',
-    lastSent: 'any',
-    lastBlast: 'any',
-    lastSeen: 'any',
-  }
+function emptyFilterState(): AdminFilterState {
+  return { matchedEventId: '', root: emptyRoot() }
 }
 
-function activeFilterCount(f: Filters): number {
-  let n = 0
-  if (f.frequency !== 'All') n++
-  if (f.grade !== 'All') n++
-  if (f.matchedEventId !== '') n++
-  if (f.minMatches.trim() !== '') n++
-  if (f.minContributions.trim() !== '') n++
-  if (f.minLocalPct.trim() !== '') n++
-  if (f.maxLocalPct.trim() !== '') n++
-  if (f.created !== 'any') n++
-  if (f.lastContribution !== 'any') n++
-  if (f.lastSent !== 'any') n++
-  if (f.lastBlast !== 'any') n++
-  if (f.lastSeen !== 'any') n++
-  return n
-}
-
-function passesDateBucket(iso: string | null, choice: DateBucket): boolean {
-  if (choice === 'any') return true
-  if (choice === 'never') return !iso
-  if (!iso) return false
-  const days = parseInt(choice, 10)
-  if (!Number.isFinite(days)) return true
-  const t = new Date(iso).getTime()
-  if (!Number.isFinite(t)) return false
-  return t >= Date.now() - days * 86_400_000
+function activeFilterCount(s: AdminFilterState): number {
+  return countConditions(s.root) + (s.matchedEventId ? 1 : 0)
 }
 
 // Long form (with year) for tooltips. Short form for table cells —
@@ -235,7 +164,7 @@ export default function AdminPage() {
   const [search, setSearch] = useState('')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [showFilters, setShowFilters] = useState(false)
-  const [filters, setFilters] = useState<Filters>(emptyFilters())
+  const [filters, setFilters] = useState<AdminFilterState>(emptyFilterState())
   const [rescoring, setRescoring] = useState(false)
   const [rescoreResult, setRescoreResult] = useState<string | null>(null)
   const [refreshingCache, setRefreshingCache] = useState(false)
@@ -401,28 +330,9 @@ export default function AdminPage() {
   const visibleUsers = useMemo(() => {
     if (!users) return []
     const q = search.trim().toLowerCase()
-    const minM = filters.minMatches.trim() === '' ? null : parseInt(filters.minMatches, 10)
-    const minC = filters.minContributions.trim() === '' ? null : parseInt(filters.minContributions, 10)
-    const minPct = filters.minLocalPct.trim() === '' ? null : parseInt(filters.minLocalPct, 10)
-    const maxPct = filters.maxLocalPct.trim() === '' ? null : parseInt(filters.maxLocalPct, 10)
-    const byFilters = users.filter((u) => {
-      if (filters.frequency !== 'All' && (u.frequency || '') !== filters.frequency) return false
-      if (filters.grade !== 'All' && (u.grade ?? '') !== filters.grade) return false
-      if (minM !== null && Number.isFinite(minM) && u.matchCount < minM) return false
-      if (minC !== null && Number.isFinite(minC) && u.totalContributions < minC) return false
-      if (minPct !== null && Number.isFinite(minPct)) {
-        if (u.localMatchPct === null || u.localMatchPct < minPct) return false
-      }
-      if (maxPct !== null && Number.isFinite(maxPct)) {
-        if (u.localMatchPct === null || u.localMatchPct > maxPct) return false
-      }
-      if (!passesDateBucket(u.created, filters.created)) return false
-      if (!passesDateBucket(u.lastContribution, filters.lastContribution)) return false
-      if (!passesDateBucket(u.lastDigestSent, filters.lastSent)) return false
-      if (!passesDateBucket(u.lastBlastSent, filters.lastBlast)) return false
-      if (!passesDateBucket(u.lastSeen, filters.lastSeen)) return false
-      return true
-    })
+    // Single pass via the condition tree. matchedEventId is applied
+    // server-side via the eventId query param above, so it's not in here.
+    const byFilters = users.filter((u) => evalGroup(u, filters.root, FIELDS_BY_ID))
     const filtered = q
       ? byFilters.filter((u) => {
           const name = (u.name && u.name !== 'DEFAULT' ? u.name : '').toLowerCase()
@@ -579,7 +489,7 @@ export default function AdminPage() {
                     filters={filters}
                     events={events}
                     onChange={setFilters}
-                    onClear={() => setFilters(emptyFilters())}
+                    onClear={() => setFilters(emptyFilterState())}
                     onClose={() => setShowFilters(false)}
                   />
                 )}
@@ -912,8 +822,9 @@ export default function AdminPage() {
   )
 }
 
-// Floating filter panel anchored under the Filters button. Click-outside
-// dismissal handled here so the parent doesn't need a ref-passing dance.
+// Airtable-style filter modal. Holds the matched-event picker (server-
+// side filter — drives the fetch) at the top, then a recursive group
+// tree of conditions client-filtered against the loaded user rows.
 function FilterPopover({
   filters,
   events,
@@ -921,9 +832,9 @@ function FilterPopover({
   onClear,
   onClose,
 }: {
-  filters: Filters
+  filters: AdminFilterState
   events: EventOption[]
-  onChange: (f: Filters) => void
+  onChange: (f: AdminFilterState) => void
   onClear: () => void
   onClose: () => void
 }) {
@@ -942,8 +853,8 @@ function FilterPopover({
     }
   }, [onClose])
 
-  function update<K extends keyof Filters>(key: K, value: Filters[K]) {
-    onChange({ ...filters, [key]: value })
+  function setRoot(next: Group) {
+    onChange({ ...filters, root: next })
   }
 
   return (
@@ -953,14 +864,10 @@ function FilterPopover({
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-[640px] max-h-[90vh] overflow-y-auto"
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-[820px] max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Sticky header so the close + section label stay anchored when
-            the modal's tall enough to need scrolling. */}
-        <div
-          className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 border-b border-[#E8DDD0] bg-white"
-        >
+        <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 border-b border-[#E8DDD0] bg-white">
           <h2 className="text-base font-semibold text-gray-900">Filters</h2>
           <button
             onClick={onClose}
@@ -972,112 +879,28 @@ function FilterPopover({
         </div>
 
         <div className="px-6 py-5 space-y-6">
-          <FilterSection title="User">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <FilterField label="Frequency">
-                <select
-                  value={filters.frequency}
-                  onChange={(e) => update('frequency', e.target.value)}
-                  className="w-full bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none transition-colors"
-                >
-                  {FREQUENCY_FILTERS.map((f) => (
-                    <option key={f} value={f}>{f}</option>
-                  ))}
-                </select>
-              </FilterField>
-              <FilterField label="Grade">
-                <select
-                  value={filters.grade}
-                  onChange={(e) => update('grade', e.target.value)}
-                  className="w-full bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none transition-colors"
-                >
-                  {GRADE_FILTERS.map((g) => (
-                    <option key={g} value={g}>{g}</option>
-                  ))}
-                </select>
-              </FilterField>
-            </div>
-          </FilterSection>
+          <div>
+            <h3 className="text-[11px] uppercase tracking-widest text-gray-500 font-semibold mb-3">
+              Matched event
+            </h3>
+            <p className="text-xs text-gray-500 mb-2">
+              Server-side filter — narrows the fetch to users above the notify threshold for one event.
+            </p>
+            <EventPicker
+              events={events}
+              selectedId={filters.matchedEventId}
+              onChange={(id) => onChange({ ...filters, matchedEventId: id })}
+            />
+          </div>
 
-          <FilterSection title="Matched event">
-            <FilterField label="Event">
-              <EventPicker
-                events={events}
-                selectedId={filters.matchedEventId}
-                onChange={(id) => update('matchedEventId', id)}
-              />
-            </FilterField>
-          </FilterSection>
-
-          <FilterSection title="Activity">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <FilterField label="Min matches">
-                <input
-                  type="number"
-                  min={0}
-                  value={filters.minMatches}
-                  onChange={(e) => update('minMatches', e.target.value)}
-                  placeholder="Any"
-                  className="w-full bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none transition-colors"
-                />
-              </FilterField>
-              <FilterField label="Min contributions">
-                <input
-                  type="number"
-                  min={0}
-                  value={filters.minContributions}
-                  onChange={(e) => update('minContributions', e.target.value)}
-                  placeholder="Any"
-                  className="w-full bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none transition-colors"
-                />
-              </FilterField>
-              <FilterField label="Min local %">
-                <input
-                  type="number"
-                  min={0}
-                  max={100}
-                  value={filters.minLocalPct}
-                  onChange={(e) => update('minLocalPct', e.target.value)}
-                  placeholder="Any"
-                  className="w-full bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none transition-colors"
-                />
-              </FilterField>
-              <FilterField label="Max local %">
-                <input
-                  type="number"
-                  min={0}
-                  max={100}
-                  value={filters.maxLocalPct}
-                  onChange={(e) => update('maxLocalPct', e.target.value)}
-                  placeholder="Any"
-                  className="w-full bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none transition-colors"
-                />
-              </FilterField>
-            </div>
-          </FilterSection>
-
-          <FilterSection title="Dates">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <FilterField label="Created">
-                <DateSelect value={filters.created} onChange={(v) => update('created', v)} />
-              </FilterField>
-              <FilterField label="Last contribution">
-                <DateSelect value={filters.lastContribution} onChange={(v) => update('lastContribution', v)} />
-              </FilterField>
-              <FilterField label="Last sent">
-                <DateSelect value={filters.lastSent} onChange={(v) => update('lastSent', v)} />
-              </FilterField>
-              <FilterField label="Last blast">
-                <DateSelect value={filters.lastBlast} onChange={(v) => update('lastBlast', v)} />
-              </FilterField>
-              <FilterField label="Last seen">
-                <DateSelect value={filters.lastSeen} onChange={(v) => update('lastSeen', v)} />
-              </FilterField>
-            </div>
-          </FilterSection>
+          <div>
+            <h3 className="text-[11px] uppercase tracking-widest text-gray-500 font-semibold mb-3">
+              Conditions
+            </h3>
+            <GroupContainer group={filters.root} root={filters.root} onRootChange={setRoot} isRoot />
+          </div>
         </div>
 
-        {/* Sticky footer mirrors the sticky header for the same reason. */}
         <div className="sticky bottom-0 flex items-center justify-between px-6 py-4 border-t border-[#E8DDD0] bg-white">
           <button
             onClick={onClear}
@@ -1097,6 +920,278 @@ function FilterPopover({
         </div>
       </div>
     </div>
+  )
+}
+
+// Renders one group: a conjunction picker, its children (Condition rows
+// or nested GroupContainers), then the Add-condition / Add-group / ×
+// affordances. All mutations work by id against the root group so a
+// nested row doesn't have to thread setters back up the tree.
+function GroupContainer({
+  group,
+  root,
+  onRootChange,
+  isRoot = false,
+}: {
+  group: Group
+  root: Group
+  onRootChange: (next: Group) => void
+  isRoot?: boolean
+}) {
+  function patchGroup(patch: Partial<Group>) {
+    onRootChange(cloneAndReplace(root, group.id, { ...group, ...patch }))
+  }
+
+  function replaceChild(child: FilterNode) {
+    onRootChange(cloneAndReplace(root, child.id, child))
+  }
+
+  function removeChild(childId: string) {
+    onRootChange(cloneAndRemove(root, childId))
+  }
+
+  function addCondition() {
+    onRootChange(cloneAndAppend(root, group.id, newCondition()))
+  }
+
+  function addGroup() {
+    // Nested groups default to OR so the first nesting is meaningful —
+    // a nested AND inside an AND tree adds no expressive power.
+    onRootChange(cloneAndAppend(root, group.id, newGroup(group.conjunction === 'AND' ? 'OR' : 'AND')))
+  }
+
+  function removeSelf() {
+    onRootChange(cloneAndRemove(root, group.id))
+  }
+
+  return (
+    <div
+      className={`${isRoot ? '' : 'border-l-2 border-[#E8DDD0] pl-3'} space-y-2`}
+    >
+      <div className="flex items-center gap-2 text-sm text-gray-700">
+        <span>Match</span>
+        <select
+          value={group.conjunction}
+          onChange={(e) => patchGroup({ conjunction: e.target.value as Conjunction })}
+          className="bg-white border border-[#E8DDD0] rounded-lg px-2 py-1 text-sm text-gray-700 focus:outline-none transition-colors"
+        >
+          <option value="AND">ALL</option>
+          <option value="OR">ANY</option>
+        </select>
+        <span>of the following:</span>
+        {!isRoot && (
+          <button
+            type="button"
+            onClick={removeSelf}
+            className="ml-auto text-xs text-gray-500 hover:text-[#6E1F2B] transition-colors"
+            aria-label="Remove group"
+          >
+            × Remove group
+          </button>
+        )}
+      </div>
+
+      {group.children.length === 0 && (
+        <p className="text-xs text-gray-400 italic pl-1">No conditions yet.</p>
+      )}
+
+      <div className="space-y-2">
+        {group.children.map((child) => {
+          if (child.kind === 'condition') {
+            return (
+              <ConditionRow
+                key={child.id}
+                condition={child}
+                onChange={replaceChild}
+                onRemove={() => removeChild(child.id)}
+              />
+            )
+          }
+          return (
+            <GroupContainer
+              key={child.id}
+              group={child}
+              root={root}
+              onRootChange={onRootChange}
+            />
+          )
+        })}
+      </div>
+
+      <div className="flex items-center gap-2 pt-1">
+        <button
+          type="button"
+          onClick={addCondition}
+          className="text-xs text-[#6E1F2B] hover:text-[#8E2E3B] transition-colors"
+        >
+          + Add condition
+        </button>
+        <button
+          type="button"
+          onClick={addGroup}
+          className="text-xs text-[#6E1F2B] hover:text-[#8E2E3B] transition-colors"
+        >
+          + Add group
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// Single condition row: Field → Operator → Value → ×. Switching field
+// resets the operator (since operator sets are type-scoped); switching
+// to a no-value operator clears the value.
+function ConditionRow({
+  condition,
+  onChange,
+  onRemove,
+}: {
+  condition: Condition
+  onChange: (next: Condition) => void
+  onRemove: () => void
+}) {
+  const field = FIELDS_BY_ID[condition.fieldId] ?? FIELDS[0]
+  const operators = OPERATORS_BY_TYPE[field.type]
+  const op = operators.find((o) => o.id === condition.operator) ?? operators[0]
+  const inputCls =
+    'bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none transition-colors'
+
+  function setField(nextFieldId: string) {
+    const next = FIELDS_BY_ID[nextFieldId] ?? FIELDS[0]
+    const nextOps = OPERATORS_BY_TYPE[next.type]
+    // Prefer keeping the same operator if it's valid for the new field's
+    // type; otherwise jump to the first operator (typically a contains/
+    // equals/= depending on type) so the row stays usable.
+    const sameOp = nextOps.find((o) => o.id === condition.operator)
+    const nextOp = sameOp ?? nextOps[0]
+    onChange({
+      ...condition,
+      fieldId: nextFieldId,
+      operator: nextOp.id,
+      value: nextOp.needsValue ? condition.value : '',
+    })
+  }
+
+  function setOperator(nextOpId: OperatorId) {
+    const nextOp = operators.find((o) => o.id === nextOpId) ?? operators[0]
+    onChange({
+      ...condition,
+      operator: nextOpId,
+      value: nextOp.needsValue ? condition.value : '',
+    })
+  }
+
+  function setValue(v: string) {
+    onChange({ ...condition, value: v })
+  }
+
+  return (
+    <div className="flex items-center gap-2 flex-wrap">
+      <select
+        value={condition.fieldId}
+        onChange={(e) => setField(e.target.value)}
+        className={`${inputCls} min-w-[140px]`}
+      >
+        {FIELDS.map((f) => (
+          <option key={f.id} value={f.id}>{f.label}</option>
+        ))}
+      </select>
+      <select
+        value={condition.operator}
+        onChange={(e) => setOperator(e.target.value as OperatorId)}
+        className={`${inputCls} min-w-[140px]`}
+      >
+        {operators.map((o) => (
+          <option key={o.id} value={o.id}>{o.label}</option>
+        ))}
+      </select>
+      <ConditionValueInput field={field} operatorId={op.id} value={condition.value} onChange={setValue} />
+      <button
+        type="button"
+        onClick={onRemove}
+        aria-label="Remove condition"
+        className="ml-1 w-7 h-7 rounded-full text-gray-400 hover:bg-[#F5EFE6] hover:text-[#6E1F2B] transition-colors text-base leading-none"
+      >
+        ×
+      </button>
+    </div>
+  )
+}
+
+// Value input switches by field type and operator. No-value operators
+// (is empty / is not empty / is true / is false) render nothing.
+function ConditionValueInput({
+  field,
+  operatorId,
+  value,
+  onChange,
+}: {
+  field: typeof FIELDS[number]
+  operatorId: OperatorId
+  value: string
+  onChange: (v: string) => void
+}) {
+  const op = OPERATORS_BY_TYPE[field.type].find((o) => o.id === operatorId)
+  if (!op || !op.needsValue) return null
+  const inputCls =
+    'bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none transition-colors min-w-[180px]'
+
+  if (field.type === 'enum' && field.enumOptions) {
+    const value0 = value || field.enumOptions[0]?.value || ''
+    return (
+      <select value={value0} onChange={(e) => onChange(e.target.value)} className={inputCls}>
+        {field.enumOptions.map((o) => (
+          <option key={o.value} value={o.value}>{o.label}</option>
+        ))}
+      </select>
+    )
+  }
+
+  if (field.type === 'number') {
+    return (
+      <input
+        type="number"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="value"
+        className={inputCls}
+      />
+    )
+  }
+
+  if (field.type === 'date') {
+    // Rolling-window operators take a count of days, not a calendar date.
+    if (operatorId === 'withinDays' || operatorId === 'moreThanDaysAgo') {
+      return (
+        <input
+          type="number"
+          min={0}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="days"
+          className={inputCls}
+        />
+      )
+    }
+    return (
+      <input
+        type="date"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={inputCls}
+      />
+    )
+  }
+
+  // text fallback
+  return (
+    <input
+      type="text"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder="value"
+      className={inputCls}
+    />
   )
 }
 
@@ -1134,48 +1229,6 @@ function SortHeader({
         <span className="text-[9px] opacity-70">{arrow || '↕'}</span>
       </button>
     </th>
-  )
-}
-
-function FilterSection({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <h3 className="text-[11px] uppercase tracking-widest text-gray-500 font-semibold mb-3">
-        {title}
-      </h3>
-      {children}
-    </div>
-  )
-}
-
-function FilterField({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="block">
-      <span className="block text-[11px] uppercase tracking-widest text-gray-500 font-medium mb-1">
-        {label}
-      </span>
-      {children}
-    </label>
-  )
-}
-
-function DateSelect({
-  value,
-  onChange,
-}: {
-  value: DateBucket
-  onChange: (v: DateBucket) => void
-}) {
-  return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value as DateBucket)}
-      className="w-full bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none transition-colors"
-    >
-      {DATE_OPTIONS.map((opt) => (
-        <option key={opt.value} value={opt.value}>{opt.label}</option>
-      ))}
-    </select>
   )
 }
 
