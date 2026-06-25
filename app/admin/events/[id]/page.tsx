@@ -171,6 +171,9 @@ export default function AdminEventDetailPage() {
   const [hostSearchBusy, setHostSearchBusy] = useState(false)
   const [editBusy, setEditBusy] = useState(false)
   const [editError, setEditError] = useState<string | null>(null)
+  // Tracks the per-event rescore the Refresh button kicks off, so the
+  // label can show "Rescoring…" while the work is in flight.
+  const [rescoring, setRescoring] = useState(false)
   const isEditing = draft !== null
 
   // Typeahead: re-run the name search whenever the query changes, debounced
@@ -203,6 +206,25 @@ export default function AdminEventDetailPage() {
       clearTimeout(id)
     }
   }, [hostSearch])
+
+  // Refresh = rescore this event's pairs, then re-read. The global
+  // rescore-missing button on /admin tends to time out before reaching
+  // every (event, user) pair, so an event-scoped trigger guarantees we
+  // re-evaluate Nick & co. against the latest matching rules.
+  async function rescoreAndFetch() {
+    if (!eventId) return
+    setRescoring(true)
+    try {
+      await fetch(`/api/process-matches?trigger=event&id=${eventId}`, {
+        cache: 'no-store',
+      })
+    } catch (e) {
+      console.error('rescoreAndFetch failed', e)
+    } finally {
+      setRescoring(false)
+    }
+    await fetchDetail()
+  }
 
   async function fetchDetail() {
     if (!eventId) return
@@ -411,10 +433,11 @@ export default function AdminEventDetailPage() {
             <span className="text-xs uppercase tracking-widest text-gray-500">← Events</span>
           </a>
           <button
-            onClick={fetchDetail}
-            className="px-3 py-1.5 rounded-lg border border-[#E8DDD0] bg-white text-xs text-gray-700 hover:bg-[#F5EFE6] transition-colors shadow-sm"
+            onClick={rescoreAndFetch}
+            disabled={rescoring}
+            className="px-3 py-1.5 rounded-lg border border-[#E8DDD0] bg-white text-xs text-gray-700 hover:bg-[#F5EFE6] transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Refresh
+            {rescoring ? 'Rescoring…' : 'Refresh'}
           </button>
         </div>
       </header>

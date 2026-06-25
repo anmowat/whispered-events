@@ -146,6 +146,26 @@ export default function AdminUserDetailPage() {
   const isEditing = draft !== null
   const [enrichBusy, setEnrichBusy] = useState(false)
   const [enrichMessage, setEnrichMessage] = useState<string | null>(null)
+  // Tracks the per-user rescore the Refresh button kicks off.
+  const [rescoring, setRescoring] = useState(false)
+
+  // Refresh = rescore this user's matches across every future event,
+  // then re-read. noEmail=1 keeps the trigger from sending a welcome
+  // or per-event digest as a side effect.
+  async function rescoreAndFetch() {
+    if (!userId) return
+    setRescoring(true)
+    try {
+      await fetch(`/api/process-matches?trigger=user&id=${userId}&noEmail=1`, {
+        cache: 'no-store',
+      })
+    } catch (e) {
+      console.error('rescoreAndFetch failed', e)
+    } finally {
+      setRescoring(false)
+    }
+    await fetchDetail()
+  }
 
   async function fetchDetail() {
     if (!userId) return
@@ -308,10 +328,11 @@ export default function AdminUserDetailPage() {
               {enrichBusy ? 'Enriching…' : 'Enrich from LinkedIn'}
             </button>
             <button
-              onClick={fetchDetail}
-              className="px-3 py-1.5 rounded-lg border border-[#E8DDD0] bg-white text-xs text-gray-700 hover:bg-[#F5EFE6] transition-colors shadow-sm"
+              onClick={rescoreAndFetch}
+              disabled={rescoring}
+              className="px-3 py-1.5 rounded-lg border border-[#E8DDD0] bg-white text-xs text-gray-700 hover:bg-[#F5EFE6] transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Refresh
+              {rescoring ? 'Rescoring…' : 'Refresh'}
             </button>
           </div>
         </div>
