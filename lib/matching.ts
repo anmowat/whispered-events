@@ -6,6 +6,28 @@ import { VIRTUAL_LOCATION_RE } from './types'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
+// Wraps an Anthropic call with retry-on-429 / 5xx. Backoff is short and
+// linear (1s → 3s → 9s) so a single rate-limited LLM call doesn't hold
+// the function open for long, but bursty load (e.g. process-matches'
+// 50-wide parallel batch) gets a chance to clear. After 3 attempts the
+// error bubbles to the caller, which already catches and logs.
+async function callWithRetry<T>(fn: () => Promise<T>): Promise<T> {
+  const delays = [1_000, 3_000, 9_000]
+  let lastErr: unknown
+  for (let attempt = 0; attempt <= delays.length; attempt++) {
+    try {
+      return await fn()
+    } catch (err) {
+      lastErr = err
+      const status = (err as { status?: number })?.status
+      const retryable = status === 429 || (typeof status === 'number' && status >= 500)
+      if (!retryable || attempt === delays.length) break
+      await new Promise((r) => setTimeout(r, delays[attempt]))
+    }
+  }
+  throw lastErr
+}
+
 const MAX_MILES = 150
 const FREE_TEXT_CAP = 500
 // 1.1 (location ≤10mi) × 1.5 (audience) × 1.5 (quality A) × 1.5 (preferences).
@@ -20,7 +42,13 @@ const QUALITY_MULTIPLIER: Record<'A' | 'Polish' | 'B' | 'C', number> = {
 // Bumped any time the scoring rubric / prompt / formula changes so the
 // inputs hash on every cached row turns stale. The admin rescore-missing
 // endpoint then picks them up and refreshes under the new model.
-const MATCHING_VERSION = 14
+// Reverted from 14 → 13 after a brief incident where bumping to 14
+// invalidated every cached row at once and flooded the Anthropic rate
+// limit (no retry logic at the time). The audience-floor code below
+// still applies on every fresh write, so the new tier rolls out
+// naturally as events change or per-user rescores fire. Bump again
+// only after callLLM's retry handling is proven in production.
+const MATCHING_VERSION = 13
 
 // Canonical "this user could realistically attend" radius. Used by the
 // matching pipeline (process-matches, digest) to decide who scores
@@ -214,28 +242,37 @@ Return three values via the submit_score tool:
 
   const userMessage = fixedSide === 'event' ? userBlock : eventBlock
 
-  const message = await anthropic.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 200,
-    system: systemBlocks,
-    tools: [
-      {
-        name: 'submit_score',
-        description: 'Submit the audience and preferences scores for this event-attendee pair.',
-        input_schema: {
-          type: 'object',
-          properties: {
-            audience: { type: 'number', minimum: 0, maximum: 1.5 },
-            preferences: { type: 'number', minimum: 0, maximum: 1.5 },
-            reason: { type: 'string' },
+  // Retry on Anthropic 429s and transient 5xx. Backoff is intentionally
+  // short — process-matches fans out 50 LLM calls in parallel, and a
+  // version bump can put thousands of pairs in the queue simultaneously.
+  // Without this, the first 429 ends the call → scoreAndNotify swallows
+  // it → the match never gets written → dashboard polling never
+  // converges. Three attempts with 1s/3s/9s backoff covers brief rate-
+  // limit pressure without holding the function open for long.
+  const message = await callWithRetry(() =>
+    anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 200,
+      system: systemBlocks,
+      tools: [
+        {
+          name: 'submit_score',
+          description: 'Submit the audience and preferences scores for this event-attendee pair.',
+          input_schema: {
+            type: 'object',
+            properties: {
+              audience: { type: 'number', minimum: 0, maximum: 1.5 },
+              preferences: { type: 'number', minimum: 0, maximum: 1.5 },
+              reason: { type: 'string' },
+            },
+            required: ['audience', 'preferences', 'reason'],
           },
-          required: ['audience', 'preferences', 'reason'],
         },
-      },
-    ],
-    tool_choice: { type: 'tool', name: 'submit_score' },
-    messages: [{ role: 'user', content: userMessage }],
-  })
+      ],
+      tool_choice: { type: 'tool', name: 'submit_score' },
+      messages: [{ role: 'user', content: userMessage }],
+    }),
+  )
 
   const toolUse = message.content.find((c) => c.type === 'tool_use')
   if (!toolUse || toolUse.type !== 'tool_use') {
