@@ -150,6 +150,8 @@ export async function PATCH(
         eventName: event.name,
         eventLink: event.link,
         hostEmail: user.email,
+        hostName: user.name,
+        hostLinkedin: user.linkedin,
         changes,
       }).catch((e) =>
         console.error('host/events/[id]: notifyHostEventUpdate failed', e),

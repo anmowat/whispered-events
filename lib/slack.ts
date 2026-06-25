@@ -28,34 +28,71 @@ export async function postSlack(text: string): Promise<void> {
   }
 }
 
+// Identifier line used at the top of every notification. Renders the
+// person as a clickable LinkedIn hyperlink when we have the URL, with
+// email as a secondary identifier. Falls back cleanly when LinkedIn
+// (and even name) are missing so pre-signup callers don't generate
+// broken `<|>` syntax.
+//
+// Slack mrkdwn link syntax: `<URL|label>` → label is clickable.
+function formatPerson(p: {
+  name?: string | null
+  email: string
+  linkedin?: string | null
+}): string {
+  // 'DEFAULT' is the project's sentinel for "no real name on file" — the
+  // admin dashboard already skips it, so honour the same convention here.
+  const rawName = (p.name || '').trim()
+  const display = rawName && rawName !== 'DEFAULT' ? rawName : p.email
+  const linkedin = (p.linkedin || '').trim()
+  if (linkedin) {
+    // When the display is the email (no name), there's nothing to gain
+    // from `<url|email> · email` — collapse to a single linked email.
+    if (display === p.email) return `<${linkedin}|${p.email}>`
+    return `<${linkedin}|${display}> · ${p.email}`
+  }
+  if (display === p.email) return p.email
+  return `*${display}* · ${p.email}`
+}
+
 // New user signup. Mirrors the existing Airtable automation format —
-// LinkedIn, Employment+Size, Interest, email, "Find" (how they heard about
-// us, sourced from UserProfile.learn). Deep links to the admin user detail
-// page so admin can triage in one click.
+// LinkedIn (via the lead line's hyperlink), Employment+Size, Interest,
+// email, "Find" (how they heard about us, sourced from UserProfile.learn).
+// Deep links to the admin user detail page so admin can triage in one click.
 export async function notifyNewUser(
   profile: UserProfile,
   userId: string,
+  name?: string,
 ): Promise<void> {
-  const lines: string[] = ['*New user*']
-  if (profile.linkedin) lines.push(profile.linkedin)
+  const lines: string[] = [
+    `*New user* ${formatPerson({ name, email: profile.email, linkedin: profile.linkedin })}`,
+  ]
   const employmentLine = [profile.employment, profile.companySize].filter(Boolean).join('-')
   if (employmentLine) lines.push(`*Employment* (${employmentLine})`)
   if (profile.interest) lines.push(`*Interest* (${profile.interest})`)
-  if (profile.email) lines.push(profile.email)
   if (profile.learn) lines.push(`*Find* (${profile.learn})`)
   lines.push(`${APP_URL}/admin/users/${userId}`)
   await postSlack(lines.join('\n'))
 }
 
-// New event submission. Event name + source URL + submitter email +
-// admin deep link.
+// New event submission. Event name + source URL + submitter (name +
+// LinkedIn hyperlink when the submitter is a known user, else email).
 export async function notifyNewEvent(
   event: EventRecord,
   eventId: string,
+  submitter?: { name?: string | null; linkedin?: string | null } | null,
 ): Promise<void> {
   const lines: string[] = [`*New event* ${event.name}`]
   if (event.link) lines.push(event.link)
-  if (event.submitter) lines.push(event.submitter)
+  if (event.submitter) {
+    lines.push(
+      `Submitted by ${formatPerson({
+        name: submitter?.name,
+        email: event.submitter,
+        linkedin: submitter?.linkedin,
+      })}`,
+    )
+  }
   lines.push(`${APP_URL}/admin/events/${eventId}`)
   await postSlack(lines.join('\n'))
 }
@@ -97,12 +134,14 @@ function renderValue(v: string, side: 'from' | 'to'): string {
 export async function notifyUserProfileUpdate(params: {
   email: string
   userId?: string
+  name?: string | null
+  linkedin?: string | null
   changes: Record<string, FieldChange>
 }): Promise<void> {
-  const { email, userId, changes } = params
+  const { email, userId, name, linkedin, changes } = params
   const entries = Object.entries(changes)
   if (entries.length === 0) return
-  const lines: string[] = [`*Profile update* ${email}`]
+  const lines: string[] = [`*Profile update* ${formatPerson({ name, email, linkedin })}`]
   for (const [k, v] of entries) {
     const label = PROFILE_FIELD_LABELS[k] || k
     lines.push(`${label}: ${renderValue(v.from, 'from')} → ${renderValue(v.to, 'to')}`)
@@ -118,14 +157,16 @@ export async function notifyHostEventUpdate(params: {
   eventName: string
   eventLink?: string
   hostEmail: string
+  hostName?: string | null
+  hostLinkedin?: string | null
   changes: Record<string, FieldChange>
 }): Promise<void> {
-  const { eventId, eventName, eventLink, hostEmail, changes } = params
+  const { eventId, eventName, eventLink, hostEmail, hostName, hostLinkedin, changes } = params
   const entries = Object.entries(changes)
   if (entries.length === 0) return
   const lines: string[] = [
     `*Host updated event* ${eventName}`,
-    `by ${hostEmail}`,
+    `by ${formatPerson({ name: hostName, email: hostEmail, linkedin: hostLinkedin })}`,
   ]
   if (eventLink) lines.push(eventLink)
   for (const [k, v] of entries) {

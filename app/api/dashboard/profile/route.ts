@@ -86,6 +86,8 @@ export async function POST(req: NextRequest) {
           notifyUserProfileUpdate({
             email,
             userId: updated.id,
+            name: before.name,
+            linkedin: before.linkedin,
             changes,
           }).catch((e) =>
             console.error('dashboard/profile: notifyUserProfileUpdate failed', e),

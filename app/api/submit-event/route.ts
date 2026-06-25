@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { waitUntil } from '@vercel/functions'
 import { createEvent } from '@/lib/airtable'
-import { getPartnerUserByEmail } from '@/lib/users'
+import { getPartnerUserByEmail, getUserByEmail } from '@/lib/users'
 import { checkDuplicate } from '@/lib/events'
 import { recordContribution, getContributionStatsByEmail } from '@/lib/supabase'
 import { sendEventSubmittedEmail } from '@/lib/email'
@@ -69,9 +69,13 @@ export async function POST(req: NextRequest) {
     const id = await createEvent(event, hostUserId, 'Dashboard')
 
     // Internal Slack alert for the new event. Background so a Slack
-    // outage doesn't slow the submitter response.
+    // outage doesn't slow the submitter response. Look the submitter up
+    // by email (synchronously, single read) so the message can lead with
+    // their name + LinkedIn. Pre-signup submitters return null here and
+    // the notify helper falls back to email-only display.
+    const submitterUser = await getUserByEmail(event.submitter)
     waitUntil(
-      notifyNewEvent(event, id).catch((e) =>
+      notifyNewEvent(event, id, submitterUser).catch((e) =>
         console.error('submit-event: notifyNewEvent failed', e),
       ),
     )

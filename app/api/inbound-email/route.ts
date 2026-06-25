@@ -221,7 +221,7 @@ export async function POST(req: NextRequest) {
   }
 
   waitUntil(
-    notifyNewEvent(eventToCreate, id).catch((e) =>
+    notifyNewEvent(eventToCreate, id, existingUser).catch((e) =>
       console.error('inbound-email: notifyNewEvent failed', e),
     ),
   )
