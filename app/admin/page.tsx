@@ -28,6 +28,7 @@ import {
   type OperatorId,
   type UserRow,
 } from '@/lib/admin-filters'
+import { toCsv, type CsvColumn } from '@/lib/csv'
 
 interface Stats {
   activeUserCount: number
@@ -108,6 +109,43 @@ function emptyFilterState(): AdminFilterState {
 function activeFilterCount(s: AdminFilterState): number {
   return countConditions(s.root) + (s.matchedEventId ? 1 : 0)
 }
+
+// CSV column catalog for the Download CSV button. Order mirrors how
+// admin scans the row in their head: identity → profile → location →
+// activity → matching → flags. Every UserRow column is exported. Dates
+// pass through as ISO strings (already ISO on the row). Booleans render
+// 'true' / 'false'. Null/undefined → empty.
+const USER_CSV_COLUMNS: CsvColumn<UserRow>[] = [
+  { id: 'id', header: 'id', format: (r) => r.id },
+  { id: 'email', header: 'email', format: (r) => r.email },
+  { id: 'name', header: 'name', format: (r) => r.name },
+  { id: 'firstName', header: 'first_name', format: (r) => r.firstName },
+  { id: 'function', header: 'function', format: (r) => r.function },
+  { id: 'seniority', header: 'seniority', format: (r) => r.seniority },
+  { id: 'grade', header: 'grade', format: (r) => r.grade ?? '' },
+  { id: 'status', header: 'status', format: (r) => r.status },
+  { id: 'frequency', header: 'frequency', format: (r) => r.frequency },
+  { id: 'employment', header: 'employment', format: (r) => r.employment },
+  { id: 'companySize', header: 'company_size', format: (r) => r.companySize },
+  { id: 'interest', header: 'topics', format: (r) => r.interest },
+  { id: 'linkedin', header: 'linkedin', format: (r) => r.linkedin },
+  { id: 'learn', header: 'how_they_heard', format: (r) => r.learn },
+  { id: 'location', header: 'location', format: (r) => r.location },
+  { id: 'lat', header: 'lat', format: (r) => r.lat },
+  { id: 'lng', header: 'lng', format: (r) => r.lng },
+  { id: 'created', header: 'signed_up_at', format: (r) => r.created },
+  { id: 'lastSeen', header: 'last_seen_at', format: (r) => r.lastSeen },
+  { id: 'lastDigestSent', header: 'last_digest_sent_at', format: (r) => r.lastDigestSent },
+  { id: 'lastBlastSent', header: 'last_blast_sent_at', format: (r) => r.lastBlastSent },
+  { id: 'matchCount', header: 'match_count', format: (r) => r.matchCount },
+  { id: 'nearbyEventCount', header: 'nearby_event_count', format: (r) => r.nearbyEventCount },
+  { id: 'localMatchPct', header: 'local_match_pct', format: (r) => r.localMatchPct },
+  { id: 'totalContributions', header: 'contributions_total', format: (r) => r.totalContributions },
+  { id: 'lastContribution', header: 'last_contribution_at', format: (r) => r.lastContribution },
+  { id: 'ratingsUp', header: 'thumbs_up', format: (r) => r.ratingsUp },
+  { id: 'ratingsDown', header: 'thumbs_down', format: (r) => r.ratingsDown },
+  { id: 'isHost', header: 'is_host', format: (r) => (r.isHost ? 'true' : 'false') },
+]
 
 // Long form (with year) for tooltips. Short form for table cells —
 // month + day only fits comfortably in the narrow date columns.
@@ -241,6 +279,25 @@ export default function AdminPage() {
     return () => clearInterval(id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.matchedEventId, statusBucket])
+
+  // Export the currently visible (post-filter, post-search) user set as
+  // CSV. UTF-8 BOM prepended so Excel renders accented characters
+  // cleanly. Filename includes the row count so the admin can tell which
+  // slice each download was without opening it.
+  function downloadCsv() {
+    if (visibleUsers.length === 0) return
+    const csv = toCsv(visibleUsers, USER_CSV_COLUMNS)
+    const blob = new Blob(['﻿', csv], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const today = new Date().toISOString().slice(0, 10)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `whispered-users-${today}-${visibleUsers.length}.csv`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
 
   async function rescoreMissing() {
     if (rescoring) return
@@ -498,6 +555,19 @@ export default function AdminPage() {
                   />
                 )}
               </div>
+
+              <button
+                onClick={downloadCsv}
+                disabled={visibleUsers.length === 0}
+                title={
+                  visibleUsers.length === 0
+                    ? 'No rows to export'
+                    : `Download ${visibleUsers.length} ${visibleUsers.length === 1 ? 'user' : 'users'} as CSV`
+                }
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-[#E8DDD0] bg-white text-sm text-gray-700 hover:bg-[#F5EFE6] transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Download CSV
+              </button>
 
             </div>
 
