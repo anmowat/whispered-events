@@ -313,26 +313,53 @@ export default function AdminPage() {
     if (rescoring) return
     setRescoring(true)
     setRescoreResult(null)
+    // The endpoint scores until ~280s elapsed and returns done=false when
+    // the deadline cuts the work short. We loop until done=true so a
+    // version bump that invalidates thousands of pairs actually finishes
+    // instead of getting wedged by Vercel's 5-min function ceiling.
+    // MAX_PASSES is a runaway-loop guard; in practice 1-3 passes is plenty.
+    const MAX_PASSES = 12
+    let totalScored = 0
+    let totalFailed = 0
+    let pass = 0
     try {
-      const res = await fetch('/api/admin/rescore-missing', { method: 'POST' })
-      const data = (await res.json().catch(() => ({}))) as {
-        pairsMissing?: number
-        pairsStale?: number
-        scored?: number
-        failed?: number
-        error?: string
-      }
-      if (!res.ok) {
-        setRescoreResult(`Error: ${data.error || `HTTP ${res.status}`}`)
-      } else {
-        const missing = data.pairsMissing ?? 0
-        const stale = data.pairsStale ?? 0
+      while (pass < MAX_PASSES) {
+        pass++
+        const res = await fetch('/api/admin/rescore-missing', { method: 'POST' })
+        const data = (await res.json().catch(() => ({}))) as {
+          done?: boolean
+          pairsMissing?: number
+          pairsStale?: number
+          scored?: number
+          failed?: number
+          error?: string
+        }
+        if (!res.ok) {
+          setRescoreResult(`Error on pass ${pass}: ${data.error || `HTTP ${res.status}`}`)
+          return
+        }
+        totalScored += data.scored ?? 0
+        totalFailed += data.failed ?? 0
+        const remaining = (data.pairsMissing ?? 0) + (data.pairsStale ?? 0) - (data.scored ?? 0)
+        if (data.done) {
+          setRescoreResult(
+            `Done in ${pass} pass${pass === 1 ? '' : 'es'} — scored ${totalScored} pair${
+              totalScored === 1 ? '' : 's'
+            }${totalFailed ? ` (${totalFailed} failed)` : ''}`,
+          )
+          fetchCounts()
+          return
+        }
         setRescoreResult(
-          `Scored ${data.scored ?? 0} pairs (${missing} missing, ${stale} stale)` +
-            (data.failed ? ` — ${data.failed} failed` : ''),
+          `Pass ${pass}: scored ${totalScored} so far, ~${Math.max(0, remaining)} remaining…`,
         )
-        fetchCounts()
       }
+      setRescoreResult(
+        `Stopped after ${MAX_PASSES} passes — scored ${totalScored}${
+          totalFailed ? ` (${totalFailed} failed)` : ''
+        }. Run again to continue.`,
+      )
+      fetchCounts()
     } catch (e) {
       setRescoreResult(`Error: ${e instanceof Error ? e.message : String(e)}`)
     } finally {

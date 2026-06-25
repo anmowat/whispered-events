@@ -18,11 +18,18 @@ import { getExistingMatchHashes, logMatch } from '@/lib/supabase'
 export const maxDuration = 300
 
 const BATCH_SIZE = 25
+// Bail out of the score loop with this much budget left so the response
+// can serialize and return cleanly. maxDuration is 300s; leaving ~20s
+// of headroom matters because Promise.all batches block on the slowest
+// LLM call in the batch.
+const DEADLINE_MS = 280_000
 
 export async function POST(req: NextRequest) {
   if (!(await isAdmin(req))) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
+
+  const start = Date.now()
 
   const [allUsers, futureEvents] = await Promise.all([
     getActiveUsers(),
@@ -33,30 +40,52 @@ export async function POST(req: NextRequest) {
 
   // Pre-compute the current hash for every pair so we can classify
   // existing rows as fresh (skip) vs stale (re-score) in one pass.
-  const toScore: Array<{ eventIdx: number; userIdx: number; status: 'missing' | 'stale' }> = []
+  // Sort cheap (no-LLM) short-circuit pairs to the front so we drain
+  // them first — a version bump invalidates every pair, but the
+  // grade_c / location_zero / women_only ones return in microseconds.
+  // That way one pass already healed most of the work even if we hit
+  // the deadline before the slow LLM-bound pairs all complete.
+  const toScore: Array<{
+    eventIdx: number
+    userIdx: number
+    status: 'missing' | 'stale'
+    isFast: boolean
+  }> = []
   for (let ei = 0; ei < futureEvents.length; ei++) {
     const event = futureEvents[ei]
+    const womenOnly = (event.audience ?? []).some((tag) =>
+      /\bwomen\b|\bwomxn\b|\bfemale\b/i.test(tag),
+    )
     for (let ui = 0; ui < users.length; ui++) {
       const user = users[ui]
       const key = `${event.id}:${user.id}`
+      const fast =
+        user.grade === 'C' ||
+        (womenOnly && !/\bwomen\b|\bwomxn\b|\bfemale\b/i.test(user.interest || ''))
       if (!existing.has(key)) {
-        toScore.push({ eventIdx: ei, userIdx: ui, status: 'missing' })
+        toScore.push({ eventIdx: ei, userIdx: ui, status: 'missing', isFast: fast })
         continue
       }
       const storedHash = existing.get(key)
       const currentHash = computeInputsHash(event, user)
       if (storedHash !== currentHash) {
-        toScore.push({ eventIdx: ei, userIdx: ui, status: 'stale' })
+        toScore.push({ eventIdx: ei, userIdx: ui, status: 'stale', isFast: fast })
       }
     }
   }
+  toScore.sort((a, b) => Number(b.isFast) - Number(a.isFast))
 
   const missing = toScore.filter((t) => t.status === 'missing').length
   const stale = toScore.filter((t) => t.status === 'stale').length
 
   let scored = 0
   let failed = 0
+  let deadlineHit = false
   for (let i = 0; i < toScore.length; i += BATCH_SIZE) {
+    if (Date.now() - start > DEADLINE_MS) {
+      deadlineHit = true
+      break
+    }
     const batch = toScore.slice(i, i + BATCH_SIZE)
     const settled = await Promise.all(
       batch.map(async ({ eventIdx, userIdx }) => {
@@ -90,8 +119,14 @@ export async function POST(req: NextRequest) {
     for (const ok of settled) ok ? scored++ : failed++
   }
 
+  // `done` is the signal the admin button watches when looping: if the
+  // deadline was hit, more passes are needed; if not, every stale/
+  // missing pair was processed (successes refreshed their hash; failures
+  // will reappear as stale on the next call and get retried).
+  const done = !deadlineHit
   return NextResponse.json({
     ok: true,
+    done,
     eligibleUsers: users.length,
     futureEvents: futureEvents.length,
     pairsTotal: users.length * futureEvents.length,
@@ -100,5 +135,6 @@ export async function POST(req: NextRequest) {
     pairsStale: stale,
     scored,
     failed,
+    elapsedMs: Date.now() - start,
   })
 }
