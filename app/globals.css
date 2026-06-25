@@ -95,7 +95,7 @@ body {
 
 /* Eyebrow label — small caps with wide tracking, used everywhere. */
 .eyebrow {
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--ink-3);

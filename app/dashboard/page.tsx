@@ -69,6 +69,14 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [editingBio, setEditingBio] = useState(false)
   const [editingTopics, setEditingTopics] = useState(false)
+  // True after a profile save that fired a rescore. Drives the
+  // confirmation modal that polls /api/dashboard/rescore-status and
+  // reloads the page once every match row is freshly hashed.
+  const [showRescoreConfirm, setShowRescoreConfirm] = useState(false)
+  function handleProfileSaved(updated: DashboardUser, resp: { rescored?: boolean }) {
+    setUser(updated)
+    if (resp.rescored) setShowRescoreConfirm(true)
+  }
 
   // Filter state — Type is multi-select per the redesign, the other two
   // remain single-select wrapped around the existing values.
@@ -198,7 +206,7 @@ export default function DashboardPage() {
         <div className="mb-8">
           <h1
             className="font-serif m-0"
-            style={{ fontSize: 32, lineHeight: 1.1, color: 'var(--ink)', letterSpacing: '-0.01em' }}
+            style={{ fontSize: 40, lineHeight: 1.1, color: 'var(--ink)', letterSpacing: '-0.01em' }}
           >
             Welcome back, <span className="italic">{firstName}</span>
           </h1>
@@ -225,7 +233,7 @@ export default function DashboardPage() {
             className="rounded-card border px-5 py-4"
             style={{ background: 'var(--paper)', borderColor: 'var(--rule)' }}
           >
-            <p className="m-0 font-medium" style={{ fontSize: 14, color: 'var(--ink)' }}>
+            <p className="m-0 font-medium" style={{ fontSize: 17, color: 'var(--ink)' }}>
               Update your profile to improve your matches
             </p>
             <div className="mt-3 pl-3 space-y-1">
@@ -254,10 +262,10 @@ export default function DashboardPage() {
             }}
           >
             <div className="min-w-0">
-              <p className="m-0 font-medium" style={{ fontSize: 13.5, color: 'var(--ink)' }}>
+              <p className="m-0 font-medium" style={{ fontSize: 17, color: 'var(--ink)' }}>
                 How often should we whisper to you?
               </p>
-              <p className="mt-0.5 m-0" style={{ fontSize: 12, color: 'var(--ink-3)' }}>
+              <p className="mt-0.5 m-0" style={{ fontSize: 14, color: 'var(--ink-3)' }}>
                 Email digest of new matched events.
               </p>
             </div>
@@ -340,15 +348,18 @@ export default function DashboardPage() {
         <BioModal
           user={user}
           onClose={() => setEditingBio(false)}
-          onSaved={(u) => setUser(u)}
+          onSaved={handleProfileSaved}
         />
       )}
       {editingTopics && (
         <TopicsModal
           user={user}
           onClose={() => setEditingTopics(false)}
-          onSaved={(u) => setUser(u)}
+          onSaved={handleProfileSaved}
         />
+      )}
+      {showRescoreConfirm && (
+        <RescoreConfirmationModal onClose={() => setShowRescoreConfirm(false)} />
       )}
     </div>
   )
@@ -433,7 +444,7 @@ function FrequencyControl({
             key={opt}
             onClick={() => setValue(opt)}
             disabled={saving}
-            className="px-2.5 py-1.5 rounded-full text-[11.5px] font-medium transition-colors disabled:opacity-60"
+            className="px-3 py-1.5 rounded-full text-[14px] font-medium transition-colors disabled:opacity-60"
             style={{
               background: active ? 'var(--ink)' : 'transparent',
               color: active ? 'var(--paper)' : 'var(--ink-2)',
@@ -495,10 +506,10 @@ function ProfileSubRow({
     <div className="flex justify-between items-center gap-4">
       <p
         className="m-0 min-w-0 flex items-baseline flex-wrap gap-x-2.5"
-        style={{ fontSize: 13 }}
+        style={{ fontSize: 16 }}
       >
         <span style={{ fontWeight: 500, color: 'var(--ink)' }}>{title}</span>
-        <span style={{ fontSize: 12.5, color: 'var(--ink-3)' }}>{description}</span>
+        <span style={{ fontSize: 15, color: 'var(--ink-3)' }}>{description}</span>
       </p>
       <button
         onClick={onEdit}
@@ -702,7 +713,7 @@ function BioModal({
 }: {
   user: DashboardUser
   onClose: () => void
-  onSaved: (u: DashboardUser) => void
+  onSaved: (u: DashboardUser, resp: { rescored?: boolean }) => void
 }) {
   const [location, setLocation] = useState(user.location || '')
   const [func, setFunc] = useState(user.function || '')
@@ -734,17 +745,20 @@ function BioModal({
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     })
+    const data = (await res.json().catch(() => ({}))) as { error?: string; rescored?: boolean }
     if (!res.ok) {
-      const data = (await res.json()) as { error?: string }
       throw new Error(data.error || `HTTP ${res.status}`)
     }
-    onSaved({
-      ...user,
-      location: finalLocation,
-      function: func,
-      employment,
-      companySize: nextSize,
-    })
+    onSaved(
+      {
+        ...user,
+        location: finalLocation,
+        function: func,
+        employment,
+        companySize: nextSize,
+      },
+      { rescored: !!data.rescored },
+    )
     onClose()
   }
 
@@ -966,7 +980,7 @@ function TopicsModal({
 }: {
   user: DashboardUser
   onClose: () => void
-  onSaved: (u: DashboardUser) => void
+  onSaved: (u: DashboardUser, resp: { rescored?: boolean }) => void
 }) {
   const [interest, setInterest] = useState(user.interest || '')
   const [saving, setSaving] = useState(false)
@@ -982,11 +996,11 @@ function TopicsModal({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
+      const data = (await res.json().catch(() => ({}))) as { error?: string; rescored?: boolean }
       if (!res.ok) {
-        const data = (await res.json()) as { error?: string }
         throw new Error(data.error || `HTTP ${res.status}`)
       }
-      onSaved({ ...user, interest })
+      onSaved({ ...user, interest }, { rescored: !!data.rescored })
       onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save')
@@ -1151,19 +1165,19 @@ function EventCard({
                   target="_blank"
                   rel="noopener noreferrer"
                   className="event-link font-serif"
-                  style={{ fontSize: 18, lineHeight: 1.25 }}
+                  style={{ fontSize: 22, lineHeight: 1.25 }}
                 >
                   {event.name}
                   <span className="arrow" aria-hidden>↗</span>
                 </a>
               ) : (
-                <span className="font-serif" style={{ fontSize: 18, color: 'var(--ink)' }}>
+                <span className="font-serif" style={{ fontSize: 22, color: 'var(--ink)' }}>
                   {event.name}
                 </span>
               )}
               {matchPct && <MatchBadge percent={matchPct} />}
             </div>
-            <p className="m-0 mt-1" style={{ fontSize: 12, color: 'var(--ink-3)' }}>
+            <p className="m-0 mt-1.5" style={{ fontSize: 15, color: 'var(--ink-3)' }}>
               {[event.type, dateFormatted, event.location].filter(Boolean).join(' · ')}
             </p>
           </div>
@@ -1176,8 +1190,8 @@ function EventCard({
         </div>
         {event.description && (
           <p
-            className="m-0 mt-2 leading-relaxed"
-            style={{ fontSize: 13, color: 'var(--ink-2)' }}
+            className="m-0 mt-2.5 leading-relaxed"
+            style={{ fontSize: 16, color: 'var(--ink-2)' }}
           >
             {event.description}
           </p>
@@ -1389,13 +1403,147 @@ function ThumbsDownThanksModal({ onClose }: { onClose: () => void }) {
   )
 }
 
+// Fires after a profile save that triggered a server-side rescore.
+// Polls /api/dashboard/rescore-status every 3s; when every cached
+// match for this user has a fresh inputs_hash, reloads the page so the
+// new scores show up. Hard timeout at 90s falls back to a manual
+// "Refresh now" button — keeps the modal from spinning forever if
+// process-matches stalls.
+function RescoreConfirmationModal({ onClose }: { onClose: () => void }) {
+  const POLL_INTERVAL_MS = 3_000
+  const TIMEOUT_MS = 90_000
+  const [phase, setPhase] = useState<'polling' | 'done' | 'timeout'>('polling')
+
+  useEffect(() => {
+    let cancelled = false
+    const startedAt = Date.now()
+    let timer: ReturnType<typeof setTimeout> | null = null
+
+    async function poll() {
+      if (cancelled) return
+      try {
+        const res = await fetch('/api/dashboard/rescore-status', { cache: 'no-store' })
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        const data = (await res.json()) as { pending?: number; total?: number }
+        if (cancelled) return
+        if ((data.pending ?? 1) === 0) {
+          setPhase('done')
+          // Brief "Done" flash before the reload so the user sees the
+          // success state, not a blank navigation jump.
+          setTimeout(() => {
+            if (!cancelled) window.location.reload()
+          }, 600)
+          return
+        }
+      } catch (e) {
+        // Transient errors don't end the loop — we just retry on the
+        // next tick. The hard timeout below is the real escape hatch.
+        console.warn('rescore-status poll failed', e)
+      }
+      if (Date.now() - startedAt > TIMEOUT_MS) {
+        setPhase('timeout')
+        return
+      }
+      timer = setTimeout(poll, POLL_INTERVAL_MS)
+    }
+
+    poll()
+    return () => {
+      cancelled = true
+      if (timer) clearTimeout(timer)
+    }
+  }, [])
+
+  // Esc dismisses only in timeout state; during polling the user
+  // shouldn't lose the auto-refresh affordance by accident.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape' && phase === 'timeout') onClose()
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [phase, onClose])
+
+  const backdropClick = phase === 'timeout' ? onClose : undefined
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.5)' }}
+      onClick={backdropClick}
+    >
+      <div
+        className="rounded-card border w-full max-w-md p-6"
+        style={{ background: 'var(--paper)', borderColor: 'var(--rule)' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {phase !== 'timeout' && (
+          <>
+            <p className="font-serif m-0" style={{ fontSize: 22, color: 'var(--ink)' }}>
+              <strong>Thanks for updating your profile.</strong>
+            </p>
+            <p className="mt-3 leading-relaxed m-0" style={{ fontSize: 15, color: 'var(--ink-2)' }}>
+              Our AI is re-running your matches — we&rsquo;ll refresh the page when it&rsquo;s done.
+            </p>
+            <div
+              className="mt-5 flex items-center gap-3"
+              style={{ fontSize: 13, color: 'var(--ink-2)' }}
+            >
+              <span
+                aria-hidden="true"
+                className="inline-block rounded-full border-2 animate-spin"
+                style={{
+                  width: 16,
+                  height: 16,
+                  borderColor: 'var(--rule)',
+                  borderTopColor: 'var(--accent)',
+                }}
+              />
+              <span>{phase === 'done' ? 'Done — refreshing…' : 'Re-running matches…'}</span>
+            </div>
+          </>
+        )}
+        {phase === 'timeout' && (
+          <>
+            <p className="font-serif m-0" style={{ fontSize: 22, color: 'var(--ink)' }}>
+              Taking longer than expected.
+            </p>
+            <p className="mt-3 leading-relaxed m-0" style={{ fontSize: 15, color: 'var(--ink-2)' }}>
+              Refresh manually to see the latest matches. If they still look stale,
+              try again in a minute.
+            </p>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="eyebrow px-3 py-2 rounded-pill border"
+                style={{ borderColor: 'var(--rule)', color: 'var(--ink-2)' }}
+              >
+                Dismiss
+              </button>
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="eyebrow px-3 py-2 rounded-pill"
+                style={{ background: 'var(--accent)', color: 'var(--paper)' }}
+              >
+                Refresh now
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // Match badge — preserves the existing tooltip copy verbatim per the
 // user's direction ("keep our current match visualization functionality").
 function MatchBadge({ percent }: { percent: string }) {
   return (
     <span className="relative inline-flex group shrink-0">
       <span
-        className="cursor-help inline-flex items-center gap-1.5 text-[11px] font-medium rounded-pill px-2.5 py-[3px] border num"
+        className="cursor-help inline-flex items-center gap-1.5 text-[13px] font-medium rounded-pill px-3 py-[4px] border num"
         style={{
           background: 'var(--accent-soft)',
           color: 'var(--accent)',

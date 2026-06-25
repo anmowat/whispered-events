@@ -93,6 +93,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    let rescoreFired = false
     if (updated && matchingInputsChanged) {
       // Detect a meaningful location change — submitted, non-empty, and
       // different from the prior value (case-insensitive trim). When it
@@ -113,8 +114,12 @@ export async function POST(req: NextRequest) {
           console.error('process-matches fire-and-forget error:', e),
         ),
       )
+      rescoreFired = true
     }
-    return NextResponse.json({ ok: true })
+    // `rescored` tells the client whether to surface the "AI is re-running
+    // your matches" modal. False on no-op saves or pref-only changes
+    // (frequency-only) so the editor closes silently in those cases.
+    return NextResponse.json({ ok: true, rescored: rescoreFired })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     console.error('dashboard/profile update error:', message)
