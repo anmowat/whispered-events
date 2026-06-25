@@ -20,7 +20,7 @@ const QUALITY_MULTIPLIER: Record<'A' | 'Polish' | 'B' | 'C', number> = {
 // Bumped any time the scoring rubric / prompt / formula changes so the
 // inputs hash on every cached row turns stale. The admin rescore-missing
 // endpoint then picks them up and refreshes under the new model.
-const MATCHING_VERSION = 13
+const MATCHING_VERSION = 14
 
 // Canonical "this user could realistically attend" radius. Used by the
 // matching pipeline (process-matches, digest) to decide who scores
@@ -316,6 +316,35 @@ function matchesBroadAlias(event: AirtableEvent, user: AirtableUser): boolean {
   )
 }
 
+// Function-literal audience terms: "Marketing Leaders", "Sales VPs",
+// "Engineering Executives" etc. These literally name a single function
+// + a leadership rank, and the LLM keeps under-scoring them as
+// "adjacent seniority" (0.6) when the rubric's intent is literal
+// function match (1.2 tier — function literal, seniority not). Floor
+// fires only at Director+ seniority so an IC at a "Marketing Leaders"
+// event still legitimately scores low.
+const FUNCTION_LITERAL_FLOORS: Array<{ audience: RegExp; functions: RegExp }> = [
+  { audience: /\bmarketing\s+(leader|executive|officer|vp|director|head)/i,                       functions: /\bmarketing\b/i },
+  { audience: /\bsales\s+(leader|executive|officer|vp|director|head)/i,                           functions: /\bsales\b/i },
+  { audience: /\bengineering\s+(leader|executive|officer|vp|director|head)/i,                     functions: /\b(engineering|platform|infrastructure)\b/i },
+  { audience: /\bproduct\s+(leader|executive|officer|vp|director|head)/i,                         functions: /\bproduct\b/i },
+  { audience: /\b(operations|ops)\s+(leader|executive|officer|vp|director|head)/i,                functions: /\b(operations|ops)\b/i },
+  { audience: /\b(finance|financial)\s+(leader|executive|officer|vp|director|head)/i,             functions: /\b(finance|financial)\b/i },
+  { audience: /\b(legal|counsel)\s+(leader|executive|officer|vp|director|head)/i,                 functions: /\b(legal|counsel)\b/i },
+  { audience: /\b(people|hr|human\s+resources)\s+(leader|executive|officer|vp|director|head)/i,   functions: /\b(people|hr|human\s+resources)\b/i },
+  { audience: /\b(revops|rev\s+ops|revenue\s+operations)\s+(leader|executive|officer|vp|director|head)/i, functions: /\b(revops|rev\s+ops|revenue\s+operations)\b/i },
+  { audience: /\b(customer\s+success|cs)\s+(leader|executive|officer|vp|director|head)/i,         functions: /\b(customer\s+success|cs)\b/i },
+]
+
+function matchesFunctionLiteral(event: AirtableEvent, user: AirtableUser): boolean {
+  if (!SENIOR_PLUS.test(user.seniority || '')) return false
+  const audienceText = (event.audience ?? []).join(' | ')
+  const userFn = user.function ?? ''
+  return FUNCTION_LITERAL_FLOORS.some(
+    (a) => a.audience.test(audienceText) && a.functions.test(userFn),
+  )
+}
+
 // True when at least one of the user's stated topics (other than the
 // Women term itself) appears verbatim in the event's name, audience,
 // or description. Word-boundary, case-insensitive. Used to gate the
@@ -351,14 +380,19 @@ function hasNonWomenTopicMatchingEvent(
 }
 
 // Post-LLM deterministic floors on the audience leg. Keeps the rubric
-// the source of truth for the typical case but stops two recurring
-// underscores cold:
+// the source of truth for the typical case but stops three recurring
+// under-scores cold:
 //   - Women audience + Women topic + a second non-Women topic that
 //     literally matches the event: explicit two-way opt-in with proof
 //     of professional fit lands at the literal-match tier (1.2). The
 //     second-topic check stops a token Women opt-in from boosting
 //     someone whose professional focus is off (e.g. a Sales user on a
 //     Women Engineering Leaders event).
+//   - Audience names "[Function] Leaders/Executives/VPs/Directors/Heads"
+//     and the user's function literally matches at Director+ seniority:
+//     1.2 (literal function tier). The LLM keeps under-scoring these as
+//     "adjacent seniority" (0.6) when the audience is in fact directly
+//     naming their function.
 //   - Senior+ function fits a broad-role alias the event names: 0.8,
 //     per the rubric tier that the LLM keeps mis-applying.
 function audienceFloor(event: AirtableEvent, user: AirtableUser): number {
@@ -368,6 +402,9 @@ function audienceFloor(event: AirtableEvent, user: AirtableUser): number {
     topicsIncludeWomen(user.interest) &&
     hasNonWomenTopicMatchingEvent(event, user)
   ) {
+    floor = Math.max(floor, 1.2)
+  }
+  if (matchesFunctionLiteral(event, user)) {
     floor = Math.max(floor, 1.2)
   }
   if (matchesBroadAlias(event, user)) {
