@@ -20,7 +20,7 @@ const QUALITY_MULTIPLIER: Record<'A' | 'Polish' | 'B' | 'C', number> = {
 // Bumped any time the scoring rubric / prompt / formula changes so the
 // inputs hash on every cached row turns stale. The admin rescore-missing
 // endpoint then picks them up and refreshes under the new model.
-const MATCHING_VERSION = 12
+const MATCHING_VERSION = 13
 
 export type SkippedReason = 'grade_c' | 'location_zero' | 'women_only_audience'
 
@@ -309,16 +309,58 @@ function matchesBroadAlias(event: AirtableEvent, user: AirtableUser): boolean {
   )
 }
 
+// True when at least one of the user's stated topics (other than the
+// Women term itself) appears verbatim in the event's name, audience,
+// or description. Word-boundary, case-insensitive. Used to gate the
+// Women audience floor — opting in to a women-only event isn't enough
+// on its own; the user needs another professional topic that lines up
+// with the event before we award the literal-match tier. Stops a
+// Sales-focused user landing high on a "Women Engineering Leaders"
+// event just because they ticked Women.
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function hasNonWomenTopicMatchingEvent(
+  event: AirtableEvent,
+  user: AirtableUser,
+): boolean {
+  const eventText = [
+    event.name ?? '',
+    (event.audience ?? []).join(' '),
+    event.description ?? '',
+  ].join(' ')
+  const topics = (user.interest ?? '')
+    .split(',')
+    .map((t) => t.trim())
+    .filter(Boolean)
+  for (const topic of topics) {
+    if (/\bwomen\b|\bwomxn\b|\bfemale\b/i.test(topic)) continue
+    if (new RegExp(`\\b${escapeRegex(topic)}\\b`, 'i').test(eventText)) {
+      return true
+    }
+  }
+  return false
+}
+
 // Post-LLM deterministic floors on the audience leg. Keeps the rubric
 // the source of truth for the typical case but stops two recurring
 // underscores cold:
-//   - Women audience + Women topic: explicit two-way opt-in lands at
-//     the literal-match tier (1.2) regardless of the model's read.
+//   - Women audience + Women topic + a second non-Women topic that
+//     literally matches the event: explicit two-way opt-in with proof
+//     of professional fit lands at the literal-match tier (1.2). The
+//     second-topic check stops a token Women opt-in from boosting
+//     someone whose professional focus is off (e.g. a Sales user on a
+//     Women Engineering Leaders event).
 //   - Senior+ function fits a broad-role alias the event names: 0.8,
 //     per the rubric tier that the LLM keeps mis-applying.
 function audienceFloor(event: AirtableEvent, user: AirtableUser): number {
   let floor = 0
-  if (isWomenOnlyAudience(event.audience) && topicsIncludeWomen(user.interest)) {
+  if (
+    isWomenOnlyAudience(event.audience) &&
+    topicsIncludeWomen(user.interest) &&
+    hasNonWomenTopicMatchingEvent(event, user)
+  ) {
     floor = Math.max(floor, 1.2)
   }
   if (matchesBroadAlias(event, user)) {
