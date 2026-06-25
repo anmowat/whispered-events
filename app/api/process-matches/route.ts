@@ -128,12 +128,37 @@ async function processUserTrigger(
   // every successful event is written. Without this isolation a single
   // bad LLM call would reject the whole Promise.all and the user would
   // see "nothing happened" after a long Refresh.
+  // Score AND write each event within the same task so the matches
+  // table updates incrementally as the run progresses. The dashboard's
+  // rescore-status polling endpoint reads the matches table and reports
+  // "N of total done" — splitting score-then-write into two phases hid
+  // all progress until the final flush, which read as a frozen spinner.
   for (let i = 0; i < events.length; i += BATCH_SIZE) {
     const batch = events.slice(i, i + BATCH_SIZE)
     const results = await Promise.all(
       batch.map(async (event) => {
         try {
           const outcome = await scoreFresh(event, targetUser!, 'user')
+          try {
+            await logMatch({
+              eventId: event.id,
+              userId: targetUser!.id,
+              userEmail: targetUser!.email,
+              score: outcome.result.score,
+              matchPercent: outcome.result.matchPercent,
+              locationScore: outcome.result.location,
+              audienceScore: outcome.result.audience,
+              qualityScore: outcome.result.quality,
+              preferenceScore: outcome.result.preferences,
+              inputsHash: outcome.result.inputsHash,
+              skippedReason: outcome.result.skippedReason,
+            })
+          } catch (err) {
+            console.error(
+              `process-matches: logMatch failed for user ${targetUser!.email} / event ${event.id}:`,
+              err,
+            )
+          }
           return { event, outcome }
         } catch (err) {
           console.error(
@@ -147,31 +172,6 @@ async function processUserTrigger(
     )
     for (const r of results) if (r) scored.push(r)
   }
-
-  // Write each fresh match. logMatch failures (transient Supabase blips)
-  // also isolated so the rest of the batch still persists.
-  await Promise.all(
-    scored.map((s) =>
-      logMatch({
-        eventId: s.event.id,
-        userId: targetUser!.id,
-        userEmail: targetUser!.email,
-        score: s.outcome.result.score,
-        matchPercent: s.outcome.result.matchPercent,
-        locationScore: s.outcome.result.location,
-        audienceScore: s.outcome.result.audience,
-        qualityScore: s.outcome.result.quality,
-        preferenceScore: s.outcome.result.preferences,
-        inputsHash: s.outcome.result.inputsHash,
-        skippedReason: s.outcome.result.skippedReason,
-      }).catch((err) => {
-        console.error(
-          `process-matches: logMatch failed for user ${targetUser!.email} / event ${s.event.id}:`,
-          err,
-        )
-      }),
-    ),
-  )
 
   console.log(
     `process-matches: user "${targetUser.email}" done — scored ${scored.length}, failed ${failedCount} (of ${events.length})`,
