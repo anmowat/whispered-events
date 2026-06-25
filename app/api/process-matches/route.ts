@@ -155,6 +155,7 @@ async function processUserTrigger(
       logMatch({
         eventId: s.event.id,
         userId: targetUser!.id,
+        userEmail: targetUser!.email,
         score: s.outcome.result.score,
         matchPercent: s.outcome.result.matchPercent,
         locationScore: s.outcome.result.location,
@@ -284,6 +285,7 @@ async function scoreAndNotify(
     await logMatch({
       eventId: event.id,
       userId: user.id,
+      userEmail: user.email,
       score: result.score,
       matchPercent: result.matchPercent,
       locationScore: result.location,

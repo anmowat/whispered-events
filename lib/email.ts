@@ -513,6 +513,7 @@ export async function sendBlast(
   }
   await logDigestSend({
     userId: user.id,
+    userEmail: user.email,
     kind: 'blast',
     eventIds: [],
   })
@@ -577,6 +578,7 @@ export async function sendCoaching(
   }
   await logDigestSend({
     userId: user.id,
+    userEmail: user.email,
     kind: 'coaching',
     eventIds: [],
   })
@@ -750,6 +752,7 @@ export async function sendRecap(
   }
   await logDigestSend({
     userId: user.id,
+    userEmail: user.email,
     kind: 'recap',
     eventIds: topMatches.map((e) => e.event.id),
   })
@@ -1035,6 +1038,7 @@ export async function sendApprovedWithDigest(
     : []
   await logDigestSend({
     userId: user.id,
+    userEmail: user.email,
     kind: 'welcome',
     eventIds,
   })
@@ -1120,6 +1124,7 @@ export async function sendLocationUpdatedDigest(
   const eventIds = Array.from(new Set(annotated.newEvents.map((e) => e.event.id)))
   await logDigestSend({
     userId: user.id,
+    userEmail: user.email,
     kind: 'cron',
     eventIds,
   })
@@ -1256,6 +1261,7 @@ export async function sendUserDigest(
   const eventIds = annotated.newEvents.map((e) => e.event.id)
   await logDigestSend({
     userId: user.id,
+    userEmail: user.email,
     kind,
     eventIds: Array.from(new Set(eventIds)),
   })

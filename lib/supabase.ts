@@ -109,6 +109,11 @@ export async function getExistingMatch(
 export interface MatchLog {
   eventId: string
   userId: string
+  // Required to satisfy the legacy NOT NULL constraint on matches.user_email.
+  // Nothing reads this column — all queries join by user_id. A follow-up
+  // migration drops the column; until then writers must pass the current
+  // email or the upsert fails with a 23502.
+  userEmail: string
   score: number
   matchPercent: number
   locationScore: number | null
@@ -129,15 +134,16 @@ export interface MatchLog {
 // NEVER appearing in this payload. If you add a default back to the column
 // in Supabase, you re-introduce the bug.
 //
-// user_email is intentionally not written here — every reader now joins
-// by user_id. Old rows still carry user_email; a later migration drops
-// the column.
+// user_email is written purely to satisfy the legacy NOT NULL constraint
+// on matches.user_email. Every reader joins by user_id; nothing queries
+// this column. A follow-up migration drops it.
 export async function logMatch(entry: MatchLog): Promise<void> {
   const supabase = getClient()
   const { error } = await supabase.from('matches').upsert(
     {
       event_id: entry.eventId,
       user_id: entry.userId,
+      user_email: entry.userEmail,
       score: entry.score,
       match_percent: entry.matchPercent,
       location_score: entry.locationScore,
@@ -690,6 +696,9 @@ export async function getExistingMatchHashes(
 
 export interface DigestSendLog {
   userId: string
+  // Same story as MatchLog.userEmail — present to satisfy the legacy
+  // NOT NULL constraint on digest_sends.user_email; nothing reads it.
+  userEmail: string
   kind: 'per_event' | 'cron' | 'welcome' | 'blast' | 'coaching' | 'recap'
   eventIds: string[]
 }
@@ -701,8 +710,9 @@ export interface DigestSendLog {
 // returns when the digest is empty). Welcome / blast / coaching always
 // log, even with empty eventIds, so the 'Last sent' clock catches them.
 //
-// user_email is intentionally not written — every reader joins by
-// user_id. Old rows still carry user_email; a later migration drops it.
+// user_email is written purely to satisfy the legacy NOT NULL constraint
+// on digest_sends.user_email. Every reader joins by user_id; nothing
+// queries this column. A follow-up migration drops it.
 export async function logDigestSend(entry: DigestSendLog): Promise<void> {
   if (
     entry.eventIds.length === 0 &&
@@ -715,6 +725,7 @@ export async function logDigestSend(entry: DigestSendLog): Promise<void> {
   const supabase = getClient()
   const { error } = await supabase.from('digest_sends').insert({
     user_id: entry.userId,
+    user_email: entry.userEmail,
     kind: entry.kind,
     event_ids: entry.eventIds,
   })
