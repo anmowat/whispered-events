@@ -129,6 +129,75 @@ export default function TopicChips({
   // renders in the resting state regardless of value.
   const selected: string[] = readonly ? [] : parseTopics(value)
 
+  // Set of all chip-defined topic names (lowercased) across every group.
+  // Used to split `value` into "what the chips know about" vs "what the
+  // user typed freely". As the taxonomy grows, previously-custom topics
+  // get auto-absorbed into chips here — no data migration, the same
+  // string in `value` just gets rendered as a filled chip instead of
+  // sitting in the custom box.
+  const knownLower = new Set<string>()
+  for (const g of groups) {
+    for (const t of g.topics) knownLower.add(t.toLowerCase())
+  }
+
+  // Free-form "Add your own topics" box. Local state so typing is
+  // smooth (no jumpy re-render mid-stroke). Initialized from whatever's
+  // in `value` that doesn't match a known chip; re-syncs if the taxonomy
+  // changes after the /api/topics fetch resolves and absorbs more
+  // tokens into chip territory.
+  const [customDraft, setCustomDraft] = useState<string>('')
+  useEffect(() => {
+    if (readonly) return
+    const customFromValue = parseTopics(value).filter((t) => !knownLower.has(t.toLowerCase()))
+    setCustomDraft(customFromValue.join(', '))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groups])
+
+  // Recompute value = (chip-matching tokens from current value) +
+  // (custom tokens just typed). Case-insensitive dedupe so typing a
+  // chip name in the custom box doesn't store the topic twice.
+  function rebuildValue(nextCustom: string) {
+    const chipPart = parseTopics(value).filter((t) => knownLower.has(t.toLowerCase()))
+    const customPart = parseTopics(nextCustom)
+    const seen = new Set<string>()
+    const combined: string[] = []
+    for (const t of [...chipPart, ...customPart]) {
+      const k = t.toLowerCase()
+      if (seen.has(k)) continue
+      seen.add(k)
+      combined.push(t)
+    }
+    onChange?.(combined.join(', '))
+  }
+
+  function handleCustomChange(next: string) {
+    setCustomDraft(next)
+    rebuildValue(next)
+  }
+
+  // Chip click toggles in value as before. If the chip is being
+  // deselected and the same name also sits in the custom box, strip
+  // it from the box too — otherwise the chip un-fills but the word
+  // still appears in the textarea, which reads as "did nothing."
+  function handleChipClick(topic: string) {
+    const wasSelected = hasTopic(selected, topic)
+    if (wasSelected) {
+      const trimmedDraft = parseTopics(customDraft)
+        .filter((t) => t.toLowerCase() !== topic.toLowerCase())
+        .join(', ')
+      if (trimmedDraft !== customDraft) setCustomDraft(trimmedDraft)
+    }
+    onChange?.(toggleTopic(value, topic))
+  }
+
+  // Neutral header colour for the custom section — distinct from the
+  // four brand-toned chip groups so it reads as "free-form, not a
+  // taxonomy category."
+  const CUSTOM_HEADER_COLOR = 'rgba(255, 255, 255, 0.55)'
+  const CUSTOM_INPUT_BG = 'rgba(255, 255, 255, 0.04)'
+  const CUSTOM_INPUT_BORDER = 'rgba(255, 255, 255, 0.15)'
+  const CUSTOM_INPUT_TEXT = 'rgba(255, 255, 255, 0.85)'
+
   return (
     <div className="space-y-3">
       {groups.map((group) => {
@@ -177,7 +246,7 @@ export default function TopicChips({
                   <button
                     key={topic}
                     type="button"
-                    onClick={() => onChange?.(toggleTopic(value, topic))}
+                    onClick={() => handleChipClick(topic)}
                     className="px-2.5 py-1 rounded-pill border text-[12.5px] transition-colors"
                     style={{
                       background: isSelected ? c.bgActive : c.bg,
@@ -193,6 +262,39 @@ export default function TopicChips({
           </div>
         )
       })}
+
+      {/* Free-form "Add your own topics" section — hidden in readonly
+          mode (FAQ surface doesn't need an input). Whatever the user
+          types is merged into the same comma-separated value the chips
+          drive, deduped case-insensitively. */}
+      {!readonly && (
+        <div>
+          <div
+            className="mb-1.5"
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              color: CUSTOM_HEADER_COLOR,
+            }}
+          >
+            Add your own topics
+          </div>
+          <textarea
+            value={customDraft}
+            onChange={(e) => handleCustomChange(e.target.value)}
+            placeholder="e.g. VerticalSaaS, ABM, Quantum Computing"
+            rows={2}
+            className="w-full rounded-input px-3 py-2 text-[14px] focus:outline-none transition-colors resize-none"
+            style={{
+              background: CUSTOM_INPUT_BG,
+              border: `1px solid ${CUSTOM_INPUT_BORDER}`,
+              color: CUSTOM_INPUT_TEXT,
+            }}
+          />
+        </div>
+      )}
     </div>
   )
 }

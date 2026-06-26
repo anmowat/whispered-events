@@ -1023,23 +1023,8 @@ function TopicsModal({
             className="m-0"
             style={{ fontSize: 12.5, lineHeight: 1.5, color: 'var(--ink-2)' }}
           >
-            Pick from suggested topics{' '}
-            <strong
-              className="underline"
-              style={{ color: 'var(--accent)', textUnderlineOffset: 2 }}
-            >
-              AND write-in your own
-            </strong>
-            .
+            Pick from the suggestions below and add your own at the bottom.
           </p>
-          <textarea
-            value={interest}
-            onChange={(e) => setInterest(e.target.value)}
-            placeholder="e.g. AI agents, RevOps, GTM, Women"
-            rows={3}
-            className={`${modalInputCls} resize-none`}
-            style={modalInputStyle}
-          />
           <TopicChips value={interest} onChange={setInterest} />
         </div>
       </ModalField>
