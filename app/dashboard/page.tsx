@@ -77,6 +77,11 @@ export default function DashboardPage() {
     setUser(updated)
     if (resp.rescored) setShowRescoreConfirm(true)
   }
+  // "Thanks, here's how to help us grow" modal that pops after a 👍.
+  // The rating API decides whether to surface it (Phase 1 = always,
+  // Phase 2 = anniversary milestones); EventCard reads the flag from
+  // the response and calls back up here.
+  const [showGrowConfirm, setShowGrowConfirm] = useState(false)
 
   // Filter state — Type is multi-select per the redesign, the other two
   // remain single-select wrapped around the existing values.
@@ -318,6 +323,7 @@ export default function DashboardPage() {
                 <EventCard
                   key={event.id}
                   event={event}
+                  onGrowRequested={() => setShowGrowConfirm(true)}
                   onRated={(rating, reason) =>
                     setEvents((prev) =>
                       prev.map((e) =>
@@ -360,6 +366,9 @@ export default function DashboardPage() {
       )}
       {showRescoreConfirm && (
         <RescoreConfirmationModal onClose={() => setShowRescoreConfirm(false)} />
+      )}
+      {showGrowConfirm && (
+        <GrowAfterThumbsUpModal onClose={() => setShowGrowConfirm(false)} />
       )}
     </div>
   )
@@ -1057,9 +1066,14 @@ const modalInputStyle: React.CSSProperties = {
 function EventCard({
   event,
   onRated,
+  onGrowRequested,
 }: {
   event: DashboardEvent
   onRated: (rating: 'up' | 'down' | null, reason: string | null) => void
+  // Called when the rating API response says we should pop the
+  // "thanks, here's how to help us grow" modal — only fires on a
+  // successful 👍 toggle-on under the current phase rule.
+  onGrowRequested?: () => void
 }) {
   const [showDownModal, setShowDownModal] = useState(false)
   const [showThanks, setShowThanks] = useState(false)
@@ -1093,7 +1107,10 @@ function EventCard({
       if (!res.ok) {
         onRated(prevRating, prevReason)
         alert("Couldn't save your rating. Please try again.")
+        return
       }
+      const data = (await res.json().catch(() => ({}))) as { showGrowModal?: boolean }
+      if (data.showGrowModal) onGrowRequested?.()
     } catch {
       onRated(prevRating, prevReason)
       alert("Couldn't save your rating. Please try again.")
@@ -1341,6 +1358,81 @@ function ThumbsDownModal({
           >
             Submit
           </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// "Thanks, here's how to help us grow" modal, fired by the rating API
+// after a successful 👍 toggle-on (Phase 1: always; Phase 2: only on
+// 1st / 10th / 25th / 50th up-votes). Two outbound CTAs — both
+// target=_blank so the dashboard stays put — and an × in the corner.
+// Backdrop click, Esc, and the × all close; clicking a CTA does NOT
+// auto-close so the user can hit both if they want.
+function GrowAfterThumbsUpModal({ onClose }: { onClose: () => void }) {
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  const ctaCls = 'px-4 py-2 rounded-pill text-center transition-colors'
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.5)' }}
+      onClick={onClose}
+    >
+      <div
+        className="rounded-card border w-full max-w-md p-6 relative"
+        style={{ background: 'var(--paper)', borderColor: 'var(--rule)' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close"
+          className="absolute top-3 right-3 w-7 h-7 rounded-full leading-none text-base transition-colors"
+          style={{ color: 'var(--ink-3)' }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--ink)')}
+          onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--ink-3)')}
+        >
+          ×
+        </button>
+        <p className="font-serif m-0 pr-6" style={{ fontSize: 20, color: 'var(--ink)' }}>
+          Thanks for sharing we made a good match <span aria-hidden>♥️</span>
+        </p>
+        <p className="mt-3 leading-relaxed m-0" style={{ fontSize: 14, color: 'var(--ink-2)' }}>
+          Here are some ways you can help us grow so we can find more great matches for you.
+        </p>
+        <div className="mt-5 flex flex-col sm:flex-row gap-2 sm:gap-3">
+          <a
+            href="/love"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`${ctaCls} flex-1`}
+            style={{ background: 'var(--accent)', color: 'var(--paper)', fontSize: 14, fontWeight: 500 }}
+          >
+            LinkedIn Post (see examples)
+          </a>
+          <a
+            href="/?tab=contribute"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`${ctaCls} flex-1 border`}
+            style={{
+              background: 'transparent',
+              borderColor: 'var(--accent)',
+              color: 'var(--accent)',
+              fontSize: 14,
+              fontWeight: 500,
+            }}
+          >
+            Share event
+          </a>
         </div>
       </div>
     </div>

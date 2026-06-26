@@ -157,12 +157,19 @@ export default function Home() {
   // ?apply=partner deep-links into the Partner Apply chat surface so
   // CTAs elsewhere (e.g. /host's "Apply to become a partner") can land
   // visitors directly on the form instead of the marketing landing.
+  // ?tab=<view|contribute|partner> lands on the named tab so off-site
+  // CTAs (e.g. the dashboard's "Share event" growth modal) can deep-link
+  // to the right surface in a new tab.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     if (params.get('auth') === 'invalid') setAuthInvalid(true)
     if (params.get('apply') === 'partner') {
       setTab('partner')
       setMode('active')
+    }
+    const tabParam = params.get('tab')
+    if (tabParam === 'view' || tabParam === 'contribute' || tabParam === 'partner') {
+      setTab(tabParam)
     }
   }, [])
 

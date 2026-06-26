@@ -263,6 +263,33 @@ export async function getRatingCountsByUserId(): Promise<
   return counts
 }
 
+// Single-user thumbs-up/down count. Used by the rating API to decide
+// whether the dashboard should pop the "thanks, here's how to help us
+// grow" modal after a 👍 — fires on anniversary milestones in the live
+// Phase 2 mode. Cheap: one row scan filtered by user_id, no aggregate.
+export async function getRatingCountByUserId(
+  userId: string,
+): Promise<{ up: number; down: number }> {
+  if (!userId) return { up: 0, down: 0 }
+  const supabase = getClient()
+  const { data, error } = await supabase
+    .from('matches')
+    .select('rating')
+    .eq('user_id', userId)
+    .not('rating', 'is', null)
+  if (error) {
+    console.error('getRatingCountByUserId error', { userId, error })
+    return { up: 0, down: 0 }
+  }
+  let up = 0
+  let down = 0
+  for (const row of (data ?? []) as Array<{ rating: MatchRating | null }>) {
+    if (row.rating === 'up') up++
+    else if (row.rating === 'down') down++
+  }
+  return { up, down }
+}
+
 export interface MatchAuditRow {
   event_id: string
   score: number
