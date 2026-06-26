@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import Header from '@/components/Header'
 import TopicChips from '@/components/TopicChips'
 import { UserProfile } from '@/lib/types'
-import { NEARBY_RADIUS_MILES } from '@/lib/matching'
+import { NEARBY_RADIUS_MILES } from '@/lib/geocode'
 
 // Invite-style quick-signup landing. Email + LinkedIn + Learn arrive in
 // the URL (?email=...&linkedin=...&learn=...) — the visitor only fills

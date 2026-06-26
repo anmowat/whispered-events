@@ -50,12 +50,12 @@ const QUALITY_MULTIPLIER: Record<'A' | 'Polish' | 'B' | 'C', number> = {
 // only after callLLM's retry handling is proven in production.
 const MATCHING_VERSION = 13
 
-// Canonical "this user could realistically attend" radius. Used by the
-// matching pipeline (process-matches, digest) to decide who scores
-// against which event AND by the admin views so they show exactly the
-// events / users the matcher considers in-range. Single source of truth
-// so the two surfaces can't drift apart.
-export const NEARBY_RADIUS_MILES = 150
+// The radius constant lives in lib/geocode.ts (client-safe — no
+// Anthropic SDK or other server-only deps in that module). Re-export
+// here so existing imports of `NEARBY_RADIUS_MILES` from '@/lib/matching'
+// still resolve, but client components should import from '@/lib/geocode'
+// directly to avoid pulling this whole module into the browser bundle.
+export { NEARBY_RADIUS_MILES } from './geocode'
 
 export type SkippedReason = 'grade_c' | 'location_zero' | 'women_only_audience'
 

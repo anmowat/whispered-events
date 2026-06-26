@@ -6,6 +6,13 @@
 
 interface LatLng { lat: number; lng: number }
 
+// Canonical "this user could realistically attend" radius. Lives here
+// (not in lib/matching.ts) so client components — welcome page,
+// dashboard signup hint, anything that needs the value — can import
+// it without dragging server-only deps (Anthropic SDK, crypto) into
+// the browser bundle.
+export const NEARBY_RADIUS_MILES = 150
+
 const cache = new Map<string, LatLng | null>()
 let lastRequestAt = 0
 const MIN_INTERVAL_MS = 1100
