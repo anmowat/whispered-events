@@ -16,7 +16,7 @@ const POSTS: LovePost[] = [
   {
     id: 'dan-ahmadi',
     author: 'Dan Ahmadi',
-    role: 'Building Upside — the data layer for agentic GTM',
+    role: 'Building Upside (the data layer for agentic GTM)',
     imageUrl: '/love/dan-ahmadi.png',
     linkedinUrl:
       'https://www.linkedin.com/posts/dahmadi_whispered-events-activity-7473518191915335680-hg5Q',
@@ -24,7 +24,7 @@ const POSTS: LovePost[] = [
   {
     id: 'melissa-moody',
     author: 'Melissa Moody',
-    role: 'GTM leader & investor',
+    role: 'Founder @ Wednesday Women',
     imageUrl: '/love/melissa-moody.png',
     linkedinUrl:
       'https://www.linkedin.com/posts/melissammoody_in-person-events-are-so-hot-right-now-activity-7472416088685801472-W4X3',
@@ -32,7 +32,7 @@ const POSTS: LovePost[] = [
   {
     id: 'kathleen-booth',
     author: 'Kathleen Booth',
-    role: 'Founder, Kathleen HQ — executive marketing events',
+    role: 'VP Marketing @ Sequel.io',
     imageUrl: '/love/kathleen-booth.png',
     linkedinUrl:
       'https://www.linkedin.com/posts/kathleenslatterybooth_marketing-executiveevents-kathleenhq-activity-7476239553054461952-7GDO',
