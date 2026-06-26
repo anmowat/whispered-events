@@ -1408,7 +1408,7 @@ function GrowAfterThumbsUpModal({ onClose }: { onClose: () => void }) {
         <p className="mt-3 leading-relaxed m-0" style={{ fontSize: 14, color: 'var(--ink-2)' }}>
           Here are some ways you can help us grow so we can find more great matches for you.
         </p>
-        <div className="mt-5 flex flex-col sm:flex-row gap-2 sm:gap-3">
+        <div className="mt-5 flex flex-col gap-2.5">
           <a
             href="/love"
             target="_blank"
