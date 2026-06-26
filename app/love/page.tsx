@@ -29,6 +29,14 @@ const POSTS: LovePost[] = [
     linkedinUrl:
       'https://www.linkedin.com/posts/melissammoody_in-person-events-are-so-hot-right-now-activity-7472416088685801472-W4X3',
   },
+  {
+    id: 'kathleen-booth',
+    author: 'Kathleen Booth',
+    role: 'Founder, Kathleen HQ — executive marketing events',
+    imageUrl: '/love/kathleen-booth.png',
+    linkedinUrl:
+      'https://www.linkedin.com/posts/kathleenslatterybooth_marketing-executiveevents-kathleenhq-activity-7476239553054461952-7GDO',
+  },
 ]
 
 export default function LovePage() {
