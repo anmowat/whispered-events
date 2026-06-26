@@ -10,13 +10,10 @@ import { getUserByEmail } from '@/lib/users'
 import { getEventById } from '@/lib/events'
 import { sendMatchRatingNotification } from '@/lib/email'
 
-// Phase 1 (test): true — fire the "thanks, help us grow" modal on every
-// successful 👍 toggle-on so the team can sanity-check copy and links.
-// Phase 2 (live): flip to false — modal fires only when the user's total
-// up-count lands on one of the ANNIVERSARY_MILESTONES below.
-// Keep this as a code constant so the Phase 1 → Phase 2 transition shows
-// up in a commit rather than hiding in Vercel env settings.
-const SHOW_GROW_MODAL_ALWAYS = true
+// Phase 2 (live): modal fires only when the user's total up-count lands
+// on one of the ANNIVERSARY_MILESTONES below. Flip back to true to
+// re-enable the every-click testing behaviour from Phase 1.
+const SHOW_GROW_MODAL_ALWAYS = false
 const ANNIVERSARY_MILESTONES = [1, 10, 25, 50]
 
 // Writes the dashboard thumbs-up / thumbs-down (or clears it) onto the
