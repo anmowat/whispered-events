@@ -125,7 +125,9 @@ const TAB_CONTENT: Record<HeaderTab, TabContent> = {
     heroVerb: 'promoted',
     subhead: (
       <>
-        We partner with companies, communities and connectors (for free)<br />
+        We partner with <span style={{ color: '#c9a86a', fontWeight: 600 }}>communities</span>,{' '}
+        <span style={{ color: '#c9a86a', fontWeight: 600 }}>companies</span> and{' '}
+        <span style={{ color: '#c9a86a', fontWeight: 600 }}>connectors</span> (for free)<br />
         to connect executives to great events.
       </>
     ),
@@ -580,23 +582,25 @@ function Landing({
             WORKS band that used to live further down the page. */}
         <HeroSteps steps={content.heroSteps} />
 
-        {/* CTA */}
-        <div className="mt-9 flex justify-center">
-          <button
-            onClick={onCTA}
-            className="rounded-pill text-[14px] font-semibold transition-colors"
-            style={{
-              background: '#c9a86a',
-              color: '#1b1814',
-              padding: '14px 28px',
-              letterSpacing: '.01em',
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = '#d5b87c')}
-            onMouseLeave={(e) => (e.currentTarget.style.background = '#c9a86a')}
-          >
-            {content.cta}
-          </button>
-        </div>
+        {/* CTA — hidden on partner tab (button moves below the partner cards) */}
+        {tab !== 'partner' && (
+          <div className="mt-9 flex justify-center">
+            <button
+              onClick={onCTA}
+              className="rounded-pill text-[14px] font-semibold transition-colors"
+              style={{
+                background: '#c9a86a',
+                color: '#1b1814',
+                padding: '14px 28px',
+                letterSpacing: '.01em',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = '#d5b87c')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = '#c9a86a')}
+            >
+              {content.cta}
+            </button>
+          </div>
+        )}
 
         {/* Find Events tab: live counter of matches notified in the
             last 30 days. Number rendered in italic-champagne Cormorant
@@ -641,7 +645,7 @@ function Landing({
           strongest social proof for prospects evaluating whether to
           host with us. */}
       {tab === 'partner'
-        ? <PartnerTypeSection partners={partners} />
+        ? <PartnerTypeSection partners={partners} onApply={onCTA} />
         : (slides.length > 0 || featuredFallback.length > 0) && (
             <section className="max-w-[1080px] mx-auto px-5 sm:px-11 pb-16 sm:pb-[66px]">
               <div
@@ -700,6 +704,7 @@ const CARD_SIZE = 260
 // the standalone HOW IT WORKS band that used to live further down the
 // page is replaced by this inline strip across every tab.
 function HeroSteps({ steps }: { steps: { icon: keyof typeof STEP_ICONS; label: string }[] }) {
+  if (!steps.length) return null
   return (
     <div
       className="mx-auto mt-9 grid grid-cols-1 sm:grid-cols-3 gap-5 sm:gap-6"
@@ -1191,7 +1196,7 @@ const PARTNER_TABS = [
   },
 ]
 
-function PartnerTypeSection({ partners }: { partners: Partner[] }) {
+function PartnerTypeSection({ partners, onApply }: { partners: Partner[]; onApply: () => void }) {
   const [activeKey, setActiveKey] = useState<'Community' | 'Company' | 'Connector'>('Community')
   const scrollRef = useRef<HTMLDivElement>(null)
   const tab = PARTNER_TABS.find((t) => t.key === activeKey)!
@@ -1206,7 +1211,8 @@ function PartnerTypeSection({ partners }: { partners: Partner[] }) {
 
   return (
     <section className="max-w-[1080px] mx-auto px-5 sm:px-11 pb-16 sm:pb-[66px]">
-      <div className="flex flex-wrap gap-2 mb-8">
+      {/* Tabs — centred */}
+      <div className="flex flex-wrap justify-center gap-2 mb-8">
         {PARTNER_TABS.map((t) => {
           const active = t.key === activeKey
           return (
@@ -1226,14 +1232,15 @@ function PartnerTypeSection({ partners }: { partners: Partner[] }) {
         })}
       </div>
 
-      <div className="mb-7">
+      {/* Heading + bullets — centred */}
+      <div className="mb-7 text-center">
         <h3
           className="m-0 font-serif"
           style={{ fontSize: 22, color: 'rgba(236,230,218,0.95)', lineHeight: 1.2, letterSpacing: '-0.01em' }}
         >
           {tab.heading}
         </h3>
-        <ul className="mt-3 m-0 pl-0 list-none flex flex-col gap-1.5">
+        <ul className="mt-3 m-0 pl-0 list-none inline-flex flex-col gap-1.5 text-left">
           {tab.bullets.map((b) => (
             <li
               key={b}
@@ -1247,6 +1254,7 @@ function PartnerTypeSection({ partners }: { partners: Partner[] }) {
         </ul>
       </div>
 
+      {/* Partner cards */}
       {cards.length > 0 ? (
         <div className="relative">
           <div
@@ -1266,6 +1274,24 @@ function PartnerTypeSection({ partners }: { partners: Partner[] }) {
           Coming soon.
         </p>
       )}
+
+      {/* Apply CTA — below the cards */}
+      <div className="mt-9 flex justify-center">
+        <button
+          onClick={onApply}
+          className="rounded-pill text-[14px] font-semibold transition-colors"
+          style={{
+            background: '#c9a86a',
+            color: '#1b1814',
+            padding: '14px 28px',
+            letterSpacing: '.01em',
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = '#d5b87c')}
+          onMouseLeave={(e) => (e.currentTarget.style.background = '#c9a86a')}
+        >
+          Apply to Partner
+        </button>
+      </div>
     </section>
   )
 }
