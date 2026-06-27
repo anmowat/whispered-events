@@ -31,9 +31,9 @@ const EMAIL_NOT_FOUND =
 
 const STEP_PROMPTS: Partial<Record<Step, string>> = {
   email: FIRST_QUESTION,
-  company: "Thanks. **What's the name of your company / organization?**",
+  company: "**What's the name of your company / organization?**",
   audience:
-    "Great to connect. **To start, can you describe your target audience(s) for your events?** Roles and levels are most useful — e.g. CROs, VPs of Sales, GTM leaders at $50M+ ARR companies.",
+    "We look forward to collaborating. **Can you describe your audience(s)?** e.g. CROs, VPs of Sales, GTM leaders at $50M+ ARR companies, NYC events….",
   partnershipType: '**What type of partnership are you interested in?**',
   description:
     "Last one — **can you share a short description of what your company does?**",
