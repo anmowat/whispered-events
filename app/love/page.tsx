@@ -39,8 +39,8 @@ const POSTS: LovePost[] = [
   },
   {
     id: 'nick-zecket',
-    author: 'Nick Zecket',
-    role: '',
+    author: 'Nick Zeckets',
+    role: 'Founder @ Smoke Signals AI',
     imageUrl: '/love/nick zeckets.png',
     linkedinUrl:
       'https://www.linkedin.com/posts/nzeckets_whispered-events-activity-7476750915476054017-RV4a',
