@@ -1198,7 +1198,7 @@ function PartnerTypeSection({ partners }: { partners: Partner[] }) {
   const cards = partners
     .filter((p) => p.type === activeKey)
     .sort((a, b) => {
-      if (a.featured !== b.featured) return a.featured ? -1 : 1
+      if (a.stars !== b.stars) return b.stars - a.stars
       return a.name.localeCompare(b.name)
     })
   const scrollBy = (dir: 'left' | 'right') =>

@@ -24,7 +24,7 @@ const COPIES_PER_TRACK = 4
 const PIXELS_PER_SECOND = 25 // 25% slower than the prior 33 px/s
 
 export default function PartnerMarquee({ partners }: PartnerMarqueeProps) {
-  const featured = partners.filter((p) => p.featured)
+  const featured = partners
   const trackRef = useRef<HTMLDivElement | null>(null)
   const [trackWidth, setTrackWidth] = useState(0)
 
