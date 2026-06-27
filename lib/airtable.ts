@@ -617,8 +617,11 @@ export async function getPartners(): Promise<Partner[]> {
   const records = await base('Partners')
     .select({
       // Partners with a non-blank Order field are visible on the site.
+      // No `fields` whitelist — requesting a field name that doesn't exist
+      // in Airtable throws UNKNOWN_FIELD_NAME which the API route catches
+      // as an empty response. Return all fields and access what we need
+      // with safe fallbacks instead.
       filterByFormula: 'NOT(ISBLANK({Order}))',
-      fields: ['Name', 'Logo', 'Site', 'Type', 'Description', 'Stars', 'Order'],
     })
     .all()
 
