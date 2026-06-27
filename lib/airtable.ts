@@ -1180,6 +1180,7 @@ export interface PartnerApplication {
   email: string
   company: string
   audience: string
+  partnershipType: string
   description: string
 }
 
@@ -1240,6 +1241,7 @@ export async function upsertPartnerApplication(
     Name: companyName,
     Email: app.email.trim().toLowerCase(),
     Audience: app.audience.trim(),
+    Tweet: app.partnershipType.trim(),
     Description: app.description.trim(),
   }
 

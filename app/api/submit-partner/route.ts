@@ -20,14 +20,15 @@ export async function POST(req: NextRequest) {
   const email = body.email?.trim() || ''
   const company = body.company?.trim() || ''
   const audience = body.audience?.trim() || ''
+  const partnershipType = body.partnershipType?.trim() || ''
   const description = body.description?.trim() || ''
 
   if (!email || !EMAIL_RE.test(email)) {
     return NextResponse.json({ error: 'valid email is required' }, { status: 400 })
   }
-  if (!company || !audience || !description) {
+  if (!company || !audience || !partnershipType || !description) {
     return NextResponse.json(
-      { error: 'company, audience, and description are required' },
+      { error: 'company, audience, partnershipType, and description are required' },
       { status: 400 },
     )
   }
@@ -37,6 +38,7 @@ export async function POST(req: NextRequest) {
       email,
       company,
       audience,
+      partnershipType,
       description,
     })
     return NextResponse.json({ ok: true, partnerId })
