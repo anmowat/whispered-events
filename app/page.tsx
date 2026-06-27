@@ -125,9 +125,9 @@ const TAB_CONTENT: Record<HeaderTab, TabContent> = {
     heroVerb: 'promoted',
     subhead: (
       <>
-        We partner with <span style={{ color: '#c9a86a', fontWeight: 600 }}>communities</span>,{' '}
+        We partner (for free) with <span style={{ color: '#c9a86a', fontWeight: 600 }}>communities</span>,{' '}
         <span style={{ color: '#c9a86a', fontWeight: 600 }}>companies</span> and{' '}
-        <span style={{ color: '#c9a86a', fontWeight: 600 }}>connectors</span> (for free)<br />
+        <span style={{ color: '#c9a86a', fontWeight: 600 }}>connectors</span><br />
         to connect executives to great events.
       </>
     ),
