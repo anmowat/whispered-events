@@ -233,26 +233,31 @@ export async function sendUserAppliedEmail(email: string): Promise<void> {
   const html = shell(`
     ${h1('Application <span style="font-style:italic;">received</span>.')}
     ${p("Thanks for applying to Whispered Events. We'll quickly verify your LinkedIn profile and activate your account — typically within 24 hours.", { mt: 14 })}
-    ${p("Once approved, you'll start seeing event matches curated for senior operators and executives.", { mt: 12 })}
+    ${p("Once approved, you'll start seeing event matches personalized for you.", { mt: 12 })}
     ${p("We built Whispered Events for one reason: helping great people find the best events — the ones that aren't posted, they're whispered.", { mt: 12 })}
-    ${p(`If you love it, amplify <a href="${AMPLIFY_POST_LINK}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">this post</a> on LinkedIn with a comment / repost. We &#10084; feedback and feature ideas.`, { mt: 14 })}
+    ${p(`Whispered Events will always be <strong style="color:${C.ink};">completely free for users</strong>. Help us grow and match you to even more events:`, { mt: 14 })}
+    <p style="font-family:${SANS};font-size:14.5px;line-height:1.6;color:${C.ink2};margin:10px 0 0;">
+      1. Share events to <a href="${NEW_EVENT_MAILTO}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">event@whispered.com</a>
+    </p>
+    <p style="font-family:${SANS};font-size:14.5px;line-height:1.6;color:${C.ink2};margin:8px 0 0;">
+      2. Post on LinkedIn (<a href="https://www.whisperedevents.com/love" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">see examples</a>)
+    </p>
     ${signature()}
-    ${ps('P.S. You can submit events anytime on the site or by emailing event@whispered.com')}
   `)
   const text = `Application received.
 
 Thanks for applying to Whispered Events. We'll quickly verify your LinkedIn profile and activate your account — typically within 24 hours.
 
-Once approved, you'll start seeing event matches curated for senior operators and executives.
+Once approved, you'll start seeing event matches personalized for you.
 
 We built Whispered Events for one reason: helping great people find the best events — the ones that aren't posted, they're whispered.
 
-If you love it, amplify this post on LinkedIn with a comment/repost (${AMPLIFY_POST_LINK}). We love feedback and feature ideas.
+Whispered Events will always be completely free for users. Help us grow and match you to even more events:
+1. Share events to event@whispered.com
+2. Post on LinkedIn (https://www.whisperedevents.com/love)
 
 Andy (${ANDY_LINK})
-Founder, Whispered
-
-P.S. You can submit events anytime on the site or by emailing event@whispered.com`
+Founder, Whispered`
   const { error } = await resend.emails.send({
     from: TEAM_FROM,
     to: email,
