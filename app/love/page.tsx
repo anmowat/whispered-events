@@ -37,6 +37,14 @@ const POSTS: LovePost[] = [
     linkedinUrl:
       'https://www.linkedin.com/posts/kathleenslatterybooth_marketing-executiveevents-kathleenhq-activity-7476239553054461952-7GDO',
   },
+  {
+    id: 'nick-zecket',
+    author: 'Nick Zecket',
+    role: '',
+    imageUrl: '/love/nick zeckets.png',
+    linkedinUrl:
+      'https://www.linkedin.com/posts/nzeckets_whispered-events-activity-7476750915476054017-RV4a',
+  },
 ]
 
 export default function LovePage() {
