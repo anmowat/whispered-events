@@ -1269,11 +1269,7 @@ function PartnerTypeSection({ partners, onApply }: { partners: Partner[]; onAppl
           <CarouselButton dir="left" onClick={() => scrollBy('left')} />
           <CarouselButton dir="right" onClick={() => scrollBy('right')} />
         </div>
-      ) : (
-        <p style={{ fontSize: 13, color: 'rgba(236,230,218,0.35)', margin: 0 }}>
-          Coming soon.
-        </p>
-      )}
+      ) : null}
 
       {/* Apply CTA — below the cards */}
       <div className="mt-9 flex justify-center">
@@ -1319,7 +1315,7 @@ function PartnerSlide({ partner }: { partner: Partner }) {
           <img
             src={partner.logoUrl}
             alt={partner.name}
-            className="h-10 w-auto object-contain max-w-[160px]"
+            className="max-h-[64px] w-auto max-w-full object-contain"
           />
         ) : (
           <span
