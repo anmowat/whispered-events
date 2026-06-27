@@ -92,19 +92,17 @@ export default function LovePage() {
       />
 
       <main className="max-w-[1040px] mx-auto px-6 sm:px-8 py-12 pb-24">
-        <div className="eyebrow mb-2.5">From the community</div>
         <h1
           className="font-serif m-0 text-[36px] sm:text-[48px]"
           style={{ lineHeight: 1.05, color: 'var(--ink)', letterSpacing: '-0.01em' }}
         >
-          What people are saying about{' '}
-          <span className="italic">Whispered Events</span>.
+          Some of our favorite <span className="italic">'whispers'</span>
         </h1>
         <p
           className="mt-3 max-w-[560px]"
           style={{ fontSize: 14.5, color: 'var(--ink-2)', lineHeight: 1.6 }}
         >
-          Real words from executives and partners.
+          Tag us on a post to help connect even more people
         </p>
 
         <div className="mt-10 columns-1 sm:columns-2 gap-5">
