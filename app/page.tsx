@@ -130,11 +130,7 @@ const TAB_CONTENT: Record<HeaderTab, TabContent> = {
       </>
     ),
     cta: 'Apply to Partner',
-    heroSteps: [
-      { icon: 'link', label: 'Claim the events you’re running' },
-      { icon: 'sliders', label: 'Customize targeting' },
-      { icon: 'grid', label: 'Get a custom feed for your community' },
-    ],
+    heroSteps: [],
   },
 }
 
@@ -645,50 +641,7 @@ function Landing({
           strongest social proof for prospects evaluating whether to
           host with us. */}
       {tab === 'partner'
-        ? partners.some((p) => p.featured) && (
-            <section className="max-w-[1080px] mx-auto px-5 sm:px-11 pb-16 sm:pb-[66px]">
-              <div
-                className="mb-[18px]"
-                style={{
-                  fontSize: 11,
-                  letterSpacing: '.26em',
-                  textTransform: 'uppercase',
-                  color: 'rgba(236,230,218,.4)',
-                }}
-              >
-                Partnered with the best communities &amp; companies
-              </div>
-              <PartnerMarquee partners={partners} />
-              {/* "see all our partners" lives below the marquee so the
-                  scroll is the primary social proof and the directory
-                  link is a follow-on. */}
-              <p
-                className="mt-6 text-center"
-                style={{
-                  fontSize: 14,
-                  lineHeight: 1.5,
-                  color: 'rgba(236,230,218,.7)',
-                }}
-              >
-                see{' '}
-                <a
-                  href="/partners"
-                  style={{
-                    fontFamily: SERIF,
-                    fontStyle: 'italic',
-                    fontSize: 18,
-                    color: '#c9a86a',
-                    textDecoration: 'underline',
-                    textUnderlineOffset: 4,
-                    textDecorationColor: 'rgba(201,168,106,.4)',
-                    marginLeft: 2,
-                  }}
-                >
-                  all our partners
-                </a>
-              </p>
-            </section>
-          )
+        ? <PartnerTypeSection partners={partners} />
         : (slides.length > 0 || featuredFallback.length > 0) && (
             <section className="max-w-[1080px] mx-auto px-5 sm:px-11 pb-16 sm:pb-[66px]">
               <div
@@ -1202,6 +1155,156 @@ function AddEventModal({
         </p>
       </div>
     </div>
+  )
+}
+
+const PARTNER_TABS = [
+  {
+    key: 'Community' as const,
+    label: 'Communities',
+    heading: 'Bring unique events to your audience',
+    bullets: [
+      'Customize a feed of events',
+      'Share exclusive events with your community',
+      'Promote events you run to grow your community',
+    ],
+  },
+  {
+    key: 'Company' as const,
+    label: 'Marketing & Event Teams',
+    heading: 'Promote your event to the right execs',
+    bullets: [
+      'Customize targeting for your ICP',
+      'See the execs who match your events',
+      'Feature your brand around marquee events',
+    ],
+  },
+  {
+    key: 'Connector' as const,
+    label: 'Connectors',
+    heading: 'Become THE connector in your region / function',
+    bullets: [
+      'See all relevant events and execs',
+      'Build new relationships with companies and execs',
+      'Get early access (and input) for new features',
+    ],
+  },
+]
+
+function PartnerTypeSection({ partners }: { partners: Partner[] }) {
+  const [activeKey, setActiveKey] = useState<'Community' | 'Company' | 'Connector'>('Community')
+  const tab = PARTNER_TABS.find((t) => t.key === activeKey)!
+  const cards = partners
+    .filter((p) => p.type === activeKey)
+    .sort((a, b) => {
+      if (a.featured !== b.featured) return a.featured ? -1 : 1
+      return a.name.localeCompare(b.name)
+    })
+
+  return (
+    <section className="max-w-[1080px] mx-auto px-5 sm:px-11 pb-16 sm:pb-[66px]">
+      <div className="flex flex-wrap gap-2 mb-8">
+        {PARTNER_TABS.map((t) => {
+          const active = t.key === activeKey
+          return (
+            <button
+              key={t.key}
+              onClick={() => setActiveKey(t.key)}
+              className="rounded-pill border text-[13px] px-4 py-2 transition-colors"
+              style={{
+                background: 'transparent',
+                borderColor: active ? '#c9a86a' : 'rgba(236,230,218,0.15)',
+                color: active ? '#c9a86a' : 'rgba(236,230,218,0.5)',
+              }}
+            >
+              {t.label}
+            </button>
+          )
+        })}
+      </div>
+
+      <div className="mb-7">
+        <h3
+          className="m-0 font-serif"
+          style={{ fontSize: 22, color: 'rgba(236,230,218,0.95)', lineHeight: 1.2, letterSpacing: '-0.01em' }}
+        >
+          {tab.heading}
+        </h3>
+        <ul className="mt-3 m-0 pl-0 list-none flex flex-col gap-1.5">
+          {tab.bullets.map((b) => (
+            <li
+              key={b}
+              className="flex items-start gap-2"
+              style={{ fontSize: 14, color: 'rgba(236,230,218,0.6)', lineHeight: 1.5 }}
+            >
+              <span style={{ color: '#c9a86a', flexShrink: 0 }}>◆</span>
+              {b}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {cards.length > 0 ? (
+        <div
+          className="flex gap-4 overflow-x-auto pb-4 -mx-5 px-5 sm:-mx-11 sm:px-11"
+          style={{ scrollSnapType: 'x mandatory' }}
+        >
+          {cards.map((p) => (
+            <PartnerSlide key={p.id} partner={p} />
+          ))}
+        </div>
+      ) : (
+        <p style={{ fontSize: 13, color: 'rgba(236,230,218,0.35)', margin: 0 }}>
+          Coming soon.
+        </p>
+      )}
+    </section>
+  )
+}
+
+function PartnerSlide({ partner }: { partner: Partner }) {
+  return (
+    <a
+      href={partner.website || '#'}
+      target={partner.website ? '_blank' : undefined}
+      rel="noopener noreferrer"
+      className="flex flex-col rounded-card border shrink-0 overflow-hidden transition-opacity hover:opacity-80"
+      style={{
+        width: 200,
+        scrollSnapAlign: 'start',
+        borderColor: 'rgba(236,230,218,0.12)',
+        background: 'rgba(236,230,218,0.04)',
+        textDecoration: 'none',
+      }}
+    >
+      <div
+        className="flex items-center justify-center"
+        style={{ background: '#F1ECE2', height: 88, padding: '0 16px' }}
+      >
+        {partner.logoUrl ? (
+          <img
+            src={partner.logoUrl}
+            alt={partner.name}
+            className="h-10 w-auto object-contain max-w-[160px]"
+          />
+        ) : (
+          <span
+            className="font-serif"
+            style={{ fontSize: 15, color: '#3a3028', letterSpacing: '-0.01em' }}
+          >
+            {partner.name}
+          </span>
+        )}
+      </div>
+      <div className="px-3 py-2.5">
+        <div
+          className="font-serif"
+          style={{ fontSize: 15, color: 'rgba(236,230,218,0.85)', letterSpacing: '-0.01em', lineHeight: 1.2 }}
+        >
+          {partner.name}
+        </div>
+      </div>
+    </a>
   )
 }
 

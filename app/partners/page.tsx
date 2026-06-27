@@ -5,7 +5,7 @@ import Header from '@/components/Header'
 import LoginModal from '@/components/LoginModal'
 import { Partner } from '@/lib/airtable'
 
-const TYPES = ['All', 'Community', 'Vendor', 'Investor'] as const
+const TYPES = ['All', 'Community', 'Company', 'Connector'] as const
 
 export default function PartnersPage() {
   const [partners, setPartners] = useState<Partner[]>([])
