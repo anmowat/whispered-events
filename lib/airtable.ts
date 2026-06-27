@@ -621,7 +621,9 @@ export async function getPartners(): Promise<Partner[]> {
       // in Airtable throws UNKNOWN_FIELD_NAME which the API route catches
       // as an empty response. Return all fields and access what we need
       // with safe fallbacks instead.
-      filterByFormula: 'NOT(ISBLANK({Order}))',
+      // {Order} >= 1 matches rating fields (1–5 ★) more reliably than
+      // NOT(ISBLANK({Order})) which can misbehave on rating field types.
+      filterByFormula: '{Order} >= 1',
     })
     .all()
 
@@ -637,7 +639,7 @@ export async function getPartners(): Promise<Partner[]> {
         logoUrl: logo?.[0]?.url ? `/api/partner-logo/${record.id}` : '',
         website: String(record.get('Site') || ''),
         description: String(record.get('Description') || ''),
-        stars: Number(record.get('Stars') || 0),
+        stars: Number(record.get('Order') || 0),
       }
     })
     .filter((p) => p.logoUrl)
