@@ -125,8 +125,8 @@ const TAB_CONTENT: Record<HeaderTab, TabContent> = {
     heroVerb: 'promoted',
     subhead: (
       <>
-        Promote your event to the right execs —<br />
-        the people whose profile fits, not a generic blast.
+        We partner with companies, communities and connectors (for free)<br />
+        to connect executives to great events.
       </>
     ),
     cta: 'Apply to Partner',
@@ -1193,6 +1193,7 @@ const PARTNER_TABS = [
 
 function PartnerTypeSection({ partners }: { partners: Partner[] }) {
   const [activeKey, setActiveKey] = useState<'Community' | 'Company' | 'Connector'>('Community')
+  const scrollRef = useRef<HTMLDivElement>(null)
   const tab = PARTNER_TABS.find((t) => t.key === activeKey)!
   const cards = partners
     .filter((p) => p.type === activeKey)
@@ -1200,6 +1201,8 @@ function PartnerTypeSection({ partners }: { partners: Partner[] }) {
       if (a.featured !== b.featured) return a.featured ? -1 : 1
       return a.name.localeCompare(b.name)
     })
+  const scrollBy = (dir: 'left' | 'right') =>
+    scrollRef.current?.scrollBy({ left: dir === 'left' ? -240 : 240, behavior: 'smooth' })
 
   return (
     <section className="max-w-[1080px] mx-auto px-5 sm:px-11 pb-16 sm:pb-[66px]">
@@ -1245,13 +1248,18 @@ function PartnerTypeSection({ partners }: { partners: Partner[] }) {
       </div>
 
       {cards.length > 0 ? (
-        <div
-          className="flex gap-4 overflow-x-auto pb-4 -mx-5 px-5 sm:-mx-11 sm:px-11"
-          style={{ scrollSnapType: 'x mandatory' }}
-        >
-          {cards.map((p) => (
-            <PartnerSlide key={p.id} partner={p} />
-          ))}
+        <div className="relative">
+          <div
+            ref={scrollRef}
+            className="flex gap-4 overflow-x-auto pb-4 -mx-5 px-5 sm:-mx-11 sm:px-11"
+            style={{ scrollSnapType: 'x mandatory', scrollbarWidth: 'none' }}
+          >
+            {cards.map((p) => (
+              <PartnerSlide key={p.id} partner={p} />
+            ))}
+          </div>
+          <CarouselButton dir="left" onClick={() => scrollBy('left')} />
+          <CarouselButton dir="right" onClick={() => scrollBy('right')} />
         </div>
       ) : (
         <p style={{ fontSize: 13, color: 'rgba(236,230,218,0.35)', margin: 0 }}>
@@ -1268,18 +1276,18 @@ function PartnerSlide({ partner }: { partner: Partner }) {
       href={partner.website || '#'}
       target={partner.website ? '_blank' : undefined}
       rel="noopener noreferrer"
-      className="flex flex-col rounded-card border shrink-0 overflow-hidden transition-opacity hover:opacity-80"
+      className="flex flex-col rounded-card border shrink-0 overflow-hidden transition-opacity hover:opacity-90"
       style={{
-        width: 200,
+        width: 220,
         scrollSnapAlign: 'start',
-        borderColor: 'rgba(236,230,218,0.12)',
-        background: 'rgba(236,230,218,0.04)',
+        borderColor: 'rgba(0,0,0,0.1)',
+        background: '#F1ECE2',
         textDecoration: 'none',
       }}
     >
       <div
         className="flex items-center justify-center"
-        style={{ background: '#F1ECE2', height: 88, padding: '0 16px' }}
+        style={{ background: '#E8E1D2', height: 88, padding: '0 16px' }}
       >
         {partner.logoUrl ? (
           <img
@@ -1296,12 +1304,31 @@ function PartnerSlide({ partner }: { partner: Partner }) {
           </span>
         )}
       </div>
-      <div className="px-3 py-2.5">
+      <div className="px-3 pt-2.5 pb-3 flex flex-col gap-1.5 flex-1">
         <div
           className="font-serif"
-          style={{ fontSize: 15, color: 'rgba(236,230,218,0.85)', letterSpacing: '-0.01em', lineHeight: 1.2 }}
+          style={{ fontSize: 15, color: '#2c2318', letterSpacing: '-0.01em', lineHeight: 1.2 }}
         >
           {partner.name}
+        </div>
+        {partner.description && (
+          <p
+            style={{
+              fontSize: 12,
+              color: '#5a4e40',
+              lineHeight: 1.45,
+              margin: 0,
+              overflow: 'hidden',
+              display: '-webkit-box',
+              WebkitLineClamp: 3,
+              WebkitBoxOrient: 'vertical',
+            }}
+          >
+            {partner.description}
+          </p>
+        )}
+        <div className="mt-auto pt-1.5 text-right" style={{ fontSize: 10, color: '#c9a86a', letterSpacing: '0.1em' }}>
+          ↗
         </div>
       </div>
     </a>
