@@ -1360,29 +1360,14 @@ function PartnerSlide({ partner }: { partner: Partner }) {
 function Footer() {
   return (
     <div
-      className="flex items-center justify-between px-4 sm:px-11 py-5 sm:py-[26px]"
-      style={{
-        borderTop: '1px solid rgba(236,230,218,.13)',
-        fontSize: 12,
-        color: 'rgba(236,230,218,.4)',
-      }}
+      className="flex items-center justify-center px-4 sm:px-11 py-5 sm:py-[26px]"
     >
-      <span>Whispered Events - Copyright 2026</span>
-      <a
-        href="/faq"
-        className="transition-colors"
-        style={{
-          letterSpacing: '.08em',
-          textDecoration: 'underline',
-          textUnderlineOffset: 3,
-          textDecorationColor: 'rgba(236,230,218,.25)',
-          color: 'rgba(236,230,218,.4)',
-        }}
-        onMouseEnter={(e) => (e.currentTarget.style.color = '#c9a86a')}
-        onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(236,230,218,.4)')}
+      <span
+        className="font-serif"
+        style={{ fontSize: 22, color: '#c9a86a', letterSpacing: '-0.01em' }}
       >
-        FAQ
-      </a>
+        Fable
+      </span>
     </div>
   )
 }
