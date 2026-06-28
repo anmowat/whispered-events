@@ -223,6 +223,32 @@ export default function FaqPage() {
           </div>
         </section>
 
+        <section className="mt-12">
+          <h2
+            className="font-serif m-0"
+            style={{
+              fontSize: 22,
+              lineHeight: 1.2,
+              color: 'var(--accent)',
+              letterSpacing: '-0.01em',
+            }}
+          >
+            <span style={{ color: 'var(--ink-3)', marginRight: 8 }}>Q:</span>
+            Is Whispered Events really free?
+          </h2>
+          <p
+            className="mt-3 mb-0"
+            style={{ fontSize: 15, color: 'var(--ink-2)', lineHeight: 1.6 }}
+          >
+            <strong style={{ color: 'var(--ink-3)', fontWeight: 600, marginRight: 6 }}>
+              A:
+            </strong>
+            Yes, Whispered Events is 100% free. Andy (founder of Whispered) is{' '}
+            <Link href="https://www.andymowat.com/">passionate about connecting people</Link>{' '}
+            and the power of events.
+          </p>
+        </section>
+
         <section
           className="mt-14 pt-8 border-t"
           style={{ borderColor: 'var(--rule-soft)' }}
