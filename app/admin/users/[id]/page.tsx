@@ -613,13 +613,9 @@ function UserEditForm({
           </span>
         </label>
       </div>
-      {/* Grid mirrors the view layout. View order: Status | Frequency,
-          Location | LatLon, Function | Topics, Grade | —, Company Size | —,
-          Seniority | How they heard, Employment | —.
-          Extra edit-only fields (Email, Name, First Name, LinkedIn) sit at top.
-          Key fix: Company Size before Seniority (was reversed), Frequency near
-          top, Location paired with Frequency instead of wide at bottom. */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 text-sm">
+      {/* Extra identity fields not shown in view — separate section so they
+          don't shift the positions of the profile fields below. */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 text-sm pb-4 mb-1 border-b border-[#E8DDD0]">
         <FormField label="Email">
           <input
             type="email"
@@ -658,6 +654,14 @@ function UserEditForm({
             className={input}
           />
         </FormField>
+      </div>
+      {/* Profile grid — every field is in the EXACT same col/row as the view.
+          Spacers hold slots occupied by Status (moved above), LatLon (auto),
+          Last Contribution, Last seen, and Contributions (all read-only).
+          Topics stays at col B row 3, How they heard at col B row 6 — not wide. */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 text-sm">
+        {/* Row 1: [Status is above the grid] | Frequency */}
+        <div className="hidden sm:block" aria-hidden />
         <FormField label="Frequency">
           <select
             value={draft.frequency}
@@ -670,6 +674,7 @@ function UserEditForm({
             ))}
           </select>
         </FormField>
+        {/* Row 2: Location | [LatLon auto-derived] */}
         <FormField label="Location">
           <input
             type="text"
@@ -680,6 +685,8 @@ function UserEditForm({
             className={input}
           />
         </FormField>
+        <div className="hidden sm:block" aria-hidden />
+        {/* Row 3: Function | Topics */}
         <FormField label="Function">
           <input
             type="text"
@@ -689,6 +696,16 @@ function UserEditForm({
             className={input}
           />
         </FormField>
+        <FormField label="Topics">
+          <textarea
+            value={draft.interest}
+            disabled={disabled}
+            onChange={(e) => update('interest', e.target.value)}
+            rows={3}
+            className={`${input} leading-relaxed`}
+          />
+        </FormField>
+        {/* Row 4: Grade | [Last Contribution read-only] */}
         <FormField label="Grade">
           <select
             value={draft.grade}
@@ -701,6 +718,8 @@ function UserEditForm({
             ))}
           </select>
         </FormField>
+        <div className="hidden sm:block" aria-hidden />
+        {/* Row 5: Company Size | [Last seen read-only] */}
         <FormField label="Company Size">
           <input
             type="text"
@@ -711,6 +730,8 @@ function UserEditForm({
             className={input}
           />
         </FormField>
+        <div className="hidden sm:block" aria-hidden />
+        {/* Row 6: Seniority | How they heard */}
         <FormField label="Seniority">
           <select
             value={normalizeSeniority(draft.seniority)}
@@ -724,6 +745,16 @@ function UserEditForm({
             ))}
           </select>
         </FormField>
+        <FormField label="How they heard">
+          <textarea
+            value={draft.learn}
+            disabled={disabled}
+            onChange={(e) => update('learn', e.target.value)}
+            rows={3}
+            className={`${input} leading-relaxed`}
+          />
+        </FormField>
+        {/* Row 7: Employment | [Contributions read-only] */}
         <FormField label="Employment">
           <input
             type="text"
@@ -734,24 +765,7 @@ function UserEditForm({
             className={input}
           />
         </FormField>
-        <FormField label="Topics" wide>
-          <textarea
-            value={draft.interest}
-            disabled={disabled}
-            onChange={(e) => update('interest', e.target.value)}
-            rows={3}
-            className={`${input} leading-relaxed`}
-          />
-        </FormField>
-        <FormField label="How they heard" wide>
-          <textarea
-            value={draft.learn}
-            disabled={disabled}
-            onChange={(e) => update('learn', e.target.value)}
-            rows={3}
-            className={`${input} leading-relaxed`}
-          />
-        </FormField>
+        <div className="hidden sm:block" aria-hidden />
       </div>
       <p className="text-[11px] text-gray-400">
         LatLon is auto-derived from Location on save. Saving fires updateUserAdmin

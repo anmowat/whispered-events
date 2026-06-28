@@ -632,9 +632,9 @@ export default function AdminEventDetailPage() {
                   <Field label="Link" value={event.link} />
                   <Field label="Submitter" value={event.submitterEmail} />
                   <Field label="Audience" value={event.audience.join(', ')} />
+                  <Field label="Description" value={event.description} multiline />
                   <Field label="Invite: Employment" value={event.inviteEmployment.join(', ')} />
                   <Field label="Invite: Company Size" value={event.inviteCompanySize.join(', ')} />
-                  <Field label="Description" value={event.description} multiline />
                 </dl>
               ) : (
                 <EventEditForm draft={draft!} onChange={setDraft} disabled={editBusy} />
@@ -900,6 +900,7 @@ function EventEditForm({
             className={input}
           />
         </FormField>
+        {/* Row 3: Location | [LatLon auto-derived] */}
         <FormField label="Location">
           <input
             type="text"
@@ -910,7 +911,9 @@ function EventEditForm({
             className={input}
           />
         </FormField>
-        <FormField label="Link" wide>
+        <div className="hidden sm:block" aria-hidden />
+        {/* Row 4: Link | [Submitter read-only] */}
+        <FormField label="Link">
           <input
             type="url"
             value={draft.link}
@@ -920,7 +923,9 @@ function EventEditForm({
             className={input}
           />
         </FormField>
-        <FormField label="Audience (comma-separated)" wide>
+        <div className="hidden sm:block" aria-hidden />
+        {/* Row 5: Audience | Description */}
+        <FormField label="Audience (comma-separated)">
           <input
             type="text"
             value={draft.audience}
@@ -930,23 +935,7 @@ function EventEditForm({
             className={input}
           />
         </FormField>
-        <AdminMultiCheckbox
-          label="Invite: Employment"
-          options={[...INVITE_EMPLOYMENT_OPTIONS]}
-          value={draft.inviteEmployment}
-          onChange={(v) => update('inviteEmployment', v)}
-          disabled={disabled}
-          wide
-        />
-        <AdminMultiCheckbox
-          label="Invite: Company Size"
-          options={[...INVITE_COMPANY_SIZE_OPTIONS]}
-          value={draft.inviteCompanySize}
-          onChange={(v) => update('inviteCompanySize', v)}
-          disabled={disabled}
-          wide
-        />
-        <FormField label="Description" wide>
+        <FormField label="Description">
           <textarea
             value={draft.description}
             disabled={disabled}
@@ -955,6 +944,21 @@ function EventEditForm({
             className={`${input} font-normal leading-relaxed`}
           />
         </FormField>
+        {/* Row 6: Invite Employment | Invite Company Size */}
+        <AdminMultiCheckbox
+          label="Invite: Employment"
+          options={[...INVITE_EMPLOYMENT_OPTIONS]}
+          value={draft.inviteEmployment}
+          onChange={(v) => update('inviteEmployment', v)}
+          disabled={disabled}
+        />
+        <AdminMultiCheckbox
+          label="Invite: Company Size"
+          options={[...INVITE_COMPANY_SIZE_OPTIONS]}
+          value={draft.inviteCompanySize}
+          onChange={(v) => update('inviteCompanySize', v)}
+          disabled={disabled}
+        />
       </div>
       <p className="text-[11px] text-gray-400">
         LatLon is auto-derived from Location on save. Saving fires updateEvent

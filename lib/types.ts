@@ -32,7 +32,7 @@ export interface EventRecord {
   inviteCompanySize?: string[]
 }
 
-export const INVITE_EMPLOYMENT_OPTIONS = ['Employed', 'Fractional', 'Founder', 'Investor', 'Advisor'] as const
+export const INVITE_EMPLOYMENT_OPTIONS = ['Employed', 'Searching', 'Fractional', 'Other'] as const
 export const INVITE_COMPANY_SIZE_OPTIONS = ['1-50', '51-200', '201-1000', '1000+'] as const
 
 export interface ParsedEvent {

@@ -348,9 +348,9 @@ function EventSummary({ event, onEdit }: { event: HostEvent; onEdit: () => void 
           <SummaryField label="Date" value={shortDate(event.date)} />
           <SummaryField label="Location" value={event.location} />
           <SummaryField label="Audience" value={event.audience.join(', ')} />
+          <SummaryField label="Description" value={event.description} multiline />
           <SummaryField label="Invite: Employment" value={(event.inviteEmployment ?? []).join(', ')} />
           <SummaryField label="Invite: Company Size" value={(event.inviteCompanySize ?? []).join(', ')} />
-          <SummaryField label="Description" value={event.description} multiline />
         </dl>
       </div>
     </section>
@@ -451,6 +451,9 @@ function EditForm({
           <EditField label="Audience" hint="Comma-separated tags">
             <input value={audience} onChange={(e) => setAudience(e.target.value)} placeholder="e.g. RevOps, Sales Leaders" className={editInputCls} />
           </EditField>
+          <EditField label="Description" wide>
+            <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4} className={`${editInputCls} resize-none`} />
+          </EditField>
           <HostMultiCheckbox
             label="Invite: Employment"
             options={[...INVITE_EMPLOYMENT_OPTIONS]}
@@ -463,9 +466,6 @@ function EditForm({
             value={inviteCompanySize}
             onChange={setInviteCompanySize}
           />
-          <EditField label="Description" wide>
-            <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4} className={`${editInputCls} resize-none`} />
-          </EditField>
         </div>
         {error && (
           <p
