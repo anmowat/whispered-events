@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation'
 import Header from '@/components/Header'
 import LoginModal from '@/components/LoginModal'
 import { formatEventDate } from '@/lib/dates'
+import { INVITE_EMPLOYMENT_OPTIONS, INVITE_COMPANY_SIZE_OPTIONS } from '@/lib/types'
 
 interface HostEvent {
   id: string
@@ -15,6 +16,8 @@ interface HostEvent {
   description: string
   link: string
   audience: string[]
+  inviteEmployment: string[]
+  inviteCompanySize: string[]
 }
 
 interface HostMatch {
@@ -345,6 +348,8 @@ function EventSummary({ event, onEdit }: { event: HostEvent; onEdit: () => void 
           <SummaryField label="Date" value={shortDate(event.date)} />
           <SummaryField label="Location" value={event.location} />
           <SummaryField label="Audience" value={event.audience.join(', ')} />
+          <SummaryField label="Invite: Employment" value={(event.inviteEmployment ?? []).join(', ')} />
+          <SummaryField label="Invite: Company Size" value={(event.inviteCompanySize ?? []).join(', ')} />
           <SummaryField label="Description" value={event.description} multiline />
         </dl>
       </div>
@@ -381,6 +386,8 @@ function EditForm({
   const [location, setLocation] = useState(event.location)
   const [description, setDescription] = useState(event.description)
   const [audience, setAudience] = useState(event.audience.join(', '))
+  const [inviteEmployment, setInviteEmployment] = useState<string[]>(event.inviteEmployment ?? [])
+  const [inviteCompanySize, setInviteCompanySize] = useState<string[]>(event.inviteCompanySize ?? [])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -395,6 +402,8 @@ function EditForm({
         location,
         description,
         audience: audience.split(',').map((s) => s.trim()).filter(Boolean),
+        inviteEmployment,
+        inviteCompanySize,
       }
       const res = await fetch(`/api/host/events/${event.id}`, {
         method: 'PATCH',
@@ -442,6 +451,18 @@ function EditForm({
           <EditField label="Audience" hint="Comma-separated tags">
             <input value={audience} onChange={(e) => setAudience(e.target.value)} placeholder="e.g. RevOps, Sales Leaders" className={editInputCls} />
           </EditField>
+          <HostMultiCheckbox
+            label="Invite: Employment"
+            options={[...INVITE_EMPLOYMENT_OPTIONS]}
+            value={inviteEmployment}
+            onChange={setInviteEmployment}
+          />
+          <HostMultiCheckbox
+            label="Invite: Company Size"
+            options={[...INVITE_COMPANY_SIZE_OPTIONS]}
+            value={inviteCompanySize}
+            onChange={setInviteCompanySize}
+          />
           <EditField label="Description" wide>
             <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4} className={`${editInputCls} resize-none`} />
           </EditField>
@@ -503,6 +524,42 @@ function EditField({
           {hint}
         </p>
       )}
+    </div>
+  )
+}
+
+function HostMultiCheckbox({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string
+  options: string[]
+  value: string[]
+  onChange: (next: string[]) => void
+}) {
+  function toggle(opt: string) {
+    if (value.includes(opt)) onChange(value.filter((v) => v !== opt))
+    else onChange([...value, opt])
+  }
+  return (
+    <div className="space-y-1.5">
+      <label className="eyebrow">{label}</label>
+      <div className="flex flex-wrap gap-x-4 gap-y-2 pt-0.5">
+        {options.map((opt) => (
+          <label key={opt} className="inline-flex items-center gap-1.5 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={value.includes(opt)}
+              onChange={() => toggle(opt)}
+              className="w-3.5 h-3.5 rounded cursor-pointer"
+              style={{ accentColor: 'var(--accent)' }}
+            />
+            <span style={{ fontSize: 13, color: 'var(--ink-2)' }}>{opt}</span>
+          </label>
+        ))}
+      </div>
     </div>
   )
 }

@@ -9,6 +9,7 @@ import {
   eventStatusPillClass,
   type EventStatus,
 } from '@/lib/event-status'
+import { INVITE_EMPLOYMENT_OPTIONS, INVITE_COMPANY_SIZE_OPTIONS } from '@/lib/types'
 
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024
 
@@ -35,6 +36,8 @@ interface EventDetail {
   hosts: Host[]
   status: string
   submitterEmail: string
+  inviteEmployment: string[]
+  inviteCompanySize: string[]
 }
 
 // Draft mirrors EventDetail's editable fields. audience is a comma-joined
@@ -52,6 +55,8 @@ interface EventDraft {
   audience: string
   featured: boolean
   status: EventStatus
+  inviteEmployment: string[]
+  inviteCompanySize: string[]
 }
 
 function hostDisplayName(h: Host): string {
@@ -73,17 +78,21 @@ function draftFromEvent(e: EventDetail): EventDraft {
     audience: e.audience.join(', '),
     featured: e.featured,
     status: normalizeEventStatus(e.status),
+    inviteEmployment: e.inviteEmployment ?? [],
+    inviteCompanySize: e.inviteCompanySize ?? [],
   }
 }
 
 function draftDiff(draft: EventDraft, original: EventDraft): Partial<EventDraft> {
   const diff: Partial<EventDraft> = {}
   ;(Object.keys(draft) as Array<keyof EventDraft>).forEach((k) => {
-    if (draft[k] !== original[k]) {
-      // TypeScript can't infer the property-specific type from a generic key
-      // reassignment; cast through unknown so the compiler accepts the
-      // structurally-correct value.
-      ;(diff as Record<string, unknown>)[k] = draft[k]
+    const dv = draft[k]
+    const ov = original[k]
+    const changed = Array.isArray(dv)
+      ? JSON.stringify(dv) !== JSON.stringify(ov)
+      : dv !== ov
+    if (changed) {
+      ;(diff as Record<string, unknown>)[k] = dv
     }
   })
   return diff
@@ -623,6 +632,8 @@ export default function AdminEventDetailPage() {
                   <Field label="Link" value={event.link} />
                   <Field label="Submitter" value={event.submitterEmail} />
                   <Field label="Audience" value={event.audience.join(', ')} />
+                  <Field label="Invite: Employment" value={event.inviteEmployment.join(', ')} />
+                  <Field label="Invite: Company Size" value={event.inviteCompanySize.join(', ')} />
                   <Field label="Description" value={event.description} multiline />
                 </dl>
               ) : (
@@ -854,7 +865,11 @@ function EventEditForm({
           <span className={disabled ? 'opacity-50' : ''}>Featured on homepage</span>
         </label>
       </div>
+      {/* Grid mirrors the view layout: Status occupies col A row 1 in view,
+          so a hidden spacer holds that position here (Status is above the grid
+          in edit mode), keeping Name at col B row 1, Type at col A row 2, etc. */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 text-sm">
+        <div className="hidden sm:block" aria-hidden />
         <FormField label="Name">
           <input
             type="text"
@@ -915,6 +930,22 @@ function EventEditForm({
             className={input}
           />
         </FormField>
+        <AdminMultiCheckbox
+          label="Invite: Employment"
+          options={[...INVITE_EMPLOYMENT_OPTIONS]}
+          value={draft.inviteEmployment}
+          onChange={(v) => update('inviteEmployment', v)}
+          disabled={disabled}
+          wide
+        />
+        <AdminMultiCheckbox
+          label="Invite: Company Size"
+          options={[...INVITE_COMPANY_SIZE_OPTIONS]}
+          value={draft.inviteCompanySize}
+          onChange={(v) => update('inviteCompanySize', v)}
+          disabled={disabled}
+          wide
+        />
         <FormField label="Description" wide>
           <textarea
             value={draft.description}
@@ -929,6 +960,46 @@ function EventEditForm({
         LatLon is auto-derived from Location on save. Saving fires updateEvent
         once, which mirrors back to Supabase and reruns matches.
       </p>
+    </div>
+  )
+}
+
+function AdminMultiCheckbox({
+  label,
+  options,
+  value,
+  onChange,
+  disabled,
+  wide,
+}: {
+  label: string
+  options: string[]
+  value: string[]
+  onChange: (next: string[]) => void
+  disabled?: boolean
+  wide?: boolean
+}) {
+  function toggle(opt: string) {
+    if (value.includes(opt)) onChange(value.filter((v) => v !== opt))
+    else onChange([...value, opt])
+  }
+  return (
+    <div className={wide ? 'sm:col-span-2' : ''}>
+      <span className="block text-xs uppercase tracking-wide text-gray-400 mb-2">{label}</span>
+      <div className="flex flex-wrap gap-x-4 gap-y-2">
+        {options.map((opt) => (
+          <label key={opt} className="inline-flex items-center gap-1.5 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={value.includes(opt)}
+              onChange={() => toggle(opt)}
+              disabled={disabled}
+              className="w-3.5 h-3.5 rounded border-[#E8DDD0] accent-[#6E1F2B] disabled:opacity-50 cursor-pointer"
+            />
+            <span className={`text-sm text-gray-700 ${disabled ? 'opacity-50' : ''}`}>{opt}</span>
+          </label>
+        ))}
+      </div>
     </div>
   )
 }

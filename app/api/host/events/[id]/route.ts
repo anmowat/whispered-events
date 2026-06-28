@@ -102,6 +102,8 @@ export async function PATCH(
   if (body.location !== undefined) update.location = body.location.trim()
   if (body.description !== undefined) update.description = body.description
   if (body.audience !== undefined) update.audience = body.audience
+  if (Array.isArray(body.inviteEmployment)) update.inviteEmployment = body.inviteEmployment
+  if (Array.isArray(body.inviteCompanySize)) update.inviteCompanySize = body.inviteCompanySize
 
   if (update.name === '') {
     return NextResponse.json({ error: 'Event name is required' }, { status: 400 })

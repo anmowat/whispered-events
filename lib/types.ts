@@ -26,7 +26,14 @@ export interface EventRecord {
   // Live (admin approved, matched + visible), Deactivated (admin pulled).
   // Only ever set via the admin event detail page; never by createEvent.
   status?: 'Pending' | 'Live' | 'Deactivated'
+  // Invite targeting filters — set by admin or host; matching logic will
+  // enforce these in a future phase. Empty array = no filter (all invited).
+  inviteEmployment?: string[]
+  inviteCompanySize?: string[]
 }
+
+export const INVITE_EMPLOYMENT_OPTIONS = ['Employed', 'Fractional', 'Founder', 'Investor', 'Advisor'] as const
+export const INVITE_COMPANY_SIZE_OPTIONS = ['1-50', '51-200', '201-1000', '1000+'] as const
 
 export interface ParsedEvent {
   name?: string

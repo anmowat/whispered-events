@@ -566,6 +566,12 @@ export async function updateEvent(
     // airtableFields here. Tracked under the Airtable-mirror cleanup item.
     supabaseRow.status = fields.status
   }
+  if (fields.inviteEmployment !== undefined) {
+    supabaseRow.invite_employment = fields.inviteEmployment
+  }
+  if (fields.inviteCompanySize !== undefined) {
+    supabaseRow.invite_company_size = fields.inviteCompanySize
+  }
 
   // Supabase first as the canonical write. Failures bubble up — caller
   // (admin save) needs to know if the change didn't land.
@@ -690,6 +696,10 @@ export interface AirtableEvent {
   status?: string
   /** Supabase user IDs of people who host this event. */
   hostIds?: string[]
+  /** Employment types to invite — empty = no filter. */
+  inviteEmployment?: string[]
+  /** Company sizes to invite — empty = no filter. */
+  inviteCompanySize?: string[]
 }
 
 export async function getActiveUsers(): Promise<AirtableUser[]> {

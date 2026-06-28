@@ -613,6 +613,12 @@ function UserEditForm({
           </span>
         </label>
       </div>
+      {/* Grid mirrors the view layout. View order: Status | Frequency,
+          Location | LatLon, Function | Topics, Grade | —, Company Size | —,
+          Seniority | How they heard, Employment | —.
+          Extra edit-only fields (Email, Name, First Name, LinkedIn) sit at top.
+          Key fix: Company Size before Seniority (was reversed), Frequency near
+          top, Location paired with Frequency instead of wide at bottom. */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 text-sm">
         <FormField label="Email">
           <input
@@ -642,12 +648,66 @@ function UserEditForm({
             className={input}
           />
         </FormField>
+        <FormField label="LinkedIn">
+          <input
+            type="url"
+            value={draft.linkedin}
+            disabled={disabled}
+            onChange={(e) => update('linkedin', e.target.value)}
+            placeholder="https://linkedin.com/in/…"
+            className={input}
+          />
+        </FormField>
+        <FormField label="Frequency">
+          <select
+            value={draft.frequency}
+            disabled={disabled}
+            onChange={(e) => update('frequency', e.target.value)}
+            className={input}
+          >
+            {FREQUENCY_OPTIONS.map((f) => (
+              <option key={f} value={f}>{f}</option>
+            ))}
+          </select>
+        </FormField>
+        <FormField label="Location">
+          <input
+            type="text"
+            value={draft.location}
+            disabled={disabled}
+            onChange={(e) => update('location', e.target.value)}
+            placeholder="City, State or full address"
+            className={input}
+          />
+        </FormField>
         <FormField label="Function">
           <input
             type="text"
             value={draft.function}
             disabled={disabled}
             onChange={(e) => update('function', e.target.value)}
+            className={input}
+          />
+        </FormField>
+        <FormField label="Grade">
+          <select
+            value={draft.grade}
+            disabled={disabled}
+            onChange={(e) => update('grade', e.target.value)}
+            className={input}
+          >
+            {GRADE_OPTIONS.map((g) => (
+              <option key={g || 'blank'} value={g}>{g || '— blank —'}</option>
+            ))}
+          </select>
+        </FormField>
+        <FormField label="Company Size">
+          <input
+            type="text"
+            value={draft.companySize}
+            disabled={disabled}
+            onChange={(e) => update('companySize', e.target.value)}
+            placeholder="leave blank to clear"
             className={input}
           />
         </FormField>
@@ -664,30 +724,6 @@ function UserEditForm({
             ))}
           </select>
         </FormField>
-        <FormField label="Grade">
-          <select
-            value={draft.grade}
-            disabled={disabled}
-            onChange={(e) => update('grade', e.target.value)}
-            className={input}
-          >
-            {GRADE_OPTIONS.map((g) => (
-              <option key={g || 'blank'} value={g}>{g || '— blank —'}</option>
-            ))}
-          </select>
-        </FormField>
-        <FormField label="Frequency">
-          <select
-            value={draft.frequency}
-            disabled={disabled}
-            onChange={(e) => update('frequency', e.target.value)}
-            className={input}
-          >
-            {FREQUENCY_OPTIONS.map((f) => (
-              <option key={f} value={f}>{f}</option>
-            ))}
-          </select>
-        </FormField>
         <FormField label="Employment">
           <input
             type="text"
@@ -695,36 +731,6 @@ function UserEditForm({
             disabled={disabled}
             onChange={(e) => update('employment', e.target.value)}
             placeholder="leave blank to clear"
-            className={input}
-          />
-        </FormField>
-        <FormField label="Company Size">
-          <input
-            type="text"
-            value={draft.companySize}
-            disabled={disabled}
-            onChange={(e) => update('companySize', e.target.value)}
-            placeholder="leave blank to clear"
-            className={input}
-          />
-        </FormField>
-        <FormField label="Location" wide>
-          <input
-            type="text"
-            value={draft.location}
-            disabled={disabled}
-            onChange={(e) => update('location', e.target.value)}
-            placeholder="City, State or full address"
-            className={input}
-          />
-        </FormField>
-        <FormField label="LinkedIn" wide>
-          <input
-            type="url"
-            value={draft.linkedin}
-            disabled={disabled}
-            onChange={(e) => update('linkedin', e.target.value)}
-            placeholder="https://linkedin.com/in/…"
             className={input}
           />
         </FormField>
@@ -748,10 +754,8 @@ function UserEditForm({
         </FormField>
       </div>
       <p className="text-[11px] text-gray-400">
-        LatLon is auto-derived from Location on save. Single-select fields
-        (Seniority, Employment, Company Size, Frequency, Grade) accept blank
-        to clear. Saving fires updateUserAdmin once, which mirrors back to
-        Supabase and reruns matches for this user.
+        LatLon is auto-derived from Location on save. Saving fires updateUserAdmin
+        once, which mirrors back to Supabase and reruns matches for this user.
       </p>
     </div>
   )
