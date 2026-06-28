@@ -1362,12 +1362,15 @@ function Footer() {
     <div
       className="flex items-center justify-center px-4 sm:px-11 py-5 sm:py-[26px]"
     >
-      <span
-        className="font-serif"
-        style={{ fontSize: 22, color: '#c9a86a', letterSpacing: '-0.01em' }}
+      <a
+        href="/faq"
+        className="transition-colors"
+        style={{ fontSize: 18, color: '#c9a86a', letterSpacing: '.08em', textDecoration: 'none' }}
+        onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.75')}
+        onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
       >
-        Fable
-      </span>
+        FAQ
+      </a>
     </div>
   )
 }
