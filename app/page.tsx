@@ -1361,6 +1361,7 @@ function Footer() {
   return (
     <div
       className="flex items-center justify-center px-4 sm:px-11 py-5 sm:py-[26px]"
+      style={{ borderTop: '1px solid rgba(236,230,218,.13)' }}
     >
       <a
         href="/faq"
