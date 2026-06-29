@@ -1376,14 +1376,16 @@ function AddEventModal({
             href={gmailUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="rounded-pill text-[13px] font-semibold text-center py-2.5 transition-colors"
-            style={{
-              background: '#c9a86a',
-              color: '#1b1814',
-              letterSpacing: '.01em',
+            className="rounded-pill text-[13px] font-medium text-center py-2.5 border transition-colors"
+            style={{ borderColor: 'rgba(236,230,218,.28)', color: '#ece6da' }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = '#c9a86a'
+              e.currentTarget.style.color = '#c9a86a'
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = '#d5b87c')}
-            onMouseLeave={(e) => (e.currentTarget.style.background = '#c9a86a')}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'rgba(236,230,218,.28)'
+              e.currentTarget.style.color = '#ece6da'
+            }}
           >
             Open in Gmail
           </a>
