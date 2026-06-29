@@ -114,7 +114,7 @@ const TAB_CONTENT: Record<HeaderTab, TabContent> = {
         we share it with the executives whose profile fits.
       </>
     ),
-    cta: 'Add Event',
+    cta: 'Share Event',
     heroSteps: [
       { icon: 'link', label: 'Share an event link' },
       { icon: 'spark', label: 'Our AI extracts the details' },
@@ -289,7 +289,7 @@ export default function Home() {
         onMouseEnter={(e) => (e.currentTarget.style.background = '#d5b87c')}
         onMouseLeave={(e) => (e.currentTarget.style.background = '#c9a86a')}
       >
-        Add Event
+        Share Event
       </button>
     ) : (
       <a
