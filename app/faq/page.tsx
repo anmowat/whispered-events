@@ -85,8 +85,7 @@ export default function FaqPage() {
             </strong>
             We focus on in-person, director / VP / C-suite level events. We
             have events around the world (with concentrations in the obvious
-            big cities in North America). See the current top topic areas for
-            events on our platform. We update this regularly.
+            big cities in North America). See top topics for events on our platform — but you can add your own topics too!
           </p>
           <div className="mt-4">
             <TopicChips readonly />
