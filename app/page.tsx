@@ -1085,7 +1085,7 @@ const SIDE_EVENT_CONTENT = {
     badge: 'Coming Soon',
     body: (
       <>
-        Check back in early August for our page with{' '}
+        Check back in early August for<br />our page with{' '}
         <strong style={{ color: GOLD, fontWeight: 700 }}>every</strong> side event.
       </>
     ),
@@ -1102,7 +1102,7 @@ const SIDE_EVENT_CONTENT = {
     badge: 'Coming Soon',
     body: (
       <>
-        Check back in early August for our page with{' '}
+        Check back in early August for<br />our page with{' '}
         <strong style={{ color: GOLD, fontWeight: 700 }}>every</strong> side event.
       </>
     ),
@@ -1152,8 +1152,8 @@ function SideEventModal({
         style={{ background: '#252220', borderColor: 'rgba(236,230,218,.13)' }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between mb-3 gap-3">
-          <div>
+        <div className="flex items-start justify-between mb-1 gap-3">
+          <div className="flex-1 text-center">
             <h2
               className="font-serif m-0"
               style={{ fontSize: 22, color: '#ece6da', letterSpacing: '-0.01em', lineHeight: 1.2 }}
@@ -1178,7 +1178,7 @@ function SideEventModal({
         </div>
 
         <div
-          className="mb-4 space-y-2"
+          className="mb-4 space-y-2 text-center"
           style={{ fontSize: 13.5, color: 'rgba(236,230,218,.78)', lineHeight: 1.55 }}
         >
           <p className="m-0">{content.body}</p>
