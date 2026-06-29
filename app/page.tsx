@@ -1048,32 +1048,32 @@ function SideEventBanners({
       </div>
       <div
         className="grid grid-cols-1 sm:grid-cols-2"
-        style={{ gap: 4 }}
+        style={{ gap: 6 }}
       >
-        {/* Left banner: full rounding on outer (left) corners, flat on inner (right) corners at sm+ */}
+        {/* Left banner — crop ~12px of transparent PNG padding from the right inner edge */}
         <button
           type="button"
           onClick={onDreamforce}
-          className="block w-full transition-opacity hover:opacity-90 cursor-pointer overflow-hidden rounded-[16px] sm:rounded-l-[16px] sm:rounded-r-[4px]"
+          className="block w-full transition-opacity hover:opacity-90 cursor-pointer overflow-hidden rounded-[16px]"
           style={{ background: 'none', border: 'none', padding: 0 }}
         >
           <img
             src="/banners/dreamforce-26-banner.png"
             alt="Dreamforce '26 Side Events — San Francisco, September 15–17"
-            className="w-full block"
+            style={{ display: 'block', width: 'calc(100% + 12px)' }}
           />
         </button>
-        {/* Right banner: full rounding on outer (right) corners, flat on inner (left) corners at sm+ */}
+        {/* Right banner — crop ~12px of transparent PNG padding from the left inner edge */}
         <button
           type="button"
           onClick={onUnbound}
-          className="block w-full transition-opacity hover:opacity-90 cursor-pointer overflow-hidden rounded-[16px] sm:rounded-r-[16px] sm:rounded-l-[4px]"
+          className="block w-full transition-opacity hover:opacity-90 cursor-pointer overflow-hidden rounded-[16px]"
           style={{ background: 'none', border: 'none', padding: 0 }}
         >
           <img
             src="/banners/unbound-26-banner.png"
             alt="Unbound '26 Side Events — Boston, September 16–18"
-            className="w-full block"
+            style={{ display: 'block', width: 'calc(100% + 12px)', marginLeft: -12 }}
           />
         </button>
       </div>
