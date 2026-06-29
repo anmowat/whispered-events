@@ -74,24 +74,23 @@ export default function FaqPage() {
             }}
           >
             <span style={{ color: 'var(--ink-3)', marginRight: 8 }}>Q:</span>
-            Do I qualify for Whispered Events?
+            What types of events do you have?
           </h2>
           <p
-            className="mt-3 mb-0"
+            className="mt-3 mb-3"
             style={{ fontSize: 15, color: 'var(--ink-2)', lineHeight: 1.6 }}
           >
             <strong style={{ color: 'var(--ink-3)', fontWeight: 600, marginRight: 6 }}>
               A:
             </strong>
-            Yes — everyone&apos;s in. Whispered Events skews executive-level,
-            but we admit everyone who applies — as long as your profile matches
-            your LinkedIn. Instead of sending every event to every user, we use
-            your profile and interests to surface the ones that actually fit.
-            Final say belongs to each organizer — they decide who attends; we
-            just point you to the right rooms and make the best matches we can.
-            Rate your matches 👍 or 👎 on your{' '}
-            <Link href="/dashboard">dashboard</Link> to help us improve.
+            We focus on in-person, director / VP / C-suite level events. We
+            have events around the world (with concentrations in the obvious
+            big cities in North America). See the current top topic areas for
+            events on our platform. We update this regularly.
           </p>
+          <div className="mt-4">
+            <TopicChips readonly />
+          </div>
         </section>
 
         <section className="mt-12">
@@ -181,7 +180,7 @@ export default function FaqPage() {
             }}
           >
             <span style={{ color: 'var(--ink-3)', marginRight: 8 }}>Q:</span>
-            What data do you collect, and how is it used?
+            Do I qualify for Whispered Events?
           </h2>
           <p
             className="mt-3 mb-0"
@@ -190,10 +189,14 @@ export default function FaqPage() {
             <strong style={{ color: 'var(--ink-3)', fontWeight: 600, marginRight: 6 }}>
               A:
             </strong>
-            At signup, we collect your LinkedIn profile, email, employment
-            status, interests, and location. We never share your email or
-            employment status. We may share your name, interests, and location
-            with partners running events you match for.
+            Yes — everyone&apos;s in. Whispered Events skews executive-level,
+            but we admit everyone who applies — as long as your profile matches
+            your LinkedIn. Instead of sending every event to every user, we use
+            your profile and interests to surface the ones that actually fit.
+            Final say belongs to each organizer — they decide who attends; we
+            just point you to the right rooms and make the best matches we can.
+            Rate your matches 👍 or 👎 on your{' '}
+            <Link href="/dashboard">dashboard</Link> to help us improve.
           </p>
         </section>
 
@@ -208,23 +211,20 @@ export default function FaqPage() {
             }}
           >
             <span style={{ color: 'var(--ink-3)', marginRight: 8 }}>Q:</span>
-            What types of events do you have?
+            What data do you collect, and how is it used?
           </h2>
           <p
-            className="mt-3 mb-3"
+            className="mt-3 mb-0"
             style={{ fontSize: 15, color: 'var(--ink-2)', lineHeight: 1.6 }}
           >
             <strong style={{ color: 'var(--ink-3)', fontWeight: 600, marginRight: 6 }}>
               A:
             </strong>
-            We focus on in-person, director / VP / C-suite level events. We
-            have events around the world (with concentrations in the obvious
-            big cities in North America). See the current top topic areas for
-            events on our platform. We update this regularly.
+            At signup, we collect your LinkedIn profile, email, employment
+            status, interests, and location. We never share your email or
+            employment status. We may share your name, interests, and location
+            with partners running events you match for.
           </p>
-          <div className="mt-4">
-            <TopicChips readonly />
-          </div>
         </section>
 
         <section className="mt-12">
