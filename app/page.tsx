@@ -1046,29 +1046,34 @@ function SideEventBanners({
       <div className="px-5 sm:px-11" style={{ fontSize: 11, letterSpacing: '.3em', textTransform: 'uppercase', color: 'rgba(236,230,218,.4)', marginBottom: 18 }}>
         Whispered Side Events
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+      <div
+        className="grid grid-cols-1 sm:grid-cols-2"
+        style={{ gap: 4 }}
+      >
+        {/* Left banner: full rounding on outer (left) corners, flat on inner (right) corners at sm+ */}
         <button
           type="button"
           onClick={onDreamforce}
-          className="block w-full transition-opacity hover:opacity-90 cursor-pointer"
+          className="block w-full transition-opacity hover:opacity-90 cursor-pointer overflow-hidden rounded-[16px] sm:rounded-l-[16px] sm:rounded-r-[4px]"
           style={{ background: 'none', border: 'none', padding: 0 }}
         >
           <img
             src="/banners/dreamforce-26-banner.png"
             alt="Dreamforce '26 Side Events — San Francisco, September 15–17"
-            className="w-full rounded-[16px] block"
+            className="w-full block"
           />
         </button>
+        {/* Right banner: full rounding on outer (right) corners, flat on inner (left) corners at sm+ */}
         <button
           type="button"
           onClick={onUnbound}
-          className="block w-full transition-opacity hover:opacity-90 cursor-pointer"
+          className="block w-full transition-opacity hover:opacity-90 cursor-pointer overflow-hidden rounded-[16px] sm:rounded-r-[16px] sm:rounded-l-[4px]"
           style={{ background: 'none', border: 'none', padding: 0 }}
         >
           <img
             src="/banners/unbound-26-banner.png"
             alt="Unbound '26 Side Events — Boston, September 16–18"
-            className="w-full rounded-[16px] block"
+            className="w-full block"
           />
         </button>
       </div>
