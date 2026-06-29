@@ -1014,81 +1014,6 @@ function BannerArrow({ nudge }: { nudge: boolean }) {
   )
 }
 
-interface SideEventCardProps {
-  title: string
-  location: string
-  dates: string
-  href: string
-  // Right panel: background gradient and the logo img treatment
-  rightPanelBg: string
-  logoSrc: string
-  logoStyle: React.CSSProperties
-}
-
-function SideEventCard({ title, location, dates, href, rightPanelBg, logoSrc, logoStyle }: SideEventCardProps) {
-  const [hov, setHov] = useState(false)
-  return (
-    <a
-      href={href}
-      onMouseEnter={() => setHov(true)}
-      onMouseLeave={() => setHov(false)}
-      style={{
-        display: 'flex',
-        alignItems: 'stretch',
-        background: 'linear-gradient(180deg, #2a241c 0%, #211c16 100%)',
-        borderRadius: 16,
-        border: `1px solid ${hov ? 'rgba(201,162,75,0.45)' : 'rgba(201,162,75,0.18)'}`,
-        boxShadow: hov ? '0 6px 24px rgba(0,0,0,0.55)' : '0 4px 16px rgba(0,0,0,0.38)',
-        overflow: 'hidden',
-        textDecoration: 'none',
-        minHeight: 160,
-        transform: hov ? 'translateY(-2px)' : 'translateY(0)',
-        transition: 'transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease',
-      }}
-    >
-      {/* Left: text — takes ~58% */}
-      <div
-        style={{
-          flex: '0 1 58%',
-          minWidth: 0,
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          gap: 6,
-          padding: '20px 16px 20px 26px',
-        }}
-      >
-        <div style={{ fontFamily: POPPINS, fontWeight: 700, fontSize: 22, color: '#f3ece0', whiteSpace: 'nowrap', lineHeight: 1.15 }}>
-          {title}
-        </div>
-        <div style={{ fontFamily: POPPINS, fontWeight: 600, fontSize: 11.5, color: '#c9a24b', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1 }}>
-          {location} · {dates}
-        </div>
-        <div style={{ fontFamily: POPPINS, fontWeight: 500, fontSize: 13, color: '#b8ab97', display: 'flex', alignItems: 'center', gap: 4 }}>
-          <span>See all the</span>
-          <span style={{ fontFamily: PLAYFAIR_ITALIC, fontStyle: 'italic', color: '#d8b873' }}>whispered</span>
-          <span>events</span>
-          <BannerArrow nudge={hov} />
-        </div>
-      </div>
-      {/* Right: logo panel — takes ~42%, styled per conference */}
-      <div
-        style={{
-          flex: '0 0 42%',
-          position: 'relative',
-          overflow: 'hidden',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: rightPanelBg,
-        }}
-      >
-        <img src={logoSrc} alt="" aria-hidden style={{ position: 'relative', zIndex: 1, ...logoStyle }} />
-      </div>
-    </a>
-  )
-}
-
 function SideEventBanners() {
   return (
     <section className="max-w-[1080px] mx-auto px-5 sm:px-11 pb-10">
@@ -1096,26 +1021,20 @@ function SideEventBanners() {
         Whispered Side Events
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {/* Dreamforce — white-bg JPEG dissolved into teal panel via multiply */}
-        <SideEventCard
-          title="Dreamforce '26 Side Events"
-          location="San Francisco"
-          dates="September 15–17"
-          href="#"
-          rightPanelBg="linear-gradient(135deg, #0d3d4a 0%, #082b36 100%)"
-          logoSrc="/banners/logo-astro-dreamforce26.jpeg"
-          logoStyle={{ height: 140, width: 'auto', objectFit: 'contain', mixBlendMode: 'multiply' }}
-        />
-        {/* Unbound — dark-bg JPEG fills panel naturally */}
-        <SideEventCard
-          title="Unbound '26 Side Events"
-          location="Boston"
-          dates="September 16–18"
-          href="#"
-          rightPanelBg="linear-gradient(135deg, #3a0e2a 0%, #1e0815 100%)"
-          logoSrc="/banners/logo-hubspot-unbound26.jpeg"
-          logoStyle={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }}
-        />
+        <a href="#" className="block transition-opacity hover:opacity-90">
+          <img
+            src="/banners/dreamforce-26-banner.jpeg"
+            alt="Dreamforce '26 Side Events — San Francisco, September 15–17"
+            className="w-full rounded-[16px] block"
+          />
+        </a>
+        <a href="#" className="block transition-opacity hover:opacity-90">
+          <img
+            src="/banners/unbound-26-banner.jpeg"
+            alt="Unbound '26 Side Events — Boston, September 16–18"
+            className="w-full rounded-[16px] block"
+          />
+        </a>
       </div>
     </section>
   )
