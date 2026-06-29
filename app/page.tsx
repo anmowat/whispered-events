@@ -1042,11 +1042,11 @@ function SideEventBanners({
   onUnbound: () => void
 }) {
   return (
-    <section className="max-w-[1080px] mx-auto px-5 sm:px-11 pb-10">
+    <section className="max-w-[1080px] mx-auto px-3 sm:px-5 pb-10">
       <div style={{ fontSize: 11, letterSpacing: '.3em', textTransform: 'uppercase', color: 'rgba(236,230,218,.4)', marginBottom: 18 }}>
         Whispered Side Events
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         <button
           type="button"
           onClick={onDreamforce}
