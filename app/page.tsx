@@ -1014,25 +1014,18 @@ function BannerArrow({ nudge }: { nudge: boolean }) {
   )
 }
 
-function SideEventCard({
-  title,
-  location,
-  dates,
-  logoSrc,
-  logoHeight,
-  logoMaxWidth,
-  accentGlow,
-  href,
-}: {
+interface SideEventCardProps {
   title: string
   location: string
   dates: string
-  logoSrc: string
-  logoHeight: number | string
-  logoMaxWidth: number | string
-  accentGlow: string
   href: string
-}) {
+  // Right panel: background gradient and the logo img treatment
+  rightPanelBg: string
+  logoSrc: string
+  logoStyle: React.CSSProperties
+}
+
+function SideEventCard({ title, location, dates, href, rightPanelBg, logoSrc, logoStyle }: SideEventCardProps) {
   const [hov, setHov] = useState(false)
   return (
     <a
@@ -1048,99 +1041,49 @@ function SideEventCard({
         boxShadow: hov ? '0 6px 24px rgba(0,0,0,0.55)' : '0 4px 16px rgba(0,0,0,0.38)',
         overflow: 'hidden',
         textDecoration: 'none',
-        minHeight: 124,
+        minHeight: 160,
         transform: hov ? 'translateY(-2px)' : 'translateY(0)',
         transition: 'transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease',
       }}
     >
-      {/* Left: text */}
+      {/* Left: text — takes ~58% */}
       <div
         style={{
-          flex: 1,
+          flex: '0 1 58%',
           minWidth: 0,
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'center',
-          gap: 5,
-          padding: '16px 18px 16px 24px',
+          gap: 6,
+          padding: '20px 16px 20px 26px',
         }}
       >
-        <div
-          style={{
-            fontFamily: POPPINS,
-            fontWeight: 700,
-            fontSize: 21,
-            color: '#f3ece0',
-            whiteSpace: 'nowrap',
-            lineHeight: 1.15,
-          }}
-        >
+        <div style={{ fontFamily: POPPINS, fontWeight: 700, fontSize: 22, color: '#f3ece0', whiteSpace: 'nowrap', lineHeight: 1.15 }}>
           {title}
         </div>
-        <div
-          style={{
-            fontFamily: POPPINS,
-            fontWeight: 600,
-            fontSize: 12,
-            color: '#c9a24b',
-            textTransform: 'uppercase',
-            letterSpacing: '0.04em',
-            lineHeight: 1,
-          }}
-        >
+        <div style={{ fontFamily: POPPINS, fontWeight: 600, fontSize: 11.5, color: '#c9a24b', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1 }}>
           {location} · {dates}
         </div>
-        <div
-          style={{
-            fontFamily: POPPINS,
-            fontWeight: 500,
-            fontSize: 13,
-            color: '#b8ab97',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 4,
-            flexWrap: 'nowrap',
-          }}
-        >
+        <div style={{ fontFamily: POPPINS, fontWeight: 500, fontSize: 13, color: '#b8ab97', display: 'flex', alignItems: 'center', gap: 4 }}>
           <span>See all the</span>
-          <span style={{ fontFamily: PLAYFAIR_ITALIC, fontStyle: 'italic', color: '#d8b873' }}>
-            whispered
-          </span>
+          <span style={{ fontFamily: PLAYFAIR_ITALIC, fontStyle: 'italic', color: '#d8b873' }}>whispered</span>
           <span>events</span>
           <BannerArrow nudge={hov} />
         </div>
       </div>
-      {/* Right: logo with radial glow */}
+      {/* Right: logo panel — takes ~42%, styled per conference */}
       <div
         style={{
-          flexShrink: 0,
+          flex: '0 0 42%',
           position: 'relative',
+          overflow: 'hidden',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: '0 20px',
-          minWidth: 140,
+          background: rightPanelBg,
         }}
       >
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            background: `radial-gradient(ellipse at center, ${accentGlow} 0%, transparent 70%)`,
-          }}
-        />
-        <img
-          src={logoSrc}
-          alt=""
-          aria-hidden
-          style={{
-            height: typeof logoHeight === 'number' ? `${logoHeight}px` : logoHeight,
-            maxWidth: typeof logoMaxWidth === 'number' ? `${logoMaxWidth}px` : logoMaxWidth,
-            objectFit: 'contain',
-            position: 'relative',
-            zIndex: 1,
-          }}
-        />
+        <img src={logoSrc} alt="" aria-hidden style={{ position: 'relative', zIndex: 1, ...logoStyle }} />
       </div>
     </a>
   )
@@ -1149,37 +1092,29 @@ function SideEventCard({
 function SideEventBanners() {
   return (
     <section className="max-w-[1080px] mx-auto px-5 sm:px-11 pb-10">
-      <div
-        style={{
-          fontSize: 11,
-          letterSpacing: '.3em',
-          textTransform: 'uppercase',
-          color: 'rgba(236,230,218,.4)',
-          marginBottom: 18,
-        }}
-      >
+      <div style={{ fontSize: 11, letterSpacing: '.3em', textTransform: 'uppercase', color: 'rgba(236,230,218,.4)', marginBottom: 18 }}>
         Whispered Side Events
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Dreamforce — white-bg JPEG dissolved into teal panel via multiply */}
         <SideEventCard
           title="Dreamforce '26 Side Events"
           location="San Francisco"
           dates="September 15–17"
-          logoSrc="/banners/logo-astro-dreamforce26.jpeg"
-          logoHeight={104}
-          logoMaxWidth={120}
-          accentGlow="rgba(13,157,218,0.16)"
           href="#"
+          rightPanelBg="linear-gradient(135deg, #0d3d4a 0%, #082b36 100%)"
+          logoSrc="/banners/logo-astro-dreamforce26.jpeg"
+          logoStyle={{ height: 140, width: 'auto', objectFit: 'contain', mixBlendMode: 'multiply' }}
         />
+        {/* Unbound — dark-bg JPEG fills panel naturally */}
         <SideEventCard
           title="Unbound '26 Side Events"
           location="Boston"
           dates="September 16–18"
-          logoSrc="/banners/logo-hubspot-unbound26.jpeg"
-          logoHeight="auto"
-          logoMaxWidth={150}
-          accentGlow="rgba(255,95,120,0.16)"
           href="#"
+          rightPanelBg="linear-gradient(135deg, #3a0e2a 0%, #1e0815 100%)"
+          logoSrc="/banners/logo-hubspot-unbound26.jpeg"
+          logoStyle={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }}
         />
       </div>
     </section>
