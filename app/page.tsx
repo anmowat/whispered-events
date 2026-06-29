@@ -1023,14 +1023,14 @@ function SideEventBanners() {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <a href="#" className="block transition-opacity hover:opacity-90">
           <img
-            src="/banners/dreamforce-26-banner.jpeg"
+            src="/banners/dreamforce-26-banner.png"
             alt="Dreamforce '26 Side Events — San Francisco, September 15–17"
             className="w-full rounded-[16px] block"
           />
         </a>
         <a href="#" className="block transition-opacity hover:opacity-90">
           <img
-            src="/banners/unbound-26-banner.jpeg"
+            src="/banners/unbound-26-banner.png"
             alt="Unbound '26 Side Events — Boston, September 16–18"
             className="w-full rounded-[16px] block"
           />
