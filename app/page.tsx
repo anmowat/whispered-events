@@ -1165,7 +1165,7 @@ function SideEventBanners() {
           title="Dreamforce '26 Side Events"
           location="San Francisco"
           dates="September 15–17"
-          logoSrc="/banners/logo-astro-dreamforce26.png"
+          logoSrc="/banners/logo-astro-dreamforce26.jpeg"
           logoHeight={104}
           logoMaxWidth={120}
           accentGlow="rgba(13,157,218,0.16)"
@@ -1175,7 +1175,7 @@ function SideEventBanners() {
           title="Unbound '26 Side Events"
           location="Boston"
           dates="September 16–18"
-          logoSrc="/banners/logo-hubspot-unbound26.png"
+          logoSrc="/banners/logo-hubspot-unbound26.jpeg"
           logoHeight="auto"
           logoMaxWidth={150}
           accentGlow="rgba(255,95,120,0.16)"
