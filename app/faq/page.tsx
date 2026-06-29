@@ -83,10 +83,14 @@ export default function FaqPage() {
             <strong style={{ color: 'var(--ink-3)', fontWeight: 600, marginRight: 6 }}>
               A:
             </strong>
-            Yes. While Whispered Events focuses on executive-level events, we
-            do admit everyone. Unlike lists of events where everyone can see
-            every event, we use your profile and interests (see below) to
-            match you to events that fit for you.
+            Yes — everyone&apos;s in. Whispered Events skews executive-level,
+            but we admit everyone who applies — as long as your profile matches
+            your LinkedIn. Instead of sending every event to every user, we use
+            your profile and interests to surface the ones that actually fit.
+            Final say belongs to each organizer — they decide who attends; we
+            just point you to the right rooms and make the best matches we can.
+            Rate your matches 👍 or 👎 on your{' '}
+            <Link href="/dashboard">dashboard</Link> to help us improve.
           </p>
         </section>
 
