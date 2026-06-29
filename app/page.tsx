@@ -141,6 +141,7 @@ export default function Home() {
   const [mode, setMode] = useState<Mode>('landing')
   const [showLogin, setShowLogin] = useState(false)
   const [showAddEvent, setShowAddEvent] = useState(false)
+  const [sideEventModal, setSideEventModal] = useState<'dreamforce' | 'unbound' | null>(null)
   const [eventCount, setEventCount] = useState(0)
   const [partners, setPartners] = useState<Partner[]>([])
   const [featuredEvents, setFeaturedEvents] = useState<FeaturedEvent[]>([])
@@ -323,6 +324,17 @@ export default function Home() {
           }}
         />
       )}
+      {sideEventModal && (
+        <SideEventModal
+          which={sideEventModal}
+          onClose={() => setSideEventModal(null)}
+          onShareOnSite={() => {
+            setSideEventModal(null)
+            setTab('contribute')
+            setMode('active')
+          }}
+        />
+      )}
 
       <AfterHoursHeader
         activeTab={tab}
@@ -395,6 +407,7 @@ export default function Home() {
             featuredEvents={featuredEvents}
             matches30={matches30}
             onCTA={handleCTA}
+            onSideEvent={setSideEventModal}
           />
         ) : (
           <ActiveMode tab={tab} eventCount={eventCount} onBack={handleBack} onShowPartner={() => selectTab('partner')} />
@@ -527,6 +540,7 @@ function Landing({
   featuredEvents,
   matches30,
   onCTA,
+  onSideEvent,
 }: {
   tab: HeaderTab
   content: TabContent
@@ -534,6 +548,7 @@ function Landing({
   featuredEvents: FeaturedEvent[]
   matches30: number | null
   onCTA: () => void
+  onSideEvent: (which: 'dreamforce' | 'unbound') => void
 }) {
   // Carousel uses every event we have an image for (no top-N truncation
   // since the user scrolls horizontally instead of seeing them all
@@ -642,7 +657,12 @@ function Landing({
 
       {/* Side Events banners — Dreamforce + Unbound. Shown on Find
           Events and Contribute tabs; hidden on Partner tab. */}
-      {tab !== 'partner' && <SideEventBanners />}
+      {tab !== 'partner' && (
+        <SideEventBanners
+          onDreamforce={() => onSideEvent('dreamforce')}
+          onUnbound={() => onSideEvent('unbound')}
+        />
+      )}
 
       {/* Bottom section: Find Events / Contribute show example past
           events. Partner tab shows the partner marquee instead — the
@@ -1014,29 +1034,230 @@ function BannerArrow({ nudge }: { nudge: boolean }) {
   )
 }
 
-function SideEventBanners() {
+function SideEventBanners({
+  onDreamforce,
+  onUnbound,
+}: {
+  onDreamforce: () => void
+  onUnbound: () => void
+}) {
   return (
     <section className="max-w-[1080px] mx-auto px-5 sm:px-11 pb-10">
       <div style={{ fontSize: 11, letterSpacing: '.3em', textTransform: 'uppercase', color: 'rgba(236,230,218,.4)', marginBottom: 18 }}>
         Whispered Side Events
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <a href="#" className="block transition-opacity hover:opacity-90">
+        <button
+          type="button"
+          onClick={onDreamforce}
+          className="block w-full transition-opacity hover:opacity-90 cursor-pointer"
+          style={{ background: 'none', border: 'none', padding: 0 }}
+        >
           <img
             src="/banners/dreamforce-26-banner.png"
             alt="Dreamforce '26 Side Events — San Francisco, September 15–17"
             className="w-full rounded-[16px] block"
           />
-        </a>
-        <a href="#" className="block transition-opacity hover:opacity-90">
+        </button>
+        <button
+          type="button"
+          onClick={onUnbound}
+          className="block w-full transition-opacity hover:opacity-90 cursor-pointer"
+          style={{ background: 'none', border: 'none', padding: 0 }}
+        >
           <img
             src="/banners/unbound-26-banner.png"
             alt="Unbound '26 Side Events — Boston, September 16–18"
             className="w-full rounded-[16px] block"
           />
-        </a>
+        </button>
       </div>
     </section>
+  )
+}
+
+// ---------------- Side Event Modal ----------------
+
+const SIDE_EVENT_CONTENT = {
+  dreamforce: {
+    title: "Dreamforce '26 Side Events",
+    badge: 'Coming Soon',
+    body: (
+      <>
+        Check back in early August for our page with{' '}
+        <em>every</em> side event.
+      </>
+    ),
+    cta: (
+      <>
+        <em>Hosting an event at Dreamforce?</em> Share here 👇
+      </>
+    ),
+    email: 'event@whispered.com',
+    subject: "Dreamforce '26 side event",
+  },
+  unbound: {
+    title: "Unbound '26 Side Events",
+    badge: 'Coming Soon',
+    body: (
+      <>
+        Check back in early August for our page with{' '}
+        <em>every</em> side event.
+      </>
+    ),
+    cta: (
+      <>
+        <em>Hosting an event at Unbound?</em> Share here 👇
+      </>
+    ),
+    email: 'event@whispered.com',
+    subject: "Unbound '26 side event",
+  },
+} as const
+
+function SideEventModal({
+  which,
+  onClose,
+  onShareOnSite,
+}: {
+  which: 'dreamforce' | 'unbound'
+  onClose: () => void
+  onShareOnSite: () => void
+}) {
+  const content = SIDE_EVENT_CONTENT[which]
+  const [copied, setCopied] = useState(false)
+
+  const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(content.email)}&su=${encodeURIComponent(content.subject)}`
+  const mailtoUrl = `mailto:${content.email}?subject=${encodeURIComponent(content.subject)}`
+
+  async function handleCopy() {
+    try {
+      await navigator.clipboard.writeText(content.email)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1800)
+    } catch {
+      // ignore — user can still select the address manually
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(20,15,10,0.55)' }}
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-[420px] rounded-card border p-6"
+        style={{ background: '#252220', borderColor: 'rgba(236,230,218,.13)' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between mb-3 gap-3">
+          <div>
+            <h2
+              className="font-serif m-0"
+              style={{ fontSize: 22, color: '#ece6da', letterSpacing: '-0.01em', lineHeight: 1.2 }}
+            >
+              {content.title}
+            </h2>
+            <span
+              className="inline-block mt-1.5 rounded-pill px-2 py-0.5 text-[10px] font-semibold tracking-widest uppercase"
+              style={{ background: 'rgba(201,168,106,.18)', color: '#c9a86a', letterSpacing: '.12em' }}
+            >
+              {content.badge}
+            </span>
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="text-xl leading-none shrink-0 mt-0.5"
+            style={{ color: 'rgba(236,230,218,.5)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+          >
+            &times;
+          </button>
+        </div>
+
+        <div
+          className="mb-4 space-y-2"
+          style={{ fontSize: 13.5, color: 'rgba(236,230,218,.78)', lineHeight: 1.55 }}
+        >
+          <p className="m-0">{content.body}</p>
+          <p className="m-0" style={{ color: '#c9a86a' }}>{content.cta}</p>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <a
+            href={gmailUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-pill text-[13px] font-semibold text-center py-2.5 transition-colors"
+            style={{ background: '#c9a86a', color: '#1b1814', letterSpacing: '.01em' }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = '#d5b87c')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = '#c9a86a')}
+          >
+            Open in Gmail
+          </a>
+          <a
+            href={mailtoUrl}
+            className="rounded-pill text-[13px] font-medium text-center py-2.5 border transition-colors"
+            style={{ borderColor: 'rgba(236,230,218,.28)', color: '#ece6da' }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = '#c9a86a'
+              e.currentTarget.style.color = '#c9a86a'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'rgba(236,230,218,.28)'
+              e.currentTarget.style.color = '#ece6da'
+            }}
+          >
+            Open in default mail app
+          </a>
+          <button
+            type="button"
+            onClick={onShareOnSite}
+            className="rounded-pill text-[13px] font-medium text-center py-2.5 border transition-colors"
+            style={{
+              borderColor: 'rgba(236,230,218,.28)',
+              color: '#ece6da',
+              background: 'transparent',
+              cursor: 'pointer',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = '#c9a86a'
+              e.currentTarget.style.color = '#c9a86a'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'rgba(236,230,218,.28)'
+              e.currentTarget.style.color = '#ece6da'
+            }}
+          >
+            Share on site
+          </button>
+        </div>
+
+        <p
+          className="m-0 mt-4 text-center"
+          style={{ fontSize: 12, color: 'rgba(236,230,218,.5)', lineHeight: 1.5 }}
+        >
+          <button
+            onClick={handleCopy}
+            className="inline-flex items-center gap-1.5 underline"
+            style={{
+              color: copied ? '#c9a86a' : 'rgba(236,230,218,.7)',
+              textUnderlineOffset: 2,
+              background: 'none',
+              border: 'none',
+              padding: 0,
+              cursor: 'pointer',
+              font: 'inherit',
+            }}
+            aria-label={`Copy ${content.email} to clipboard`}
+          >
+            <span>Email {copied ? `${content.email} (copied)` : content.email}</span>
+            <CopyIcon />
+          </button>
+        </p>
+      </div>
+    </div>
   )
 }
 
