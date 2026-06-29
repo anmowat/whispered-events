@@ -640,6 +640,10 @@ function Landing({
             below) so the social proof + browse path stay together. */}
       </section>
 
+      {/* Side Events banners — Dreamforce + Unbound. Shown on Find
+          Events and Contribute tabs; hidden on Partner tab. */}
+      {tab !== 'partner' && <SideEventBanners />}
+
       {/* Bottom section: Find Events / Contribute show example past
           events. Partner tab shows the partner marquee instead — the
           strongest social proof for prospects evaluating whether to
@@ -975,6 +979,210 @@ function ActiveMode({
       )}
       {tab === 'partner' && <PartnerApplyTab onDone={onBack} />}
     </div>
+  )
+}
+
+// ---------------- Side Event Banners ----------------
+
+const POPPINS = 'var(--font-poppins), "Poppins", system-ui, sans-serif'
+const PLAYFAIR_ITALIC = 'var(--font-playfair-display), "Playfair Display", Georgia, serif'
+
+function BannerArrow({ nudge }: { nudge: boolean }) {
+  return (
+    <svg
+      width="13"
+      height="11"
+      viewBox="0 0 13 11"
+      fill="none"
+      aria-hidden
+      style={{
+        display: 'inline-block',
+        flexShrink: 0,
+        color: '#c9a24b',
+        transition: 'transform 0.16s ease',
+        transform: nudge ? 'translateX(3px)' : 'translateX(0)',
+      }}
+    >
+      <path
+        d="M1 5.5h11M7.5 1l5 4.5-5 4.5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+function SideEventCard({
+  title,
+  location,
+  dates,
+  logoSrc,
+  logoHeight,
+  logoMaxWidth,
+  accentGlow,
+  href,
+}: {
+  title: string
+  location: string
+  dates: string
+  logoSrc: string
+  logoHeight: number | string
+  logoMaxWidth: number | string
+  accentGlow: string
+  href: string
+}) {
+  const [hov, setHov] = useState(false)
+  return (
+    <a
+      href={href}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        display: 'flex',
+        alignItems: 'stretch',
+        background: 'linear-gradient(180deg, #2a241c 0%, #211c16 100%)',
+        borderRadius: 16,
+        border: `1px solid ${hov ? 'rgba(201,162,75,0.45)' : 'rgba(201,162,75,0.18)'}`,
+        boxShadow: hov ? '0 6px 24px rgba(0,0,0,0.55)' : '0 4px 16px rgba(0,0,0,0.38)',
+        overflow: 'hidden',
+        textDecoration: 'none',
+        minHeight: 124,
+        transform: hov ? 'translateY(-2px)' : 'translateY(0)',
+        transition: 'transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease',
+      }}
+    >
+      {/* Left: text */}
+      <div
+        style={{
+          flex: 1,
+          minWidth: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          gap: 5,
+          padding: '16px 18px 16px 24px',
+        }}
+      >
+        <div
+          style={{
+            fontFamily: POPPINS,
+            fontWeight: 700,
+            fontSize: 21,
+            color: '#f3ece0',
+            whiteSpace: 'nowrap',
+            lineHeight: 1.15,
+          }}
+        >
+          {title}
+        </div>
+        <div
+          style={{
+            fontFamily: POPPINS,
+            fontWeight: 600,
+            fontSize: 12,
+            color: '#c9a24b',
+            textTransform: 'uppercase',
+            letterSpacing: '0.04em',
+            lineHeight: 1,
+          }}
+        >
+          {location} · {dates}
+        </div>
+        <div
+          style={{
+            fontFamily: POPPINS,
+            fontWeight: 500,
+            fontSize: 13,
+            color: '#b8ab97',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+            flexWrap: 'nowrap',
+          }}
+        >
+          <span>See all the</span>
+          <span style={{ fontFamily: PLAYFAIR_ITALIC, fontStyle: 'italic', color: '#d8b873' }}>
+            whispered
+          </span>
+          <span>events</span>
+          <BannerArrow nudge={hov} />
+        </div>
+      </div>
+      {/* Right: logo with radial glow */}
+      <div
+        style={{
+          flexShrink: 0,
+          position: 'relative',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '0 20px',
+          minWidth: 140,
+        }}
+      >
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: `radial-gradient(ellipse at center, ${accentGlow} 0%, transparent 70%)`,
+          }}
+        />
+        <img
+          src={logoSrc}
+          alt=""
+          aria-hidden
+          style={{
+            height: typeof logoHeight === 'number' ? `${logoHeight}px` : logoHeight,
+            maxWidth: typeof logoMaxWidth === 'number' ? `${logoMaxWidth}px` : logoMaxWidth,
+            objectFit: 'contain',
+            position: 'relative',
+            zIndex: 1,
+          }}
+        />
+      </div>
+    </a>
+  )
+}
+
+function SideEventBanners() {
+  return (
+    <section className="max-w-[1080px] mx-auto px-5 sm:px-11 pb-10">
+      <div
+        style={{
+          fontSize: 11,
+          letterSpacing: '.3em',
+          textTransform: 'uppercase',
+          color: 'rgba(236,230,218,.4)',
+          marginBottom: 18,
+        }}
+      >
+        Whispered Side Events
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <SideEventCard
+          title="Dreamforce '26 Side Events"
+          location="San Francisco"
+          dates="September 15–17"
+          logoSrc="/banners/logo-astro-dreamforce26.png"
+          logoHeight={104}
+          logoMaxWidth={120}
+          accentGlow="rgba(13,157,218,0.16)"
+          href="#"
+        />
+        <SideEventCard
+          title="Unbound '26 Side Events"
+          location="Boston"
+          dates="September 16–18"
+          logoSrc="/banners/logo-hubspot-unbound26.png"
+          logoHeight="auto"
+          logoMaxWidth={150}
+          accentGlow="rgba(255,95,120,0.16)"
+          href="#"
+        />
+      </div>
+    </section>
   )
 }
 

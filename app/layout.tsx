@@ -5,6 +5,8 @@ import {
   Newsreader,
   Cormorant_Garamond,
   Hanken_Grotesk,
+  Poppins,
+  Playfair_Display,
 } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
@@ -56,6 +58,22 @@ const hankenGrotesk = Hanken_Grotesk({
   subsets: ['latin'],
   variable: '--font-hanken',
   display: 'swap',
+})
+
+const poppins = Poppins({
+  weight: ['400', '500', '600', '700'],
+  subsets: ['latin'],
+  variable: '--font-poppins',
+  display: 'swap',
+})
+
+const playfairDisplay = Playfair_Display({
+  weight: ['400'],
+  style: ['italic'],
+  subsets: ['latin'],
+  variable: '--font-playfair-display',
+  display: 'swap',
+  adjustFontFallback: false,
 })
 
 export const metadata: Metadata = {
@@ -110,7 +128,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geist.variable} ${instrumentSerif.variable} ${newsreader.variable} ${cormorantGaramond.variable} ${hankenGrotesk.variable}`}
+      className={`${geist.variable} ${instrumentSerif.variable} ${newsreader.variable} ${cormorantGaramond.variable} ${hankenGrotesk.variable} ${poppins.variable} ${playfairDisplay.variable}`}
     >
       <body className="min-h-screen bg-bg text-ink antialiased font-sans">
         {children}
