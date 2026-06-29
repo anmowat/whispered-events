@@ -65,6 +65,7 @@ export default function HostEventDetailPage() {
 
   const [event, setEvent] = useState<HostEvent | null>(null)
   const [matches, setMatches] = useState<HostMatch[]>([])
+  const [regionCount, setRegionCount] = useState<number | null>(null)
   const [authState, setAuthState] = useState<'unknown' | 'authorized' | 'unauthorized' | 'not_found' | 'error'>('unknown')
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [showLogin, setShowLogin] = useState(false)
@@ -88,9 +89,10 @@ export default function HostEventDetailPage() {
         setErrorMsg(data.error || `HTTP ${res.status}`)
         return
       }
-      const data = (await res.json()) as { event: HostEvent; matches: HostMatch[] }
+      const data = (await res.json()) as { event: HostEvent; matches: HostMatch[]; regionCount?: number }
       setEvent(data.event)
       setMatches(data.matches)
+      setRegionCount(data.regionCount ?? null)
       setAuthState('authorized')
     } catch (e) {
       setAuthState('error')
@@ -234,7 +236,17 @@ export default function HostEventDetailPage() {
             )}
 
             <div className="flex items-end justify-between mt-10 mb-3.5 flex-wrap gap-2">
-              <div className="eyebrow">Matches · {matches.length}</div>
+              <div className="eyebrow">
+                Matches · {matches.length}
+                {regionCount !== null && regionCount > 0 && (
+                  <span
+                    style={{ fontWeight: 400, color: 'var(--ink-3)', letterSpacing: 0 }}
+                    title={`${matches.length} matched · ${regionCount} members within 150 miles`}
+                  >
+                    {' '}out of {regionCount} within region
+                  </span>
+                )}
+              </div>
               <p style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>
                 Execs whose profile fits this event (≥ 40% match)
               </p>
@@ -349,8 +361,8 @@ function EventSummary({ event, onEdit }: { event: HostEvent; onEdit: () => void 
           <SummaryField label="Location" value={event.location} />
           <SummaryField label="Audience" value={event.audience.join(', ')} />
           <SummaryField label="Description" value={event.description} multiline />
-          <SummaryField label="Invite: Employment" value={(event.inviteEmployment ?? []).join(', ')} />
-          <SummaryField label="Invite: Company Size" value={(event.inviteCompanySize ?? []).join(', ')} />
+          <SummaryField label="Employment" value={(event.inviteEmployment ?? []).join(', ')} />
+          <SummaryField label="Company Size" value={(event.inviteCompanySize ?? []).join(', ')} />
         </dl>
       </div>
     </section>
@@ -455,13 +467,13 @@ function EditForm({
             <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4} className={`${editInputCls} resize-none`} />
           </EditField>
           <HostMultiCheckbox
-            label="Invite: Employment"
+            label="Employment"
             options={[...INVITE_EMPLOYMENT_OPTIONS]}
             value={inviteEmployment}
             onChange={setInviteEmployment}
           />
           <HostMultiCheckbox
-            label="Invite: Company Size"
+            label="Company Size"
             options={[...INVITE_COMPANY_SIZE_OPTIONS]}
             value={inviteCompanySize}
             onChange={setInviteCompanySize}

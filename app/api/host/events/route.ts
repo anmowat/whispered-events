@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/host-auth'
 import { getEventsHostedBy } from '@/lib/events'
-import { getMatchCountsByEventId } from '@/lib/supabase'
+import { getMatchCountsByEventId, getRegionCountsByEventId } from '@/lib/supabase'
 
 // Returns the caller's upcoming hosted events with a match count for each.
 // Auth: requires a valid session cookie that resolves to a known Airtable
@@ -17,7 +17,11 @@ export async function GET(req: NextRequest) {
 
   try {
     const events = await getEventsHostedBy(user.id)
-    const counts = await getMatchCountsByEventId(events.map((e) => e.id))
+    const eventIds = events.map((e) => e.id)
+    const [counts, regionCounts] = await Promise.all([
+      getMatchCountsByEventId(eventIds),
+      getRegionCountsByEventId(eventIds),
+    ])
 
     const rows = events
       .map((e) => ({
@@ -27,6 +31,7 @@ export async function GET(req: NextRequest) {
         date: e.date,
         link: e.link,
         matchCount: counts.get(e.id) ?? 0,
+        regionCount: regionCounts.get(e.id) ?? 0,
       }))
       .sort((a, b) => (a.date || '').localeCompare(b.date || ''))
 

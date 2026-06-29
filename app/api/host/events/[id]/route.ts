@@ -4,7 +4,7 @@ import { getSessionUser } from '@/lib/host-auth'
 import { updateEvent } from '@/lib/airtable'
 import { getActiveUsers } from '@/lib/users'
 import { getEventByIdIfHost } from '@/lib/events'
-import { getMatchesForEvent } from '@/lib/supabase'
+import { getMatchesForEvent, getRegionCountsByEventId } from '@/lib/supabase'
 import { notifyHostEventUpdate, type FieldChange } from '@/lib/slack'
 import { EventRecord, VIRTUAL_LOCATION_RE } from '@/lib/types'
 
@@ -31,10 +31,12 @@ export async function GET(
   }
 
   try {
-    const [matchRows, activeUsers] = await Promise.all([
-      getMatchesForEvent(event.id),
+    const [matchRows, activeUsers, regionCounts] = await Promise.all([
+      getMatchesForEvent(event.id!),
       getActiveUsers(),
+      getRegionCountsByEventId([event.id!]),
     ])
+    const regionCount = regionCounts.get(event.id!) ?? 0
 
     const usersById = new Map(activeUsers.map((u) => [u.id, u]))
 
@@ -64,7 +66,7 @@ export async function GET(
       })
     }
 
-    return NextResponse.json({ event, matches })
+    return NextResponse.json({ event, matches, regionCount })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     console.error('host/events/[id] error:', message)

@@ -12,6 +12,7 @@ interface HostedEvent {
   date: string
   link: string
   matchCount: number
+  regionCount: number
 }
 
 type SortKey = 'date' | 'name'
@@ -297,7 +298,12 @@ export default function HostPage() {
                     <th className="text-left px-4 py-3 eyebrow">Event</th>
                     <th className="text-left px-4 py-3 eyebrow">Location</th>
                     <th className="text-left px-4 py-3 eyebrow">Date</th>
-                    <th className="text-right px-4 py-3 eyebrow">Matches</th>
+                    <th
+                      className="text-right px-4 py-3 eyebrow cursor-help"
+                      title="Matched / total members within 150 miles of this event"
+                    >
+                      Matches
+                    </th>
                     <th className="text-right px-4 py-3 eyebrow"></th>
                   </tr>
                 </thead>
@@ -332,12 +338,19 @@ export default function HostPage() {
                         {formatDate(e.date)}
                       </td>
                       <td
-                        className="px-4 py-3 text-right num font-medium"
+                        className="px-4 py-3 text-right num font-medium cursor-help"
+                        title={`${e.matchCount} matched · ${e.regionCount} members within 150 miles`}
                         style={{
                           color: e.matchCount === 0 ? 'var(--ink-3)' : 'var(--ink)',
                         }}
                       >
                         {e.matchCount}
+                        {e.regionCount > 0 && (
+                          <span style={{ color: 'var(--ink-3)', fontWeight: 400 }}>
+                            {' '}/{' '}
+                            <span style={{ color: 'var(--ink-2)' }}>{e.regionCount}</span>
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-right">
                         <a

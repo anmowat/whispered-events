@@ -376,6 +376,38 @@ export async function getMatchCountsByUserId(
   return counts
 }
 
+// Returns event_id -> count of distinct users confirmed within the 150-mile
+// matching radius for each event. A user is "in region" when their
+// location_score > 0 — meaning the scoring pass ran and placed them inside
+// MAX_MILES. This excludes grade_c (location never computed) and location_zero
+// (explicitly out of range), so it's an accurate "nearby eligible population"
+// denominator for the host UI.
+export async function getRegionCountsByEventId(
+  eventIds: string[],
+): Promise<Map<string, number>> {
+  if (eventIds.length === 0) return new Map()
+  const supabase = getClient()
+  const { data, error } = await supabase
+    .from('matches')
+    .select('event_id, user_id')
+    .gt('location_score', 0)
+    .in('event_id', eventIds)
+  if (error) {
+    console.error('getRegionCountsByEventId error', error)
+    return new Map()
+  }
+  const seen = new Map<string, Set<string>>()
+  for (const row of (data ?? []) as Array<{ event_id: string; user_id: string }>) {
+    if (!row.event_id || !row.user_id) continue
+    const set = seen.get(row.event_id) ?? new Set<string>()
+    set.add(row.user_id)
+    seen.set(row.event_id, set)
+  }
+  const counts = new Map<string, number>()
+  seen.forEach((set, id) => counts.set(id, set.size))
+  return counts
+}
+
 // Returns event_id -> count of matches above NOTIFY_THRESHOLD (skipped excluded).
 // Used by the host listing page to show how many execs match each event.
 export async function getMatchCountsByEventId(
