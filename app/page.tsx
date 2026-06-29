@@ -1078,6 +1078,7 @@ function SideEventBanners({
 
 // ---------------- Side Event Modal ----------------
 
+const GOLD = '#c9a86a'
 const SIDE_EVENT_CONTENT = {
   dreamforce: {
     title: "Dreamforce '26 Side Events",
@@ -1085,12 +1086,12 @@ const SIDE_EVENT_CONTENT = {
     body: (
       <>
         Check back in early August for our page with{' '}
-        <em>every</em> side event.
+        <strong style={{ color: GOLD, fontWeight: 700 }}>every</strong> side event.
       </>
     ),
     cta: (
       <>
-        <em>Hosting an event at Dreamforce?</em> Share here 👇
+        <strong style={{ color: GOLD, fontWeight: 700 }}>Hosting an event at Dreamforce?</strong>{' '}Share here 👇
       </>
     ),
     email: 'event@whispered.com',
@@ -1102,12 +1103,12 @@ const SIDE_EVENT_CONTENT = {
     body: (
       <>
         Check back in early August for our page with{' '}
-        <em>every</em> side event.
+        <strong style={{ color: GOLD, fontWeight: 700 }}>every</strong> side event.
       </>
     ),
     cta: (
       <>
-        <em>Hosting an event at Unbound?</em> Share here 👇
+        <strong style={{ color: GOLD, fontWeight: 700 }}>Hosting an event at Unbound?</strong>{' '}Share here 👇
       </>
     ),
     email: 'event@whispered.com',
@@ -1181,7 +1182,7 @@ function SideEventModal({
           style={{ fontSize: 13.5, color: 'rgba(236,230,218,.78)', lineHeight: 1.55 }}
         >
           <p className="m-0">{content.body}</p>
-          <p className="m-0" style={{ color: '#c9a86a' }}>{content.cta}</p>
+          <p className="m-0">{content.cta}</p>
         </div>
 
         <div className="flex flex-col gap-2">
