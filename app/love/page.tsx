@@ -45,6 +45,22 @@ const POSTS: LovePost[] = [
     linkedinUrl:
       'https://www.linkedin.com/posts/nzeckets_whispered-events-activity-7476750915476054017-RV4a',
   },
+  {
+    id: 'chris-schwass',
+    author: 'Chris Schwass',
+    role: 'GTM Operations and Strategy',
+    imageUrl: '/love/chris-schwass.png',
+    linkedinUrl:
+      'https://www.linkedin.com/posts/chrisschwass_i-want-to-attend-live-events-but-its-hard-share-7477568588988444673-Ymn0/',
+  },
+  {
+    id: 'mollie-bodensteiner',
+    author: 'Mollie Bodensteiner',
+    role: 'RevOps Leader',
+    imageUrl: '/love/mollie-bodensteiner.png',
+    linkedinUrl:
+      'https://www.linkedin.com/posts/molliebodensteiner_whispered-events-share-7477690356273168385-xFgS/',
+  },
 ]
 
 export default function LovePage() {
