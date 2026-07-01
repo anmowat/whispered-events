@@ -9,7 +9,7 @@ import {
   eventStatusPillClass,
   type EventStatus,
 } from '@/lib/event-status'
-import { INVITE_EMPLOYMENT_OPTIONS, INVITE_COMPANY_SIZE_OPTIONS } from '@/lib/types'
+import { INVITE_EMPLOYMENT_OPTIONS, INVITE_COMPANY_SIZE_OPTIONS, INVITE_SENIORITY_OPTIONS } from '@/lib/types'
 
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024
 
@@ -38,6 +38,7 @@ interface EventDetail {
   submitterEmail: string
   inviteEmployment: string[]
   inviteCompanySize: string[]
+  inviteSeniority: string[]
 }
 
 // Draft mirrors EventDetail's editable fields. audience is a comma-joined
@@ -57,6 +58,7 @@ interface EventDraft {
   status: EventStatus
   inviteEmployment: string[]
   inviteCompanySize: string[]
+  inviteSeniority: string[]
 }
 
 function hostDisplayName(h: Host): string {
@@ -80,6 +82,7 @@ function draftFromEvent(e: EventDetail): EventDraft {
     status: normalizeEventStatus(e.status),
     inviteEmployment: e.inviteEmployment ?? [],
     inviteCompanySize: e.inviteCompanySize ?? [],
+    inviteSeniority: e.inviteSeniority ?? [],
   }
 }
 
@@ -635,6 +638,7 @@ export default function AdminEventDetailPage() {
                   <Field label="Description" value={event.description} multiline />
                   <Field label="Invite: Employment" value={event.inviteEmployment.join(', ')} />
                   <Field label="Invite: Company Size" value={event.inviteCompanySize.join(', ')} />
+                  <Field label="Invite: Seniority" value={event.inviteSeniority.join(', ')} />
                 </dl>
               ) : (
                 <EventEditForm draft={draft!} onChange={setDraft} disabled={editBusy} />
@@ -957,6 +961,13 @@ function EventEditForm({
           options={[...INVITE_COMPANY_SIZE_OPTIONS]}
           value={draft.inviteCompanySize}
           onChange={(v) => update('inviteCompanySize', v)}
+          disabled={disabled}
+        />
+        <AdminMultiCheckbox
+          label="Invite: Seniority"
+          options={[...INVITE_SENIORITY_OPTIONS]}
+          value={draft.inviteSeniority}
+          onChange={(v) => update('inviteSeniority', v)}
           disabled={disabled}
         />
       </div>

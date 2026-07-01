@@ -133,6 +133,7 @@ export async function GET(
         submitterEmail,
         inviteEmployment: event.inviteEmployment ?? [],
         inviteCompanySize: event.inviteCompanySize ?? [],
+        inviteSeniority: event.inviteSeniority ?? [],
       },
       users,
       generatedAt: new Date().toISOString(),
@@ -177,6 +178,7 @@ export async function PATCH(
       status?: unknown
       inviteEmployment?: unknown
       inviteCompanySize?: unknown
+      inviteSeniority?: unknown
     }
 
     const update: Parameters<typeof updateEvent>[1] = {}
@@ -203,6 +205,9 @@ export async function PATCH(
     }
     if (Array.isArray(body.inviteCompanySize)) {
       update.inviteCompanySize = body.inviteCompanySize.filter((s): s is string => typeof s === 'string')
+    }
+    if (Array.isArray(body.inviteSeniority)) {
+      update.inviteSeniority = body.inviteSeniority.filter((s): s is string => typeof s === 'string')
     }
 
     // hostEmails is the canonical edit surface for the host list. Resolve

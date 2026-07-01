@@ -47,6 +47,7 @@ interface EventRow {
   updated_at: string
   invite_employment: string[] | null
   invite_company_size: string[] | null
+  invite_seniority: string[] | null
 }
 
 function toAirtableEvent(row: EventRow): AirtableEvent {
@@ -71,6 +72,7 @@ function toAirtableEvent(row: EventRow): AirtableEvent {
     hostIds: row.host_ids ?? [],
     inviteEmployment: row.invite_employment ?? [],
     inviteCompanySize: row.invite_company_size ?? [],
+    inviteSeniority: row.invite_seniority ?? [],
   }
 }
 

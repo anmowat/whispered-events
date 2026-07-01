@@ -572,6 +572,9 @@ export async function updateEvent(
   if (fields.inviteCompanySize !== undefined) {
     supabaseRow.invite_company_size = fields.inviteCompanySize
   }
+  if (fields.inviteSeniority !== undefined) {
+    supabaseRow.invite_seniority = fields.inviteSeniority
+  }
 
   // Supabase first as the canonical write. Failures bubble up — caller
   // (admin save) needs to know if the change didn't land.
@@ -723,6 +726,8 @@ export interface AirtableEvent {
   inviteEmployment?: string[]
   /** Company sizes to invite — empty = no filter. */
   inviteCompanySize?: string[]
+  /** Seniority levels to invite — empty = no filter. */
+  inviteSeniority?: string[]
 }
 
 export async function getActiveUsers(): Promise<AirtableUser[]> {

@@ -30,10 +30,12 @@ export interface EventRecord {
   // enforce these in a future phase. Empty array = no filter (all invited).
   inviteEmployment?: string[]
   inviteCompanySize?: string[]
+  inviteSeniority?: string[]
 }
 
 export const INVITE_EMPLOYMENT_OPTIONS = ['Employed', 'Searching', 'Fractional', 'Other'] as const
 export const INVITE_COMPANY_SIZE_OPTIONS = ['1-50', '51-200', '201-1000', '1000+'] as const
+export const INVITE_SENIORITY_OPTIONS = ['C-Level', 'VP', 'Director', 'Lead', 'Manager', 'Junior'] as const
 
 export interface ParsedEvent {
   name?: string

@@ -18,6 +18,7 @@ interface HostEvent {
   audience: string[]
   inviteEmployment: string[]
   inviteCompanySize: string[]
+  inviteSeniority: string[]
 }
 
 interface HostMatch {
@@ -341,6 +342,7 @@ function EventSummary({ event }: { event: HostEvent }) {
           <SummaryField label="Description" value={event.description} multiline />
           <SummaryField label="Employment" value={(event.inviteEmployment ?? []).join(', ')} />
           <SummaryField label="Company Size" value={(event.inviteCompanySize ?? []).join(', ')} />
+          <SummaryField label="Seniority" value={(event.inviteSeniority ?? []).join(', ')} />
         </dl>
       </div>
     </section>
