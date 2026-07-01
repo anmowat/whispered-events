@@ -66,6 +66,7 @@ const POSTS: LovePost[] = [
 export default function LovePage() {
   const [showLogin, setShowLogin] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [posts, setPosts] = useState<LovePost[]>(POSTS)
 
   useEffect(() => {
     document.body.classList.add('theme-after-hours')
@@ -76,6 +77,13 @@ export default function LovePage() {
     fetch('/api/auth/me')
       .then((r) => r.json())
       .then((d: { user: unknown }) => setIsLoggedIn(!!d.user))
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    fetch('/api/love')
+      .then((r) => r.json())
+      .then((d: { entries?: LovePost[] }) => { if (d.entries?.length) setPosts(d.entries) })
       .catch(() => {})
   }, [])
 
@@ -122,7 +130,7 @@ export default function LovePage() {
         </p>
 
         <div className="mt-10 columns-1 sm:columns-2 gap-5">
-          {POSTS.map((post) => (
+          {posts.map((post) => (
             <PostCard key={post.id} post={post} />
           ))}
         </div>
