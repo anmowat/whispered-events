@@ -240,7 +240,13 @@ export default function HostPage() {
                 className="mt-3 mb-0 max-w-2xl leading-relaxed"
                 style={{ fontSize: 13.5, color: 'var(--ink-2)' }}
               >
-                <em>Want to change your event criteria and refine matches?</em>{' '}
+                View events you are hosting and the matches for each below.
+              </p>
+              <p
+                className="mt-2 mb-0 max-w-2xl leading-relaxed"
+                style={{ fontSize: 13.5, color: 'var(--ink-2)' }}
+              >
+                <strong style={{ color: 'var(--accent)' }}>Want to change your event criteria and refine matches?</strong>{' '}
                 Email{' '}
                 <a
                   href="mailto:team@whisperedevents.com"
@@ -255,7 +261,7 @@ export default function HostPage() {
                 className="mt-2 mb-0 max-w-2xl leading-relaxed"
                 style={{ fontSize: 13.5, color: 'var(--ink-2)' }}
               >
-                <em>Feedback / questions / feature suggestions?</em>{' '}
+                <strong style={{ color: 'var(--accent)' }}>Feedback / questions / feature suggestions?</strong>{' '}
                 Email{' '}
                 <a
                   href="mailto:team@whisperedevents.com"
