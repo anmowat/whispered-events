@@ -55,7 +55,7 @@ export async function geocodeLocation(text: string): Promise<LatLng | null> {
 
   await throttle()
   const query = expandStateAbbr(text.trim())
-  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=us&q=${encodeURIComponent(query)}`
+  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`
   try {
     const res = await fetch(url, {
       headers: { 'User-Agent': USER_AGENT, 'Accept-Language': 'en' },
