@@ -126,7 +126,27 @@ export default function LovePage() {
           className="mt-3 max-w-[560px]"
           style={{ fontSize: 14.5, color: 'var(--ink-2)', lineHeight: 1.6 }}
         >
-          Tag us on a post to help connect even more people
+          Tag our{' '}
+          <a
+            href="https://www.linkedin.com/company/whispered-events/?viewAsMember=true"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold"
+            style={{ color: 'var(--accent)' }}
+          >
+            LinkedIn Company Page
+          </a>
+          {' '}and{' '}
+          <a
+            href="https://www.linkedin.com/in/amowat/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold"
+            style={{ color: 'var(--accent)' }}
+          >
+            Founder
+          </a>
+          {' '}on a post to help connect even more people
         </p>
 
         {/* Mobile: single column in order */}
