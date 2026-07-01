@@ -633,22 +633,45 @@ export async function getPartners(): Promise<Partner[]> {
     })
     .all()
 
-  return records
-    .map((record) => {
-      const logo = record.get('Logo') as Array<{ url: string }> | undefined
+  // Fetch logo bytes in parallel and embed as data URLs so the browser gets
+  // every logo in the single /api/partners response (ISR-cached 24h) rather
+  // than firing N extra requests to /api/partner-logo/[id] per page load.
+  // Airtable signed URLs are only valid for ~2h, but we only read them here
+  // at ISR regeneration time — not at browser request time — so expiry is
+  // not a concern. Falls back to the proxy URL if a fetch fails.
+  const partners = await Promise.all(
+    records.map(async (record) => {
+      const logo = record.get('Logo') as Array<{ url: string; type?: string }> | undefined
+      const rawUrl = logo?.[0]?.url
+      let logoUrl = ''
+      if (rawUrl) {
+        try {
+          const res = await fetch(rawUrl)
+          if (res.ok) {
+            const buf = await res.arrayBuffer()
+            const b64 = Buffer.from(buf).toString('base64')
+            const ct = res.headers.get('content-type') || logo?.[0]?.type || 'image/png'
+            logoUrl = `data:${ct};base64,${b64}`
+          }
+        } catch {
+          // Network error — fall back to the proxy route
+          logoUrl = `/api/partner-logo/${record.id}`
+        }
+        if (!logoUrl) logoUrl = `/api/partner-logo/${record.id}`
+      }
       return {
         id: record.id,
         name: String(record.get('Name') || ''),
         type: String(record.get('Type') || ''),
-        // Point browsers at our own proxy route (stable, CDN-cached) instead
-        // of the raw Airtable signed URL (expires ~2h, so it breaks once cached).
-        logoUrl: logo?.[0]?.url ? `/api/partner-logo/${record.id}` : '',
+        logoUrl,
         website: String(record.get('Site') || ''),
         description: String(record.get('Description') || ''),
         stars: Number(record.get('Order') || 0),
       }
-    })
-    .filter((p) => p.logoUrl)
+    }),
+  )
+
+  return partners.filter((p) => p.logoUrl)
 }
 
 export interface AirtableUser {
