@@ -33,6 +33,7 @@ export default function AdminLovePage() {
   const [uploadingId, setUploadingId] = useState<string | null>(null)
   const [uploadError, setUploadError] = useState<{ id: string; msg: string } | null>(null)
   const [savingId, setSavingId] = useState<string | null>(null)
+  const [revalidating, setRevalidating] = useState(false)
 
   // File input refs keyed by entry id
   const fileInputRefs = useRef<Map<string, HTMLInputElement>>(new Map())
@@ -201,15 +202,30 @@ export default function AdminLovePage() {
                   <span className="ml-2 text-sm font-normal text-gray-400">· {entries.length}</span>
                 )}
               </h1>
-              {!adding && (
+              <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setAdding(true)}
-                  className="px-3 py-1.5 rounded-lg text-white text-xs font-medium transition-opacity hover:opacity-80"
-                  style={{ background: '#6E1F2B' }}
+                  onClick={async () => {
+                    setRevalidating(true)
+                    try {
+                      await fetch('/api/admin/love/revalidate', { method: 'POST' })
+                    } catch { /* ignore */ }
+                    setRevalidating(false)
+                  }}
+                  disabled={revalidating}
+                  className="px-3 py-1.5 rounded-lg border border-[#E8DDD0] bg-white text-xs text-gray-700 hover:bg-[#F5EFE6] disabled:opacity-50 transition-colors shadow-sm"
                 >
-                  + Add
+                  {revalidating ? 'Refreshing…' : 'Refresh Love'}
                 </button>
-              )}
+                {!adding && (
+                  <button
+                    onClick={() => setAdding(true)}
+                    className="px-3 py-1.5 rounded-lg text-white text-xs font-medium transition-opacity hover:opacity-80"
+                    style={{ background: '#6E1F2B' }}
+                  >
+                    + Add
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Add form */}
