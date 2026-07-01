@@ -1350,7 +1350,7 @@ function AddEventModal({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-[420px] rounded-card border p-6"
+        className="w-full max-w-[480px] rounded-card border p-6"
         style={{ background: '#252220', borderColor: 'rgba(236,230,218,.13)' }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -1374,16 +1374,12 @@ function AddEventModal({
         </div>
         <div
           className="m-0 mb-4 text-center space-y-1.5"
-          style={{ fontSize: 13.5, color: 'rgba(236,230,218,.78)', lineHeight: 1.55 }}
+          style={{ fontSize: 15, color: 'rgba(236,230,218,.78)', lineHeight: 1.55 }}
         >
           <p className="m-0">Share a link to any event</p>
-          <p className="m-0">
-            (one you&rsquo;re running or one you know about)
-          </p>
+          <p className="m-0">(one you&rsquo;re running or one you know about)</p>
           <p className="m-0">Our AI extracts the details</p>
-          <p className="m-0">
-            We share the event with the execs whose profile fits
-          </p>
+          <p className="m-0">We share the event with the execs whose profile fits</p>
           <p className="m-0">You get karma and credits 🥂</p>
         </div>
 
