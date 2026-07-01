@@ -18,6 +18,28 @@ let lastRequestAt = 0
 const MIN_INTERVAL_MS = 1100
 const USER_AGENT = 'WhisperedEvents/1.0 (https://www.whisperedevents.com)'
 
+const US_STATES: Record<string, string> = {
+  AL: 'Alabama', AK: 'Alaska', AZ: 'Arizona', AR: 'Arkansas', CA: 'California',
+  CO: 'Colorado', CT: 'Connecticut', DE: 'Delaware', FL: 'Florida', GA: 'Georgia',
+  HI: 'Hawaii', ID: 'Idaho', IL: 'Illinois', IN: 'Indiana', IA: 'Iowa',
+  KS: 'Kansas', KY: 'Kentucky', LA: 'Louisiana', ME: 'Maine', MD: 'Maryland',
+  MA: 'Massachusetts', MI: 'Michigan', MN: 'Minnesota', MS: 'Mississippi', MO: 'Missouri',
+  MT: 'Montana', NE: 'Nebraska', NV: 'Nevada', NH: 'New Hampshire', NJ: 'New Jersey',
+  NM: 'New Mexico', NY: 'New York', NC: 'North Carolina', ND: 'North Dakota', OH: 'Ohio',
+  OK: 'Oklahoma', OR: 'Oregon', PA: 'Pennsylvania', RI: 'Rhode Island', SC: 'South Carolina',
+  SD: 'South Dakota', TN: 'Tennessee', TX: 'Texas', UT: 'Utah', VT: 'Vermont',
+  VA: 'Virginia', WA: 'Washington', WV: 'West Virginia', WI: 'Wisconsin', WY: 'Wyoming',
+  DC: 'Washington DC',
+}
+
+// "Mason, NH" → "Mason, New Hampshire" so Nominatim resolves small towns reliably
+function expandStateAbbr(text: string): string {
+  return text.replace(/,\s*([A-Z]{2})\s*$/, (_, abbr: string) => {
+    const full = US_STATES[abbr]
+    return full ? `, ${full}` : `, ${abbr}`
+  })
+}
+
 async function throttle(): Promise<void> {
   const now = Date.now()
   const wait = Math.max(0, lastRequestAt + MIN_INTERVAL_MS - now)
@@ -32,7 +54,8 @@ export async function geocodeLocation(text: string): Promise<LatLng | null> {
   if (cache.has(key)) return cache.get(key)!
 
   await throttle()
-  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(text)}`
+  const query = expandStateAbbr(text.trim())
+  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=us&q=${encodeURIComponent(query)}`
   try {
     const res = await fetch(url, {
       headers: { 'User-Agent': USER_AGENT, 'Accept-Language': 'en' },
