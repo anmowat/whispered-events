@@ -146,7 +146,7 @@ export default function LovePage() {
           >
             Founder
           </a>
-          {' '}on a post to help connect even more people
+          {' '}on a post to help us connect more great people to great events
         </p>
 
         {/* Mobile: single column in order */}
