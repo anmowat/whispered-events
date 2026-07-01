@@ -251,6 +251,21 @@ export default function HostPage() {
                 </a>
                 {' '}with adjustments.
               </p>
+              <p
+                className="mt-2 mb-0 max-w-2xl leading-relaxed"
+                style={{ fontSize: 13.5, color: 'var(--ink-2)' }}
+              >
+                <em>Feedback / questions / feature suggestions?</em>{' '}
+                Email{' '}
+                <a
+                  href="mailto:team@whisperedevents.com"
+                  className="underline"
+                  style={{ color: 'var(--accent)', textUnderlineOffset: 3 }}
+                >
+                  team@whisperedevents.com
+                </a>
+                .
+              </p>
             </div>
 
             <div className="flex items-center gap-2 mb-4 flex-wrap">
