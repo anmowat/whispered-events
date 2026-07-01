@@ -219,8 +219,24 @@ export default function HostEventDetailPage() {
                 event.name
               )}
             </h1>
-            <p className="mb-7" style={{ fontSize: 13, color: 'var(--ink-3)' }}>
+            <p className="mb-3" style={{ fontSize: 13, color: 'var(--ink-3)' }}>
               {[event.type, event.location, shortDate(event.date)].filter(Boolean).join(' · ')}
+            </p>
+
+            <p
+              className="mt-2 mb-5 max-w-2xl leading-relaxed"
+              style={{ fontSize: 13.5, color: 'var(--ink-2)' }}
+            >
+              <strong style={{ color: 'var(--accent)' }}>Want to change your event criteria and refine matches?</strong>{' '}
+              Email{' '}
+              <a
+                href="mailto:team@whisperedevents.com"
+                className="underline"
+                style={{ color: 'var(--accent)', textUnderlineOffset: 3 }}
+              >
+                team@whisperedevents.com
+              </a>
+              {' '}with adjustments.
             </p>
 
             <EventSummary event={event} />
