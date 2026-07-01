@@ -147,6 +147,7 @@ export default function Home() {
   const [featuredEvents, setFeaturedEvents] = useState<FeaturedEvent[]>([])
   const [matches30, setMatches30] = useState<number | null>(null)
   const [authInvalid, setAuthInvalid] = useState(false)
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
 
   // Surface ?auth=invalid as a visible banner — set by /api/auth/verify
   // when a magic-link token is missing, expired, or already used. Before
@@ -191,6 +192,11 @@ export default function Home() {
     fetch('/api/match-stats')
       .then((r) => r.json())
       .then((d: { matches30: number }) => setMatches30(d.matches30 ?? 0))
+      .catch(() => {})
+
+    fetch('/api/auth/me')
+      .then((r) => r.json())
+      .then((d: { user: unknown }) => setIsLoggedIn(!!d.user))
       .catch(() => {})
 
   }, [])
@@ -291,7 +297,7 @@ export default function Home() {
       >
         Share Event
       </button>
-    ) : (
+    ) : isLoggedIn ? (
       <a
         href={tab === 'partner' ? '/host' : '/dashboard'}
         className={pillClass}
@@ -302,6 +308,16 @@ export default function Home() {
         {lockIcon}
         {tab === 'partner' ? 'Host Dashboard' : 'Dashboard'}
       </a>
+    ) : (
+      <button
+        onClick={() => setShowLogin(true)}
+        className={pillClass}
+        style={pillStyle}
+        onMouseEnter={(e) => (e.currentTarget.style.background = '#d5b87c')}
+        onMouseLeave={(e) => (e.currentTarget.style.background = '#c9a86a')}
+      >
+        Log in
+      </button>
     )
 
   return (
