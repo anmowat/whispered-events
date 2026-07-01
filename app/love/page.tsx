@@ -129,7 +129,7 @@ export default function LovePage() {
           Tag us on a post to help connect even more people
         </p>
 
-        <div className="mt-10 columns-1 sm:columns-2 gap-5">
+        <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 gap-5">
           {posts.map((post) => (
             <PostCard key={post.id} post={post} />
           ))}
@@ -147,7 +147,7 @@ function PostCard({ post }: { post: LovePost }) {
       href={post.linkedinUrl}
       target="_blank"
       rel="noopener noreferrer"
-      className="block rounded-card border overflow-hidden mb-5 break-inside-avoid transition-opacity hover:opacity-90"
+      className="block rounded-card border overflow-hidden transition-opacity hover:opacity-90"
       style={{ background: 'var(--paper)', borderColor: 'var(--rule)' }}
     >
       {!imgError ? (
