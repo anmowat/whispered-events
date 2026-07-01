@@ -222,18 +222,7 @@ export default function HostEventDetailPage() {
               {[event.type, event.location, shortDate(event.date)].filter(Boolean).join(' · ')}
             </p>
 
-            {editing ? (
-              <EditForm
-                event={event}
-                onCancel={() => setEditing(false)}
-                onSaved={() => {
-                  setEditing(false)
-                  fetchDetail()
-                }}
-              />
-            ) : (
-              <EventSummary event={event} onEdit={() => setEditing(true)} />
-            )}
+            <EventSummary event={event} />
 
             <div className="flex items-end justify-between mt-10 mb-3.5 flex-wrap gap-2">
               <div className="eyebrow">
@@ -336,24 +325,13 @@ export default function HostEventDetailPage() {
   )
 }
 
-function EventSummary({ event, onEdit }: { event: HostEvent; onEdit: () => void }) {
+function EventSummary({ event }: { event: HostEvent }) {
   return (
     <section>
       <div
         className="rounded-card border p-5 space-y-4 relative"
         style={{ background: 'var(--paper)', borderColor: 'var(--rule)' }}
       >
-        <div className="flex justify-end">
-          <button
-            onClick={onEdit}
-            className="rounded-pill text-[12px] font-medium px-4 py-1.5 text-white transition-colors"
-            style={{ background: 'var(--accent)' }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--accent-2)')}
-            onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--accent)')}
-          >
-            Edit event
-          </button>
-        </div>
         <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 text-[13px]">
           <SummaryField label="Name" value={event.name} />
           <SummaryField label="Type" value={event.type} />
