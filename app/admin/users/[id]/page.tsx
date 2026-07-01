@@ -11,6 +11,9 @@ import {
 } from '@/lib/user-status'
 import { SENIORITY_OPTIONS, normalizeSeniority } from '@/lib/seniority'
 
+const EMPLOYMENT_OPTIONS = ['Employed', 'Fractional', 'Searching', 'Other']
+const COMPANY_SIZE_OPTIONS = ['<$5M', '$5-25M', '$25-100M', '$100M-1B', '$1B+', 'Other']
+
 interface UserDetail {
   id: string
   email: string
@@ -719,19 +722,7 @@ function UserEditForm({
           </select>
         </FormField>
         <div className="hidden sm:block" aria-hidden />
-        {/* Row 5: Company Size | [Last seen read-only] */}
-        <FormField label="Company Size">
-          <input
-            type="text"
-            value={draft.companySize}
-            disabled={disabled}
-            onChange={(e) => update('companySize', e.target.value)}
-            placeholder="leave blank to clear"
-            className={input}
-          />
-        </FormField>
-        <div className="hidden sm:block" aria-hidden />
-        {/* Row 6: Seniority | How they heard */}
+        {/* Row 5: Seniority | How they heard */}
         <FormField label="Seniority">
           <select
             value={normalizeSeniority(draft.seniority)}
@@ -754,18 +745,33 @@ function UserEditForm({
             className={`${input} leading-relaxed`}
           />
         </FormField>
-        {/* Row 7: Employment | [Contributions read-only] */}
+        {/* Row 6: Employment | Company Size */}
         <FormField label="Employment">
-          <input
-            type="text"
+          <select
             value={draft.employment}
             disabled={disabled}
             onChange={(e) => update('employment', e.target.value)}
-            placeholder="leave blank to clear"
             className={input}
-          />
+          >
+            <option value="">— blank —</option>
+            {EMPLOYMENT_OPTIONS.map((o) => (
+              <option key={o} value={o}>{o}</option>
+            ))}
+          </select>
         </FormField>
-        <div className="hidden sm:block" aria-hidden />
+        <FormField label="Company Size">
+          <select
+            value={draft.companySize}
+            disabled={disabled}
+            onChange={(e) => update('companySize', e.target.value)}
+            className={input}
+          >
+            <option value="">— blank —</option>
+            {COMPANY_SIZE_OPTIONS.map((o) => (
+              <option key={o} value={o}>{o}</option>
+            ))}
+          </select>
+        </FormField>
       </div>
       <p className="text-[11px] text-gray-400">
         LatLon is auto-derived from Location on save. Saving fires updateUserAdmin
