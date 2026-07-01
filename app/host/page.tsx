@@ -240,9 +240,8 @@ export default function HostPage() {
                 className="mt-3 mb-0 max-w-2xl leading-relaxed"
                 style={{ fontSize: 13.5, color: 'var(--ink-2)' }}
               >
-                View events you are hosting and the matches for each below. If
-                you have feedback on matches or other suggestions / questions,
-                email{' '}
+                <em>Want to change your event criteria and refine matches?</em>{' '}
+                Email{' '}
                 <a
                   href="mailto:team@whisperedevents.com"
                   className="underline"
@@ -250,7 +249,7 @@ export default function HostPage() {
                 >
                   team@whisperedevents.com
                 </a>
-                .
+                {' '}with adjustments.
               </p>
             </div>
 
