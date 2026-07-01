@@ -850,6 +850,54 @@ export async function sendMagicLink(email: string, token: string, baseUrl: strin
   console.log('sendMagicLink: sent', { email, id: data?.id })
 }
 
+// Sent automatically when a host is assigned to an event in the admin panel.
+// Goes to the newly-added host(s); existing hosts are not re-notified.
+export async function sendHostAddedEmail(params: {
+  hostEmail: string
+  hostFirstName: string
+  eventName: string
+  eventId: string
+}): Promise<void> {
+  const resend = getResend()
+  const { hostEmail, hostFirstName, eventName, eventId } = params
+  const firstName = hostFirstName || firstNameFromEmail(hostEmail)
+  const safeName = escapeHtml(firstName)
+  const safeEventName = escapeHtml(eventName)
+  const eventHostLink = `${HOST_LINK}/${eventId}`
+  const html = shell(`
+    ${h1(`You're now a host for <em style="color:${C.diamond};font-style:italic;">${safeEventName}</em>.`)}
+    ${p(`Hi ${safeName} — we've added you as a host for <strong style="color:${C.ink};">${safeEventName}</strong>. You can now view who we've matched to this event in your host dashboard.`, { mt: 14 })}
+    ${accentButton(eventHostLink, 'View matches')}
+    ${p(`You can update any of the fields you see + add filters for employment status and company size. Just reply to this email with any changes and we'll update them for you.`, { mt: 16 })}
+    ${signature()}
+  `)
+  const text = [
+    `You're now a host for ${eventName}.`,
+    '',
+    `Hi ${firstName} — we've added you as a host for ${eventName}. You can now view who we've matched to this event in your host dashboard.`,
+    '',
+    `View matches → ${eventHostLink}`,
+    '',
+    `You can update any of the fields you see + add filters for employment status and company size. Just reply to this email with any changes and we'll update them for you.`,
+    '',
+    `Andy (${ANDY_LINK})`,
+    `Founder, Whispered`,
+  ].join('\n')
+  const { error } = await resend.emails.send({
+    from: TEAM_FROM,
+    to: hostEmail,
+    bcc: MONITOR_BCC,
+    subject: `You're now a host for ${eventName}`,
+    html,
+    text,
+    headers: AUTO_HEADERS,
+  })
+  if (error) {
+    console.error('sendHostAddedEmail: Resend error', { email: hostEmail, error })
+    throw new Error(`Resend send failed: ${error.message ?? JSON.stringify(error)}`)
+  }
+}
+
 // ----- Digests -----
 
 export interface DigestEventEntry {

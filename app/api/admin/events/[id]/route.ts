@@ -7,6 +7,7 @@ import { getAllMatchesForEvent } from '@/lib/supabase'
 import { withinMiles } from '@/lib/geocode'
 import { NEARBY_RADIUS_MILES } from '@/lib/matching'
 import { updateEvent } from '@/lib/airtable'
+import { sendHostAddedEmail } from '@/lib/email'
 
 // Admin event detail: returns the event + every active user within
 // range, each row paired with their match score (and breakdown) if
@@ -208,16 +209,16 @@ export async function PATCH(
     // each email to a user id; any unresolved email blocks the save with
     // a clear error so the admin can fix the typo.
     let hostIds: string[] | undefined
+    let resolvedHostUsers: Array<{ id: string; email: string; firstName: string; name: string }> = []
     if (Array.isArray(body.hostEmails)) {
       const emails = body.hostEmails
         .filter((e): e is string => typeof e === 'string')
         .map((e) => e.trim())
         .filter(Boolean)
-      const resolved: string[] = []
       const missing: string[] = []
       for (const email of emails) {
         const u = await getUserByEmail(email)
-        if (u) resolved.push(u.id)
+        if (u) resolvedHostUsers.push({ id: u.id, email: u.email, firstName: u.firstName, name: u.name })
         else missing.push(email)
       }
       if (missing.length > 0) {
@@ -226,7 +227,7 @@ export async function PATCH(
           { status: 400 },
         )
       }
-      hostIds = Array.from(new Set(resolved))
+      hostIds = Array.from(new Set(resolvedHostUsers.map((u) => u.id)))
     }
 
     if (Object.keys(update).length === 0 && hostIds === undefined) {
@@ -235,18 +236,42 @@ export async function PATCH(
         { status: 400 },
       )
     }
-    // Snapshot prior status before the write so we can detect a transition
-    // into Live and fan out match generation. Only fetched when status is
-    // in the patch — saves an extra read on field-only edits.
+    // Snapshot prior state before the write so we can detect transitions.
+    // Fetched when status or hosts are changing; combined into one read.
     let priorStatus: string | null = null
-    if (update.status !== undefined) {
+    let priorHostIds: string[] = []
+    if (update.status !== undefined || hostIds !== undefined) {
       const priorFlags = await getEventFlags(eventId)
       priorStatus = priorFlags?.status ?? null
+      priorHostIds = priorFlags?.host_ids ?? []
     }
 
     await updateEvent(eventId, update, hostIds)
     const updated = Object.keys(update)
     if (hostIds !== undefined) updated.push('hostIds')
+
+    // Send host-added emails to newly-assigned hosts (those not already in
+    // the prior host list). Fire-and-forget via waitUntil so the admin
+    // save response isn't blocked by email delivery.
+    if (hostIds !== undefined && resolvedHostUsers.length > 0) {
+      const priorSet = new Set(priorHostIds)
+      const newHosts = resolvedHostUsers.filter((u) => !priorSet.has(u.id))
+      if (newHosts.length > 0) {
+        const eventForEmail = await getEventById(eventId)
+        const eventName = eventForEmail?.name ?? ''
+        for (const host of newHosts) {
+          const firstName = (host.firstName && host.firstName !== 'DEFAULT')
+            ? host.firstName
+            : (host.name && host.name !== 'DEFAULT')
+              ? host.name.split(' ')[0]
+              : ''
+          waitUntil(
+            sendHostAddedEmail({ hostEmail: host.email, hostFirstName: firstName, eventName, eventId })
+              .catch((e) => console.error('sendHostAddedEmail failed', { email: host.email, error: e })),
+          )
+        }
+      }
+    }
 
     // Pending/Deactivated -> Live transition: score this event against
     // every eligible user so matches are populated by the time users
