@@ -1222,7 +1222,7 @@ function SideEventModal({
               e.currentTarget.style.color = '#ece6da'
             }}
           >
-            Open in Gmail
+            Send via Gmail
           </a>
           <a
             href={mailtoUrl}
@@ -1237,8 +1237,31 @@ function SideEventModal({
               e.currentTarget.style.color = '#ece6da'
             }}
           >
-            Open in default mail app
+            Send with Default Mail App
           </a>
+          <button
+            type="button"
+            onClick={handleCopy}
+            className="inline-flex items-center justify-center gap-2 rounded-pill text-[13px] font-medium text-center py-2.5 border transition-colors"
+            style={{
+              borderColor: 'rgba(236,230,218,.28)',
+              color: copied ? '#c9a86a' : '#ece6da',
+              background: 'transparent',
+              cursor: 'pointer',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = '#c9a86a'
+              e.currentTarget.style.color = '#c9a86a'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'rgba(236,230,218,.28)'
+              e.currentTarget.style.color = copied ? '#c9a86a' : '#ece6da'
+            }}
+            aria-label={`Copy ${content.email} to clipboard`}
+          >
+            {copied ? `${content.email} (copied!)` : `Email ${content.email}`}
+            <CopyIcon />
+          </button>
           <button
             type="button"
             onClick={onShareOnSite}
@@ -1261,29 +1284,6 @@ function SideEventModal({
             Share on site
           </button>
         </div>
-
-        <p
-          className="m-0 mt-4 text-center"
-          style={{ fontSize: 12, color: 'rgba(236,230,218,.5)', lineHeight: 1.5 }}
-        >
-          <button
-            onClick={handleCopy}
-            className="inline-flex items-center gap-1.5 underline"
-            style={{
-              color: copied ? '#c9a86a' : 'rgba(236,230,218,.7)',
-              textUnderlineOffset: 2,
-              background: 'none',
-              border: 'none',
-              padding: 0,
-              cursor: 'pointer',
-              font: 'inherit',
-            }}
-            aria-label={`Copy ${content.email} to clipboard`}
-          >
-            <span>Email {copied ? `${content.email} (copied)` : content.email}</span>
-            <CopyIcon />
-          </button>
-        </p>
       </div>
     </div>
   )
@@ -1403,15 +1403,12 @@ function AddEventModal({
               e.currentTarget.style.color = '#ece6da'
             }}
           >
-            Open in Gmail
+            Send via Gmail
           </a>
           <a
             href={mailtoUrl}
             className="rounded-pill text-[13px] font-medium text-center py-2.5 border transition-colors"
-            style={{
-              borderColor: 'rgba(236,230,218,.28)',
-              color: '#ece6da',
-            }}
+            style={{ borderColor: 'rgba(236,230,218,.28)', color: '#ece6da' }}
             onMouseEnter={(e) => {
               e.currentTarget.style.borderColor = '#c9a86a'
               e.currentTarget.style.color = '#c9a86a'
@@ -1421,8 +1418,31 @@ function AddEventModal({
               e.currentTarget.style.color = '#ece6da'
             }}
           >
-            Open in default mail app
+            Send with Default Mail App
           </a>
+          <button
+            type="button"
+            onClick={handleCopy}
+            className="inline-flex items-center justify-center gap-2 rounded-pill text-[13px] font-medium text-center py-2.5 border transition-colors"
+            style={{
+              borderColor: 'rgba(236,230,218,.28)',
+              color: copied ? '#c9a86a' : '#ece6da',
+              background: 'transparent',
+              cursor: 'pointer',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = '#c9a86a'
+              e.currentTarget.style.color = '#c9a86a'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'rgba(236,230,218,.28)'
+              e.currentTarget.style.color = copied ? '#c9a86a' : '#ece6da'
+            }}
+            aria-label={`Copy ${email} to clipboard`}
+          >
+            {copied ? `${email} (copied!)` : `Email ${email}`}
+            <CopyIcon />
+          </button>
           <button
             type="button"
             onClick={onShareOnSite}
@@ -1445,32 +1465,6 @@ function AddEventModal({
             Share on site
           </button>
         </div>
-
-        {/* Tertiary fallback — copy the address for users on a setup
-            where neither launcher works. Click writes the address to
-            the clipboard and flips the label to confirm. */}
-        <p
-          className="m-0 mt-4 text-center"
-          style={{ fontSize: 12, color: 'rgba(236,230,218,.5)', lineHeight: 1.5 }}
-        >
-          <button
-            onClick={handleCopy}
-            className="inline-flex items-center gap-1.5 underline"
-            style={{
-              color: copied ? '#c9a86a' : 'rgba(236,230,218,.7)',
-              textUnderlineOffset: 2,
-              background: 'none',
-              border: 'none',
-              padding: 0,
-              cursor: 'pointer',
-              font: 'inherit',
-            }}
-            aria-label={`Copy ${email} to clipboard`}
-          >
-            <span>Email {copied ? `${email} (copied)` : email}</span>
-            <CopyIcon />
-          </button>
-        </p>
       </div>
     </div>
   )
