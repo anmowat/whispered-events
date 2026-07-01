@@ -559,7 +559,6 @@ function ProfileModalShell({
     <div
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto"
       style={{ background: 'rgba(20,15,10,0.45)' }}
-      onClick={onClose}
     >
       <div
         className="w-full sm:max-w-md max-h-[90vh] flex flex-col rounded-t-card sm:rounded-card border"
