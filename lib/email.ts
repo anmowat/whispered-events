@@ -235,12 +235,12 @@ export async function sendUserAppliedEmail(email: string): Promise<void> {
     ${p("Thanks for applying to Whispered Events. We'll quickly verify your LinkedIn profile and activate your account — typically within 24 hours.", { mt: 14 })}
     ${p("Once approved, you'll start seeing event matches personalized for you.", { mt: 12 })}
     ${p("We built Whispered Events for one reason: helping great people find the best events — the ones that aren't posted, they're whispered.", { mt: 12 })}
-    ${p(`Whispered Events will always be <strong style="color:${C.ink};">completely free for users</strong>. Help us grow and match you to even more events:`, { mt: 14 })}
+    ${p(`Whispered Events will always be <strong style="color:${C.ink};">completely free for users</strong>. Help us grow and match you to even more events by:`, { mt: 14 })}
     <p style="font-family:${SANS};font-size:14.5px;line-height:1.6;color:${C.ink2};margin:10px 0 0;">
-      1. Share events to <a href="${NEW_EVENT_MAILTO}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">event@whispered.com</a>
+      1. Sharing events to <a href="${NEW_EVENT_MAILTO}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">event@whispered.com</a>
     </p>
     <p style="font-family:${SANS};font-size:14.5px;line-height:1.6;color:${C.ink2};margin:8px 0 0;">
-      2. Post on LinkedIn (<a href="https://www.whisperedevents.com/love" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">see examples</a>)
+      2. Posting about Whispered Events on LinkedIn (<a href="https://www.whisperedevents.com/love" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">see examples</a>)
     </p>
     ${signature()}
   `)
@@ -252,9 +252,9 @@ Once approved, you'll start seeing event matches personalized for you.
 
 We built Whispered Events for one reason: helping great people find the best events — the ones that aren't posted, they're whispered.
 
-Whispered Events will always be completely free for users. Help us grow and match you to even more events:
-1. Share events to event@whispered.com
-2. Post on LinkedIn (https://www.whisperedevents.com/love)
+Whispered Events will always be completely free for users. Help us grow and match you to even more events by:
+1. Sharing events to event@whispered.com
+2. Posting about Whispered Events on LinkedIn (https://www.whisperedevents.com/love)
 
 Andy (${ANDY_LINK})
 Founder, Whispered`
