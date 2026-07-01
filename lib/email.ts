@@ -348,8 +348,8 @@ export async function sendEventSubmittedEmail(
   // Inline links for the host / partner CTA. "reply to this email" framing
   // dropped because clicking the link is the canonical path now.
   const linkStyle = `color:${C.accent};text-decoration:underline;text-underline-offset:3px;`
-  const hostCtaHtml = `If you are the host of the event, <a href="${HOST_LINK}" style="${linkStyle}">get host access</a> and <a href="${PARTNER_APPLY_LINK}" style="${linkStyle}">apply to be a partner</a> for additional features.`
-  const hostCtaText = `If you are the host of the event, get host access (${HOST_LINK}) and apply to be a partner (${PARTNER_APPLY_LINK}) for additional features.`
+  const hostCtaHtml = `If you are the host of the event, <a href="${HOST_LINK}" style="${linkStyle}">get host access</a> by replying to this email.`
+  const hostCtaText = `If you are the host of the event, get host access by replying to this email.`
   const html = shell(`
     ${h1(`Event <span style="font-style:italic;">added</span>.`)}
     ${p('Thanks for adding an event — Whispered Events is driven by contributions like yours!', { mt: 14 })}
