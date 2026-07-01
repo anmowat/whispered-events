@@ -868,7 +868,7 @@ export async function sendHostAddedEmail(params: {
     ${h1(`You're now a host for <em style="color:${C.diamond};font-style:italic;">${safeEventName}</em>.`)}
     ${p(`Hi ${safeName} — we've added you as a host for <strong style="color:${C.ink};">${safeEventName}</strong>. You can now view who we've matched to this event in your host dashboard.`, { mt: 14 })}
     ${accentButton(eventHostLink, 'View matches')}
-    ${p(`You can update any of the fields you see + add filters for employment status and company size. Just reply to this email with any changes and we'll update them for you.`, { mt: 16 })}
+    ${p(`To refine targeting / update any of the criteria, just reply to this email with any changes and we'll update them for you.`, { mt: 16 })}
     ${signature()}
   `)
   const text = [
@@ -878,7 +878,7 @@ export async function sendHostAddedEmail(params: {
     '',
     `View matches → ${eventHostLink}`,
     '',
-    `You can update any of the fields you see + add filters for employment status and company size. Just reply to this email with any changes and we'll update them for you.`,
+    `To refine targeting / update any of the criteria, just reply to this email with any changes and we'll update them for you.`,
     '',
     `Andy (${ANDY_LINK})`,
     `Founder, Whispered`,
