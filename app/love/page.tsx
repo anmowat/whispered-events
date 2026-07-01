@@ -129,10 +129,18 @@ export default function LovePage() {
           Tag us on a post to help connect even more people
         </p>
 
-        <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 gap-5">
-          {posts.map((post) => (
-            <PostCard key={post.id} post={post} />
-          ))}
+        {/* Mobile: single column in order */}
+        <div className="mt-10 flex flex-col gap-5 sm:hidden">
+          {posts.map((post) => <PostCard key={post.id} post={post} />)}
+        </div>
+        {/* Desktop: two natural-height columns, left gets 1,3,5… right gets 2,4,6… */}
+        <div className="mt-10 hidden sm:flex gap-5">
+          <div className="flex-1 flex flex-col gap-5">
+            {posts.filter((_, i) => i % 2 === 0).map((post) => <PostCard key={post.id} post={post} />)}
+          </div>
+          <div className="flex-1 flex flex-col gap-5">
+            {posts.filter((_, i) => i % 2 === 1).map((post) => <PostCard key={post.id} post={post} />)}
+          </div>
         </div>
       </main>
     </div>
