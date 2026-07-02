@@ -69,6 +69,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [editingBio, setEditingBio] = useState(false)
   const [editingTopics, setEditingTopics] = useState(false)
+  const [editingLocation, setEditingLocation] = useState(false)
   // True after a profile save that fired a rescore. Drives the
   // confirmation modal that polls /api/dashboard/rescore-status and
   // reloads the page once every match row is freshly hashed.
@@ -244,13 +245,21 @@ export default function DashboardPage() {
             <div className="mt-3 pl-3 space-y-1">
               <ProfileSubRow
                 title="Bio"
-                description="Who you are, where you are located and employment status."
+                description="Who you are and what you do."
+                icon={<svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden><path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm-5 6a5 5 0 0 1 10 0H3z"/></svg>}
                 onEdit={() => setEditingBio(true)}
               />
               <ProfileSubRow
                 title="Topics"
                 description="What topics you are interested in."
+                icon={<svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden><path d="M8 1l1.5 4.5H14l-3.75 2.73 1.43 4.39L8 10.1l-3.68 2.52 1.43-4.39L2 5.5h4.5L8 1z"/></svg>}
                 onEdit={() => setEditingTopics(true)}
+              />
+              <ProfileSubRow
+                title="Location(s)"
+                description="Where you are located / traveling to"
+                icon={<svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden><path d="M8 1a5 5 0 0 0-5 5c0 3.5 5 9 5 9s5-5.5 5-9a5 5 0 0 0-5-5zm0 7a2 2 0 1 1 0-4 2 2 0 0 1 0 4z"/></svg>}
+                onEdit={() => setEditingLocation(true)}
               />
             </div>
           </div>
@@ -361,6 +370,13 @@ export default function DashboardPage() {
         <TopicsModal
           user={user}
           onClose={() => setEditingTopics(false)}
+          onSaved={handleProfileSaved}
+        />
+      )}
+      {editingLocation && (
+        <LocationModal
+          user={user}
+          onClose={() => setEditingLocation(false)}
           onSaved={handleProfileSaved}
         />
       )}
@@ -505,18 +521,25 @@ function DashboardFooter() {
 function ProfileSubRow({
   title,
   description,
+  icon,
   onEdit,
 }: {
   title: string
   description: string
+  icon?: React.ReactNode
   onEdit: () => void
 }) {
   return (
     <div className="flex justify-between items-center gap-4">
       <p
-        className="m-0 min-w-0 flex items-baseline flex-wrap gap-x-2.5"
+        className="m-0 min-w-0 flex items-center flex-wrap gap-x-2"
         style={{ fontSize: 16 }}
       >
+        {icon && (
+          <span className="shrink-0 mr-0.5" style={{ color: 'var(--accent)', lineHeight: 1 }}>
+            {icon}
+          </span>
+        )}
         <span style={{ fontWeight: 500, color: 'var(--ink)' }}>{title}</span>
         <span style={{ fontSize: 15, color: 'var(--ink-3)' }}>{description}</span>
       </p>
@@ -723,31 +746,15 @@ function BioModal({
   onClose: () => void
   onSaved: (u: DashboardUser, resp: { rescored?: boolean }) => void
 }) {
-  const [location, setLocation] = useState(user.location || '')
   const [func, setFunc] = useState(user.function || '')
   const [employment, setEmployment] = useState(user.employment || '')
   const [companySize, setCompanySize] = useState(user.companySize || '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  // Quality check on the location string — see /api/check-location.
-  // We run it whenever the user changes Location and re-runs as needed
-  // once they confirm. locationConfirmed flips true after the user
-  // either accepts a suggestion or explicitly keeps what they typed,
-  // so the same value doesn't get re-checked on a second Save click.
-  const [locationCheck, setLocationCheck] = useState<{
-    message: string
-    suggestion?: string
-  } | null>(null)
-  const [locationConfirmed, setLocationConfirmed] = useState(false)
 
-  async function persist(finalLocation: string) {
+  async function persist() {
     const nextSize = employment.toLowerCase() === 'employed' ? companySize : ''
-    const payload = {
-      location: finalLocation,
-      function: func,
-      employment,
-      companySize: nextSize,
-    }
+    const payload = { function: func, employment, companySize: nextSize }
     const res = await fetch('/api/dashboard/profile', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -757,16 +764,7 @@ function BioModal({
     if (!res.ok) {
       throw new Error(data.error || `HTTP ${res.status}`)
     }
-    onSaved(
-      {
-        ...user,
-        location: finalLocation,
-        function: func,
-        employment,
-        companySize: nextSize,
-      },
-      { rescored: !!data.rescored },
-    )
+    onSaved({ ...user, function: func, employment, companySize: nextSize }, { rescored: !!data.rescored })
     onClose()
   }
 
@@ -774,56 +772,7 @@ function BioModal({
     setSaving(true)
     setError(null)
     try {
-      // Skip the check when Location didn't change or the user has
-      // already confirmed it in this session.
-      const locationChanged = location.trim() !== (user.location || '').trim()
-      if (locationChanged && !locationConfirmed) {
-        const check = await fetch('/api/check-location', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ location }),
-        })
-          .then((r) => r.json() as Promise<{ ok: boolean; message?: string; suggestion?: string }>)
-          .catch(() => ({ ok: true as const }))
-        if (!check.ok) {
-          setLocationCheck({
-            message: check.message || 'We want to double-check this location before saving.',
-            suggestion: check.suggestion,
-          })
-          setSaving(false)
-          return
-        }
-      }
-      await persist(location)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  async function acceptLocationSuggestion(suggestion: string) {
-    setLocation(suggestion)
-    setLocationConfirmed(true)
-    setLocationCheck(null)
-    setSaving(true)
-    setError(null)
-    try {
-      await persist(suggestion)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  async function keepLocationAsTyped() {
-    setLocationConfirmed(true)
-    setLocationCheck(null)
-    setSaving(true)
-    setError(null)
-    try {
-      await persist(location)
+      await persist()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save')
     } finally {
@@ -847,16 +796,6 @@ function BioModal({
       onSave={handleSave}
       onClose={onClose}
     >
-      {locationCheck && (
-        <LocationConfirm
-          message={locationCheck.message}
-          suggestion={locationCheck.suggestion}
-          onAccept={(s) => acceptLocationSuggestion(s)}
-          onKeep={() => keepLocationAsTyped()}
-          onEdit={() => setLocationCheck(null)}
-        />
-      )}
-
       <ReadOnlyField
         label="Email"
         hint={
@@ -903,37 +842,6 @@ function BioModal({
         )}
       </ReadOnlyField>
 
-      <ModalField label="Location">
-        <input
-          value={location}
-          onChange={(e) => {
-            setLocation(e.target.value)
-            // Any edit invalidates the prior confirmation so the next
-            // save click re-runs the quality check.
-            if (locationConfirmed) setLocationConfirmed(false)
-            if (locationCheck) setLocationCheck(null)
-          }}
-          placeholder="e.g. San Francisco, CA"
-          className={modalInputCls}
-          style={modalInputStyle}
-        />
-        <p
-          className="mt-1.5 m-0"
-          style={{ fontSize: 11.5, lineHeight: 1.5, color: 'var(--ink-3)' }}
-        >
-          We (consciously) support one location at a time.{' '}
-          <a
-            href="/faq"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ color: 'var(--accent)', textDecoration: 'underline', textUnderlineOffset: 2 }}
-          >
-            See FAQ
-          </a>
-          .
-        </p>
-      </ModalField>
-
       <ModalField label="Function">
         <input
           value={func}
@@ -977,6 +885,185 @@ function BioModal({
           </select>
         </ModalField>
       )}
+    </ProfileModalShell>
+  )
+}
+
+function LocationModal({
+  user,
+  onClose,
+  onSaved,
+}: {
+  user: DashboardUser
+  onClose: () => void
+  onSaved: (u: DashboardUser, resp: { rescored?: boolean }) => void
+}) {
+  const [location, setLocation] = useState(user.location || '')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [locationCheck, setLocationCheck] = useState<{
+    message: string
+    suggestion?: string
+  } | null>(null)
+  const [locationConfirmed, setLocationConfirmed] = useState(false)
+  // Shown when the city string saved but Nominatim couldn't geocode it —
+  // the user won't match by distance until they correct it.
+  const [geoWarning, setGeoWarning] = useState<string | null>(null)
+
+  async function persist(finalLocation: string) {
+    const res = await fetch('/api/dashboard/profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ location: finalLocation }),
+    })
+    const data = (await res.json().catch(() => ({}))) as {
+      error?: string
+      rescored?: boolean
+      geocodeFailed?: boolean
+    }
+    if (!res.ok) {
+      throw new Error(data.error || `HTTP ${res.status}`)
+    }
+    onSaved({ ...user, location: finalLocation }, { rescored: !!data.rescored })
+    if (data.geocodeFailed) {
+      setGeoWarning(
+        "We couldn't find this city on the map — try adding a state or country (e.g. 'San Francisco, CA'). Your location was saved but distance matching won't work until it's corrected.",
+      )
+      return
+    }
+    onClose()
+  }
+
+  async function handleSave() {
+    setSaving(true)
+    setError(null)
+    setGeoWarning(null)
+    try {
+      const locationChanged = location.trim() !== (user.location || '').trim()
+      if (locationChanged && !locationConfirmed) {
+        const check = await fetch('/api/check-location', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ location }),
+        })
+          .then((r) => r.json() as Promise<{ ok: boolean; message?: string; suggestion?: string }>)
+          .catch(() => ({ ok: true as const }))
+        if (!check.ok) {
+          setLocationCheck({
+            message: check.message || 'We want to double-check this location before saving.',
+            suggestion: check.suggestion,
+          })
+          setSaving(false)
+          return
+        }
+      }
+      await persist(location)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function acceptLocationSuggestion(suggestion: string) {
+    setLocation(suggestion)
+    setLocationConfirmed(true)
+    setLocationCheck(null)
+    setSaving(true)
+    setError(null)
+    setGeoWarning(null)
+    try {
+      await persist(suggestion)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function keepLocationAsTyped() {
+    setLocationConfirmed(true)
+    setLocationCheck(null)
+    setSaving(true)
+    setError(null)
+    setGeoWarning(null)
+    try {
+      await persist(location)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <ProfileModalShell
+      title="Edit location"
+      saving={saving}
+      error={error}
+      onSave={handleSave}
+      onClose={onClose}
+    >
+      {locationCheck && (
+        <LocationConfirm
+          message={locationCheck.message}
+          suggestion={locationCheck.suggestion}
+          onAccept={(s) => acceptLocationSuggestion(s)}
+          onKeep={() => keepLocationAsTyped()}
+          onEdit={() => setLocationCheck(null)}
+        />
+      )}
+
+      {geoWarning && (
+        <div
+          className="rounded-card border px-4 py-3"
+          style={{
+            background: 'rgba(201,168,106,0.08)',
+            borderColor: 'rgba(201,168,106,0.32)',
+            fontSize: 13,
+            lineHeight: 1.5,
+            color: 'var(--ink)',
+          }}
+        >
+          <strong style={{ color: 'var(--accent)' }}>Heads up:</strong> {geoWarning}
+        </div>
+      )}
+
+      <p style={{ fontSize: 14, lineHeight: 1.6, color: 'var(--ink-2)', margin: 0 }}>
+        Please provide a single city. We will match you to events within 150 miles of your
+        location. Today we{' '}
+        <a
+          href="/faq"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ color: 'var(--accent)', textDecoration: 'underline', textUnderlineOffset: 2 }}
+        >
+          (consciously) support one location at a time
+        </a>
+        . We are actively thinking about how to allow people to add additional cities they travel
+        to — if you are interested in getting early access to this feature email us at{' '}
+        <a
+          href="mailto:team@whisperedevents.com"
+          style={{ color: 'var(--accent)', textDecoration: 'underline', textUnderlineOffset: 2 }}
+        >
+          team@whisperedevents.com
+        </a>
+      </p>
+
+      <ModalField label="City">
+        <input
+          value={location}
+          onChange={(e) => {
+            setLocation(e.target.value)
+            if (locationConfirmed) setLocationConfirmed(false)
+            if (locationCheck) setLocationCheck(null)
+            if (geoWarning) setGeoWarning(null)
+          }}
+          placeholder="San Francisco"
+          className={modalInputCls}
+          style={modalInputStyle}
+        />
+      </ModalField>
     </ProfileModalShell>
   )
 }

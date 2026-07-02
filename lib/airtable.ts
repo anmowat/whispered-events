@@ -849,7 +849,7 @@ export interface UserProfileUpdate {
 export async function updateUserProfile(
   email: string,
   update: UserProfileUpdate,
-): Promise<{ id: string } | null> {
+): Promise<{ id: string; geocodeFailed?: boolean } | null> {
   const supabase = getSupabase()
   const trimmedEmail = email.trim()
   if (!trimmedEmail) return null
@@ -871,6 +871,7 @@ export async function updateUserProfile(
   if (!existing) return null
 
   const row: Record<string, unknown> = {}
+  let geocodeFailed = false
   if (update.location !== undefined) {
     row.location = update.location
     if (update.location) {
@@ -881,6 +882,7 @@ export async function updateUserProfile(
       } else {
         row.lat = null
         row.lng = null
+        geocodeFailed = true
         console.warn(`updateUserProfile: could not geocode "${update.location}"`)
       }
     } else {
@@ -916,7 +918,7 @@ export async function updateUserProfile(
     console.error('updateUserProfile update error', { id: existing.id, updateErr })
     throw new Error(`updateUserProfile failed: ${updateErr.message}`)
   }
-  return { id: existing.id }
+  return { id: existing.id, geocodeFailed: geocodeFailed || undefined }
 }
 
 // Admin-scoped sibling of updateUserProfile. Keyed by record id (not email),

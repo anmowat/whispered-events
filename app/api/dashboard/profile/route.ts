@@ -122,7 +122,11 @@ export async function POST(req: NextRequest) {
     // `rescored` tells the client whether to surface the "AI is re-running
     // your matches" modal. False on no-op saves or pref-only changes
     // (frequency-only) so the editor closes silently in those cases.
-    return NextResponse.json({ ok: true, rescored: rescoreFired })
+    // `geocodeFailed` tells the LocationModal to stay open with a warning
+    // when the city string couldn't be geocoded — matching by distance
+    // won't work until the user corrects it.
+    const geocodeFailed = updated?.geocodeFailed ?? false
+    return NextResponse.json({ ok: true, rescored: rescoreFired, geocodeFailed })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     console.error('dashboard/profile update error:', message)

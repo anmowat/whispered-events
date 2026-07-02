@@ -77,6 +77,7 @@ Ideal format is "City, State, Country" or "City, Country". Famous cities are fin
 The user wrote: "${location}"
 
 Set ok=false (and ask the user to confirm before we save) when:
+- MULTIPLE CITIES: the input contains more than one city name — comma-separated list of cities (e.g. "San Francisco, New York", "Boston, Chicago, LA"), slash-separated cities ("NYC/LA"), or cities joined by "and"/"or" ("Austin and Denver"). Important: "City, State" (e.g. "Austin, TX") and "City, Country" (e.g. "London, UK") are NOT multiple cities — those are fine. Look for patterns like two recognizable city names side by side. Do NOT provide a suggestion; the message should be "It looks like you've entered more than one city — we can only match you to one location at a time. Please enter a single city."
 - TYPO: a recognizable misspelling of a real city (e.g. "San Fransisco" → suggestion "San Francisco, CA"; "Atalnta" → "Atlanta, GA"). Provide the corrected suggestion.
 - EXTRA NOISE: clean place name plus extra commentary (e.g. "Phoenix, AZ but I'm open to anywhere" → suggestion "Phoenix, AZ"; "based in Austin, TX, traveling a lot" → suggestion "Austin, TX"). Strip the noise; provide the clean suggestion.
 - AMBIGUOUS: a name that could refer to multiple places without a disambiguator (e.g. "Springfield" alone, "Portland" alone, "Cambridge" alone). Do NOT provide a suggestion; ask in the message which one they mean.
