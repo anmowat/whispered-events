@@ -1182,7 +1182,7 @@ const SIDE_EVENT_CONTENT = {
     ),
     cta: (
       <>
-        <strong style={{ color: GOLD, fontWeight: 700 }}>Hosting an event at Dreamforce?</strong>{' '}Share here 👇
+        <strong style={{ color: GOLD, fontWeight: 700 }}>Hosting a side event at Dreamforce?</strong>{' '}Share here 👇
       </>
     ),
     email: 'event@whispered.com',
@@ -1199,7 +1199,7 @@ const SIDE_EVENT_CONTENT = {
     ),
     cta: (
       <>
-        <strong style={{ color: GOLD, fontWeight: 700 }}>Hosting an event at Unbound?</strong>{' '}Share here 👇
+        <strong style={{ color: GOLD, fontWeight: 700 }}>Hosting a side event at Unbound?</strong>{' '}Share here 👇
       </>
     ),
     email: 'event@whispered.com',
@@ -1216,7 +1216,7 @@ const SIDE_EVENT_CONTENT = {
     ),
     cta: (
       <>
-        <strong style={{ color: GOLD, fontWeight: 700 }}>Hosting an event at Sculpt?</strong>{' '}Share here 👇
+        <strong style={{ color: GOLD, fontWeight: 700 }}>Hosting a side event at Sculpt?</strong>{' '}Share here 👇
       </>
     ),
     email: 'event@whispered.com',
@@ -1235,9 +1235,6 @@ function SideEventModal({
 }) {
   const content = SIDE_EVENT_CONTENT[which]
   const [copied, setCopied] = useState(false)
-
-  const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(content.email)}&su=${encodeURIComponent(content.subject)}`
-  const mailtoUrl = `mailto:${content.email}?subject=${encodeURIComponent(content.subject)}`
 
   async function handleCopy() {
     try {
@@ -1294,38 +1291,6 @@ function SideEventModal({
         </div>
 
         <div className="flex flex-col gap-2">
-          <a
-            href={gmailUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="rounded-pill text-[15px] font-medium text-center py-3 border transition-colors"
-            style={{ borderColor: 'rgba(236,230,218,.28)', color: '#ece6da' }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = '#c9a86a'
-              e.currentTarget.style.color = '#c9a86a'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = 'rgba(236,230,218,.28)'
-              e.currentTarget.style.color = '#ece6da'
-            }}
-          >
-            Send via Gmail
-          </a>
-          <a
-            href={mailtoUrl}
-            className="rounded-pill text-[15px] font-medium text-center py-3 border transition-colors"
-            style={{ borderColor: 'rgba(236,230,218,.28)', color: '#ece6da' }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = '#c9a86a'
-              e.currentTarget.style.color = '#c9a86a'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = 'rgba(236,230,218,.28)'
-              e.currentTarget.style.color = '#ece6da'
-            }}
-          >
-            Send with Default Mail App
-          </a>
           <button
             type="button"
             onClick={handleCopy}
@@ -1415,8 +1380,6 @@ function AddEventModal({
 }) {
   const email = 'event@whispered.com'
   const subject = 'Event to share'
-  const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${encodeURIComponent(subject)}`
-  const mailtoUrl = `mailto:${email}?subject=${encodeURIComponent(subject)}`
   const [copied, setCopied] = useState(false)
 
   async function handleCopy() {
@@ -1471,38 +1434,6 @@ function AddEventModal({
         </div>
 
         <div className="flex flex-col gap-2">
-          <a
-            href={gmailUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="rounded-pill text-[15px] font-medium text-center py-3 border transition-colors"
-            style={{ borderColor: 'rgba(236,230,218,.28)', color: '#ece6da' }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = '#c9a86a'
-              e.currentTarget.style.color = '#c9a86a'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = 'rgba(236,230,218,.28)'
-              e.currentTarget.style.color = '#ece6da'
-            }}
-          >
-            Send via Gmail
-          </a>
-          <a
-            href={mailtoUrl}
-            className="rounded-pill text-[15px] font-medium text-center py-3 border transition-colors"
-            style={{ borderColor: 'rgba(236,230,218,.28)', color: '#ece6da' }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = '#c9a86a'
-              e.currentTarget.style.color = '#c9a86a'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = 'rgba(236,230,218,.28)'
-              e.currentTarget.style.color = '#ece6da'
-            }}
-          >
-            Send with Default Mail App
-          </a>
           <button
             type="button"
             onClick={handleCopy}
