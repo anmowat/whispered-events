@@ -141,7 +141,7 @@ export default function Home() {
   const [mode, setMode] = useState<Mode>('landing')
   const [showLogin, setShowLogin] = useState(false)
   const [showAddEvent, setShowAddEvent] = useState(false)
-  const [sideEventModal, setSideEventModal] = useState<'dreamforce' | 'unbound' | null>(null)
+  const [sideEventModal, setSideEventModal] = useState<'dreamforce' | 'unbound' | 'sculpt' | null>(null)
   const [eventCount, setEventCount] = useState(0)
   const [partners, setPartners] = useState<Partner[]>([])
   const [featuredEvents, setFeaturedEvents] = useState<FeaturedEvent[]>([])
@@ -564,7 +564,7 @@ function Landing({
   featuredEvents: FeaturedEvent[]
   matches30: number | null
   onCTA: () => void
-  onSideEvent: (which: 'dreamforce' | 'unbound') => void
+  onSideEvent: (which: 'dreamforce' | 'unbound' | 'sculpt') => void
 }) {
   // Carousel uses every event we have an image for (no top-N truncation
   // since the user scrolls horizontally instead of seeing them all
@@ -677,6 +677,7 @@ function Landing({
         <SideEventBanners
           onDreamforce={() => onSideEvent('dreamforce')}
           onUnbound={() => onSideEvent('unbound')}
+          onSculpt={() => onSideEvent('sculpt')}
         />
       )}
 
@@ -1053,43 +1054,112 @@ function BannerArrow({ nudge }: { nudge: boolean }) {
 function SideEventBanners({
   onDreamforce,
   onUnbound,
+  onSculpt,
 }: {
   onDreamforce: () => void
   onUnbound: () => void
+  onSculpt: () => void
 }) {
+  const scrollerRef = useRef<HTMLDivElement>(null)
+  const scrollBanner = (dir: 'left' | 'right') =>
+    scrollerRef.current?.scrollBy({ left: dir === 'left' ? -460 : 460, behavior: 'smooth' })
+
+  const btnStyle: React.CSSProperties = { background: 'none', border: 'none', padding: 0, cursor: 'pointer' }
+
   return (
     <section className="max-w-[1080px] mx-auto pb-10">
-      <div className="px-5 sm:px-11" style={{ fontSize: 11, letterSpacing: '.3em', textTransform: 'uppercase', color: 'rgba(236,230,218,.4)', marginBottom: 18 }}>
+      <div
+        className="px-5 sm:px-11"
+        style={{ fontSize: 11, letterSpacing: '.3em', textTransform: 'uppercase', color: 'rgba(236,230,218,.4)', marginBottom: 18 }}
+      >
         Whispered Side Events
       </div>
-      <div
-        className="grid grid-cols-1 sm:grid-cols-2"
-        style={{ gap: 6 }}
-      >
-        {/* Left banner — crop ~12px of transparent PNG padding from the right inner edge */}
+
+      {/* Desktop: horizontal scroll carousel — each banner ~45% wide so 3rd peeks */}
+      <div className="hidden sm:block relative px-11">
+        <div
+          ref={scrollerRef}
+          className="side-event-scroll flex overflow-x-auto"
+          style={{ gap: 6, scrollSnapType: 'x mandatory', scrollbarWidth: 'none' }}
+        >
+          <style>{`.side-event-scroll::-webkit-scrollbar{display:none}`}</style>
+          <button
+            type="button"
+            onClick={onDreamforce}
+            className="transition-opacity hover:opacity-90 overflow-hidden rounded-[16px] shrink-0"
+            style={{ ...btnStyle, width: '45%', scrollSnapAlign: 'start' }}
+          >
+            <img
+              src="/banners/dreamforce-26-banner.png"
+              alt="Dreamforce '26 Side Events — San Francisco, September 15–17"
+              style={{ display: 'block', width: '100%' }}
+            />
+          </button>
+          <button
+            type="button"
+            onClick={onUnbound}
+            className="transition-opacity hover:opacity-90 overflow-hidden rounded-[16px] shrink-0"
+            style={{ ...btnStyle, width: '45%', scrollSnapAlign: 'start' }}
+          >
+            <img
+              src="/banners/unbound-26-banner.png"
+              alt="Unbound '26 Side Events — Boston, September 16–18"
+              style={{ display: 'block', width: '100%' }}
+            />
+          </button>
+          <button
+            type="button"
+            onClick={onSculpt}
+            className="transition-opacity hover:opacity-90 overflow-hidden rounded-[16px] shrink-0"
+            style={{ ...btnStyle, width: '45%', scrollSnapAlign: 'start' }}
+          >
+            <img
+              src="/banners/sculpt-26-banner.png"
+              alt="Sculpt '26 Side Events — San Francisco, October 8"
+              style={{ display: 'block', width: '100%' }}
+            />
+          </button>
+        </div>
+        <CarouselButton dir="left" onClick={() => scrollBanner('left')} />
+        <CarouselButton dir="right" onClick={() => scrollBanner('right')} />
+      </div>
+
+      {/* Mobile: vertical stack, full width, no size change */}
+      <div className="sm:hidden flex flex-col px-5" style={{ gap: 6 }}>
         <button
           type="button"
           onClick={onDreamforce}
-          className="block w-full transition-opacity hover:opacity-90 cursor-pointer overflow-hidden rounded-[16px]"
-          style={{ background: 'none', border: 'none', padding: 0 }}
+          className="block w-full transition-opacity hover:opacity-90 overflow-hidden rounded-[16px]"
+          style={btnStyle}
         >
           <img
             src="/banners/dreamforce-26-banner.png"
             alt="Dreamforce '26 Side Events — San Francisco, September 15–17"
-            style={{ display: 'block', width: 'calc(100% + 12px)' }}
+            style={{ display: 'block', width: '100%' }}
           />
         </button>
-        {/* Right banner — crop ~12px of transparent PNG padding from the left inner edge */}
         <button
           type="button"
           onClick={onUnbound}
-          className="block w-full transition-opacity hover:opacity-90 cursor-pointer overflow-hidden rounded-[16px]"
-          style={{ background: 'none', border: 'none', padding: 0 }}
+          className="block w-full transition-opacity hover:opacity-90 overflow-hidden rounded-[16px]"
+          style={btnStyle}
         >
           <img
             src="/banners/unbound-26-banner.png"
             alt="Unbound '26 Side Events — Boston, September 16–18"
-            style={{ display: 'block', width: 'calc(100% + 12px)', marginLeft: -12 }}
+            style={{ display: 'block', width: '100%' }}
+          />
+        </button>
+        <button
+          type="button"
+          onClick={onSculpt}
+          className="block w-full transition-opacity hover:opacity-90 overflow-hidden rounded-[16px]"
+          style={btnStyle}
+        >
+          <img
+            src="/banners/sculpt-26-banner.png"
+            alt="Sculpt '26 Side Events — San Francisco, October 8"
+            style={{ display: 'block', width: '100%' }}
           />
         </button>
       </div>
@@ -1135,6 +1205,23 @@ const SIDE_EVENT_CONTENT = {
     email: 'event@whispered.com',
     subject: "Unbound '26 side event",
   },
+  sculpt: {
+    title: "Sculpt '26 Side Events",
+    badge: 'Coming Soon',
+    body: (
+      <>
+        Check back in early September for<br />our page with{' '}
+        <strong style={{ color: GOLD, fontWeight: 700 }}>every</strong> side event.
+      </>
+    ),
+    cta: (
+      <>
+        <strong style={{ color: GOLD, fontWeight: 700 }}>Hosting an event at Sculpt?</strong>{' '}Share here 👇
+      </>
+    ),
+    email: 'event@whispered.com',
+    subject: "Sculpt '26 side event",
+  },
 } as const
 
 function SideEventModal({
@@ -1142,7 +1229,7 @@ function SideEventModal({
   onClose,
   onShareOnSite,
 }: {
-  which: 'dreamforce' | 'unbound'
+  which: 'dreamforce' | 'unbound' | 'sculpt'
   onClose: () => void
   onShareOnSite: () => void
 }) {
@@ -1169,7 +1256,7 @@ function SideEventModal({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-[420px] rounded-card border p-6"
+        className="w-full max-w-[520px] rounded-card border p-8"
         style={{ background: '#252220', borderColor: 'rgba(236,230,218,.13)' }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -1177,7 +1264,7 @@ function SideEventModal({
           <div className="flex-1 text-center">
             <h2
               className="font-serif m-0"
-              style={{ fontSize: 22, color: '#ece6da', letterSpacing: '-0.01em', lineHeight: 1.2 }}
+              style={{ fontSize: 27, color: '#ece6da', letterSpacing: '-0.01em', lineHeight: 1.2 }}
             >
               {content.title}
             </h2>
@@ -1199,8 +1286,8 @@ function SideEventModal({
         </div>
 
         <div
-          className="mb-4 space-y-2 text-center"
-          style={{ fontSize: 13.5, color: 'rgba(236,230,218,.78)', lineHeight: 1.55 }}
+          className="mb-5 space-y-2.5 text-center"
+          style={{ fontSize: 15.5, color: 'rgba(236,230,218,.78)', lineHeight: 1.6 }}
         >
           <p className="m-0">{content.body}</p>
           <p className="m-0">{content.cta}</p>
@@ -1211,7 +1298,7 @@ function SideEventModal({
             href={gmailUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="rounded-pill text-[13px] font-medium text-center py-2.5 border transition-colors"
+            className="rounded-pill text-[15px] font-medium text-center py-3 border transition-colors"
             style={{ borderColor: 'rgba(236,230,218,.28)', color: '#ece6da' }}
             onMouseEnter={(e) => {
               e.currentTarget.style.borderColor = '#c9a86a'
@@ -1226,7 +1313,7 @@ function SideEventModal({
           </a>
           <a
             href={mailtoUrl}
-            className="rounded-pill text-[13px] font-medium text-center py-2.5 border transition-colors"
+            className="rounded-pill text-[15px] font-medium text-center py-3 border transition-colors"
             style={{ borderColor: 'rgba(236,230,218,.28)', color: '#ece6da' }}
             onMouseEnter={(e) => {
               e.currentTarget.style.borderColor = '#c9a86a'
@@ -1242,7 +1329,7 @@ function SideEventModal({
           <button
             type="button"
             onClick={handleCopy}
-            className="inline-flex items-center justify-center gap-2 rounded-pill text-[13px] font-medium text-center py-2.5 border transition-colors"
+            className="inline-flex items-center justify-center gap-2 rounded-pill text-[15px] font-medium text-center py-3 border transition-colors"
             style={{
               borderColor: 'rgba(236,230,218,.28)',
               color: copied ? '#c9a86a' : '#ece6da',
@@ -1265,7 +1352,7 @@ function SideEventModal({
           <button
             type="button"
             onClick={onShareOnSite}
-            className="rounded-pill text-[13px] font-medium text-center py-2.5 border transition-colors"
+            className="rounded-pill text-[15px] font-medium text-center py-3 border transition-colors"
             style={{
               borderColor: 'rgba(236,230,218,.28)',
               color: '#ece6da',
@@ -1388,7 +1475,7 @@ function AddEventModal({
             href={gmailUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="rounded-pill text-[13px] font-medium text-center py-2.5 border transition-colors"
+            className="rounded-pill text-[15px] font-medium text-center py-3 border transition-colors"
             style={{ borderColor: 'rgba(236,230,218,.28)', color: '#ece6da' }}
             onMouseEnter={(e) => {
               e.currentTarget.style.borderColor = '#c9a86a'
@@ -1403,7 +1490,7 @@ function AddEventModal({
           </a>
           <a
             href={mailtoUrl}
-            className="rounded-pill text-[13px] font-medium text-center py-2.5 border transition-colors"
+            className="rounded-pill text-[15px] font-medium text-center py-3 border transition-colors"
             style={{ borderColor: 'rgba(236,230,218,.28)', color: '#ece6da' }}
             onMouseEnter={(e) => {
               e.currentTarget.style.borderColor = '#c9a86a'
@@ -1419,7 +1506,7 @@ function AddEventModal({
           <button
             type="button"
             onClick={handleCopy}
-            className="inline-flex items-center justify-center gap-2 rounded-pill text-[13px] font-medium text-center py-2.5 border transition-colors"
+            className="inline-flex items-center justify-center gap-2 rounded-pill text-[15px] font-medium text-center py-3 border transition-colors"
             style={{
               borderColor: 'rgba(236,230,218,.28)',
               color: copied ? '#c9a86a' : '#ece6da',
@@ -1442,7 +1529,7 @@ function AddEventModal({
           <button
             type="button"
             onClick={onShareOnSite}
-            className="rounded-pill text-[13px] font-medium text-center py-2.5 border transition-colors"
+            className="rounded-pill text-[15px] font-medium text-center py-3 border transition-colors"
             style={{
               borderColor: 'rgba(236,230,218,.28)',
               color: '#ece6da',
