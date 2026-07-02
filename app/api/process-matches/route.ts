@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { AirtableEvent, AirtableUser } from '@/lib/airtable'
 import { getActiveUsers, getUserById } from '@/lib/users'
-import { getFutureEvents } from '@/lib/events'
+import { getFutureEvents, getEventById } from '@/lib/events'
 import { withinMiles } from '@/lib/geocode'
 import {
   scoreEventUser,
@@ -47,13 +47,11 @@ function countNearbyEvents(user: AirtableUser, events: AirtableEvent[]): number 
 }
 
 async function processEventTrigger(eventId: string) {
-  // createEvent inserts the canonical Supabase row at submission time, so
-  // by the time this trigger fires the event is already readable from
-  // getFutureEvents(). No pre-fetch needed.
-  const events = await getFutureEvents()
-  const event = events.find((e) => e.id === eventId)
+  // Use getEventById so Pending events (not yet Live) can be pre-scored for
+  // admin preview. getFutureEvents() filters status='Live' and would miss them.
+  const event = await getEventById(eventId)
   if (!event) {
-    console.error(`process-matches: event ${eventId} not found (or not in future)`)
+    console.error(`process-matches: event ${eventId} not found`)
     return
   }
 

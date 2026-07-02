@@ -132,10 +132,9 @@ export default function AdminEventsPage() {
   // Defaulting to future + all keeps the page's existing behavior.
   const [scope, setScope] = useState<Scope>('future')
   const [featuredFilter, setFeaturedFilter] = useState<FeaturedFilter>('all')
-  // Lifecycle bucket. Default 'live' = matching-loop scope (what the rest of
-  // the app sees). toApprove surfaces pending events for admin review;
-  // deactivated shows things admin previously pulled.
-  const [statusBucket, setStatusBucket] = useState<'live' | 'toApprove' | 'deactivated' | 'all'>('live')
+  // Lifecycle bucket. Default 'toApprove' so newly submitted events are front
+  // and center. Auto-falls back to 'live' when there's nothing pending.
+  const [statusBucket, setStatusBucket] = useState<'live' | 'toApprove' | 'deactivated' | 'all'>('toApprove')
 
   function toggleSort(key: SortKey) {
     if (sortBy === key) {
@@ -179,6 +178,14 @@ export default function AdminEventsPage() {
     // fetchEvents identity but it closes over both deps so this is correct.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scope, featuredFilter, statusBucket])
+
+  // If "To Approve" returns empty, fall through to "Live" automatically so
+  // the page is never a blank dead end when there's nothing pending.
+  useEffect(() => {
+    if (statusBucket === 'toApprove' && events !== null && events.length === 0) {
+      setStatusBucket('live')
+    }
+  }, [events, statusBucket])
 
   const visible = useMemo(() => {
     if (!events) return []

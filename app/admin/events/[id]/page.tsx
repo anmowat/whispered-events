@@ -432,8 +432,33 @@ export default function AdminEventDetailPage() {
     fetchDetail()
   }, [eventId])
 
+  const [userSortBy, setUserSortBy] = useState<'matchPercent' | 'function' | 'seniority' | 'grade' | 'location' | 'interest'>('matchPercent')
+  const [userSortDir, setUserSortDir] = useState<'asc' | 'desc'>('desc')
+
+  function toggleUserSort(key: typeof userSortBy) {
+    if (userSortBy === key) {
+      setUserSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setUserSortBy(key)
+      setUserSortDir(key === 'matchPercent' ? 'desc' : 'asc')
+    }
+  }
+
   const matched = users?.filter((u) => u.matchPercent !== null && u.matchPercent >= 40) ?? []
-  const visible = users ?? []
+  const visible = (() => {
+    if (!users) return []
+    const dir = userSortDir === 'asc' ? 1 : -1
+    return [...users].sort((a, b) => {
+      if (userSortBy === 'matchPercent') {
+        const ap = a.matchPercent ?? -1
+        const bp = b.matchPercent ?? -1
+        return (ap - bp) * dir
+      }
+      const av = (a[userSortBy] ?? '').toLowerCase()
+      const bv = (b[userSortBy] ?? '').toLowerCase()
+      return av.localeCompare(bv) * dir
+    })
+  })()
 
   return (
     <div className="min-h-screen bg-[#F5EFE6] flex flex-col">
@@ -752,12 +777,12 @@ export default function AdminEventDetailPage() {
                 <thead className="bg-[#FDFAF6] border-b border-[#E8DDD0]">
                   <tr>
                     <th className="text-left px-3 py-3 text-[11px] uppercase tracking-widest text-gray-500 font-medium">Name</th>
-                    <th className="text-left px-3 py-3 text-[11px] uppercase tracking-widest text-gray-500 font-medium">Function</th>
-                    <th className="text-left px-3 py-3 text-[11px] uppercase tracking-widest text-gray-500 font-medium">Seniority</th>
-                    <th className="text-left px-3 py-3 text-[11px] uppercase tracking-widest text-gray-500 font-medium">Grade</th>
-                    <th className="text-left px-3 py-3 text-[11px] uppercase tracking-widest text-gray-500 font-medium">Location</th>
-                    <th className="text-left px-3 py-3 text-[11px] uppercase tracking-widest text-gray-500 font-medium max-w-xs">Interest</th>
-                    <th className="text-right px-3 py-3 text-[11px] uppercase tracking-widest text-gray-500 font-medium">% Match</th>
+                    <UserSortHeader label="Function" sortKey="function" align="left" sortBy={userSortBy} sortDir={userSortDir} toggle={toggleUserSort} />
+                    <UserSortHeader label="Seniority" sortKey="seniority" align="left" sortBy={userSortBy} sortDir={userSortDir} toggle={toggleUserSort} />
+                    <UserSortHeader label="Grade" sortKey="grade" align="left" sortBy={userSortBy} sortDir={userSortDir} toggle={toggleUserSort} />
+                    <UserSortHeader label="Location" sortKey="location" align="left" sortBy={userSortBy} sortDir={userSortDir} toggle={toggleUserSort} />
+                    <UserSortHeader label="Interest" sortKey="interest" align="left" sortBy={userSortBy} sortDir={userSortDir} toggle={toggleUserSort} />
+                    <UserSortHeader label="% Match" sortKey="matchPercent" align="right" sortBy={userSortBy} sortDir={userSortDir} toggle={toggleUserSort} />
                   </tr>
                 </thead>
                 <tbody>
@@ -810,6 +835,38 @@ export default function AdminEventDetailPage() {
         )}
       </main>
     </div>
+  )
+}
+
+function UserSortHeader({
+  label,
+  sortKey,
+  align,
+  sortBy,
+  sortDir,
+  toggle,
+}: {
+  label: string
+  sortKey: 'matchPercent' | 'function' | 'seniority' | 'grade' | 'location' | 'interest'
+  align: 'left' | 'right'
+  sortBy: typeof sortKey
+  sortDir: 'asc' | 'desc'
+  toggle: (k: typeof sortKey) => void
+}) {
+  const isActive = sortBy === sortKey
+  return (
+    <th
+      className={`px-3 py-3 text-[11px] uppercase tracking-widest text-gray-500 font-medium select-none ${align === 'right' ? 'text-right' : 'text-left'}`}
+    >
+      <button
+        onClick={() => toggle(sortKey)}
+        className="inline-flex items-center gap-1 transition-colors"
+        style={{ color: isActive ? '#6E1F2B' : undefined }}
+      >
+        {label}
+        <span className="text-[10px] opacity-60">{isActive ? (sortDir === 'asc' ? '↑' : '↓') : '↕'}</span>
+      </button>
+    </th>
   )
 }
 

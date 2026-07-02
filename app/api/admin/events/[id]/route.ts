@@ -278,14 +278,27 @@ export async function PATCH(
       }
     }
 
-    // Pending/Deactivated -> Live transition: score this event against
-    // every eligible user so matches are populated by the time users
-    // refresh their dashboards. waitUntil keeps the admin save fast.
-    if (update.status === 'Live' && priorStatus !== 'Live') {
-      const appUrl = new URL(req.url).origin
+    const appUrl = new URL(req.url).origin
+    // Scoring-relevant fields — changes to these invalidate existing match rows.
+    const SCORING_FIELDS = ['type', 'location', 'description', 'audience', 'seniority', 'employment', 'companySize'] as const
+    const scoringFieldChanged = SCORING_FIELDS.some((f) => (update as Record<string, unknown>)[f] !== undefined)
+
+    // → Pending: score now so admin can preview match quality before approving.
+    // Matches store notified_at = null and stay invisible to users until Live.
+    if (update.status === 'Pending' && priorStatus !== 'Pending') {
       waitUntil(
         fetch(`${appUrl}/api/process-matches?trigger=event&id=${eventId}`).catch(
-          (e) => console.error('admin/events/[id] PATCH: trigger event match failed', e),
+          (e) => console.error('admin/events/[id] PATCH: trigger event match (pending) failed', e),
+        ),
+      )
+    }
+    // → Live: only re-score if scoring inputs also changed. If only the status
+    // changed (Pending → Live), the pre-scored rows already exist and will be
+    // picked up by the next digest without needing a full re-run.
+    if (update.status === 'Live' && priorStatus !== 'Live' && scoringFieldChanged) {
+      waitUntil(
+        fetch(`${appUrl}/api/process-matches?trigger=event&id=${eventId}`).catch(
+          (e) => console.error('admin/events/[id] PATCH: trigger event match (live) failed', e),
         ),
       )
     }
