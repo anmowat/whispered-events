@@ -362,7 +362,7 @@ export default function Home() {
       <main className="flex-1 flex flex-col">
         {authInvalid && (
           <div
-            className="mx-auto w-full max-w-[880px] mt-6 sm:mt-8 px-5 sm:px-10"
+            className="mx-auto w-full max-w-[1200px] mt-6 sm:mt-8 px-5 sm:px-10"
           >
             <div
               className="flex items-start gap-3 rounded-[10px] border px-4 py-3.5"
@@ -578,7 +578,7 @@ function Landing({
   return (
     <div className="animate-fade-in" key={tab}>
       {/* Hero */}
-      <section className="text-center px-5 sm:px-10 pt-10 sm:pt-[64px] pb-7 sm:pb-7 max-w-[880px] mx-auto">
+      <section className="text-center px-5 sm:px-10 pt-10 sm:pt-[64px] pb-7 sm:pb-7 max-w-[1200px] mx-auto">
         <h1
           style={{
             fontFamily: SERIF,
@@ -688,7 +688,7 @@ function Landing({
       {tab === 'partner'
         ? <PartnerTypeSection partners={partners} onApply={onCTA} />
         : (slides.length > 0 || featuredFallback.length > 0) && (
-            <section className="max-w-[1080px] mx-auto px-5 sm:px-11 pb-16 sm:pb-[66px]">
+            <section className="max-w-[1200px] mx-auto px-5 sm:px-11 pb-16 sm:pb-[66px]">
               <div
                 className="mb-[18px]"
                 style={{
@@ -749,7 +749,7 @@ function HeroSteps({ steps }: { steps: { icon: keyof typeof STEP_ICONS; label: s
   return (
     <div
       className="mx-auto mt-9 grid grid-cols-1 sm:grid-cols-3 gap-5 sm:gap-6"
-      style={{ maxWidth: 720 }}
+      style={{ maxWidth: 900 }}
     >
       {steps.map((s, i) => (
         <div key={i} className="flex items-center justify-center gap-3">
@@ -1067,7 +1067,7 @@ function SideEventBanners({
   const btnStyle: React.CSSProperties = { background: 'none', border: 'none', padding: 0, cursor: 'pointer' }
 
   return (
-    <section className="max-w-[1080px] mx-auto pb-10">
+    <section className="max-w-[1200px] mx-auto pb-10">
       <div
         className="px-5 sm:px-11"
         style={{ fontSize: 11, letterSpacing: '.3em', textTransform: 'uppercase', color: 'rgba(236,230,218,.4)', marginBottom: 18 }}
@@ -1531,7 +1531,7 @@ function PartnerTypeSection({ partners, onApply }: { partners: Partner[]; onAppl
     scrollRef.current?.scrollBy({ left: dir === 'left' ? -240 : 240, behavior: 'smooth' })
 
   return (
-    <section className="max-w-[1080px] mx-auto px-5 sm:px-11 pb-16 sm:pb-[66px]">
+    <section className="max-w-[1200px] mx-auto px-5 sm:px-11 pb-16 sm:pb-[66px]">
       {/* Tabs — centred */}
       <div className="flex flex-wrap justify-center gap-2 mb-8">
         {PARTNER_TABS.map((t) => {
