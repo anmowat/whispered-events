@@ -115,7 +115,7 @@ export default function LovePage() {
         onLogoClick={() => (window.location.href = '/')}
       />
 
-      <main className="max-w-[1040px] mx-auto px-6 sm:px-8 py-12 pb-24">
+      <main className="max-w-[1400px] mx-auto px-6 sm:px-8 py-12 pb-24">
         <h1
           className="font-serif m-0 text-[36px] sm:text-[48px]"
           style={{ lineHeight: 1.05, color: 'var(--ink)', letterSpacing: '-0.01em' }}
