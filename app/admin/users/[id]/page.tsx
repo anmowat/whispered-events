@@ -521,7 +521,7 @@ export default function AdminUserDetailPage() {
                   {events.map((e) => (
                     <tr key={e.id} className="border-b border-[#F0E8DC] last:border-b-0 hover:bg-[#FDFAF6] transition-colors">
                       <td className="px-4 py-3 max-w-sm">
-                        <a href={e.link} target="_blank" rel="noopener noreferrer" className="text-gray-800 hover:text-gold-700 transition-colors">
+                        <a href={`/admin/events/${e.id}`} className="text-gray-800 hover:text-gold-700 transition-colors">
                           {e.name}
                         </a>
                         <div className="text-xs text-gray-400 mt-0.5">{e.type}{e.date ? ` · ${e.date}` : ''}</div>
