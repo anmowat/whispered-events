@@ -565,6 +565,7 @@ function ProfileModalShell({
   onSave,
   onClose,
   children,
+  wide = false,
 }: {
   title: string
   saving: boolean
@@ -576,6 +577,7 @@ function ProfileModalShell({
   onSave: () => void
   onClose: () => void
   children: React.ReactNode
+  wide?: boolean
 }) {
   const disabled = saving || saveDisabled
   return (
@@ -584,7 +586,7 @@ function ProfileModalShell({
       style={{ background: 'rgba(20,15,10,0.45)' }}
     >
       <div
-        className="w-full sm:max-w-md max-h-[90vh] flex flex-col rounded-t-card sm:rounded-card border"
+        className={`w-full ${wide ? 'sm:max-w-xl' : 'sm:max-w-md'} max-h-[90vh] flex flex-col rounded-t-card sm:rounded-card border`}
         style={{ background: 'var(--paper)', borderColor: 'var(--rule)' }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -998,11 +1000,12 @@ function LocationModal({
 
   return (
     <ProfileModalShell
-      title="Edit location"
+      title="Update Location"
       saving={saving}
       error={error}
       onSave={handleSave}
       onClose={onClose}
+      wide
     >
       {locationCheck && (
         <LocationConfirm
@@ -1023,25 +1026,63 @@ function LocationModal({
             fontSize: 13,
             lineHeight: 1.5,
             color: 'var(--ink)',
+            textAlign: 'center',
           }}
         >
           <strong style={{ color: 'var(--accent)' }}>Heads up:</strong> {geoWarning}
         </div>
       )}
 
-      <p style={{ fontSize: 14, lineHeight: 1.6, color: 'var(--ink-2)', margin: 0 }}>
-        Please provide a single city. We will match you to events within 150 miles of your
-        location. Today we{' '}
-        <a
-          href="/faq"
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ color: 'var(--accent)', textDecoration: 'underline', textUnderlineOffset: 2 }}
-        >
-          (consciously) support one location at a time
-        </a>
-        . We are actively thinking about how to allow people to add additional cities they travel
-        to — if you are interested in getting early access to this feature email us at{' '}
+      {/* Intro copy — centred, above the city input */}
+      <div style={{ textAlign: 'center' }}>
+        <p style={{ fontSize: 17, lineHeight: 1.5, color: 'var(--ink)', margin: 0, fontWeight: 500 }}>
+          Please provide a single city.
+        </p>
+        <p style={{ fontSize: 15, lineHeight: 1.6, color: 'var(--ink-2)', margin: '6px 0 0' }}>
+          We match you to events within 150 miles of your location
+        </p>
+        <p style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--ink-3)', margin: '2px 0 0' }}>
+          (with higher match scores for closer events)
+        </p>
+        <p style={{ fontSize: 15, lineHeight: 1.6, color: 'var(--ink-2)', margin: '14px 0 0' }}>
+          Today we{' '}
+          <a
+            href="/faq"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: 'var(--accent)', textDecoration: 'underline', textUnderlineOffset: 2 }}
+          >
+            (consciously) support one location at a time
+          </a>
+          .
+        </p>
+        <p style={{ fontSize: 15, lineHeight: 1.6, color: 'var(--ink-2)', margin: '4px 0 0' }}>
+          <em>Traveling?</em> Update 👇 to re-run matches for any city
+        </p>
+      </div>
+
+      {/* City input */}
+      <div style={{ textAlign: 'center' }}>
+        <ModalField label="City">
+          <input
+            value={location}
+            onChange={(e) => {
+              setLocation(e.target.value)
+              if (locationConfirmed) setLocationConfirmed(false)
+              if (locationCheck) setLocationCheck(null)
+              if (geoWarning) setGeoWarning(null)
+            }}
+            placeholder="San Francisco"
+            className={modalInputCls}
+            style={modalInputStyle}
+          />
+        </ModalField>
+      </div>
+
+      {/* Footer copy — below city, above buttons */}
+      <p style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--ink-3)', margin: 0, textAlign: 'center' }}>
+        We are actively thinking about how to allow people to add additional cities they travel to.{' '}
+        If you are interested in getting early access to this feature email us at{' '}
         <a
           href="mailto:team@whisperedevents.com"
           style={{ color: 'var(--accent)', textDecoration: 'underline', textUnderlineOffset: 2 }}
@@ -1049,21 +1090,6 @@ function LocationModal({
           team@whisperedevents.com
         </a>
       </p>
-
-      <ModalField label="City">
-        <input
-          value={location}
-          onChange={(e) => {
-            setLocation(e.target.value)
-            if (locationConfirmed) setLocationConfirmed(false)
-            if (locationCheck) setLocationCheck(null)
-            if (geoWarning) setGeoWarning(null)
-          }}
-          placeholder="San Francisco"
-          className={modalInputCls}
-          style={modalInputStyle}
-        />
-      </ModalField>
     </ProfileModalShell>
   )
 }
