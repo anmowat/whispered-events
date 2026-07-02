@@ -131,9 +131,9 @@ export async function GET(
         hosts,
         status,
         submitterEmail,
-        inviteEmployment: event.inviteEmployment ?? [],
-        inviteCompanySize: event.inviteCompanySize ?? [],
-        inviteSeniority: event.inviteSeniority ?? [],
+        employment: event.employment ?? [],
+        companySize: event.companySize ?? [],
+        seniority: event.seniority ?? [],
       },
       users,
       generatedAt: new Date().toISOString(),
@@ -176,9 +176,9 @@ export async function PATCH(
       featured?: unknown
       hostEmails?: unknown
       status?: unknown
-      inviteEmployment?: unknown
-      inviteCompanySize?: unknown
-      inviteSeniority?: unknown
+      employment?: unknown
+      companySize?: unknown
+      seniority?: unknown
     }
 
     const update: Parameters<typeof updateEvent>[1] = {}
@@ -200,14 +200,14 @@ export async function PATCH(
     if (typeof body.status === 'string' && VALID_EVENT_STATUSES.has(body.status)) {
       update.status = body.status as 'Pending' | 'Live' | 'Deactivated'
     }
-    if (Array.isArray(body.inviteEmployment)) {
-      update.inviteEmployment = body.inviteEmployment.filter((s): s is string => typeof s === 'string')
+    if (Array.isArray(body.employment)) {
+      update.employment = body.employment.filter((s): s is string => typeof s === 'string')
     }
-    if (Array.isArray(body.inviteCompanySize)) {
-      update.inviteCompanySize = body.inviteCompanySize.filter((s): s is string => typeof s === 'string')
+    if (Array.isArray(body.companySize)) {
+      update.companySize = body.companySize.filter((s): s is string => typeof s === 'string')
     }
-    if (Array.isArray(body.inviteSeniority)) {
-      update.inviteSeniority = body.inviteSeniority.filter((s): s is string => typeof s === 'string')
+    if (Array.isArray(body.seniority)) {
+      update.seniority = body.seniority.filter((s): s is string => typeof s === 'string')
     }
 
     // hostEmails is the canonical edit surface for the host list. Resolve

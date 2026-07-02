@@ -121,7 +121,7 @@ export interface MatchLog {
   qualityScore: number | null
   preferenceScore: number | null
   inputsHash: string
-  skippedReason?: 'grade_c' | 'location_zero' | 'women_only_audience' | null
+  skippedReason?: 'grade_c' | 'location_zero' | 'women_only_audience' | 'seniority_mismatch' | 'employment_mismatch' | 'company_size_mismatch' | null
 }
 
 // NOTE: We deliberately do NOT include notified_at in the upsert payload.

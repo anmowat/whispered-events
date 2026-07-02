@@ -45,9 +45,9 @@ interface EventRow {
   deleted_at: string | null
   created_at: string
   updated_at: string
-  invite_employment: string[] | null
-  invite_company_size: string[] | null
-  invite_seniority: string[] | null
+  employment: string[] | null
+  company_size: string[] | null
+  seniority: string[] | null
 }
 
 function toAirtableEvent(row: EventRow): AirtableEvent {
@@ -70,9 +70,9 @@ function toAirtableEvent(row: EventRow): AirtableEvent {
     featured: row.featured === true,
     status: row.status ?? 'Pending',
     hostIds: row.host_ids ?? [],
-    inviteEmployment: row.invite_employment ?? [],
-    inviteCompanySize: row.invite_company_size ?? [],
-    inviteSeniority: row.invite_seniority ?? [],
+    employment: row.employment ?? [],
+    companySize: row.company_size ?? [],
+    seniority: row.seniority ?? [],
   }
 }
 

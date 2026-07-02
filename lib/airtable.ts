@@ -566,15 +566,15 @@ export async function updateEvent(
     // airtableFields here. Tracked under the Airtable-mirror cleanup item.
     supabaseRow.status = fields.status
   }
-  if (fields.inviteEmployment !== undefined) {
-    supabaseRow.invite_employment = fields.inviteEmployment
+  if (fields.employment !== undefined) {
+    supabaseRow.employment = fields.employment
   }
-  if (fields.inviteCompanySize !== undefined) {
-    supabaseRow.invite_company_size = fields.inviteCompanySize
+  if (fields.companySize !== undefined) {
+    supabaseRow.company_size = fields.companySize
   }
-  if (fields.inviteSeniority !== undefined) {
-    supabaseRow.invite_seniority = fields.inviteSeniority
-    ;(airtableFields as Record<string, unknown>)['Seniority'] = fields.inviteSeniority
+  if (fields.seniority !== undefined) {
+    supabaseRow.seniority = fields.seniority
+    ;(airtableFields as Record<string, unknown>)['Seniority'] = fields.seniority
   }
 
   // Supabase first as the canonical write. Failures bubble up — caller
@@ -593,7 +593,7 @@ export async function updateEvent(
   waitUntil(pushEventToAirtable(id, airtableFields, 'updateEvent'))
 }
 
-// One-time backfill: reads invite_seniority for every live event from Supabase
+// One-time backfill: reads seniority for every live event from Supabase
 // and pushes it to the Airtable "Seniority" multi-select field. Safe to run
 // multiple times (idempotent). Batches of 10 with a 250ms pause between
 // batches to stay well under Airtable's 5 req/s rate limit.
@@ -601,12 +601,12 @@ export async function backfillSeniorityToAirtable(): Promise<{ updated: number; 
   const supabase = getSupabase()
   const { data, error } = await supabase
     .from('events')
-    .select('id, invite_seniority')
+    .select('id, seniority')
     .is('deleted_at', null)
     .is('airtable_deleted_at', null)
   if (error) throw new Error(`backfillSeniorityToAirtable: supabase fetch failed: ${error.message}`)
 
-  const rows = (data ?? []) as Array<{ id: string; invite_seniority: string[] | null }>
+  const rows = (data ?? []) as Array<{ id: string; seniority: string[] | null }>
   const base = getBase()
   let updated = 0
   let errors = 0
@@ -616,7 +616,7 @@ export async function backfillSeniorityToAirtable(): Promise<{ updated: number; 
     const batch = rows.slice(i, i + BATCH)
     await Promise.all(
       batch.map(async (row) => {
-        const seniority = row.invite_seniority ?? []
+        const seniority = row.seniority ?? []
         try {
           await base(EVENTS_TABLE).update(row.id, { Seniority: seniority } as Partial<FieldSet>)
           updated++
@@ -764,12 +764,12 @@ export interface AirtableEvent {
   status?: string
   /** Supabase user IDs of people who host this event. */
   hostIds?: string[]
-  /** Employment types to invite — empty = no filter. */
-  inviteEmployment?: string[]
-  /** Company sizes to invite — empty = no filter. */
-  inviteCompanySize?: string[]
-  /** Seniority levels to invite — empty = no filter. */
-  inviteSeniority?: string[]
+  /** Employment types filter — empty = no filter (all invited). */
+  employment?: string[]
+  /** Company sizes filter — empty = no filter (all invited). */
+  companySize?: string[]
+  /** Seniority levels filter — empty = no filter (all invited). */
+  seniority?: string[]
 }
 
 export async function getActiveUsers(): Promise<AirtableUser[]> {

@@ -2,7 +2,8 @@ import Anthropic from '@anthropic-ai/sdk'
 import { createHash } from 'crypto'
 import { AirtableEvent, AirtableUser } from './airtable'
 import { haversineMiles } from './geocode'
-import { VIRTUAL_LOCATION_RE } from './types'
+import { VIRTUAL_LOCATION_RE, EMPLOYMENT_OPTIONS, COMPANY_SIZE_OPTIONS } from './types'
+import { SENIORITY_OPTIONS } from './seniority'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -42,13 +43,9 @@ const QUALITY_MULTIPLIER: Record<'A' | 'Polish' | 'B' | 'C', number> = {
 // Bumped any time the scoring rubric / prompt / formula changes so the
 // inputs hash on every cached row turns stale. The admin rescore-missing
 // endpoint then picks them up and refreshes under the new model.
-// Reverted from 14 → 13 after a brief incident where bumping to 14
-// invalidated every cached row at once and flooded the Anthropic rate
-// limit (no retry logic at the time). The audience-floor code below
-// still applies on every fresh write, so the new tier rolls out
-// naturally as events change or per-user rescores fire. Bump again
-// only after callLLM's retry handling is proven in production.
-const MATCHING_VERSION = 13
+// v14: adds seniority/employment/company-size gates; refocuses audience
+// LLM on function only; includes event filter fields in hash.
+const MATCHING_VERSION = 14
 
 // The radius constant lives in lib/geocode.ts (client-safe — no
 // Anthropic SDK or other server-only deps in that module). Re-export
@@ -57,7 +54,7 @@ const MATCHING_VERSION = 13
 // directly to avoid pulling this whole module into the browser bundle.
 export { NEARBY_RADIUS_MILES } from './geocode'
 
-export type SkippedReason = 'grade_c' | 'location_zero' | 'women_only_audience'
+export type SkippedReason = 'grade_c' | 'location_zero' | 'women_only_audience' | 'seniority_mismatch' | 'employment_mismatch' | 'company_size_mismatch'
 
 export interface ScoreResult {
   score: number
@@ -84,6 +81,9 @@ export function computeInputsHash(event: AirtableEvent, user: AirtableUser): str
       description: event.description ?? '',
       lat: event.lat ?? null,
       lng: event.lng ?? null,
+      seniority: event.seniority ?? [],
+      employment: event.employment ?? [],
+      companySize: event.companySize ?? [],
     },
     user: {
       function: user.function ?? '',
@@ -183,12 +183,12 @@ async function callLLM(
 
 Return three values via the submit_score tool:
 
-1. "audience" (0.0–1.5): how the event's stated Audience and Type aligns with the attendee's Function and Seniority. LITERAL function naming (or strict C-suite alias) is the only path to 1.2+. Broad-role aliases are soft signal. Use this rubric — do not invent intermediate logic:
-   • 1.5 — Event audience LITERALLY names this attendee's function AND seniority (e.g. audience "Marketing VP/Directors, CMO" for a C-level Marketing attendee). Strict C-suite aliases below count as literal.
-   • 1.2 — Same literal/strict-alias match but only function OR seniority, not both. Requires the function to actually match — a CMO at an event whose audience names "VPs of Marketing" lands here (function literal, seniority off). A CTO at a CMO event does NOT — that's wrong audience (0.0).
+1. "audience" (0.0–1.5): how the event's stated Audience and Type aligns with the attendee's Function. Seniority is handled separately — score function fit only. LITERAL function naming (or strict C-suite alias) is the only path to 1.2+. Broad-role aliases are soft signal. Use this rubric — do not invent intermediate logic:
+   • 1.5 — Event audience LITERALLY names this attendee's function (e.g. audience "CMOs, Marketing Leaders" for a Marketing attendee, or "CROs, Revenue Leaders" for a Sales attendee). Strict C-suite aliases below count as literal.
+   • 1.2 — Event audience uses a "[Function] Leaders/Executives/VPs/Directors/Heads" construction that directly names the function, or a strict C-suite alias that clearly implies the function. The function must actually match — a CMO at an event whose audience names "VPs of Marketing" lands here. A CTO at a CMO event does NOT — that's wrong audience (0.0).
    • 0.8 — Broad-role alias only: the attendee qualifies via one of the broad-role aliases below (e.g. RevOps under "GTM Leaders", Customer Success under "Revenue Leaders", Design under "Product Leaders") with no literal function naming. Close to the audience but not literally named.
-   • 0.6 — Same function family, adjacent seniority only (e.g. VP Sales at a CRO dinner; Director Marketing at a CMO event). Different functions at the same seniority do NOT count as adjacent.
-   • 0.0 — Wrong audience entirely. Covers cross-C-suite mismatches (CTO at a CMO event) and other wrong-function cases (VP Sales at a CMO event). There is no "tangential overlap" tier for the audience leg — if the function family doesn't match and there's no broad-role-alias path, it's wrong audience.
+   • 0.6 — Same function family, adjacent (e.g. VP Sales at a CRO dinner where function is close but not the named focus; Marketing function at a RevOps-focused event). Different function families do NOT qualify.
+   • 0.0 — Wrong audience entirely. Covers cross-function mismatches (CTO at a CMO event, VP Sales at a CMO event). There is no "tangential overlap" tier — if the function family doesn't match and there's no broad-role-alias path, it's wrong audience.
 
    C-suite function-family aliases (STRICT — count as literal naming for the 1.5 / 1.2 tiers): when the attendee's Function + Seniority matches one of these, treat the corresponding C-title in the event audience as a LITERAL match:
      • Founder ≡ CEO (and Co-Founder ≡ CEO)
@@ -500,7 +500,62 @@ export async function scoreEventUser(
     })
   }
 
-  // Short-circuit 4: empty interest → skip the LLM's preferences leg, but we still need audience.
+  // Short-circuit 4: seniority gate. Fires only when the event restricts
+  // seniority (fewer than all options checked). All options = no restriction.
+  // Users with blank/non-canonical seniority pass through.
+  if (
+    (event.seniority?.length ?? 0) > 0 &&
+    (event.seniority?.length ?? 0) < SENIORITY_OPTIONS.length
+  ) {
+    const userSeniority = user.seniority?.trim() ?? ''
+    if (userSeniority && !event.seniority!.includes(userSeniority)) {
+      return emptyResult({
+        location,
+        quality,
+        reason: 'Skipped: seniority not in event filter',
+        skippedReason: 'seniority_mismatch',
+        inputsHash,
+      })
+    }
+  }
+
+  // Short-circuit 5: employment gate. Fires only when the event restricts
+  // employment (fewer than all 4 options). Blank user employment passes through.
+  if (
+    (event.employment?.length ?? 0) > 0 &&
+    (event.employment?.length ?? 0) < EMPLOYMENT_OPTIONS.length
+  ) {
+    const userEmployment = user.employment?.trim() ?? ''
+    if (userEmployment && !event.employment!.includes(userEmployment)) {
+      return emptyResult({
+        location,
+        quality,
+        reason: 'Skipped: employment type not in event filter',
+        skippedReason: 'employment_mismatch',
+        inputsHash,
+      })
+    }
+  }
+
+  // Short-circuit 6: company size gate. Fires only when the event restricts
+  // company size (fewer than all 6 revenue options). Blank user size passes through.
+  if (
+    (event.companySize?.length ?? 0) > 0 &&
+    (event.companySize?.length ?? 0) < COMPANY_SIZE_OPTIONS.length
+  ) {
+    const userCompanySize = user.companySize?.trim() ?? ''
+    if (userCompanySize && !event.companySize!.includes(userCompanySize)) {
+      return emptyResult({
+        location,
+        quality,
+        reason: 'Skipped: company size not in event filter',
+        skippedReason: 'company_size_mismatch',
+        inputsHash,
+      })
+    }
+  }
+
+  // Short-circuit 7: empty interest → skip the LLM's preferences leg, but we still need audience.
   // Run one combined LLM call regardless; the prompt instructs it to return preferences=1.0
   // when interest is missing. This keeps the code paths uniform.
   const llm = await callLLM(event, user, fixedSide)

@@ -9,7 +9,8 @@ import {
   eventStatusPillClass,
   type EventStatus,
 } from '@/lib/event-status'
-import { INVITE_EMPLOYMENT_OPTIONS, INVITE_COMPANY_SIZE_OPTIONS, INVITE_SENIORITY_OPTIONS } from '@/lib/types'
+import { EMPLOYMENT_OPTIONS, COMPANY_SIZE_OPTIONS } from '@/lib/types'
+import { SENIORITY_OPTIONS } from '@/lib/seniority'
 
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024
 
@@ -36,9 +37,9 @@ interface EventDetail {
   hosts: Host[]
   status: string
   submitterEmail: string
-  inviteEmployment: string[]
-  inviteCompanySize: string[]
-  inviteSeniority: string[]
+  employment: string[]
+  companySize: string[]
+  seniority: string[]
 }
 
 // Draft mirrors EventDetail's editable fields. audience is a comma-joined
@@ -56,9 +57,9 @@ interface EventDraft {
   audience: string
   featured: boolean
   status: EventStatus
-  inviteEmployment: string[]
-  inviteCompanySize: string[]
-  inviteSeniority: string[]
+  employment: string[]
+  companySize: string[]
+  seniority: string[]
 }
 
 function hostDisplayName(h: Host): string {
@@ -80,9 +81,9 @@ function draftFromEvent(e: EventDetail): EventDraft {
     audience: e.audience.join(', '),
     featured: e.featured,
     status: normalizeEventStatus(e.status),
-    inviteEmployment: e.inviteEmployment ?? [],
-    inviteCompanySize: e.inviteCompanySize ?? [],
-    inviteSeniority: e.inviteSeniority ?? [],
+    employment: e.employment ?? [],
+    companySize: e.companySize ?? [],
+    seniority: e.seniority ?? [],
   }
 }
 
@@ -636,9 +637,9 @@ export default function AdminEventDetailPage() {
                   <Field label="Submitter" value={event.submitterEmail} />
                   <Field label="Audience" value={event.audience.join(', ')} />
                   <Field label="Description" value={event.description} multiline />
-                  <Field label="Invite: Employment" value={event.inviteEmployment.join(', ')} />
-                  <Field label="Invite: Company Size" value={event.inviteCompanySize.join(', ')} />
-                  <Field label="Invite: Seniority" value={event.inviteSeniority.join(', ')} />
+                  <Field label="Employment" value={event.employment.join(', ')} />
+                  <Field label="Company Size" value={event.companySize.join(', ')} />
+                  <Field label="Seniority" value={event.seniority.join(', ')} />
                 </dl>
               ) : (
                 <EventEditForm draft={draft!} onChange={setDraft} disabled={editBusy} />
@@ -948,26 +949,26 @@ function EventEditForm({
             className={`${input} font-normal leading-relaxed`}
           />
         </FormField>
-        {/* Row 6: Invite Employment | Invite Company Size */}
+        {/* Row 6: Employment | Company Size | Seniority */}
         <AdminMultiCheckbox
-          label="Invite: Employment"
-          options={[...INVITE_EMPLOYMENT_OPTIONS]}
-          value={draft.inviteEmployment}
-          onChange={(v) => update('inviteEmployment', v)}
+          label="Employment"
+          options={[...EMPLOYMENT_OPTIONS]}
+          value={draft.employment}
+          onChange={(v) => update('employment', v)}
           disabled={disabled}
         />
         <AdminMultiCheckbox
-          label="Invite: Company Size"
-          options={[...INVITE_COMPANY_SIZE_OPTIONS]}
-          value={draft.inviteCompanySize}
-          onChange={(v) => update('inviteCompanySize', v)}
+          label="Company Size"
+          options={[...COMPANY_SIZE_OPTIONS]}
+          value={draft.companySize}
+          onChange={(v) => update('companySize', v)}
           disabled={disabled}
         />
         <AdminMultiCheckbox
-          label="Invite: Seniority"
-          options={[...INVITE_SENIORITY_OPTIONS]}
-          value={draft.inviteSeniority}
-          onChange={(v) => update('inviteSeniority', v)}
+          label="Seniority"
+          options={[...SENIORITY_OPTIONS]}
+          value={draft.seniority}
+          onChange={(v) => update('seniority', v)}
           disabled={disabled}
         />
       </div>

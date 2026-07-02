@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation'
 import Header from '@/components/Header'
 import LoginModal from '@/components/LoginModal'
 import { formatEventDate } from '@/lib/dates'
-import { INVITE_EMPLOYMENT_OPTIONS, INVITE_COMPANY_SIZE_OPTIONS } from '@/lib/types'
+import { EMPLOYMENT_OPTIONS, COMPANY_SIZE_OPTIONS } from '@/lib/types'
 
 interface HostEvent {
   id: string
@@ -16,9 +16,9 @@ interface HostEvent {
   description: string
   link: string
   audience: string[]
-  inviteEmployment: string[]
-  inviteCompanySize: string[]
-  inviteSeniority: string[]
+  employment: string[]
+  companySize: string[]
+  seniority: string[]
 }
 
 interface HostMatch {
@@ -356,9 +356,9 @@ function EventSummary({ event }: { event: HostEvent }) {
           <SummaryField label="Location" value={event.location} />
           <SummaryField label="Audience" value={event.audience.join(', ')} />
           <SummaryField label="Description" value={event.description} multiline />
-          <SummaryField label="Employment" value={(event.inviteEmployment ?? []).join(', ')} />
-          <SummaryField label="Company Size" value={(event.inviteCompanySize ?? []).join(', ')} />
-          <SummaryField label="Seniority" value={(event.inviteSeniority ?? []).join(', ')} />
+          <SummaryField label="Employment" value={(event.employment ?? []).join(', ')} />
+          <SummaryField label="Company Size" value={(event.companySize ?? []).join(', ')} />
+          <SummaryField label="Seniority" value={(event.seniority ?? []).join(', ')} />
         </dl>
       </div>
     </section>
@@ -394,8 +394,8 @@ function EditForm({
   const [location, setLocation] = useState(event.location)
   const [description, setDescription] = useState(event.description)
   const [audience, setAudience] = useState(event.audience.join(', '))
-  const [inviteEmployment, setInviteEmployment] = useState<string[]>(event.inviteEmployment ?? [])
-  const [inviteCompanySize, setInviteCompanySize] = useState<string[]>(event.inviteCompanySize ?? [])
+  const [employment, setEmployment] = useState<string[]>(event.employment ?? [])
+  const [companySize, setCompanySize] = useState<string[]>(event.companySize ?? [])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -410,8 +410,8 @@ function EditForm({
         location,
         description,
         audience: audience.split(',').map((s) => s.trim()).filter(Boolean),
-        inviteEmployment,
-        inviteCompanySize,
+        employment,
+        companySize,
       }
       const res = await fetch(`/api/host/events/${event.id}`, {
         method: 'PATCH',
@@ -464,15 +464,15 @@ function EditForm({
           </EditField>
           <HostMultiCheckbox
             label="Employment"
-            options={[...INVITE_EMPLOYMENT_OPTIONS]}
-            value={inviteEmployment}
-            onChange={setInviteEmployment}
+            options={[...EMPLOYMENT_OPTIONS]}
+            value={employment}
+            onChange={setEmployment}
           />
           <HostMultiCheckbox
             label="Company Size"
-            options={[...INVITE_COMPANY_SIZE_OPTIONS]}
-            value={inviteCompanySize}
-            onChange={setInviteCompanySize}
+            options={[...COMPANY_SIZE_OPTIONS]}
+            value={companySize}
+            onChange={setCompanySize}
           />
         </div>
         {error && (
