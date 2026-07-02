@@ -1057,32 +1057,27 @@ function LocationModal({
           .
         </p>
         <p style={{ fontSize: 15, lineHeight: 1.6, color: 'var(--ink-2)', margin: '4px 0 0' }}>
-          <em>Traveling?</em> Update 👇 to re-run matches for any city
+          <em>Traveling?</em> Update your city to re-run matches
         </p>
       </div>
 
-      {/* City input */}
-      <div style={{ textAlign: 'center' }}>
-        <ModalField label="City">
-          <input
-            value={location}
-            onChange={(e) => {
-              setLocation(e.target.value)
-              if (locationConfirmed) setLocationConfirmed(false)
-              if (locationCheck) setLocationCheck(null)
-              if (geoWarning) setGeoWarning(null)
-            }}
-            placeholder="San Francisco"
-            className={modalInputCls}
-            style={modalInputStyle}
-          />
-        </ModalField>
-      </div>
+      {/* City input — no label */}
+      <input
+        value={location}
+        onChange={(e) => {
+          setLocation(e.target.value)
+          if (locationConfirmed) setLocationConfirmed(false)
+          if (locationCheck) setLocationCheck(null)
+          if (geoWarning) setGeoWarning(null)
+        }}
+        placeholder="San Francisco"
+        className={modalInputCls}
+        style={modalInputStyle}
+      />
 
       {/* Footer copy — below city, above buttons */}
-      <p style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--ink-3)', margin: 0, textAlign: 'center' }}>
-        We are actively thinking about how to allow people to add additional cities they travel to.{' '}
-        If you are interested in getting early access to this feature email us at{' '}
+      <p style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--ink-3)', margin: '8px 0 0', textAlign: 'center' }}>
+        We are exploring allowing multiple locations. If you are interested in getting early access to this feature email us at{' '}
         <a
           href="mailto:team@whisperedevents.com"
           style={{ color: 'var(--accent)', textDecoration: 'underline', textUnderlineOffset: 2 }}
