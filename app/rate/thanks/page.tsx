@@ -1,12 +1,20 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 
 const SERIF = `'Cormorant Garamond', Georgia, 'Times New Roman', serif`
 const SANS = `-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif`
 
 export default function RateThanksPage() {
+  return (
+    <Suspense fallback={null}>
+      <RateThanksContent />
+    </Suspense>
+  )
+}
+
+function RateThanksContent() {
   const searchParams = useSearchParams()
   const rating = searchParams.get('rating')
   const eventId = searchParams.get('eventId') ?? ''
