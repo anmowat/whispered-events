@@ -960,7 +960,7 @@ function renderEntry(entry: DigestEventEntry, userId: string, baseUrl: string): 
   const btnStyle = `border-radius:99px;border:1px solid #DDD3C0;padding:3px 10px;font-size:12px;color:#4A433B;text-decoration:none;display:inline-block;margin-left:4px;white-space:nowrap;`
   const upUrl = ratingUrl(userId, event.id, 'up', baseUrl)
   const downUrl = ratingUrl(userId, event.id, 'down', baseUrl)
-  const ratingHtml = `<span style="font-size:12px;color:#8A8276;margin-left:6px;">Rate:</span><a href="${upUrl}" style="${btnStyle}">👍 Good Match</a><a href="${downUrl}" style="${btnStyle}">👎 Not a Fit</a>`
+  const ratingHtml = `<a href="${upUrl}" style="${btnStyle}">👍 Good Match</a><a href="${downUrl}" style="${btnStyle}">👎 Not a Fit</a>`
 
   // Event title: oxblood + underlined so the click affordance is
   // obvious. text-underline-offset matches the rest of the email's
