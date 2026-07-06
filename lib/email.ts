@@ -1,6 +1,7 @@
 import { Resend } from 'resend'
 import { AirtableEvent, AirtableUser } from './airtable'
 import { logDigestSend } from './supabase'
+import { ratingUrl } from './email-rating'
 
 function getResend() {
   if (!process.env.RESEND_API_KEY) throw new Error('RESEND_API_KEY must be set')
@@ -710,7 +711,7 @@ export async function sendRecap(
       `Quick recap — we have ${nearbyCount} upcoming ${nearbyNoun} near ${locationPhrase}, and your profile ${matchVerb} ${totalMatchCount} of them. Here are your top ${matchNoun}:`,
       { mt: 14 },
     )}
-    ${renderEntries(annotated.topMatches)}
+    ${renderEntries(annotated.topMatches, user.id)}
     ${p(
       `Want to see more? Update your interests on your <a href="${DASHBOARD_LINK}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">dashboard</a> — add functions or topics you'd like to see (e.g. "RevOps", "GTM", "AI", specific industries).`,
       { mt: 14 },
@@ -940,7 +941,7 @@ function cityFromLocation(location: string): string {
   return location.split(',')[0].trim()
 }
 
-function renderEntry(entry: DigestEventEntry): string {
+function renderEntry(entry: DigestEventEntry, userId: string, baseUrl: string): string {
   const { event, matchPercent, isDuplicate } = entry
   const date = shortDate(event.date)
   const city = cityFromLocation(event.location)
@@ -955,12 +956,18 @@ function renderEntry(entry: DigestEventEntry): string {
     : event.description
       ? `<span style="color:${C.ink2};">${escapeHtml(event.description)}</span> `
       : ''
+
+  const btnStyle = `border-radius:99px;border:1px solid #DDD3C0;padding:3px 10px;font-size:12px;color:#4A433B;text-decoration:none;display:inline-block;margin-left:4px;white-space:nowrap;`
+  const upUrl = ratingUrl(userId, event.id, 'up', baseUrl)
+  const downUrl = ratingUrl(userId, event.id, 'down', baseUrl)
+  const ratingHtml = `<span style="font-size:12px;color:#8A8276;margin-left:6px;">Rate:</span><a href="${upUrl}" style="${btnStyle}">👍 Good Match</a><a href="${downUrl}" style="${btnStyle}">👎 Not a Fit</a>`
+
   // Event title: oxblood + underlined so the click affordance is
   // obvious. text-underline-offset matches the rest of the email's
   // link treatment.
   return `
 <p style="font-family:${SANS};margin:0 0 14px;font-size:14.5px;line-height:1.55;">
-  <a href="${event.link}" style="font-family:${SERIF};font-size:17px;color:${C.accent};text-decoration:underline;text-underline-offset:3px;font-weight:400;letter-spacing:-0.01em;">${escapeHtml(event.name)}</a>${datePart}${body}${match}
+  <a href="${event.link}" style="font-family:${SERIF};font-size:17px;color:${C.accent};text-decoration:underline;text-underline-offset:3px;font-weight:400;letter-spacing:-0.01em;">${escapeHtml(event.name)}</a>${datePart}${body}${match} ${ratingHtml}
 </p>
 `.trim()
 }
@@ -978,9 +985,11 @@ function markDuplicates(payload: DigestPayload): DigestPayload {
   }
 }
 
-function renderEntries(entries: DigestEventEntry[]): string {
+const EMAIL_BASE_URL = process.env.NEXT_PUBLIC_BASE_URL ?? 'https://whisperedevents.com'
+
+function renderEntries(entries: DigestEventEntry[], userId: string): string {
   if (!entries.length) return ''
-  return `<div style="margin-top:22px;">${entries.map(renderEntry).join('')}</div>`
+  return `<div style="margin-top:22px;">${entries.map((e) => renderEntry(e, userId, EMAIL_BASE_URL)).join('')}</div>`
 }
 
 export async function sendApprovedWithDigest(
@@ -1032,7 +1041,7 @@ export async function sendApprovedWithDigest(
     ${eyebrow(`Welcome · ${eb}`)}
     ${h1(`<span style="font-style:italic;">Welcome</span> to the club, ${escapeHtml(firstName)}.`)}
     ${p(introCopyHtml, { mt: 14 })}
-    ${renderEntries(annotated.newEvents)}
+    ${renderEntries(annotated.newEvents, user.id)}
     ${moreHtml}
     ${coachingHtml}
     ${digestFooterHtml(firstName)}
@@ -1130,7 +1139,7 @@ export async function sendLocationUpdatedDigest(
     ${eyebrow(`Location update · ${eb}`)}
     ${h1(`New <span style="font-style:italic;">whispers</span> in ${escapeHtml(cityLabel)}, ${escapeHtml(firstName)}.`)}
     ${p(introCopy, { mt: 14 })}
-    ${renderEntries(annotated.newEvents)}
+    ${renderEntries(annotated.newEvents, user.id)}
     ${moreHtml}
     ${digestFooterHtml(firstName)}
   `)
@@ -1265,7 +1274,7 @@ export async function sendUserDigest(
     ${eyebrowMarkup}
     ${h1(`New <span style="font-style:italic;">whispers</span> for ${escapeHtml(firstName)}.`)}
     ${p(introCopy, { mt: 12 })}
-    ${renderEntries(annotated.newEvents)}
+    ${renderEntries(annotated.newEvents, user.id)}
     ${moreHtml}
     ${digestFooterHtml(firstName)}
   `)
