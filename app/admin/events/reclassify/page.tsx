@@ -60,11 +60,10 @@ export default function ReclassifyPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set())
 
   useEffect(() => {
-    fetch('/api/auth/me')
-      .then((r) => r.json())
-      .then((d: { user?: { role?: string } }) => {
-        setAuthState(d.user?.role === 'admin' ? 'admin' : 'out')
-      })
+    // Probe a real admin-protected endpoint — /api/auth/me has no `role` field
+    // so checking it would always return 'out'. Same pattern as admin/events/page.tsx.
+    fetch('/api/admin/events?scope=future&statusBucket=live')
+      .then((r) => setAuthState(r.ok ? 'admin' : 'out'))
       .catch(() => setAuthState('out'))
   }, [])
 
