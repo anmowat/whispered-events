@@ -25,7 +25,7 @@ type Step =
   | 'claim-success'
   | 'error'
 
-const EVENT_TYPES: EventType[] = ['Conference', 'Dinner', 'Virtual', 'Other']
+const EVENT_TYPES: EventType[] = ['Conference', 'Dinner', 'Happy Hour', 'Panel', 'Workshop', 'Activity', 'Other']
 
 const WELCOME_TEXT =
   'Paste a link to the event page — or type out the event details directly.'

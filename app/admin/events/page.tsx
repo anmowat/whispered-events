@@ -54,7 +54,7 @@ const DEFAULT_DIR: Record<SortKey, SortDir> = {
 
 const POLL_MS = 15_000
 
-const TYPE_FILTERS = ['All', 'Conference', 'Dinner', 'Other'] as const
+const TYPE_FILTERS = ['All', 'Conference', 'Dinner', 'Happy Hour', 'Panel', 'Workshop', 'Activity', 'Other'] as const
 
 interface Filters {
   type: (typeof TYPE_FILTERS)[number]
@@ -282,6 +282,12 @@ export default function AdminEventsPage() {
                 </p>
               </div>
               <div className="flex items-center gap-2">
+                <a
+                  href="/admin/events/reclassify"
+                  className="px-3 py-1.5 rounded-lg border border-[#E8DDD0] bg-white text-xs text-gray-700 hover:bg-[#F5EFE6] transition-colors shadow-sm"
+                >
+                  Re-classify types
+                </a>
                 <button
                   onClick={fetchEvents}
                   className="px-3 py-1.5 rounded-lg border border-[#E8DDD0] bg-white text-xs text-gray-700 hover:bg-[#F5EFE6] transition-colors shadow-sm"

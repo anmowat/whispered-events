@@ -68,7 +68,7 @@ function hostDisplayName(h: Host): string {
   return h.email
 }
 
-const EVENT_TYPE_OPTIONS = ['Conference', 'Dinner', 'Virtual', 'Other'] as const
+const EVENT_TYPE_OPTIONS = ['Conference', 'Dinner', 'Happy Hour', 'Panel', 'Workshop', 'Activity', 'Other'] as const
 
 function draftFromEvent(e: EventDetail): EventDraft {
   return {

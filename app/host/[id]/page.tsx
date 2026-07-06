@@ -54,7 +54,7 @@ function scoreTooltip(m: HostMatch): string {
 // Same options as ShareEventTab — must match the Airtable Type single-select.
 // Virtual is intentionally omitted from edit-time choices (we don't accept
 // virtuals); the PATCH route also rejects Virtual on save.
-const TYPE_OPTIONS = ['Conference', 'Dinner', 'Other']
+const TYPE_OPTIONS = ['Conference', 'Dinner', 'Happy Hour', 'Panel', 'Workshop', 'Activity', 'Other']
 
 function shortDate(iso: string): string {
   return formatEventDate(iso, { month: 'short', day: 'numeric', year: 'numeric' })

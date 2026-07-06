@@ -162,7 +162,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, reason: 'parse incomplete' })
   }
 
-  if (parsed.type === 'Virtual' || VIRTUAL_LOCATION_RE.test(parsed.location || '')) {
+  if ((parsed.type as string) === 'Virtual' || VIRTUAL_LOCATION_RE.test(parsed.location || '')) {
     await sendReply(
       senderEmail,
       'We only accept in-person events',

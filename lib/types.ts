@@ -1,4 +1,4 @@
-export type EventType = 'Conference' | 'Dinner' | 'Virtual' | 'Other'
+export type EventType = 'Conference' | 'Dinner' | 'Happy Hour' | 'Panel' | 'Workshop' | 'Activity' | 'Other'
 
 // Used to reject virtual events at submit time. We no longer accept virtuals.
 export const VIRTUAL_LOCATION_RE = /\b(virtual|online|remote|webinar|zoom)\b/i

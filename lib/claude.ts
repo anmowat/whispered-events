@@ -5,7 +5,7 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 })
 
-const EVENT_TYPES: EventType[] = ['Conference', 'Dinner', 'Virtual', 'Other']
+const EVENT_TYPES: EventType[] = ['Conference', 'Dinner', 'Happy Hour', 'Panel', 'Workshop', 'Activity', 'Other']
 
 export async function parseEventContent(
   content: string,
@@ -23,7 +23,7 @@ ${content}
 
 Extract and return a JSON object with these fields (omit fields you cannot determine):
 - name: Short event name, maximum 6 words
-- type: One of exactly: "Conference", "Dinner", "Virtual", "Other" — pick the best fit based on context
+- type: One of exactly: "Conference", "Dinner", "Happy Hour", "Panel", "Workshop", "Activity", "Other" — classify by FORMAT not topic: Conference=large multi-session; Dinner=meal is the centerpiece; Happy Hour=drinks-centered social (mixers, soirées, receptions, rooftop drinks, BBQs, launch parties); Panel=discussion-led single-topic (panels, roundtables, fireside chats); Workshop=hands-on/build/lab; Activity=shared activity as main draw (golf, sailing, poker, sports); Other=genuine catch-all only
 - date: ISO date string (YYYY-MM-DD) of the event start date. If the source shows a year-less date like "Jun 2" or "Tuesday, Jun 2", combine it with the next applicable year based on today's date.
 - location: City, state/country or "Virtual" (e.g. "New York, NY" or "San Francisco, CA")
 - description: A 2-sentence description of the event and the intended audience that would be shared with potential attendees

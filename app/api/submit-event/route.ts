@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    if (event.type === 'Virtual' || VIRTUAL_LOCATION_RE.test(event.location || '')) {
+    if ((event.type as string) === 'Virtual' || VIRTUAL_LOCATION_RE.test(event.location || '')) {
       return NextResponse.json(
         {
           error:

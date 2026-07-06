@@ -110,7 +110,7 @@ export async function PATCH(
   if (update.name === '') {
     return NextResponse.json({ error: 'Event name is required' }, { status: 400 })
   }
-  if (update.type === 'Virtual' || VIRTUAL_LOCATION_RE.test(update.location || '')) {
+  if ((update.type as string) === 'Virtual' || VIRTUAL_LOCATION_RE.test(update.location || '')) {
     return NextResponse.json(
       { error: 'We only accept in-person events with a specific city.' },
       { status: 400 },

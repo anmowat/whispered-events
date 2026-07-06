@@ -7,6 +7,7 @@ import { getAllMatchesForEvent } from '@/lib/supabase'
 import { withinMiles } from '@/lib/geocode'
 import { NEARBY_RADIUS_MILES } from '@/lib/matching'
 import { updateEvent } from '@/lib/airtable'
+import type { EventType } from '@/lib/types'
 import { sendHostAddedEmail } from '@/lib/email'
 
 // Admin event detail: returns the event + every active user within
@@ -149,7 +150,7 @@ export async function GET(
 // once per save. Same isAdmin gate as the GET; the write fans through
 // lib/airtable.ts:updateEvent (Supabase canonical + best-effort Airtable
 // follower push).
-const VALID_TYPES = new Set(['Conference', 'Dinner', 'Virtual', 'Other'])
+const VALID_TYPES = new Set(['Conference', 'Dinner', 'Happy Hour', 'Panel', 'Workshop', 'Activity', 'Other'])
 const VALID_EVENT_STATUSES = new Set(['Pending', 'Live', 'Deactivated'])
 
 export async function PATCH(
@@ -184,7 +185,7 @@ export async function PATCH(
     const update: Parameters<typeof updateEvent>[1] = {}
     if (typeof body.name === 'string') update.name = body.name.trim()
     if (typeof body.type === 'string' && VALID_TYPES.has(body.type)) {
-      update.type = body.type as 'Conference' | 'Dinner' | 'Virtual' | 'Other'
+      update.type = body.type as EventType
     }
     if (typeof body.date === 'string') update.date = body.date
     if (typeof body.location === 'string') update.location = body.location.trim()
