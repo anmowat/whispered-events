@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
               console.warn(`submit-profile: enrichment skipped (${result.reason})`)
             } else {
               console.log(
-                `submit-profile: enriched ${id} → ${result.function?.join(', ') || '?'} / ${result.seniority || '?'}`,
+                `submit-profile: enriched ${id} → ${result.function || '?'} / ${result.seniority || '?'}`,
               )
             }
           } catch (e) {
