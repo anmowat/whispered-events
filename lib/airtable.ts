@@ -450,7 +450,22 @@ export async function createEvent(
   // Airtable .create() first so we inherit its recXXX id as the canonical
   // Supabase id. Downstream foreign keys (matches.event_id, host links)
   // already use this format; preserving it avoids a schema migration.
-  const record = await base(EVENTS_TABLE).create(fields)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let record: any
+  try {
+    record = await base(EVENTS_TABLE).create(fields)
+  } catch (e: unknown) {
+    // Airtable rejects unknown single-select values. Fall back to 'Other'
+    // so the event still gets created — Supabase stores the real type.
+    const err = e as { error?: string }
+    if (err?.error === 'INVALID_MULTIPLE_CHOICE_OPTIONS' && fields['Type'] !== 'Other') {
+      console.warn(`createEvent: Airtable rejected type "${fields['Type']}", retrying with Other`)
+      fields['Type'] = 'Other'
+      record = await base(EVENTS_TABLE).create(fields)
+    } else {
+      throw e
+    }
+  }
 
   // Then explicit Supabase insert with the same data. No more sync mirror
   // — this is the canonical row going forward.
