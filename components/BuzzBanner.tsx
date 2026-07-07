@@ -46,7 +46,7 @@ export default function BuzzBanner() {
       }}
     >
       <span>
-        Check out some of the early buzz on Whispered Events&nbsp;&mdash;&nbsp;
+        Check out some of the{' '}
         <a
           href="/love"
           style={{ color: '#1b1814', fontWeight: 700, textDecoration: 'underline', textUnderlineOffset: 2 }}
@@ -54,6 +54,7 @@ export default function BuzzBanner() {
         >
           early buzz
         </a>
+        {' '}on Whispered Events
       </span>
       <button
         onClick={dismiss}
