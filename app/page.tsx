@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { HeaderTab } from '@/components/Header'
+import BuzzBanner from '@/components/BuzzBanner'
 import ShareEventTab from '@/components/ShareEventTab'
 import PartnerApplyTab from '@/components/PartnerApplyTab'
 import ViewEventsTab from '@/components/ViewEventsTab'
@@ -352,6 +353,7 @@ export default function Home() {
         />
       )}
 
+      <BuzzBanner />
       <AfterHoursHeader
         activeTab={tab}
         onTabChange={selectTab}
