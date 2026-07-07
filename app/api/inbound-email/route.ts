@@ -155,7 +155,7 @@ export async function POST(req: NextRequest) {
   if (!parsed.name || !link) {
     console.error('inbound-email: parse incomplete', parsed)
     try {
-      await sendEventCouldNotReadEmail(senderEmail)
+      await sendEventCouldNotReadEmail(senderEmail, url)
     } catch (e) {
       console.error('inbound-email: sendEventCouldNotReadEmail failed', e)
     }
@@ -213,7 +213,7 @@ export async function POST(req: NextRequest) {
     // path. Return 200 so Resend doesn't retry the webhook (the email
     // body's data is fundamentally broken — retrying won't help).
     try {
-      await sendEventCouldNotReadEmail(senderEmail)
+      await sendEventCouldNotReadEmail(senderEmail, url)
     } catch (e2) {
       console.error('inbound-email: sendEventCouldNotReadEmail (post-create-failure) failed', e2)
     }
@@ -263,7 +263,7 @@ export async function POST(req: NextRequest) {
       'for event',
       parsed.name,
     )
-    await sendEventSubmittedEmail(senderEmail, parsed.name, contributionsTotal)
+    await sendEventSubmittedEmail(senderEmail, parsed.name, contributionsTotal, link)
     console.log('inbound-email: confirmation sent OK to', senderEmail)
   } catch (e) {
     console.error('inbound-email: sendEventSubmittedEmail failed', e)

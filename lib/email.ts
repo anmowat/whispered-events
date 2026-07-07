@@ -335,20 +335,21 @@ export async function sendEventSubmittedEmail(
   email: string,
   eventName: string,
   contributionsTotal: number,
+  eventLink?: string,
 ): Promise<void> {
   const resend = getResend()
   const safeName = escapeHtml(eventName)
   const firstName = firstNameFromEmail(email)
   const milestone = contributionMilestone(contributionsTotal)
   const eventCountPhrase = `You've added ${contributionsTotal} event${contributionsTotal === 1 ? '' : 's'} so far! We'll be adding new features for top contributors soon.`
-  // Single combined sentence per the new copy: event name + cumulative count
-  // + features teaser in one paragraph. The "host of this event?" CTA moves
-  // to its own paragraph so the inline links read cleanly.
-  const summaryHtml = `<strong style="color:${C.ink};">"${safeName}"</strong> has been added. ${eventCountPhrase}`
-  const summaryText = `"${eventName}" has been added. ${eventCountPhrase}`
+  const linkStyle = `color:${C.accent};text-decoration:underline;text-underline-offset:3px;`
+  const eventNameHtml = eventLink
+    ? `<a href="${escapeHtml(eventLink)}" style="${linkStyle}">"${safeName}"</a>`
+    : `"${safeName}"`
+  const summaryHtml = `<strong style="color:${C.ink};">${eventNameHtml}</strong> has been added. ${eventCountPhrase}`
+  const summaryText = `"${eventName}" has been added. ${eventCountPhrase}${eventLink ? `\nEvent link: ${eventLink}` : ''}`
   // Inline links for the host / partner CTA. "reply to this email" framing
   // dropped because clicking the link is the canonical path now.
-  const linkStyle = `color:${C.accent};text-decoration:underline;text-underline-offset:3px;`
   const hostCtaHtml = `If you are the host of the event, <a href="${HOST_LINK}" style="${linkStyle}">get host access</a> by replying to this email.`
   const hostCtaText = `If you are the host of the event, get host access by replying to this email.`
   const html = shell(`
@@ -764,13 +765,18 @@ export async function sendRecap(
   })
 }
 
-export async function sendEventCouldNotReadEmail(email: string): Promise<void> {
+export async function sendEventCouldNotReadEmail(email: string, submittedUrl?: string): Promise<void> {
   const resend = getResend()
   const firstName = firstNameFromEmail(email)
+  const urlHtml = submittedUrl
+    ? p(`Link you sent: <a href="${escapeHtml(submittedUrl)}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">${escapeHtml(submittedUrl)}</a>`, { mt: 12 })
+    : ''
+  const urlText = submittedUrl ? `\nLink you sent: ${submittedUrl}\n` : ''
   const html = shell(`
     ${h1(`We couldn't <span style="font-style:italic;">read</span> your event.`)}
     ${p('Thanks for sending an event to Whispered Events — the platform is powered by contributions like yours.', { mt: 14 })}
     ${p("We weren't able to extract the event details.", { mt: 12 })}
+    ${urlHtml}
     ${p("If you have a public event link (Luma, Eventbrite, the host's site, etc.), send it over and we'll try again.", { mt: 12 })}
     ${digestFooterHtml(firstName)}
   `)
@@ -780,7 +786,7 @@ export async function sendEventCouldNotReadEmail(email: string): Promise<void> {
     'Thanks for sending an event to Whispered Events — the platform is powered by contributions like yours.',
     '',
     "We weren't able to extract the event details.",
-    '',
+    urlText,
     "If you have a public event link (Luma, Eventbrite, the host's site, etc.), send it over and we'll try again.",
     '',
     ...digestFooterTextLines(firstName),

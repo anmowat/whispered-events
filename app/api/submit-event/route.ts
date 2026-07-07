@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
           console.error('submit-event: getContributionStats failed', e)
         }
         try {
-          await sendEventSubmittedEmail(event.submitter, event.name, total)
+          await sendEventSubmittedEmail(event.submitter, event.name, total, event.link)
         } catch (e) {
           console.error('submit-event: sendEventSubmittedEmail failed', e)
         }
