@@ -529,20 +529,30 @@ export default function ViewEventsTab({
 
       {step === 'interest' && (
         <div className="mt-4 animate-slide-up">
-          <TopicChips value={input} onChange={setInput} />
+          <TopicChips value={input} onChange={setInput} hideCustomInput />
         </div>
       )}
 
-      {showComposer && (
+      {step === 'interest' ? (
+        <div className="pt-3 sm:pt-4 border-t" style={{ borderColor: 'var(--rule-soft)' }}>
+          <button
+            onClick={() => handleSend()}
+            disabled={!input.trim()}
+            className="rounded-pill px-3.5 sm:px-4 py-2.5 text-[13px] font-medium text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            style={{ background: 'var(--accent)' }}
+            onMouseEnter={(e) =>
+              input.trim() && (e.currentTarget.style.background = 'var(--accent-2)')
+            }
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--accent)')}
+          >
+            Send
+          </button>
+        </div>
+      ) : showComposer && (
         <Composer
           value={input}
           onChange={setInput}
           onSend={() => handleSend()}
-          placeholder={
-            step === 'interest'
-              ? 'Pick popular topics + write your own in too'
-              : 'Type your answer…'
-          }
         />
       )}
     </div>

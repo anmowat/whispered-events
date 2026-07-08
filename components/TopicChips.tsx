@@ -94,6 +94,7 @@ export default function TopicChips({
   value = '',
   onChange,
   readonly = false,
+  hideCustomInput = false,
 }: {
   // Editable mode: value is the comma-separated list of currently
   // selected topics; onChange fires on every toggle.
@@ -103,6 +104,7 @@ export default function TopicChips({
   value?: string
   onChange?: (next: string) => void
   readonly?: boolean
+  hideCustomInput?: boolean
 }) {
   const [groups, setGroups] = useState<ChipGroup[]>(() => buildFallbackGroups())
 
@@ -267,7 +269,7 @@ export default function TopicChips({
           mode (FAQ surface doesn't need an input). Whatever the user
           types is merged into the same comma-separated value the chips
           drive, deduped case-insensitively. */}
-      {!readonly && (
+      {!readonly && !hideCustomInput && (
         <div>
           <div
             className="mb-1.5"
