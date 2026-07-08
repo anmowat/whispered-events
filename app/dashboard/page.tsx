@@ -294,8 +294,8 @@ export default function DashboardPage() {
             <div className="flex items-baseline flex-wrap gap-x-3">
               <div className="eyebrow">Your matched events</div>
               <span
-                className="font-medium italic"
-                style={{ fontSize: 13, color: 'var(--accent)' }}
+                className="font-medium"
+                style={{ fontSize: 15, color: 'var(--accent)' }}
               >
                 Rate events to see more/better matches
               </span>
