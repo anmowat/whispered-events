@@ -34,18 +34,22 @@ export async function GET(req: NextRequest) {
       matchPercent: entry?.matchPercent ?? null,
       rating: entry?.rating ?? null,
       ratingReason: entry?.ratingReason ?? null,
+      hostRating: entry?.hostRating ?? null,
     }
   })
 
-  // Hard hide thumbs-down: once a user rates a match `down`, it drops off
-  // their dashboard. The matches row still carries the rating (admin
-  // analytics + the internal notification email still fire), but the user
-  // doesn't see the event again on this page. ?all=1 bypasses both filters
-  // for admin/debug viewing.
+  // Hard hide thumbs-down: once a user or host rates a match `down`, it drops
+  // off the user's dashboard. The matches row still carries the rating (admin
+  // analytics + internal notification email still fire), but the user doesn't
+  // see the event again on this page. ?all=1 bypasses both filters for
+  // admin/debug viewing.
   const filtered = showAll
     ? withScores
     : withScores.filter(
-        (e) => (e.matchScore ?? 0) >= NOTIFY_THRESHOLD && e.rating !== 'down',
+        (e) =>
+          (e.matchScore ?? 0) >= NOTIFY_THRESHOLD &&
+          e.rating !== 'down' &&
+          e.hostRating !== 'down',
       )
 
   const events = filtered.sort((a, b) => a.date.localeCompare(b.date))

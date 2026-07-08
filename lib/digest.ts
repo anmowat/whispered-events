@@ -92,9 +92,10 @@ async function processUser(
     futureIds,
     DIGEST_SCORE_THRESHOLD,
   )
-  if (newMatches.length === 0) return { sent: false }
+  const eligibleNew = newMatches.filter((m) => m.host_rating !== 'down')
+  if (eligibleNew.length === 0) return { sent: false }
 
-  const topNew = newMatches.slice(0, DIGEST_CAP_PER_SECTION)
+  const topNew = eligibleNew.slice(0, DIGEST_CAP_PER_SECTION)
 
   // Top Matches = absolute top 3 upcoming above threshold; overlap with
   // New is allowed (the email template renders dupes compactly).
@@ -103,7 +104,7 @@ async function processUser(
     futureIds,
     DIGEST_SCORE_THRESHOLD,
   )
-  const top = allUpcoming.slice(0, DIGEST_CAP_PER_SECTION)
+  const top = allUpcoming.filter((m) => m.host_rating !== 'down').slice(0, DIGEST_CAP_PER_SECTION)
 
   await sendUserDigest(user, {
     newEvents: toEntries(topNew, futureById),

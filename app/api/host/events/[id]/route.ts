@@ -63,6 +63,9 @@ export async function GET(
         audienceScore: m.audience_score,
         qualityScore: m.quality_score,
         preferenceScore: m.preference_score,
+        rating: m.rating ?? null,
+        hostRating: m.host_rating ?? null,
+        hostFeedback: m.host_feedback ?? null,
       })
     }
 

@@ -34,6 +34,9 @@ interface HostMatch {
   audienceScore: number | null
   qualityScore: number | null
   preferenceScore: number | null
+  rating: 'up' | 'down' | null
+  hostRating: 'up' | 'down' | null
+  hostFeedback: string | null
 }
 
 function fmtNum(n: number | null): string {
@@ -71,6 +74,9 @@ export default function HostEventDetailPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [showLogin, setShowLogin] = useState(false)
   const [editing, setEditing] = useState(false)
+  const [feedbackFor, setFeedbackFor] = useState<string | null>(null)
+  const [feedbackText, setFeedbackText] = useState('')
+  const [ratingBusy, setRatingBusy] = useState<Set<string>>(new Set())
 
   async function fetchDetail() {
     if (!eventId) return
@@ -98,6 +104,34 @@ export default function HostEventDetailPage() {
     } catch (e) {
       setAuthState('error')
       setErrorMsg(e instanceof Error ? e.message : String(e))
+    }
+  }
+
+  async function rateGuest(userId: string, rating: 'up' | 'down' | null, feedback?: string) {
+    if (!eventId) return
+    setRatingBusy((prev) => new Set(prev).add(userId))
+    try {
+      const res = await fetch('/api/host/match-rating', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ eventId, userId, rating, feedback: feedback ?? null }),
+      })
+      if (!res.ok) return
+      if (rating === 'down') {
+        setMatches((prev) => prev.filter((m) => m.userId !== userId))
+      } else {
+        setMatches((prev) =>
+          prev.map((m) =>
+            m.userId === userId ? { ...m, hostRating: rating, hostFeedback: null } : m,
+          ),
+        )
+      }
+    } finally {
+      setRatingBusy((prev) => {
+        const next = new Set(prev)
+        next.delete(userId)
+        return next
+      })
     }
   }
 
@@ -258,6 +292,81 @@ export default function HostEventDetailPage() {
               </p>
             </div>
 
+            {feedbackFor && (
+              <div
+                style={{
+                  position: 'fixed',
+                  inset: 0,
+                  background: 'rgba(0,0,0,0.55)',
+                  zIndex: 50,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '1rem',
+                }}
+                onClick={() => { setFeedbackFor(null); setFeedbackText('') }}
+              >
+                <div
+                  className="rounded-card border"
+                  style={{
+                    background: 'var(--paper)',
+                    borderColor: 'var(--rule)',
+                    padding: '1.5rem',
+                    maxWidth: 400,
+                    width: '100%',
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <p className="eyebrow mb-2" style={{ color: 'var(--accent)' }}>👎 Not a fit</p>
+                  <p style={{ fontSize: 13, color: 'var(--ink-2)', marginBottom: '0.75rem' }}>
+                    Optional: why isn&apos;t this a fit?
+                  </p>
+                  <textarea
+                    value={feedbackText}
+                    onChange={(e) => setFeedbackText(e.target.value.slice(0, 500))}
+                    rows={3}
+                    placeholder="e.g. Wrong seniority level, not aligned on industry…"
+                    className="w-full rounded-input border px-3 py-2 text-[13px] resize-none focus:outline-none focus:border-accent transition-colors"
+                    style={{
+                      background: 'var(--paper-2)',
+                      borderColor: 'var(--rule)',
+                      color: 'var(--ink)',
+                    }}
+                  />
+                  <p style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: '0.25rem', textAlign: 'right' }}>
+                    {feedbackText.length}/500
+                  </p>
+                  <div className="flex justify-end gap-2 mt-3">
+                    <button
+                      onClick={() => {
+                        const uid = feedbackFor
+                        setFeedbackFor(null)
+                        setFeedbackText('')
+                        rateGuest(uid, 'down', '')
+                      }}
+                      className="px-4 py-2 rounded-pill text-[13px]"
+                      style={{ color: 'var(--ink-2)' }}
+                    >
+                      Skip feedback
+                    </button>
+                    <button
+                      onClick={() => {
+                        const uid = feedbackFor
+                        const fb = feedbackText
+                        setFeedbackFor(null)
+                        setFeedbackText('')
+                        rateGuest(uid, 'down', fb)
+                      }}
+                      className="px-5 py-2 rounded-pill text-[13px] font-medium text-white transition-colors"
+                      style={{ background: '#7A2A36' }}
+                    >
+                      Submit
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div
               className="rounded-card border overflow-hidden"
               style={{ background: 'var(--paper)', borderColor: 'var(--rule)' }}
@@ -275,6 +384,7 @@ export default function HostEventDetailPage() {
                     <th className="text-left px-4 py-3 eyebrow">Seniority</th>
                     <th className="text-left px-4 py-3 eyebrow">Interest</th>
                     <th className="text-right px-4 py-3 eyebrow">% Match</th>
+                    <th className="text-right px-4 py-3 eyebrow">Rate</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -287,19 +397,27 @@ export default function HostEventDetailPage() {
                       }}
                     >
                       <td className="px-4 py-3">
-                        {m.linkedin ? (
-                          <a
-                            href={m.linkedin}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="underline"
-                            style={{ color: 'var(--accent)', textUnderlineOffset: 3 }}
-                          >
-                            {m.name}
-                          </a>
-                        ) : (
-                          <span style={{ color: 'var(--ink)' }}>{m.name}</span>
-                        )}
+                        <div className="flex items-center gap-1.5">
+                          {m.linkedin ? (
+                            <a
+                              href={m.linkedin}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="underline"
+                              style={{ color: 'var(--accent)', textUnderlineOffset: 3 }}
+                            >
+                              {m.name}
+                            </a>
+                          ) : (
+                            <span style={{ color: 'var(--ink)' }}>{m.name}</span>
+                          )}
+                          {m.rating === 'down' && (
+                            <span title="Guest rated this event 👎" style={{ fontSize: 11, opacity: 0.6 }}>👎</span>
+                          )}
+                          {m.rating === 'up' && (
+                            <span title="Guest rated this event 👍" style={{ fontSize: 11, opacity: 0.6 }}>👍</span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-3" style={{ color: 'var(--ink-2)' }}>
                         {m.function || <span className="italic" style={{ color: 'var(--ink-3)' }}>—</span>}
@@ -321,6 +439,36 @@ export default function HostEventDetailPage() {
                         title={scoreTooltip(m)}
                       >
                         {m.matchPercent}%
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="inline-flex items-center gap-1">
+                          <button
+                            disabled={ratingBusy.has(m.userId)}
+                            onClick={() => rateGuest(m.userId, m.hostRating === 'up' ? null : 'up')}
+                            title={m.hostRating === 'up' ? 'Clear rating' : 'Good fit'}
+                            className="rounded-pill border text-[12px] px-2 py-0.5 transition-colors disabled:opacity-40"
+                            style={{
+                              background: m.hostRating === 'up' ? 'var(--accent)' : 'transparent',
+                              borderColor: m.hostRating === 'up' ? 'var(--accent)' : 'var(--rule)',
+                              color: m.hostRating === 'up' ? '#fff' : 'var(--ink-2)',
+                            }}
+                          >
+                            👍
+                          </button>
+                          <button
+                            disabled={ratingBusy.has(m.userId)}
+                            onClick={() => { setFeedbackFor(m.userId); setFeedbackText('') }}
+                            title="Not a fit"
+                            className="rounded-pill border text-[12px] px-2 py-0.5 transition-colors disabled:opacity-40"
+                            style={{
+                              background: 'transparent',
+                              borderColor: 'var(--rule)',
+                              color: 'var(--ink-2)',
+                            }}
+                          >
+                            👎
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}

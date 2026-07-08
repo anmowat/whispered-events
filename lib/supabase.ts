@@ -180,6 +180,7 @@ export interface UserMatchScore {
   matchPercent: number
   rating: MatchRating | null
   ratingReason: string | null
+  hostRating: 'up' | 'down' | null
 }
 
 export async function getMatchScoresForUser(
@@ -188,7 +189,7 @@ export async function getMatchScoresForUser(
   const supabase = getClient()
   const { data } = await supabase
     .from('matches')
-    .select('event_id, score, match_percent, rating, rating_reason')
+    .select('event_id, score, match_percent, rating, rating_reason, host_rating')
     .eq('user_id', userId)
   const scores = new Map<string, UserMatchScore>()
   for (const row of data ?? []) {
@@ -198,6 +199,7 @@ export async function getMatchScoresForUser(
       match_percent: number | null
       rating: MatchRating | null
       rating_reason: string | null
+      host_rating: 'up' | 'down' | null
     }
     const prev = scores.get(r.event_id)?.score ?? -1
     if (r.score > prev) {
@@ -206,6 +208,7 @@ export async function getMatchScoresForUser(
         matchPercent: r.match_percent ?? Math.round((r.score / 3.0) * 100),
         rating: r.rating,
         ratingReason: r.rating_reason,
+        hostRating: r.host_rating,
       })
     }
   }
@@ -306,6 +309,7 @@ export interface DigestMatchRow {
   score: number
   match_percent: number | null
   notified_at: string | null
+  host_rating: 'up' | 'down' | null
 }
 
 export async function getUnnotifiedMatchesForUser(
@@ -317,7 +321,7 @@ export async function getUnnotifiedMatchesForUser(
   const supabase = getClient()
   const { data, error } = await supabase
     .from('matches')
-    .select('event_id, score, match_percent, notified_at')
+    .select('event_id, score, match_percent, notified_at, host_rating')
     .eq('user_id', userId)
     .is('notified_at', null)
     .gte('score', threshold)
@@ -336,7 +340,7 @@ export async function getUpcomingMatchesForUser(
   const supabase = getClient()
   const { data, error } = await supabase
     .from('matches')
-    .select('event_id, score, match_percent, notified_at')
+    .select('event_id, score, match_percent, notified_at, host_rating')
     .eq('user_id', userId)
     .gte('score', threshold)
     .in('event_id', futureEventIds)
@@ -447,6 +451,9 @@ export interface EventMatchRow {
   quality_score: number | null
   preference_score: number | null
   skipped_reason: string | null
+  rating?: 'up' | 'down' | null
+  host_rating?: 'up' | 'down' | null
+  host_feedback?: string | null
 }
 
 // EVERY match row for an event, including below-threshold and skipped
@@ -475,7 +482,7 @@ export async function getMatchesForEvent(eventId: string): Promise<EventMatchRow
   const supabase = getClient()
   const { data, error } = await supabase
     .from('matches')
-    .select('user_id, score, match_percent, location_score, audience_score, quality_score, preference_score')
+    .select('user_id, score, match_percent, location_score, audience_score, quality_score, preference_score, rating, host_rating, host_feedback')
     .eq('event_id', eventId)
     .gte('score', NOTIFY_THRESHOLD)
     .is('skipped_reason', null)
@@ -485,6 +492,29 @@ export async function getMatchesForEvent(eventId: string): Promise<EventMatchRow
     return []
   }
   return (data ?? []) as EventMatchRow[]
+}
+
+// Writes the host's thumbs-up / thumbs-down (or clears it) for a guest match.
+// Returns true when the (event, user) row existed and was updated.
+export async function setHostMatchRating(params: {
+  eventId: string
+  userId: string
+  rating: 'up' | 'down' | null
+  feedback?: string | null
+}): Promise<boolean> {
+  const supabase = getClient()
+  const { data, error } = await supabase
+    .from('matches')
+    .update({
+      host_rating: params.rating,
+      host_feedback: params.rating === 'down' ? (params.feedback ?? null) : null,
+      host_rated_at: params.rating ? new Date().toISOString() : null,
+    })
+    .eq('event_id', params.eventId)
+    .eq('user_id', params.userId)
+    .select('event_id')
+  if (error) throw new Error(`setHostMatchRating failed: ${error.message}`)
+  return (data?.length ?? 0) > 0
 }
 
 // Stamps notified_at on every still-unnotified match for the user. Used when a
