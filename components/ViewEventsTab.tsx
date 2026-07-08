@@ -21,7 +21,6 @@ type Step =
   | 'employment'
   | 'size'
   | 'frequency'
-  | 'confirm'
   | 'submitted'
 
 const EMPLOYMENT_OPTIONS = ['Employed', 'Searching', 'Fractional', 'Other']
@@ -60,14 +59,13 @@ const QUESTIONS: Record<Step, string> = {
   // pick up the gold accent. The string here is a plain-text fallback
   // used by the back-button path before the bubble re-renders.
   interest:
-    "**What topics are you interested in?**\n\nWe use your topics (plus your location and LinkedIn profile which we'll collect next) to find the best events for you.\nPick from frequently used topics below **AND** also feel free to add your own\nUpdate anytime on your dashboard",
+    "**What topics are you interested in?**\n\nWe use your topics (plus your location and LinkedIn profile which we'll collect next) to find the best events for you.\nPick from the topics below — you can update them anytime on your dashboard.",
   employment:
     "**What is your current work situation?**\n\nWe ask because some events focus on people in specific roles while others are open to anyone.",
   size:
     "**What is the approximate revenue of your current company?**\n\nSome events are run by vendors who focus on specific company sizes — this information helps us make sure you're matched to events that fit.",
   frequency:
     "Last question — **how often would you like to receive emails with matching events?**",
-  confirm: '',
   submitted: '',
 }
 
@@ -96,7 +94,7 @@ function profileField(step: Step): keyof UserProfile | null {
   return map[step] ?? null
 }
 
-function nextStep(current: Step, value: string): Step {
+function nextStep(current: Step, value: string): Step | null {
   const order: Step[] = [
     'email',
     'learn',
@@ -106,14 +104,13 @@ function nextStep(current: Step, value: string): Step {
     'employment',
     'size',
     'frequency',
-    'confirm',
   ]
   // Non-employed users skip the company-size step.
   if (current === 'employment' && value.toLowerCase() !== 'employed') {
     return 'frequency'
   }
   const idx = order.indexOf(current)
-  return idx >= 0 && idx < order.length - 1 ? order[idx + 1] : 'confirm'
+  return idx >= 0 && idx < order.length - 1 ? order[idx + 1] : null
 }
 
 // Map each step to a 1-based index used by the StepIndicator. Employment
@@ -128,7 +125,6 @@ const STEP_INDEX: Record<Step, number> = {
   employment: 6,
   size: 6,
   frequency: 7,
-  confirm: 7,
   submitted: 7,
 }
 const TOTAL_STEPS = 7
@@ -179,21 +175,25 @@ export default function ViewEventsTab({
     setProfile(updatedProfile)
 
     const next = nextStep(currentStep, normalized)
+    setPendingInterestOverride(null)
+    setPendingLocationOverride(null)
+    setPendingLocationSuggestion(null)
+
+    if (!next) {
+      // Last step — submit immediately without a review screen.
+      handleSubmit(updatedProfile)
+      return
+    }
+
     const isSearching =
       currentStep === 'employment' && normalized.toLowerCase() === 'searching'
-    const base =
-      next === 'confirm'
-        ? "Here's your profile — review each field and edit anything before submitting."
-        : QUESTIONS[next]
+    const base = QUESTIONS[next]
     const withSearchNote = isSearching ? `${SEARCHING_NOTE}\n\n${base}` : base
     const final = prelude ? `${prelude}\n\n${withSearchNote}` : withSearchNote
 
     setStepHistory((prev) => [...prev, currentStep])
-    setStep(next === 'confirm' ? 'confirm' : next)
+    setStep(next)
     setAssistantContent(final)
-    setPendingInterestOverride(null)
-    setPendingLocationOverride(null)
-    setPendingLocationSuggestion(null)
   }
 
   function goBack() {
@@ -328,21 +328,23 @@ export default function ViewEventsTab({
     advance(step, val, prelude)
   }
 
-  async function handleSubmit() {
+  async function handleSubmit(submittedProfile: UserProfile) {
     setIsSubmitting(true)
+    setStep('submitted')
+    setAssistantContent('Submitting…')
     try {
       const res = await fetch('/api/submit-profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ profile }),
+        body: JSON.stringify({ profile: submittedProfile }),
       })
       const data = (await res.json()) as { status?: string; error?: string }
       if (!res.ok) throw new Error(data.error || 'Submission failed')
-      setStep('submitted')
       setAssistantContent(
-        `You're all set. As long as your LinkedIn checks out, you're approved — we'll send matching events to ${profile.email}.\n\nLove what we are doing? Tag [Whispered Events](https://www.linkedin.com/company/whispered-events/about/?viewAsMember=true) on a LinkedIn post to help us grow.`,
+        `You're all set. As long as your LinkedIn checks out, you're approved — we'll send matching events to ${submittedProfile.email}.\n\nLove what we are doing? Tag [Whispered Events](https://www.linkedin.com/company/whispered-events/about/?viewAsMember=true) on a LinkedIn post to help us grow.`,
       )
     } catch (err) {
+      setStep('frequency')
       setAssistantContent(
         `Something went wrong: ${err instanceof Error ? err.message : 'Please try again.'}`,
       )
@@ -351,12 +353,12 @@ export default function ViewEventsTab({
     }
   }
 
-  const showStepIndicator = step !== 'submitted' && step !== 'confirm'
+  const showStepIndicator = step !== 'submitted'
   // Employment + frequency are picklist-only. A text composer beneath
   // the chips reads as "you can type here too" and confuses people, even
   // though we accept anything. Drop it for those two steps.
   const isPicklistStep = step === 'employment' || step === 'frequency' || step === 'size'
-  const showComposer = step !== 'confirm' && step !== 'submitted' && !isPicklistStep
+  const showComposer = step !== 'submitted' && !isPicklistStep
   const canGoBack = stepHistory.length > 0 && step !== 'submitted'
 
   // Single top-of-surface back link. While there's form history we
@@ -502,15 +504,6 @@ export default function ViewEventsTab({
           />
         )}
 
-        {step === 'confirm' && (
-          <ProfileSummary
-            profile={profile}
-            onUpdate={(field, value) => setProfile((p) => ({ ...p, [field]: value }))}
-            onSubmit={handleSubmit}
-            isSubmitting={isSubmitting}
-          />
-        )}
-
         {step === 'submitted' && onReturnHome && (
           <div className="mt-2 animate-slide-up">
             <button
@@ -572,12 +565,8 @@ function InterestPrompt() {
         We use your topics (plus your location and LinkedIn profile which we&rsquo;ll collect next) to find the best events for you.
       </p>
       <p className="m-0">
-        Pick from frequently used topics below <strong>AND</strong>{' '}
-        <strong className="underline" style={{ color: 'var(--accent)' }}>
-          also feel free to add your own
-        </strong>
+        Pick from the topics below — you can update them anytime on your dashboard.
       </p>
-      <p className="m-0">Update anytime on your dashboard</p>
     </div>
   )
 }
@@ -624,200 +613,3 @@ function ChipRow({
   )
 }
 
-// Review card with per-field inline edit + Submit button.
-function ProfileSummary({
-  profile,
-  onUpdate,
-  onSubmit,
-  isSubmitting,
-}: {
-  profile: UserProfile
-  onUpdate: (field: keyof UserProfile, value: string) => void
-  onSubmit: () => void
-  isSubmitting: boolean
-}) {
-  const [editingField, setEditingField] = useState<keyof UserProfile | null>(null)
-  const [editValue, setEditValue] = useState('')
-  const [editError, setEditError] = useState('')
-
-  const fields: { key: keyof UserProfile; label: string }[] = [
-    { key: 'email', label: 'Email' },
-    { key: 'learn', label: 'How you heard about us' },
-    { key: 'interest', label: 'Topics' },
-    { key: 'location', label: 'City' },
-    { key: 'linkedin', label: 'LinkedIn' },
-    { key: 'employment', label: 'Employment' },
-    ...(profile.employment.toLowerCase() === 'employed'
-      ? [{ key: 'companySize' as keyof UserProfile, label: 'Company size' }]
-      : []),
-    { key: 'frequency', label: 'Email frequency' },
-  ]
-
-  function startEdit(field: keyof UserProfile) {
-    setEditingField(field)
-    setEditValue(profile[field])
-    setEditError('')
-  }
-
-  function saveEdit() {
-    if (!editingField) return
-    const val = editValue.trim()
-    if (editingField === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
-      setEditError('Please enter a valid email address.')
-      return
-    }
-    if (editingField === 'linkedin' && val && !val.includes('linkedin.com')) {
-      setEditError('Please enter a valid LinkedIn URL.')
-      return
-    }
-    if (editingField === 'learn' && !val) {
-      setEditError('This field is required — even a few words is enough.')
-      return
-    }
-    onUpdate(editingField, val)
-    setEditingField(null)
-    setEditError('')
-  }
-
-  return (
-    <div className="animate-slide-up">
-      <div
-        className="rounded-card border overflow-hidden"
-        style={{ background: 'var(--paper)', borderColor: 'var(--rule)' }}
-      >
-        {fields.map(({ key, label }, idx) => {
-          const value = profile[key]
-          const isEditing = editingField === key
-          const isLast = idx === fields.length - 1
-          return (
-            <div
-              key={key}
-              className="px-4 py-3"
-              style={{
-                borderBottom: isLast ? 'none' : '1px solid var(--rule-soft)',
-              }}
-            >
-              {isEditing ? (
-                <div className="space-y-2">
-                  <p className="eyebrow" style={{ color: 'var(--accent)' }}>
-                    {label}
-                  </p>
-                  {(() => {
-                    const picklist =
-                      editingField === 'frequency'
-                        ? FREQUENCY_OPTIONS
-                        : editingField === 'employment'
-                          ? EMPLOYMENT_OPTIONS
-                          : editingField === 'companySize'
-                            ? COMPANY_SIZE_OPTIONS
-                            : null
-                    if (picklist) {
-                      return (
-                        <select
-                          autoFocus
-                          value={editValue}
-                          onChange={(e) => setEditValue(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Escape') {
-                              setEditingField(null)
-                              setEditError('')
-                            }
-                          }}
-                          className="salon-select w-full rounded-input border px-3 py-2 text-[13px]"
-                          style={{ backgroundColor: 'var(--paper-2)', borderColor: 'var(--accent)' }}
-                        >
-                          {picklist.map((opt) => (
-                            <option key={opt} value={opt}>
-                              {editingField === 'frequency' ? displayFrequency(opt) : opt}
-                            </option>
-                          ))}
-                        </select>
-                      )
-                    }
-                    return (
-                      <input
-                        autoFocus
-                        value={editValue}
-                        onChange={(e) => setEditValue(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') saveEdit()
-                          if (e.key === 'Escape') {
-                            setEditingField(null)
-                            setEditError('')
-                          }
-                        }}
-                        className="w-full rounded-input border px-3 py-2 text-[13px]"
-                        style={{ background: 'var(--paper-2)', borderColor: 'var(--accent)' }}
-                      />
-                    )
-                  })()}
-                  {editError && (
-                    <p className="text-[11.5px]" style={{ color: 'var(--accent)' }}>
-                      {editError}
-                    </p>
-                  )}
-                  <div className="flex gap-2">
-                    <button
-                      onClick={saveEdit}
-                      className="px-3 py-1.5 rounded-pill text-[12px] text-white font-medium"
-                      style={{ background: 'var(--accent)' }}
-                    >
-                      Save
-                    </button>
-                    <button
-                      onClick={() => {
-                        setEditingField(null)
-                        setEditError('')
-                      }}
-                      className="px-3 py-1.5 rounded-pill text-[12px] border"
-                      style={{ borderColor: 'var(--rule)', color: 'var(--ink-2)' }}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center justify-between gap-4">
-                  <div className="min-w-0">
-                    <p className="eyebrow" style={{ color: 'var(--accent)' }}>
-                      {label}
-                    </p>
-                    <p
-                      className="text-[13.5px] truncate"
-                      style={{ color: 'var(--ink)' }}
-                    >
-                      {value ? (
-                        key === 'frequency' ? displayFrequency(value) : value
-                      ) : (
-                        <span className="italic" style={{ color: 'var(--ink-3)' }}>
-                          not provided
-                        </span>
-                      )}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => startEdit(key)}
-                    className="shrink-0 eyebrow underline"
-                    style={{ color: 'var(--accent)', textUnderlineOffset: 3 }}
-                  >
-                    Edit
-                  </button>
-                </div>
-              )}
-            </div>
-          )
-        })}
-      </div>
-      <button
-        onClick={onSubmit}
-        disabled={isSubmitting}
-        className="mt-4 w-full py-2.5 rounded-pill text-[13px] font-medium text-white transition-colors disabled:opacity-50"
-        style={{ background: 'var(--accent)' }}
-        onMouseEnter={(e) => !isSubmitting && (e.currentTarget.style.background = 'var(--accent-2)')}
-        onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--accent)')}
-      >
-        {isSubmitting ? 'Submitting…' : 'Submit application'}
-      </button>
-    </div>
-  )
-}
