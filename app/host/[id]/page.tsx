@@ -428,15 +428,15 @@ export default function HostEventDetailPage() {
                       <td
                         className="px-4 py-3 max-w-xs truncate"
                         style={{ color: 'var(--ink-2)' }}
+                        title={m.interest || ''}
                       >
                         {m.interest || <span className="italic" style={{ color: 'var(--ink-3)' }}>—</span>}
                       </td>
                       <td
-                        className="px-4 py-3 text-right num font-medium cursor-help"
+                        className="px-4 py-3 text-right num font-medium"
                         style={{
                           color: m.matchPercent >= 40 ? 'var(--positive)' : 'var(--ink-3)',
                         }}
-                        title={scoreTooltip(m)}
                       >
                         {m.matchPercent}%
                       </td>
