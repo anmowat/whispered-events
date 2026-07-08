@@ -119,7 +119,7 @@ export default function LoginModal({
             >
               New here?{' '}
               <a
-                href="/?tab=contribute"
+                href="/?apply=profile"
                 className="underline font-medium"
                 style={{ color: 'var(--accent)', textUnderlineOffset: 3 }}
               >

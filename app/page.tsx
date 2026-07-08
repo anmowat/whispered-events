@@ -168,6 +168,10 @@ export default function Home() {
       setTab('partner')
       setMode('active')
     }
+    if (params.get('apply') === 'profile') {
+      setTab('view')
+      setMode('active')
+    }
     const tabParam = params.get('tab')
     if (tabParam === 'view' || tabParam === 'contribute' || tabParam === 'partner') {
       setTab(tabParam)
