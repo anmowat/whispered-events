@@ -291,7 +291,15 @@ export default function DashboardPage() {
         {/* Matched events */}
         <section>
           <div className="flex items-center justify-between mb-3.5">
-            <div className="eyebrow">Your matched events</div>
+            <div className="flex items-baseline flex-wrap gap-x-3">
+              <div className="eyebrow">Your matched events</div>
+              <span
+                className="font-medium italic"
+                style={{ fontSize: 13, color: 'var(--accent)' }}
+              >
+                Rate events to see more/better matches
+              </span>
+            </div>
             <button
               type="button"
               onClick={() => setShowFilterDialog(true)}
@@ -321,16 +329,6 @@ export default function DashboardPage() {
                 />
               )}
             </button>
-          </div>
-
-          {/* Rate events CTA card */}
-          <div
-            className="rounded-card border mb-3 px-5 py-4"
-            style={{ background: 'var(--paper)', borderColor: 'var(--rule)' }}
-          >
-            <p className="m-0 font-medium" style={{ fontSize: 17, color: 'var(--ink)' }}>
-              Rate Events to see more/better matches
-            </p>
           </div>
 
           {filteredEvents.length > 0 ? (
