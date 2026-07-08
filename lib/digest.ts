@@ -19,7 +19,6 @@ import {
   upsertDigestState,
 } from './supabase'
 
-export const DIGEST_SCORE_THRESHOLD = 1.0
 export const DIGEST_CAP_PER_SECTION = 3
 
 const PT_TIME_ZONE = 'America/Los_Angeles'
@@ -90,7 +89,6 @@ async function processUser(
   const newMatches = await getUnnotifiedMatchesForUser(
     user.id,
     futureIds,
-    DIGEST_SCORE_THRESHOLD,
   )
   const eligibleNew = newMatches.filter((m) => m.host_rating !== 'down')
   if (eligibleNew.length === 0) return { sent: false }
@@ -102,7 +100,6 @@ async function processUser(
   const allUpcoming = await getUpcomingMatchesForUser(
     user.id,
     futureIds,
-    DIGEST_SCORE_THRESHOLD,
   )
   const top = allUpcoming.filter((m) => m.host_rating !== 'down').slice(0, DIGEST_CAP_PER_SECTION)
 
@@ -224,8 +221,7 @@ export async function runDigests(now: Date): Promise<{
   for (const user of allUsers) {
     const lastSent = lastSentByUserId.get(user.id) ?? null
     const nearbyCount = nearbyByUserId.get(user.id) ?? 0
-    // Total events at-or-above NOTIFY_THRESHOLD for this user, future
-    // events only, skipped rows excluded.
+    // Total events at match_percent >= 40 for this user, future events only.
     const matchCount = matchCountByUserId.get(user.id) ?? 0
     // 7-day floor blocks cron from piling on top of a recent manual
     // re-run or mid-week per-event send. We don't touch their Monthly
@@ -393,7 +389,6 @@ async function safelySendRecap(
     const upcoming = await getUpcomingMatchesForUser(
       user.id,
       futureIds,
-      DIGEST_SCORE_THRESHOLD,
     )
     const top = upcoming.slice(0, DIGEST_CAP_PER_SECTION)
     const topEntries = toEntries(top, futureById)

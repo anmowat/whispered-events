@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { verifySession, getMatchScoresForUser } from '@/lib/supabase'
 import { getFutureEvents } from '@/lib/events'
 
-const NOTIFY_THRESHOLD = 1.35
+const MATCH_PERCENT_THRESHOLD = 40
 
-// Returns upcoming events that have a persisted match score >= NOTIFY_THRESHOLD
-// for the logged-in user. Pass ?all=1 to bypass the filter (admin/debug).
+// Returns upcoming events where match_percent >= 40 for the logged-in user.
+// Pass ?all=1 to bypass the filter (admin/debug).
 export async function GET(req: NextRequest) {
   const sessionToken = req.cookies.get('session')?.value
 
@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
     ? withScores
     : withScores.filter(
         (e) =>
-          (e.matchScore ?? 0) >= NOTIFY_THRESHOLD &&
+          (e.matchPercent ?? 0) >= MATCH_PERCENT_THRESHOLD &&
           e.rating !== 'down' &&
           e.hostRating !== 'down',
       )

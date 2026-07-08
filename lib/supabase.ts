@@ -161,7 +161,7 @@ export async function logMatch(entry: MatchLog): Promise<void> {
   }
 }
 
-const NOTIFY_THRESHOLD = 1.35
+const MATCH_PERCENT_THRESHOLD = 40
 
 export async function getMatchedEventIdsForUser(userId: string): Promise<Set<string>> {
   const supabase = getClient()
@@ -169,7 +169,7 @@ export async function getMatchedEventIdsForUser(userId: string): Promise<Set<str
     .from('matches')
     .select('event_id')
     .eq('user_id', userId)
-    .gte('score', NOTIFY_THRESHOLD)
+    .gte('match_percent', MATCH_PERCENT_THRESHOLD)
   return new Set((data ?? []).map((m: { event_id: string }) => m.event_id))
 }
 
@@ -315,7 +315,6 @@ export interface DigestMatchRow {
 export async function getUnnotifiedMatchesForUser(
   userId: string,
   futureEventIds: string[],
-  threshold: number,
 ): Promise<DigestMatchRow[]> {
   if (futureEventIds.length === 0) return []
   const supabase = getClient()
@@ -324,9 +323,9 @@ export async function getUnnotifiedMatchesForUser(
     .select('event_id, score, match_percent, notified_at, host_rating')
     .eq('user_id', userId)
     .is('notified_at', null)
-    .gte('score', threshold)
+    .gte('match_percent', MATCH_PERCENT_THRESHOLD)
     .in('event_id', futureEventIds)
-    .order('score', { ascending: false })
+    .order('match_percent', { ascending: false })
   if (error) throw new Error(`getUnnotifiedMatchesForUser failed: ${error.message}`)
   return (data ?? []) as DigestMatchRow[]
 }
@@ -334,7 +333,6 @@ export async function getUnnotifiedMatchesForUser(
 export async function getUpcomingMatchesForUser(
   userId: string,
   futureEventIds: string[],
-  threshold: number,
 ): Promise<DigestMatchRow[]> {
   if (futureEventIds.length === 0) return []
   const supabase = getClient()
@@ -342,17 +340,15 @@ export async function getUpcomingMatchesForUser(
     .from('matches')
     .select('event_id, score, match_percent, notified_at, host_rating')
     .eq('user_id', userId)
-    .gte('score', threshold)
+    .gte('match_percent', MATCH_PERCENT_THRESHOLD)
     .in('event_id', futureEventIds)
-    .order('score', { ascending: false })
+    .order('match_percent', { ascending: false })
   if (error) throw new Error(`getUpcomingMatchesForUser failed: ${error.message}`)
   return (data ?? []) as DigestMatchRow[]
 }
 
-// Returns user_id -> count of distinct future event matches above NOTIFY_THRESHOLD
-// for every user that has at least one. Mirrors the filter the user dashboard
-// applies (score >= 1.0, skipped_reason IS NULL, future event_id). Single
-// Supabase query so the admin overview page stays sub-second.
+// Returns user_id -> count of distinct future event matches at match_percent >= 40.
+// Mirrors the threshold used everywhere else (dashboard, detail page, digest).
 export async function getMatchCountsByUserId(
   futureEventIds: string[],
 ): Promise<Map<string, number>> {
@@ -361,8 +357,7 @@ export async function getMatchCountsByUserId(
   const { data, error } = await supabase
     .from('matches')
     .select('user_id, event_id')
-    .gte('score', NOTIFY_THRESHOLD)
-    .is('skipped_reason', null)
+    .gte('match_percent', MATCH_PERCENT_THRESHOLD)
     .in('event_id', futureEventIds)
   if (error) throw new Error(`getMatchCountsByUserId failed: ${error.message}`)
   // Dedupe (user_id, event_id) pairs in case of stray duplicates, then count.
@@ -474,8 +469,8 @@ export async function getAllMatchesForEvent(eventId: string): Promise<EventMatch
   return (data ?? []) as EventMatchRow[]
 }
 
-// All matches above NOTIFY_THRESHOLD for an event (skipped excluded), ordered
-// by score desc. Used by the host detail page.
+// All matches at match_percent >= 40 for an event, ordered by match_percent desc.
+// Used by the host detail page.
 export async function getMatchesForEvent(eventId: string): Promise<EventMatchRow[]> {
   if (!eventId) return []
   const supabase = getClient()
@@ -483,9 +478,8 @@ export async function getMatchesForEvent(eventId: string): Promise<EventMatchRow
     .from('matches')
     .select('user_id, score, match_percent, location_score, audience_score, quality_score, preference_score, rating, host_rating, host_feedback')
     .eq('event_id', eventId)
-    .gte('score', NOTIFY_THRESHOLD)
-    .is('skipped_reason', null)
-    .order('score', { ascending: false })
+    .gte('match_percent', MATCH_PERCENT_THRESHOLD)
+    .order('match_percent', { ascending: false })
   if (error) {
     console.error('getMatchesForEvent error', error)
     return []

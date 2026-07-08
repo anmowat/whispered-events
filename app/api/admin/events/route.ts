@@ -7,7 +7,7 @@ import { withinMiles } from '@/lib/geocode'
 import { NEARBY_RADIUS_MILES } from '@/lib/matching'
 
 // Admin events list with per-event match stats:
-//   matchCount = unique users with a match row above NOTIFY_THRESHOLD
+//   matchCount = unique users with match_percent >= 40
 //   usersInRange = active users whose location is geocoded within range
 //   matchPct = matchCount / usersInRange (or null when usersInRange = 0)
 
