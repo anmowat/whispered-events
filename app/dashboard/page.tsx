@@ -89,6 +89,7 @@ export default function DashboardPage() {
   const [typeFilter, setTypeFilter] = useState<string[] | null>(null)
   const [dateRange, setDateRange] = useState<'' | '30' | '60' | '90'>('')
   const [sortBy, setSortBy] = useState<'match' | 'date-asc' | 'date-desc'>('match')
+  const [showFilterDialog, setShowFilterDialog] = useState(false)
 
   // Apply the After Hours dark palette to the dashboard. CSS-var
   // overrides defined in globals.css re-theme every component on this
@@ -291,39 +292,45 @@ export default function DashboardPage() {
         <section>
           <div className="flex items-center justify-between mb-3.5">
             <div className="eyebrow">Your matched events</div>
-            <div className="eyebrow num" style={{ color: 'var(--ink-3)' }}>
-              {filteredEvents.length} {filteredEvents.length === 1 ? 'result' : 'results'}
-            </div>
+            <button
+              type="button"
+              onClick={() => setShowFilterDialog(true)}
+              className="eyebrow flex items-center gap-1.5 px-3 py-1.5 rounded-pill border transition-colors"
+              style={{
+                borderColor: 'var(--rule)',
+                color: 'var(--ink-2)',
+                background: 'transparent',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = 'var(--accent)'
+                e.currentTarget.style.color = 'var(--accent)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'var(--rule)'
+                e.currentTarget.style.color = 'var(--ink-2)'
+              }}
+            >
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden>
+                <path d="M1 3h14M4 8h8M7 13h2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" fill="none"/>
+              </svg>
+              Filter
+              {(typeFilter !== null || dateRange !== '' || sortBy !== 'match') && (
+                <span
+                  className="inline-flex items-center justify-center rounded-full"
+                  style={{ width: 6, height: 6, background: 'var(--accent)' }}
+                />
+              )}
+            </button>
           </div>
 
+          {/* Rate events CTA card */}
           <div
-            className="rounded-card border mb-3 px-3.5 py-3"
+            className="rounded-card border mb-3 px-5 py-4"
             style={{ background: 'var(--paper)', borderColor: 'var(--rule)' }}
           >
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <FilterField label="Type">
-                <MultiSelect
-                  options={types}
-                  selected={effectiveTypes}
-                  onChange={(next) => setTypeFilter(next)}
-                  allLabel="All types"
-                />
-              </FilterField>
-              <FilterField label="Date range">
-                <NativeSelect
-                  value={dateRange}
-                  onChange={(v) => setDateRange(v as '' | '30' | '60' | '90')}
-                  options={DATE_RANGES.map((o) => ({ value: o.id, label: o.label }))}
-                />
-              </FilterField>
-              <FilterField label="Sort">
-                <NativeSelect
-                  value={sortBy}
-                  onChange={(v) => setSortBy(v as 'match' | 'date-asc' | 'date-desc')}
-                  options={SORT_OPTIONS.map((o) => ({ value: o.id, label: o.label }))}
-                />
-              </FilterField>
-            </div>
+            <p className="m-0 font-medium" style={{ fontSize: 17, color: 'var(--ink)' }}>
+              Rate Events to see more/better matches
+            </p>
           </div>
 
           {filteredEvents.length > 0 ? (
@@ -357,6 +364,18 @@ export default function DashboardPage() {
         </section>
       </main>
 
+      {showFilterDialog && (
+        <FilterDialog
+          types={types}
+          typeFilter={typeFilter}
+          setTypeFilter={setTypeFilter}
+          dateRange={dateRange}
+          setDateRange={setDateRange}
+          sortBy={sortBy}
+          setSortBy={setSortBy}
+          onClose={() => setShowFilterDialog(false)}
+        />
+      )}
       <DashboardFooter />
 
       {editingBio && (
@@ -390,11 +409,104 @@ export default function DashboardPage() {
   )
 }
 
-function FilterField({ label, children }: { label: string; children: React.ReactNode }) {
+function FilterDialog({
+  types,
+  typeFilter,
+  setTypeFilter,
+  dateRange,
+  setDateRange,
+  sortBy,
+  setSortBy,
+  onClose,
+}: {
+  types: string[]
+  typeFilter: string[] | null
+  setTypeFilter: (v: string[] | null) => void
+  dateRange: '' | '30' | '60' | '90'
+  setDateRange: (v: '' | '30' | '60' | '90') => void
+  sortBy: 'match' | 'date-asc' | 'date-desc'
+  setSortBy: (v: 'match' | 'date-asc' | 'date-desc') => void
+  onClose: () => void
+}) {
+  const effectiveTypes = typeFilter ?? types
+  const hasActiveFilters = typeFilter !== null || dateRange !== '' || sortBy !== 'match'
+
   return (
-    <div>
-      <div className="eyebrow mb-1.5">{label}</div>
-      {children}
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+      style={{ background: 'rgba(20,15,10,0.5)' }}
+      onClick={onClose}
+    >
+      <div
+        className="w-full sm:max-w-sm rounded-t-card sm:rounded-card border"
+        style={{ background: 'var(--paper)', borderColor: 'var(--rule)' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div
+          className="flex items-center justify-between px-5 py-4 border-b"
+          style={{ borderColor: 'var(--rule)' }}
+        >
+          <h2 className="font-serif m-0" style={{ fontSize: 20, color: 'var(--ink)' }}>
+            Filter &amp; Sort
+          </h2>
+          <div className="flex items-center gap-3">
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={() => { setTypeFilter(null); setDateRange(''); setSortBy('match') }}
+                className="text-[12px] underline"
+                style={{ color: 'var(--ink-3)', textUnderlineOffset: 3 }}
+              >
+                Reset
+              </button>
+            )}
+            <button onClick={onClose} aria-label="Close" className="text-xl leading-none" style={{ color: 'var(--ink-3)' }}>
+              &times;
+            </button>
+          </div>
+        </div>
+
+        <div className="px-5 py-4 space-y-5">
+          <div>
+            <div className="eyebrow mb-2">Type</div>
+            <MultiSelect
+              options={types}
+              selected={effectiveTypes}
+              onChange={(next) => setTypeFilter(next)}
+              allLabel="All types"
+            />
+          </div>
+          <div>
+            <div className="eyebrow mb-2">Date range</div>
+            <NativeSelect
+              value={dateRange}
+              onChange={(v) => setDateRange(v as '' | '30' | '60' | '90')}
+              options={DATE_RANGES.map((o) => ({ value: o.id, label: o.label }))}
+            />
+          </div>
+          <div>
+            <div className="eyebrow mb-2">Sort</div>
+            <NativeSelect
+              value={sortBy}
+              onChange={(v) => setSortBy(v as 'match' | 'date-asc' | 'date-desc')}
+              options={SORT_OPTIONS.map((o) => ({ value: o.id, label: o.label }))}
+            />
+          </div>
+        </div>
+
+        <div className="px-5 pb-5">
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full py-2.5 rounded-pill text-[13.5px] font-medium text-white transition-colors"
+            style={{ background: 'var(--accent)' }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--accent-2)')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--accent)')}
+          >
+            Done
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
