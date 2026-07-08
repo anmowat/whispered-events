@@ -173,7 +173,7 @@ export async function getMatchedEventIdsForUser(userId: string): Promise<Set<str
   return new Set((data ?? []).map((m: { event_id: string }) => m.event_id))
 }
 
-export type MatchRating = 'up' | 'down'
+export type MatchRating = 'going' | 'cant_make_it' | 'not_a_fit'
 
 export interface UserMatchScore {
   score: number
@@ -230,9 +230,9 @@ export async function setMatchRating(params: {
     .from('matches')
     .update({
       rating: params.rating,
-      // Clear the reason whenever we leave thumbs-down state — no stale
-      // explanation on a row the user later thumbs-up'd or cleared.
-      rating_reason: params.rating === 'down' ? params.reason : null,
+      // Clear the reason whenever we leave not_a_fit state — no stale
+      // explanation on a row the user later changed.
+      rating_reason: params.rating === 'not_a_fit' ? params.reason : null,
       rated_at: params.rating ? new Date().toISOString() : null,
     })
     .eq('event_id', params.eventId)
@@ -246,7 +246,7 @@ export async function setMatchRating(params: {
 // column on the admin users list. One bulk read; counted in app code so
 // we don't depend on a Postgres aggregate function on Supabase's PostgREST.
 export async function getRatingCountsByUserId(): Promise<
-  Map<string, { up: number; down: number }>
+  Map<string, { going: number; cantMakeIt: number; notAFit: number }>
 > {
   const supabase = getClient()
   const { data, error } = await supabase
@@ -254,26 +254,25 @@ export async function getRatingCountsByUserId(): Promise<
     .select('user_id, rating')
     .not('rating', 'is', null)
   if (error) throw new Error(`getRatingCountsByUserId failed: ${error.message}`)
-  const counts = new Map<string, { up: number; down: number }>()
+  const counts = new Map<string, { going: number; cantMakeIt: number; notAFit: number }>()
   for (const row of data ?? []) {
     const r = row as { user_id: string; rating: MatchRating | null }
     if (!r.user_id || !r.rating) continue
-    const c = counts.get(r.user_id) ?? { up: 0, down: 0 }
-    if (r.rating === 'up') c.up++
-    else if (r.rating === 'down') c.down++
+    const c = counts.get(r.user_id) ?? { going: 0, cantMakeIt: 0, notAFit: 0 }
+    if (r.rating === 'going') c.going++
+    else if (r.rating === 'cant_make_it') c.cantMakeIt++
+    else if (r.rating === 'not_a_fit') c.notAFit++
     counts.set(r.user_id, c)
   }
   return counts
 }
 
-// Single-user thumbs-up/down count. Used by the rating API to decide
-// whether the dashboard should pop the "thanks, here's how to help us
-// grow" modal after a 👍 — fires on anniversary milestones in the live
-// Phase 2 mode. Cheap: one row scan filtered by user_id, no aggregate.
+// Single-user rating count. Used by the rating API to decide whether to
+// pop the "thanks, help us grow" modal — fires on Going milestone counts.
 export async function getRatingCountByUserId(
   userId: string,
-): Promise<{ up: number; down: number }> {
-  if (!userId) return { up: 0, down: 0 }
+): Promise<{ going: number; cantMakeIt: number; notAFit: number }> {
+  if (!userId) return { going: 0, cantMakeIt: 0, notAFit: 0 }
   const supabase = getClient()
   const { data, error } = await supabase
     .from('matches')
@@ -282,15 +281,15 @@ export async function getRatingCountByUserId(
     .not('rating', 'is', null)
   if (error) {
     console.error('getRatingCountByUserId error', { userId, error })
-    return { up: 0, down: 0 }
+    return { going: 0, cantMakeIt: 0, notAFit: 0 }
   }
-  let up = 0
-  let down = 0
+  let going = 0; let cantMakeIt = 0; let notAFit = 0
   for (const row of (data ?? []) as Array<{ rating: MatchRating | null }>) {
-    if (row.rating === 'up') up++
-    else if (row.rating === 'down') down++
+    if (row.rating === 'going') going++
+    else if (row.rating === 'cant_make_it') cantMakeIt++
+    else if (row.rating === 'not_a_fit') notAFit++
   }
-  return { up, down }
+  return { going, cantMakeIt, notAFit }
 }
 
 export interface MatchAuditRow {

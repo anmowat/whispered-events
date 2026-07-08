@@ -40,7 +40,7 @@ function displayFrequency(value: string): string {
 type DashboardEvent = AirtableEvent & {
   matchScore: number | null
   matchPercent: number | null
-  rating: 'up' | 'down' | null
+  rating: 'going' | 'cant_make_it' | 'not_a_fit' | null
   ratingReason: string | null
 }
 
@@ -342,7 +342,7 @@ export default function DashboardPage() {
                     setEvents((prev) =>
                       prev.map((e) =>
                         e.id === event.id
-                          ? { ...e, rating, ratingReason: rating === 'down' ? reason : null }
+                          ? { ...e, rating, ratingReason: rating === 'not_a_fit' ? reason : null }
                           : e,
                       ),
                     )
@@ -1286,7 +1286,7 @@ function EventCard({
   onGrowRequested,
 }: {
   event: DashboardEvent
-  onRated: (rating: 'up' | 'down' | null, reason: string | null) => void
+  onRated: (rating: 'going' | 'cant_make_it' | 'not_a_fit' | null, reason: string | null) => void
   // Called when the rating API response says we should pop the
   // "thanks, here's how to help us grow" modal — only fires on a
   // successful 👍 toggle-on under the current phase rule.
@@ -1319,7 +1319,7 @@ function EventCard({
       const res = await fetch('/api/dashboard/match-rating', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ eventId: event.id, rating, reason }),
+        body: JSON.stringify({ eventId: event.id, rating, reason: rating === 'not_a_fit' ? reason : null }),
       })
       if (!res.ok) {
         onRated(prevRating, prevReason)
@@ -1336,27 +1336,20 @@ function EventCard({
     }
   }
 
-  function handleThumbsUp() {
+  function handleRating(r: 'going' | 'cant_make_it' | 'not_a_fit') {
     if (submitting) return
-    if (event.rating === 'up') {
+    if (event.rating === r) {
       void writeRating(null, null)
-    } else {
-      void writeRating('up', null)
-    }
-  }
-
-  function handleThumbsDown() {
-    if (submitting) return
-    if (event.rating === 'down') {
-      void writeRating(null, null)
-    } else {
+    } else if (r === 'not_a_fit') {
       setShowDownModal(true)
+    } else {
+      void writeRating(r, null)
     }
   }
 
-  async function handleDownSubmit(reason: string) {
+  async function handleNotFitSubmit(reason: string) {
     setShowDownModal(false)
-    await writeRating('down', reason || null)
+    await writeRating('not_a_fit', reason || null)
     setShowThanks(true)
   }
 
@@ -1364,15 +1357,15 @@ function EventCard({
   // glance signal that they've rated this one. Thumbs-down stays neutral
   // (the filled icon is the visual cue) so the negative isn't visually
   // shouty when scanning the list.
-  const ratedUp = event.rating === 'up'
+  const ratedGoing = event.rating === 'going'
 
   return (
     <>
       <article
         className="rounded-card border px-5 py-4"
         style={{
-          background: ratedUp ? 'var(--accent-soft)' : 'var(--paper)',
-          borderColor: ratedUp ? 'var(--accent)' : 'var(--rule)',
+          background: ratedGoing ? 'var(--accent-soft)' : 'var(--paper)',
+          borderColor: ratedGoing ? 'var(--accent)' : 'var(--rule)',
         }}
       >
         <div className="flex items-start justify-between gap-4">
@@ -1400,11 +1393,10 @@ function EventCard({
               {[event.type, dateFormatted, event.location].filter(Boolean).join(' · ')}
             </p>
           </div>
-          <RatingButtons
+          <ThreeRatingButtons
             rating={event.rating}
             disabled={submitting}
-            onThumbsUp={handleThumbsUp}
-            onThumbsDown={handleThumbsDown}
+            onRate={handleRating}
           />
         </div>
         {event.description && (
@@ -1428,90 +1420,80 @@ function EventCard({
   )
 }
 
-function RatingButtons({
+function ThreeRatingButtons({
   rating,
   disabled,
-  onThumbsUp,
-  onThumbsDown,
+  onRate,
 }: {
-  rating: 'up' | 'down' | null
+  rating: 'going' | 'cant_make_it' | 'not_a_fit' | null
   disabled: boolean
-  onThumbsUp: () => void
-  onThumbsDown: () => void
+  onRate: (r: 'going' | 'cant_make_it' | 'not_a_fit') => void
 }) {
+  const BTNS: {
+    id: 'going' | 'cant_make_it' | 'not_a_fit'
+    label: string
+    icon: string
+    activeBg: string
+    activeText: string
+    inactiveBg: string
+    inactiveBorder: string
+    inactiveText: string
+  }[] = [
+    {
+      id: 'going',
+      label: 'Going',
+      icon: '📅',
+      activeBg: '#2D6A4F',
+      activeText: '#fff',
+      inactiveBg: 'rgba(45,106,79,0.10)',
+      inactiveBorder: 'rgba(45,106,79,0.35)',
+      inactiveText: '#52B788',
+    },
+    {
+      id: 'cant_make_it',
+      label: "Can't make it",
+      icon: '♡',
+      activeBg: '#3A5F8A',
+      activeText: '#fff',
+      inactiveBg: 'rgba(58,95,138,0.10)',
+      inactiveBorder: 'rgba(58,95,138,0.35)',
+      inactiveText: '#7BA9D4',
+    },
+    {
+      id: 'not_a_fit',
+      label: 'Not a fit',
+      icon: '✕',
+      activeBg: '#8A2A38',
+      activeText: '#fff',
+      inactiveBg: 'rgba(138,42,56,0.10)',
+      inactiveBorder: 'rgba(201,129,140,0.35)',
+      inactiveText: '#E8B4BC',
+    },
+  ]
   return (
-    <div className="flex items-center gap-1 shrink-0">
-      <button
-        type="button"
-        onClick={onThumbsUp}
-        disabled={disabled}
-        aria-pressed={rating === 'up'}
-        aria-label={rating === 'up' ? 'Remove thumbs up' : 'Thumbs up — good match'}
-        title={rating === 'up' ? 'Remove rating' : 'Good match'}
-        className="inline-flex items-center justify-center rounded-full border w-8 h-8 transition-colors disabled:opacity-50"
-        style={{
-          background: rating === 'up' ? 'var(--accent)' : 'transparent',
-          color: rating === 'up' ? 'var(--paper)' : 'var(--ink-3)',
-          borderColor: rating === 'up' ? 'var(--accent)' : 'var(--rule)',
-        }}
-      >
-        <ThumbsUpIcon filled={rating === 'up'} />
-      </button>
-      <button
-        type="button"
-        onClick={onThumbsDown}
-        disabled={disabled}
-        aria-pressed={rating === 'down'}
-        aria-label={rating === 'down' ? 'Remove thumbs down' : 'Thumbs down — not a fit'}
-        title={rating === 'down' ? 'Remove rating' : 'Not a fit'}
-        className="inline-flex items-center justify-center rounded-full border w-8 h-8 transition-colors disabled:opacity-50"
-        style={{
-          background: rating === 'down' ? '#7A2A36' : 'transparent',
-          color: rating === 'down' ? 'var(--paper)' : 'var(--ink-3)',
-          borderColor: rating === 'down' ? '#7A2A36' : 'var(--rule)',
-        }}
-      >
-        <ThumbsDownIcon filled={rating === 'down'} />
-      </button>
+    <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
+      {BTNS.map((btn) => {
+        const active = rating === btn.id
+        return (
+          <button
+            key={btn.id}
+            type="button"
+            onClick={() => onRate(btn.id)}
+            disabled={disabled}
+            aria-pressed={active}
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-pill border text-[12px] font-medium transition-colors disabled:opacity-50 whitespace-nowrap"
+            style={{
+              background: active ? btn.activeBg : btn.inactiveBg,
+              borderColor: active ? btn.activeBg : btn.inactiveBorder,
+              color: active ? btn.activeText : btn.inactiveText,
+            }}
+          >
+            <span aria-hidden style={{ fontSize: 11 }}>{btn.icon}</span>
+            {btn.label}
+          </button>
+        )
+      })}
     </div>
-  )
-}
-
-function ThumbsUpIcon({ filled }: { filled: boolean }) {
-  return (
-    <svg
-      width="15"
-      height="15"
-      viewBox="0 0 24 24"
-      fill={filled ? 'currentColor' : 'none'}
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M7 11v8a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1h3z" />
-      <path d="M7 11l4-8a2 2 0 0 1 2-1c1.1 0 2 .9 2 2v6h4.5a2 2 0 0 1 2 2.3l-1.2 6A2 2 0 0 1 18.3 20H7" />
-    </svg>
-  )
-}
-
-function ThumbsDownIcon({ filled }: { filled: boolean }) {
-  return (
-    <svg
-      width="15"
-      height="15"
-      viewBox="0 0 24 24"
-      fill={filled ? 'currentColor' : 'none'}
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M17 13V5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1h-3z" />
-      <path d="M17 13l-4 8a2 2 0 0 1-2 1c-1.1 0-2-.9-2-2v-6H4.5a2 2 0 0 1-2-2.3l1.2-6A2 2 0 0 1 5.7 4H17" />
-    </svg>
   )
 }
 

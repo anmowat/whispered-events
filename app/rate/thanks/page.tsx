@@ -30,7 +30,7 @@ function RateThanksContent() {
   const [magicState, setMagicState] = useState<'idle' | 'sending' | 'sent'>('idle')
 
   useEffect(() => {
-    if (rating !== 'down') return
+    if (rating !== 'not_a_fit') return
     fetch('/api/auth/me')
       .then((r) => r.json())
       .then((d: { user: unknown }) => setAuthState(d.user ? 'in' : 'out'))
@@ -44,7 +44,7 @@ function RateThanksContent() {
     await fetch('/api/dashboard/match-rating', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ eventId, rating: 'down', reason: reason.trim() }),
+      body: JSON.stringify({ eventId, rating: 'not_a_fit', reason: reason.trim() }),
     })
     setReasonSubmitting(false)
     setReasonDone(true)
@@ -108,17 +108,16 @@ function RateThanksContent() {
     )
   }
 
-  // 👍 Good match
-  if (rating === 'up') {
+  if (rating === 'going') {
     return (
       <div style={page}>
         <div style={card}>
-          <div style={{ fontSize: 40, marginBottom: 14 }}>👍</div>
+          <div style={{ fontSize: 40, marginBottom: 14 }}>📅</div>
           <div style={{ fontFamily: SERIF, fontSize: 32, color: ink, marginBottom: 12, lineHeight: 1.1 }}>
-            Thanks for your feedback!
+            You&apos;re going!
           </div>
           <p style={{ color: muted, fontSize: 15, lineHeight: 1.65, margin: '0 0 28px' }}>
-            Good matches help us surface more events like this for you. We&apos;ll keep the good ones coming.
+            Great — we&apos;ll use this to surface more events like it for you.
           </p>
           <div style={{ background: 'rgba(201,168,106,0.08)', border: '1px solid rgba(201,168,106,0.2)', borderRadius: 12, padding: '18px 20px', marginBottom: 28, textAlign: 'left' }}>
             <div style={{ color: gold, fontSize: 12, letterSpacing: '.07em', textTransform: 'uppercase', marginBottom: 8 }}>
@@ -143,17 +142,16 @@ function RateThanksContent() {
     )
   }
 
-  // 👎 Not a fit
-  if (rating === 'down') {
+  if (rating === 'not_a_fit') {
     return (
       <div style={page}>
         <div style={card}>
-          <div style={{ fontSize: 40, marginBottom: 14 }}>👎</div>
+          <div style={{ fontSize: 40, marginBottom: 14 }}>✕</div>
           <div style={{ fontFamily: SERIF, fontSize: 32, color: ink, marginBottom: 12, lineHeight: 1.1 }}>
             Thanks — noted!
           </div>
           <p style={{ color: muted, fontSize: 15, lineHeight: 1.65, margin: '0 0 28px' }}>
-            We&apos;ll hide this event from your dashboard and use your feedback to improve your matches.
+            We&apos;ll hide this event and use your feedback to improve your matches.
           </p>
 
           {authState === 'loading' && (
@@ -230,6 +228,25 @@ function RateThanksContent() {
               ← Back to dashboard
             </a>
           </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (rating === 'cant_make_it') {
+    return (
+      <div style={page}>
+        <div style={card}>
+          <div style={{ fontSize: 40, marginBottom: 14 }}>♡</div>
+          <div style={{ fontFamily: SERIF, fontSize: 32, color: ink, marginBottom: 12, lineHeight: 1.1 }}>
+            Noted!
+          </div>
+          <p style={{ color: muted, fontSize: 15, lineHeight: 1.65, margin: '0 0 28px' }}>
+            Thanks for letting us know — we&apos;ll keep showing you events like this in case your schedule changes.
+          </p>
+          <a href="/dashboard" style={{ color: muted, fontSize: 13, textDecoration: 'none' }}>
+            ← Back to dashboard
+          </a>
         </div>
       </div>
     )

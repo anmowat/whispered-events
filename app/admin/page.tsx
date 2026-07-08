@@ -142,8 +142,8 @@ const USER_CSV_COLUMNS: CsvColumn<UserRow>[] = [
   { id: 'localMatchPct', header: 'local_match_pct', format: (r) => r.localMatchPct },
   { id: 'totalContributions', header: 'contributions_total', format: (r) => r.totalContributions },
   { id: 'lastContribution', header: 'last_contribution_at', format: (r) => r.lastContribution },
-  { id: 'ratingsUp', header: 'thumbs_up', format: (r) => r.ratingsUp },
-  { id: 'ratingsDown', header: 'thumbs_down', format: (r) => r.ratingsDown },
+  { id: 'ratingsUp', header: 'going', format: (r) => r.ratingsUp },
+  { id: 'ratingsDown', header: 'not_a_fit', format: (r) => r.ratingsDown },
   { id: 'isHost', header: 'is_host', format: (r) => (r.isHost ? 'true' : 'false') },
 ]
 
@@ -698,7 +698,7 @@ export default function AdminPage() {
                           sortBy={sortBy}
                           sortDir={sortDir}
                           onToggle={toggleSort}
-                          title="Lifetime thumbs-up / thumbs-down ratings the user has submitted on their dashboard. Format: up / down. Sorted by total (up + down)."
+                          title="Lifetime ratings submitted on their dashboard. Format: going / not_a_fit. Sorted by total."
                         />
                         <SortHeader
                           label="Sent"
@@ -847,7 +847,7 @@ export default function AdminPage() {
                           </td>
                           <td
                             className={`px-4 py-3 text-right tabular-nums whitespace-nowrap ${u.ratingsUp === 0 && u.ratingsDown === 0 ? 'text-gray-400' : 'text-gray-800'}`}
-                            title={`${u.ratingsUp} thumbs up, ${u.ratingsDown} thumbs down`}
+                            title={`${u.ratingsUp} going, ${u.ratingsDown} not a fit`}
                           >
                             {u.ratingsUp + u.ratingsDown === 0
                               ? '—'

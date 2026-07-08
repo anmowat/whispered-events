@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
   const token = req.nextUrl.searchParams.get('token') ?? ''
   const rating = req.nextUrl.searchParams.get('rating')
 
-  if (rating !== 'up' && rating !== 'down') {
+  if (rating !== 'going' && rating !== 'cant_make_it' && rating !== 'not_a_fit') {
     return NextResponse.redirect(`${BASE_URL}/rate/thanks?error=invalid`)
   }
 
@@ -25,10 +25,9 @@ export async function GET(req: NextRequest) {
     console.error('email rate error:', err instanceof Error ? err.message : String(err))
   }
 
-  const dest =
-    rating === 'up'
-      ? `${BASE_URL}/rate/thanks?rating=up`
-      : `${BASE_URL}/rate/thanks?rating=down&eventId=${encodeURIComponent(eventId)}`
+  const dest = rating === 'not_a_fit'
+    ? `${BASE_URL}/rate/thanks?rating=not_a_fit&eventId=${encodeURIComponent(eventId)}`
+    : `${BASE_URL}/rate/thanks?rating=${rating}`
 
   return NextResponse.redirect(dest)
 }

@@ -398,23 +398,24 @@ export async function sendMatchRatingNotification(params: {
   userName: string
   userEmail: string
   eventName: string
-  rating: 'up' | 'down'
+  rating: 'going' | 'cant_make_it' | 'not_a_fit'
   reason: string | null
 }): Promise<void> {
   const resend = getResend()
   const adminUrl = `https://www.whisperedevents.com/admin/users/${params.userId}`
-  const emoji = params.rating === 'up' ? '👍' : '👎'
+  const RATING_LABEL: Record<string, string> = { going: '✅ Going', cant_make_it: "🗓 Can't make it", not_a_fit: '❌ Not a fit' }
+  const emoji = RATING_LABEL[params.rating] ?? params.rating
   const safeName = escapeHtml(params.userName || params.userEmail)
   const safeEmail = escapeHtml(params.userEmail)
   const safeEvent = escapeHtml(params.eventName)
   const reasonRow =
-    params.rating === 'down' && params.reason
+    params.rating === 'not_a_fit' && params.reason
       ? `<p style="font-family:${SANS};font-size:14px;line-height:1.55;color:${C.ink};margin:14px 0 0;"><strong>Reason:</strong> ${escapeHtml(params.reason)}</p>`
       : ''
   const html = `
 <div style="margin:0;padding:20px;background:${C.bg};font-family:${SANS};color:${C.ink};">
   <div style="max-width:540px;margin:0 auto;background:${C.paper};border:1px solid ${C.rule};border-radius:6px;padding:24px;">
-    <p style="font-family:${SERIF};font-size:20px;font-weight:600;margin:0;color:${C.ink};">${emoji} Match rating</p>
+    <p style="font-family:${SERIF};font-size:20px;font-weight:600;margin:0;color:${C.ink};">Match rating</p>
     <p style="font-family:${SANS};font-size:14px;line-height:1.55;color:${C.ink};margin:16px 0 0;">
       <strong><a href="${adminUrl}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">${safeName}</a></strong> &lt;${safeEmail}&gt; rated:
     </p>
@@ -422,21 +423,21 @@ export async function sendMatchRatingNotification(params: {
       <strong>Event:</strong> ${safeEvent}
     </p>
     <p style="font-family:${SANS};font-size:14px;line-height:1.55;color:${C.ink};margin:8px 0 0;">
-      <strong>Rating:</strong> ${emoji} ${params.rating === 'up' ? 'Thumbs up' : 'Thumbs down'}
+      <strong>Rating:</strong> ${emoji}
     </p>
     ${reasonRow}
   </div>
 </div>
 `.trim()
   const textLines = [
-    `${emoji} Match rating`,
+    `Match rating`,
     '',
     `User: ${params.userName || params.userEmail} <${params.userEmail}>`,
     `Profile: ${adminUrl}`,
     `Event: ${params.eventName}`,
-    `Rating: ${emoji} ${params.rating === 'up' ? 'Thumbs up' : 'Thumbs down'}`,
+    `Rating: ${emoji}`,
   ]
-  if (params.rating === 'down' && params.reason) {
+  if (params.rating === 'not_a_fit' && params.reason) {
     textLines.push(`Reason: ${params.reason}`)
   }
   const subject = `Rating · ${emoji} ${params.userName || params.userEmail} · ${params.eventName}`
@@ -1039,9 +1040,10 @@ function renderEntry(entry: DigestEventEntry, userId: string, baseUrl: string): 
       : ''
 
   const btnStyle = `border-radius:99px;border:1px solid #DDD3C0;padding:3px 10px;font-size:12px;color:#4A433B;text-decoration:none;display:inline-block;margin-left:4px;white-space:nowrap;`
-  const upUrl = ratingUrl(userId, event.id, 'up', baseUrl)
-  const downUrl = ratingUrl(userId, event.id, 'down', baseUrl)
-  const ratingHtml = `<a href="${upUrl}" style="${btnStyle}">👍 Good Match</a><a href="${downUrl}" style="${btnStyle}">👎 Not a Fit</a>`
+  const goingUrl = ratingUrl(userId, event.id, 'going', baseUrl)
+  const cantUrl = ratingUrl(userId, event.id, 'cant_make_it', baseUrl)
+  const notFitUrl = ratingUrl(userId, event.id, 'not_a_fit', baseUrl)
+  const ratingHtml = `<a href="${goingUrl}" style="${btnStyle}">✅ Going</a><a href="${cantUrl}" style="${btnStyle}">🗓 Can't make it</a><a href="${notFitUrl}" style="${btnStyle}">❌ Not a fit</a>`
 
   // Event title: oxblood + underlined so the click affordance is
   // obvious. text-underline-offset matches the rest of the email's

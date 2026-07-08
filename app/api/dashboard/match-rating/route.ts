@@ -44,20 +44,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'eventId required' }, { status: 400 })
   }
 
-  // null = clear. We accept 'up' / 'down' / null only.
+  // null = clear. We accept 'going' / 'cant_make_it' / 'not_a_fit' / null.
   let rating: MatchRating | null
   if (body.rating === null) {
     rating = null
-  } else if (body.rating === 'up' || body.rating === 'down') {
+  } else if (body.rating === 'going' || body.rating === 'cant_make_it' || body.rating === 'not_a_fit') {
     rating = body.rating
   } else {
     return NextResponse.json({ error: 'invalid rating' }, { status: 400 })
   }
 
-  // Reason is optional, and only meaningful for thumbs-down. Trim and cap
+  // Reason is optional, and only meaningful for not_a_fit. Trim and cap
   // length so a hostile payload can't bloat the row.
   let reason: string | null = null
-  if (rating === 'down' && typeof body.reason === 'string') {
+  if (rating === 'not_a_fit' && typeof body.reason === 'string') {
     const trimmed = body.reason.trim()
     if (trimmed) reason = trimmed.slice(0, 2000)
   }
@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'match not found' }, { status: 404 })
     }
 
-    // Only notify on set (up / down), not on clear. No point pinging
+    // Only notify on set, not on clear. No point pinging
     // Andy that someone undid a rating.
     if (rating) {
       waitUntil(
@@ -103,18 +103,17 @@ export async function POST(req: NextRequest) {
     }
 
     // Decide whether to surface the dashboard's "thanks, help us grow"
-    // modal. Only fires on toggle-on of a 👍 (rating === 'up'); a 👎 or
-    // a clear (rating === null) leaves the user's UX untouched. Count
-    // is read AFTER the save so milestones tier off the rating they
-    // just gave (the 10th up-vote actually includes the row we wrote).
+    // modal. Only fires on toggle-on of 'going'; a clear leaves the user's
+    // UX untouched. Count is read AFTER the save so milestones tier off
+    // the rating they just gave.
     let showGrowModal = false
-    if (rating === 'up') {
+    if (rating === 'going') {
       if (SHOW_GROW_MODAL_ALWAYS) {
         showGrowModal = true
       } else {
         try {
           const counts = await getRatingCountByUserId(session.userId)
-          if (ANNIVERSARY_MILESTONES.includes(counts.up)) showGrowModal = true
+          if (ANNIVERSARY_MILESTONES.includes(counts.going)) showGrowModal = true
         } catch (err) {
           console.error('match-rating: getRatingCountByUserId failed', err)
         }

@@ -122,8 +122,8 @@ export async function GET(req: NextRequest) {
           lastSeen: lastSeen.get(u.id) ?? null,
           lastDigestSent: lastDigest.get(u.id) ?? null,
           lastBlastSent: lastBlast.get(u.id) ?? null,
-          ratingsUp: ratings.up,
-          ratingsDown: ratings.down,
+          ratingsUp: ratings.going,
+          ratingsDown: ratings.notAFit,
         }
       })
       .sort((a, b) => {

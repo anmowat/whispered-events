@@ -38,17 +38,15 @@ export async function GET(req: NextRequest) {
     }
   })
 
-  // Hard hide thumbs-down: once a user or host rates a match `down`, it drops
-  // off the user's dashboard. The matches row still carries the rating (admin
-  // analytics + internal notification email still fire), but the user doesn't
-  // see the event again on this page. ?all=1 bypasses both filters for
-  // admin/debug viewing.
+  // Hard hide not_a_fit: once a user rates not_a_fit or a host rates down,
+  // the event drops off the dashboard. The row persists for analytics.
+  // ?all=1 bypasses both filters for admin/debug viewing.
   const filtered = showAll
     ? withScores
     : withScores.filter(
         (e) =>
           (e.matchPercent ?? 0) >= MATCH_PERCENT_THRESHOLD &&
-          e.rating !== 'down' &&
+          e.rating !== 'not_a_fit' &&
           e.hostRating !== 'down',
       )
 
