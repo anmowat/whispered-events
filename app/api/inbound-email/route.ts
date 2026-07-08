@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
   const subject = fetched.data.subject ?? payload.data?.subject ?? ''
   const text = fetched.data.text ?? stripHtml(fetched.data.html ?? '')
   const combined = `${subject}\n\n${text}`
-  const url = extractFirstUrl(combined)
+  const url = extractFirstUrl(combined, fetched.data.html ?? undefined)
 
   // Loop-breaker #1: bail on machine-generated messages. RFC 3834 says
   // auto-responders MUST set Auto-Submitted; our own outbound mail
@@ -93,8 +93,10 @@ export async function POST(req: NextRequest) {
     Object.entries(headersRaw).map(([k, v]) => [k.toLowerCase(), String(v).toLowerCase()]),
   )
   const autoSubmitted = headerLookup['auto-submitted']
-  if (autoSubmitted && autoSubmitted !== 'no') {
-    console.log('inbound-email: dropping auto-generated message', { autoSubmitted })
+  // Only drop machine-generated mail (our own outbound) and auto-replies (OOO).
+  // auto-forwarded means a human manually forwarded the email — allow those through.
+  if (autoSubmitted && autoSubmitted !== 'no' && autoSubmitted !== 'auto-forwarded') {
+    console.log('inbound-email: dropping machine-generated message', { autoSubmitted })
     return NextResponse.json({ ok: true, reason: 'auto-submitted' })
   }
 
@@ -329,9 +331,16 @@ function extractSenderEmail(from: unknown): string | null {
   return raw.includes('@') ? raw : null
 }
 
-function extractFirstUrl(text: string): string | undefined {
+function extractFirstUrl(text: string, html?: string): string | undefined {
   const match = text.match(/https?:\/\/[^\s<>"')]+/)
-  return match ? match[0].replace(/[.,;:!?)\]]+$/, '') : undefined
+  if (match) return match[0].replace(/[.,;:!?)\]]+$/, '')
+  // Fallback: scan href attributes in raw HTML for emails that are HTML-only
+  // and whose URL doesn't appear as visible text (e.g. "Click here" links).
+  if (html) {
+    const href = html.match(/href=["']?(https?:\/\/[^"'\s>]+)/i)
+    if (href) return href[1].replace(/[.,;:!?)\]]+$/, '')
+  }
+  return undefined
 }
 
 function stripHtml(html: string): string {
