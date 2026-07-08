@@ -117,15 +117,13 @@ export default function HostEventDetailPage() {
         body: JSON.stringify({ eventId, userId, rating, feedback: feedback ?? null }),
       })
       if (!res.ok) return
-      if (rating === 'down') {
-        setMatches((prev) => prev.filter((m) => m.userId !== userId))
-      } else {
-        setMatches((prev) =>
-          prev.map((m) =>
-            m.userId === userId ? { ...m, hostRating: rating, hostFeedback: null } : m,
-          ),
-        )
-      }
+      setMatches((prev) =>
+        prev.map((m) =>
+          m.userId === userId
+            ? { ...m, hostRating: rating, hostFeedback: rating === 'down' ? (feedback ?? null) : null }
+            : m,
+        ),
+      )
     } finally {
       setRatingBusy((prev) => {
         const next = new Set(prev)
@@ -457,13 +455,20 @@ export default function HostEventDetailPage() {
                           </button>
                           <button
                             disabled={ratingBusy.has(m.userId)}
-                            onClick={() => { setFeedbackFor(m.userId); setFeedbackText('') }}
-                            title="Not a fit"
+                            onClick={() => {
+                              if (m.hostRating === 'down') {
+                                rateGuest(m.userId, null)
+                              } else {
+                                setFeedbackFor(m.userId)
+                                setFeedbackText('')
+                              }
+                            }}
+                            title={m.hostRating === 'down' ? 'Clear rating' : 'Not a fit'}
                             className="rounded-pill border text-[12px] px-2 py-0.5 transition-colors disabled:opacity-40"
                             style={{
-                              background: 'transparent',
-                              borderColor: 'var(--rule)',
-                              color: 'var(--ink-2)',
+                              background: m.hostRating === 'down' ? '#7A2A36' : 'transparent',
+                              borderColor: m.hostRating === 'down' ? '#7A2A36' : 'var(--rule)',
+                              color: m.hostRating === 'down' ? '#fff' : 'var(--ink-2)',
                             }}
                           >
                             👎
