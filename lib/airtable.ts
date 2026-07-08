@@ -1169,6 +1169,7 @@ export async function createProfile(
     ...baseFields,
     frequency: chosenFrequency,
     status: 'Pending',
+    grade: 'A',
     active,
     is_partner,
     // airtable_created_at preserves the "signed up at" semantic the admin

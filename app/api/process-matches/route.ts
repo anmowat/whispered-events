@@ -93,7 +93,7 @@ async function processUserTrigger(
     console.log(`process-matches: user ${userId} not found, skipping`)
     return
   }
-  if (!targetUser.active) {
+  if (!targetUser.active && !options.noEmail) {
     console.log(`process-matches: user ${targetUser.email} is not active, skipping`)
     return
   }

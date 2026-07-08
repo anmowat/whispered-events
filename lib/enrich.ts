@@ -150,6 +150,13 @@ export async function enrichUserFromLinkedIn(
     }
   }
 
+  if (func && seniority) {
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://whisperedevents.com'
+    fetch(`${baseUrl}/api/process-matches?trigger=user&id=${userId}&noEmail=1`, {
+      headers: { 'x-cron-secret': process.env.CRON_SECRET ?? '' },
+    }).catch(() => {})
+  }
+
   return {
     ok: true,
     name: fullName,
