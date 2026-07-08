@@ -412,8 +412,8 @@ export async function getRegionCountsByEventId(
   return counts
 }
 
-// Returns event_id -> count of matches above NOTIFY_THRESHOLD (skipped excluded).
-// Used by the host listing page to show how many execs match each event.
+// Returns event_id -> count of matches with match_percent >= 40.
+// Mirrors the threshold used on the event detail page so list and detail agree.
 export async function getMatchCountsByEventId(
   eventIds: string[],
 ): Promise<Map<string, number>> {
@@ -422,8 +422,7 @@ export async function getMatchCountsByEventId(
   const { data, error } = await supabase
     .from('matches')
     .select('event_id, user_id')
-    .gte('score', NOTIFY_THRESHOLD)
-    .is('skipped_reason', null)
+    .gte('match_percent', 40)
     .in('event_id', eventIds)
   if (error) {
     console.error('getMatchCountsByEventId error', error)
