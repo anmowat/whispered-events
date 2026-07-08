@@ -522,7 +522,7 @@ export default function ViewEventsTab({
 
       {step === 'interest' && (
         <div className="mt-4 animate-slide-up">
-          <TopicChips value={input} onChange={setInput} hideCustomInput />
+          <TopicChips value={input} onChange={setInput} />
         </div>
       )}
 
