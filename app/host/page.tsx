@@ -24,7 +24,7 @@ function formatDate(iso: string): string {
 
 export default function HostPage() {
   const [events, setEvents] = useState<HostedEvent[] | null>(null)
-  const [authState, setAuthState] = useState<'unknown' | 'authorized' | 'unauthorized' | 'error'>('unknown')
+  const [authState, setAuthState] = useState<'unknown' | 'authorized' | 'unauthorized' | 'forbidden' | 'error'>('unknown')
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [showLogin, setShowLogin] = useState(false)
   const [search, setSearch] = useState('')
@@ -37,13 +37,17 @@ export default function HostPage() {
         setAuthState('unauthorized')
         return
       }
+      if (res.status === 403) {
+        setAuthState('forbidden')
+        return
+      }
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { error?: string }
         setAuthState('error')
         setErrorMsg(data.error || `HTTP ${res.status}`)
         return
       }
-      const data = (await res.json()) as { events: HostedEvent[] }
+      const data = (await res.json()) as { events: HostedEvent[]; isPartner: boolean }
       setEvents(data.events)
       setAuthState('authorized')
     } catch (e) {
@@ -167,6 +171,26 @@ export default function HostPage() {
             >
               Log in
             </button>
+          </div>
+        )}
+
+        {authState === 'forbidden' && (
+          <div
+            className="rounded-card border p-8 text-center max-w-xl mx-auto"
+            style={{ background: 'var(--paper)', borderColor: 'var(--rule)' }}
+          >
+            <h2
+              className="font-serif mb-3"
+              style={{ fontSize: 24, color: 'var(--ink)', letterSpacing: '-0.01em' }}
+            >
+              Host Dashboard
+            </h2>
+            <p
+              className="leading-relaxed"
+              style={{ fontSize: 14, color: 'var(--ink-2)' }}
+            >
+              The host dashboard is available to Live and Partner members.
+            </p>
           </div>
         )}
 

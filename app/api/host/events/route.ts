@@ -14,6 +14,10 @@ export async function GET(req: NextRequest) {
   if (!user) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
+  if (!user.active) {
+    return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+  }
+  const isPartner = user.status === 'Partner'
 
   try {
     const events = await getEventsHostedBy(user.id)
@@ -35,7 +39,7 @@ export async function GET(req: NextRequest) {
       }))
       .sort((a, b) => (a.date || '').localeCompare(b.date || ''))
 
-    return NextResponse.json({ events: rows })
+    return NextResponse.json({ events: rows, isPartner })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     console.error('host/events error:', message)

@@ -11,6 +11,9 @@ export async function POST(req: NextRequest) {
   if (!sessionUser) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
+  if (!sessionUser.active) {
+    return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+  }
 
   let body: { eventId?: unknown; userId?: unknown; rating?: unknown; feedback?: unknown }
   try {

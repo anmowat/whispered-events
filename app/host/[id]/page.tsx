@@ -70,7 +70,8 @@ export default function HostEventDetailPage() {
   const [event, setEvent] = useState<HostEvent | null>(null)
   const [matches, setMatches] = useState<HostMatch[]>([])
   const [regionCount, setRegionCount] = useState<number | null>(null)
-  const [authState, setAuthState] = useState<'unknown' | 'authorized' | 'unauthorized' | 'not_found' | 'error'>('unknown')
+  const [isPartner, setIsPartner] = useState(false)
+  const [authState, setAuthState] = useState<'unknown' | 'authorized' | 'unauthorized' | 'forbidden' | 'not_found' | 'error'>('unknown')
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [showLogin, setShowLogin] = useState(false)
   const [editing, setEditing] = useState(false)
@@ -86,6 +87,10 @@ export default function HostEventDetailPage() {
         setAuthState('unauthorized')
         return
       }
+      if (res.status === 403) {
+        setAuthState('forbidden')
+        return
+      }
       if (res.status === 404) {
         setAuthState('not_found')
         return
@@ -96,10 +101,11 @@ export default function HostEventDetailPage() {
         setErrorMsg(data.error || `HTTP ${res.status}`)
         return
       }
-      const data = (await res.json()) as { event: HostEvent; matches: HostMatch[]; regionCount?: number }
+      const data = (await res.json()) as { event: HostEvent; matches: HostMatch[]; regionCount?: number; isPartner?: boolean }
       setEvent(data.event)
       setMatches(data.matches)
       setRegionCount(data.regionCount ?? null)
+      setIsPartner(data.isPartner ?? false)
       setAuthState('authorized')
     } catch (e) {
       setAuthState('error')
@@ -199,6 +205,17 @@ export default function HostEventDetailPage() {
             >
               Log in
             </button>
+          </div>
+        )}
+
+        {authState === 'forbidden' && (
+          <div
+            className="rounded-card border p-8 text-center"
+            style={{ background: 'var(--paper)', borderColor: 'var(--rule)' }}
+          >
+            <p style={{ fontSize: 14, color: 'var(--ink-2)' }}>
+              The host dashboard is available to Live and Partner members.
+            </p>
           </div>
         )}
 
@@ -394,28 +411,44 @@ export default function HostEventDetailPage() {
                           i === matches.length - 1 ? 'none' : '1px solid var(--rule-soft)',
                       }}
                     >
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-1.5">
-                          {m.linkedin ? (
-                            <a
-                              href={m.linkedin}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="underline"
-                              style={{ color: 'var(--accent)', textUnderlineOffset: 3 }}
-                            >
-                              {m.name}
-                            </a>
-                          ) : (
-                            <span style={{ color: 'var(--ink)' }}>{m.name}</span>
-                          )}
-                          {m.rating === 'down' && (
-                            <span title="Guest rated this event 👎" style={{ fontSize: 11, opacity: 0.6 }}>👎</span>
-                          )}
-                          {m.rating === 'up' && (
-                            <span title="Guest rated this event 👍" style={{ fontSize: 11, opacity: 0.6 }}>👍</span>
-                          )}
-                        </div>
+                      <td
+                        className="px-4 py-3"
+                        title={!isPartner ? 'Names of matches available to partners' : undefined}
+                      >
+                        {isPartner ? (
+                          <div className="flex items-center gap-1.5">
+                            {m.linkedin ? (
+                              <a
+                                href={m.linkedin}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="underline"
+                                style={{ color: 'var(--accent)', textUnderlineOffset: 3 }}
+                              >
+                                {m.name}
+                              </a>
+                            ) : (
+                              <span style={{ color: 'var(--ink)' }}>{m.name}</span>
+                            )}
+                            {m.rating === 'down' && (
+                              <span title="Guest rated this event 👎" style={{ fontSize: 11, opacity: 0.6 }}>👎</span>
+                            )}
+                            {m.rating === 'up' && (
+                              <span title="Guest rated this event 👍" style={{ fontSize: 11, opacity: 0.6 }}>👍</span>
+                            )}
+                          </div>
+                        ) : (
+                          <span
+                            style={{
+                              filter: 'blur(5px)',
+                              userSelect: 'none',
+                              color: 'var(--ink)',
+                              pointerEvents: 'none',
+                            }}
+                          >
+                            {m.name}
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-3" style={{ color: 'var(--ink-2)' }}>
                         {m.function || <span className="italic" style={{ color: 'var(--ink-3)' }}>—</span>}

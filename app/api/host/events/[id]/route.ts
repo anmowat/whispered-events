@@ -22,6 +22,10 @@ export async function GET(
   if (!user) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
+  if (!user.active) {
+    return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+  }
+  const isPartner = user.status === 'Partner'
 
   const event = await getEventByIdIfHost(params.id, user.id)
   if (!event) {
@@ -69,7 +73,7 @@ export async function GET(
       })
     }
 
-    return NextResponse.json({ event, matches, regionCount })
+    return NextResponse.json({ event, matches, regionCount, isPartner })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     console.error('host/events/[id] error:', message)
@@ -84,6 +88,9 @@ export async function PATCH(
   const user = await getSessionUser(req)
   if (!user) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  }
+  if (!user.active) {
+    return NextResponse.json({ error: 'forbidden' }, { status: 403 })
   }
   const event = await getEventByIdIfHost(params.id, user.id)
   if (!event) {
