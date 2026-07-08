@@ -1,11 +1,12 @@
 import Airtable, { FieldSet, Base } from 'airtable'
 import { createClient } from '@supabase/supabase-js'
 import { waitUntil } from '@vercel/functions'
-import { EventRecord, UserProfile } from './types'
+import { EventRecord, UserProfile, EMPLOYMENT_OPTIONS, COMPANY_SIZE_OPTIONS } from './types'
 import stringSimilarity from 'string-similarity'
 import { geocodeLocation } from './geocode'
 import { linkContributionsToUser } from './supabase'
 import { newUserId } from './user-id'
+import { SENIORITY_OPTIONS } from './seniority'
 
 // Supabase is canonical for both Users and Events. Airtable still receives a
 // best-effort follower write on event edits so the admin's Airtable view
@@ -491,9 +492,9 @@ export async function createEvent(
     source: source || '',
     image_url: '',
     host_ids: hostUserId ? [hostUserId] : [],
-    seniority: event.seniority || [],
-    employment: event.employment || [],
-    company_size: event.companySize || [],
+    seniority: event.seniority?.length ? event.seniority : [...SENIORITY_OPTIONS],
+    employment: event.employment?.length ? event.employment : [...EMPLOYMENT_OPTIONS],
+    company_size: event.companySize?.length ? event.companySize : [...COMPANY_SIZE_OPTIONS],
     // status='Pending' is the canonical gate — getFutureEvents and friends
     // filter on status='Live' so a freshly submitted event won't appear in
     // user dashboards until admin approves.
