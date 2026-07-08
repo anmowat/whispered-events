@@ -9,7 +9,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
   try {
-    const result = await backfillSeniorityToAirtable()
+    const body = await req.json().catch(() => ({})) as { id?: unknown }
+    const eventId = typeof body.id === 'string' ? body.id : undefined
+    const result = await backfillSeniorityToAirtable(eventId)
     return NextResponse.json({ ok: true, ...result })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)

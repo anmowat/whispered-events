@@ -187,6 +187,8 @@ export default function AdminEventDetailPage() {
   // Tracks the per-event rescore the Refresh button kicks off, so the
   // label can show "Rescoring…" while the work is in flight.
   const [rescoring, setRescoring] = useState(false)
+  const [syncing, setSyncing] = useState(false)
+  const [syncMsg, setSyncMsg] = useState<string | null>(null)
   const isEditing = draft !== null
 
   // Typeahead: re-run the name search whenever the query changes, debounced
@@ -237,6 +239,30 @@ export default function AdminEventDetailPage() {
       setRescoring(false)
     }
     await fetchDetail()
+  }
+
+  async function syncSeniorityToAirtable() {
+    if (!eventId) return
+    setSyncing(true)
+    setSyncMsg(null)
+    try {
+      const res = await fetch('/api/admin/backfill-airtable-seniority', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: eventId }),
+      })
+      const data = (await res.json()) as { ok?: boolean; updated?: number; errors?: number; error?: string }
+      if (!res.ok || !data.ok) {
+        setSyncMsg(`Sync failed: ${data.error || res.status}`)
+      } else {
+        setSyncMsg(`Synced (${data.updated} updated, ${data.errors} errors)`)
+        setTimeout(() => setSyncMsg(null), 4000)
+      }
+    } catch (e) {
+      setSyncMsg(`Sync failed: ${e instanceof Error ? e.message : String(e)}`)
+    } finally {
+      setSyncing(false)
+    }
   }
 
   async function fetchDetail() {
@@ -470,13 +496,26 @@ export default function AdminEventDetailPage() {
             <img src="/logo.svg" alt="Whispered Events" className="h-7 w-auto" />
             <span className="text-xs uppercase tracking-widest text-gray-500">← Events</span>
           </a>
-          <button
-            onClick={rescoreAndFetch}
-            disabled={rescoring}
-            className="px-3 py-1.5 rounded-lg border border-[#E8DDD0] bg-white text-xs text-gray-700 hover:bg-[#F5EFE6] transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {rescoring ? 'Rescoring…' : 'Refresh'}
-          </button>
+          <div className="flex items-center gap-2">
+            {syncMsg && (
+              <span className="text-xs text-gray-500">{syncMsg}</span>
+            )}
+            <button
+              onClick={syncSeniorityToAirtable}
+              disabled={syncing}
+              title="Push seniority from Supabase → Airtable for this event"
+              className="px-3 py-1.5 rounded-lg border border-[#E8DDD0] bg-white text-xs text-gray-700 hover:bg-[#F5EFE6] transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {syncing ? 'Syncing…' : 'Sync → Airtable'}
+            </button>
+            <button
+              onClick={rescoreAndFetch}
+              disabled={rescoring}
+              className="px-3 py-1.5 rounded-lg border border-[#E8DDD0] bg-white text-xs text-gray-700 hover:bg-[#F5EFE6] transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {rescoring ? 'Rescoring…' : 'Refresh'}
+            </button>
+          </div>
         </div>
       </header>
 

@@ -447,6 +447,11 @@ export async function createEvent(
   if (hostUserId) fields['Host'] = [hostUserId]
   if (source) fields['Source'] = source
 
+  // Write seniority to Airtable at creation time if the parsed event has it.
+  if (event.seniority?.length) {
+    ;(fields as Record<string, unknown>)['Seniority'] = event.seniority
+  }
+
   // Airtable .create() first so we inherit its recXXX id as the canonical
   // Supabase id. Downstream foreign keys (matches.event_id, host links)
   // already use this format; preserving it avoids a schema migration.
@@ -486,6 +491,9 @@ export async function createEvent(
     source: source || '',
     image_url: '',
     host_ids: hostUserId ? [hostUserId] : [],
+    seniority: event.seniority || [],
+    employment: event.employment || [],
+    company_size: event.companySize || [],
     // status='Pending' is the canonical gate — getFutureEvents and friends
     // filter on status='Live' so a freshly submitted event won't appear in
     // user dashboards until admin approves.
@@ -603,22 +611,26 @@ export async function updateEvent(
     }
   }
 
-  // Then mirror to Airtable as the follower write. waitUntil so admin save
-  // returns fast and an Airtable hiccup doesn't bounce the response.
-  waitUntil(pushEventToAirtable(id, airtableFields, 'updateEvent'))
+  // Mirror to Airtable as the follower write. Awaited synchronously so
+  // failures are logged immediately and don't silently lose data; the
+  // ~200ms cost on admin saves is acceptable.
+  await pushEventToAirtable(id, airtableFields, 'updateEvent')
 }
 
 // One-time backfill: reads seniority for every live event from Supabase
 // and pushes it to the Airtable "Seniority" multi-select field. Safe to run
 // multiple times (idempotent). Batches of 10 with a 250ms pause between
 // batches to stay well under Airtable's 5 req/s rate limit.
-export async function backfillSeniorityToAirtable(): Promise<{ updated: number; errors: number }> {
+// Pass eventId to limit to a single event (for per-event recovery from the admin UI).
+export async function backfillSeniorityToAirtable(eventId?: string): Promise<{ updated: number; errors: number }> {
   const supabase = getSupabase()
-  const { data, error } = await supabase
+  let query = supabase
     .from('events')
     .select('id, seniority')
     .is('deleted_at', null)
     .is('airtable_deleted_at', null)
+  if (eventId) query = query.eq('id', eventId)
+  const { data, error } = await query
   if (error) throw new Error(`backfillSeniorityToAirtable: supabase fetch failed: ${error.message}`)
 
   const rows = (data ?? []) as Array<{ id: string; seniority: string[] | null }>
