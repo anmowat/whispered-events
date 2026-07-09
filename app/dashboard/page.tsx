@@ -1310,7 +1310,7 @@ function EventCard({
   // Optimistically flip the UI, fire to the API, revert + alert on failure.
   // Net-negative UX to spin forever waiting on the network for a one-bit
   // rating that the user can re-click to fix anyway.
-  async function writeRating(rating: 'up' | 'down' | null, reason: string | null) {
+  async function writeRating(rating: 'going' | 'cant_make_it' | 'not_a_fit' | null, reason: string | null) {
     const prevRating = event.rating
     const prevReason = event.ratingReason
     onRated(rating, reason)
@@ -1412,7 +1412,7 @@ function EventCard({
         <ThumbsDownModal
           eventName={event.name}
           onCancel={() => setShowDownModal(false)}
-          onSubmit={handleDownSubmit}
+          onSubmit={handleNotFitSubmit}
         />
       )}
       {showThanks && <ThumbsDownThanksModal onClose={() => setShowThanks(false)} />}

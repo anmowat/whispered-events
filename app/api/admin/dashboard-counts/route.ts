@@ -91,7 +91,7 @@ export async function GET(req: NextRequest) {
         const localMatchPct = nearbyCount > 0
           ? Math.round((matchCount / nearbyCount) * 100)
           : null
-        const ratings = ratingCounts.get(u.id) ?? { up: 0, down: 0 }
+        const ratings = ratingCounts.get(u.id) ?? { going: 0, cantMakeIt: 0, notAFit: 0 }
         return {
           id: u.id,
           created: u.created || null,
