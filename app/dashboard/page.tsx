@@ -1412,36 +1412,36 @@ function EventCard({
           borderColor: ratingColor ? ratingColor.border : 'var(--rule)',
         }}
       >
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-baseline flex-wrap gap-x-3 gap-y-1">
-              {event.link ? (
-                <a
-                  href={event.link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="event-link font-serif"
-                  style={{ fontSize: 22, lineHeight: 1.25 }}
-                >
-                  {event.name}
-                  <span className="arrow" aria-hidden>↗</span>
-                </a>
-              ) : (
-                <span className="font-serif" style={{ fontSize: 22, color: 'var(--ink)' }}>
-                  {event.name}
-                </span>
-              )}
-              {matchPct && <MatchBadge percent={matchPct} />}
-            </div>
-            <p className="m-0 mt-1.5" style={{ fontSize: 15, color: 'var(--ink-3)' }}>
-              {[event.type, dateFormatted, event.location].filter(Boolean).join(' · ')}
-            </p>
+        <div>
+          <div className="flex items-baseline flex-wrap gap-x-3 gap-y-1">
+            {event.link ? (
+              <a
+                href={event.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="event-link font-serif"
+                style={{ fontSize: 22, lineHeight: 1.25 }}
+              >
+                {event.name}
+                <span className="arrow" aria-hidden>↗</span>
+              </a>
+            ) : (
+              <span className="font-serif" style={{ fontSize: 22, color: 'var(--ink)' }}>
+                {event.name}
+              </span>
+            )}
+            {matchPct && <MatchBadge percent={matchPct} />}
           </div>
-          <ThreeRatingButtons
-            rating={event.rating}
-            disabled={submitting}
-            onRate={handleRating}
-          />
+          <p className="m-0 mt-1.5" style={{ fontSize: 13, color: 'var(--ink-3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {[event.type, dateFormatted, event.location].filter(Boolean).join(' · ')}
+          </p>
+          <div className="mt-2.5">
+            <ThreeRatingButtons
+              rating={event.rating}
+              disabled={submitting}
+              onRate={handleRating}
+            />
+          </div>
         </div>
         {event.description && (
           <p
@@ -1528,7 +1528,7 @@ function ThreeRatingButtons({
     },
   ]
   return (
-    <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
+    <div className="flex items-center gap-1.5 flex-wrap">
       {BTNS.map((btn) => {
         const active = rating === btn.id
         return (
