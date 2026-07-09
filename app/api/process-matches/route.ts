@@ -9,7 +9,7 @@ import {
   NEARBY_RADIUS_MILES,
   ScoreResult,
 } from '@/lib/matching'
-import { getExistingMatch, logMatch, markMatchesNotified } from '@/lib/supabase'
+import { getExistingMatch, logMatch, markMatchesNotified, resetNotifiedAtForEvent } from '@/lib/supabase'
 import {
   sendUserDigest,
   sendApprovedWithDigest,
@@ -55,10 +55,22 @@ async function processEventTrigger(eventId: string) {
     return
   }
 
+  const isLive = event.status === 'Live'
+
+  // When an event goes Live, reset any pre-stamped notified_at values from
+  // Pending-preview scoring so those rows become cron-eligible again.
+  if (isLive) {
+    try {
+      await resetNotifiedAtForEvent(eventId)
+    } catch (e) {
+      console.error(`process-matches: resetNotifiedAtForEvent failed for ${eventId}:`, e)
+    }
+  }
+
   const allUsers = await getActiveUsers()
   const users = allUsers.filter(isMatchEligible)
   console.log(
-    `process-matches: scoring event "${event.name}" against ${users.length} eligible users (skipped ${
+    `process-matches: scoring event "${event.name}" (${event.status}) against ${users.length} eligible users (skipped ${
       allUsers.length - users.length
     } ineligible)`,
   )
@@ -70,7 +82,7 @@ async function processEventTrigger(eventId: string) {
   for (let i = 0; i < users.length; i += BATCH_SIZE) {
     const batch = users.slice(i, i + BATCH_SIZE)
     const results = await Promise.all(
-      batch.map((user) => scoreAndNotify(event, user, 'event')),
+      batch.map((user) => scoreAndNotify(event, user, 'event', { preNotify: !isLive })),
     )
     for (const r of results) {
       if (r === 'scored') scored++
@@ -275,6 +287,7 @@ async function scoreAndNotify(
   event: AirtableEvent,
   user: AirtableUser,
   fixedSide: 'event' | 'user',
+  opts: { preNotify?: boolean } = {},
 ): Promise<ScoreOutcomeStatus> {
   try {
     const outcome = await scoreFresh(event, user, fixedSide)
@@ -292,7 +305,7 @@ async function scoreAndNotify(
       preferenceScore: result.preferences,
       inputsHash: result.inputsHash,
       skippedReason: result.skippedReason,
-    })
+    }, { preNotify: opts.preNotify })
 
     // Frequency routes delivery — all three batched paths now flow
     // through cron, so this function's job is just to log the match:

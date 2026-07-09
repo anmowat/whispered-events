@@ -134,30 +134,54 @@ export interface MatchLog {
 // NEVER appearing in this payload. If you add a default back to the column
 // in Supabase, you re-introduce the bug.
 //
+// Exception: preNotify=true stamps notified_at=now() on INSERT so the cron
+// ignores the row. Used when scoring a Pending event for admin preview —
+// rows need to exist so the admin detail page can show scores, but must not
+// be treated as unnotified by the digest cron. The Pending→Live rescore
+// calls resetNotifiedAtForEvent first to clear those stamps.
+//
 // user_email is written purely to satisfy the legacy NOT NULL constraint
 // on matches.user_email. Every reader joins by user_id; nothing queries
 // this column. A follow-up migration drops it.
-export async function logMatch(entry: MatchLog): Promise<void> {
+export async function logMatch(entry: MatchLog, opts: { preNotify?: boolean } = {}): Promise<void> {
   const supabase = getClient()
-  const { error } = await supabase.from('matches').upsert(
-    {
-      event_id: entry.eventId,
-      user_id: entry.userId,
-      user_email: entry.userEmail,
-      score: entry.score,
-      match_percent: entry.matchPercent,
-      location_score: entry.locationScore,
-      audience_score: entry.audienceScore,
-      quality_score: entry.qualityScore,
-      preference_score: entry.preferenceScore,
-      inputs_hash: entry.inputsHash,
-      skipped_reason: entry.skippedReason ?? null,
-    },
-    { onConflict: 'event_id,user_id' },
-  )
+  const payload: Record<string, unknown> = {
+    event_id: entry.eventId,
+    user_id: entry.userId,
+    user_email: entry.userEmail,
+    score: entry.score,
+    match_percent: entry.matchPercent,
+    location_score: entry.locationScore,
+    audience_score: entry.audienceScore,
+    quality_score: entry.qualityScore,
+    preference_score: entry.preferenceScore,
+    inputs_hash: entry.inputsHash,
+    skipped_reason: entry.skippedReason ?? null,
+  }
+  if (opts.preNotify) {
+    payload.notified_at = new Date().toISOString()
+  }
+  const { error } = await supabase.from('matches').upsert(payload, { onConflict: 'event_id,user_id' })
   if (error) {
     console.error('logMatch upsert error:', error)
     throw new Error(`logMatch failed: ${error.message}`)
+  }
+}
+
+// Clears notified_at for all match rows belonging to an event so that a
+// Pending→Live transition makes them cron-eligible again. Called by
+// processEventTrigger immediately before the Live rescore so that rows
+// pre-stamped during Pending preview don't stay permanently hidden.
+export async function resetNotifiedAtForEvent(eventId: string): Promise<void> {
+  const supabase = getClient()
+  const { error } = await supabase
+    .from('matches')
+    .update({ notified_at: null })
+    .eq('event_id', eventId)
+    .not('notified_at', 'is', null)
+  if (error) {
+    console.error('resetNotifiedAtForEvent error:', error)
+    throw new Error(`resetNotifiedAtForEvent failed: ${error.message}`)
   }
 }
 
