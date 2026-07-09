@@ -74,7 +74,7 @@ export default function LoginModal({
                 letterSpacing: '-0.01em',
               }}
             >
-              Member or new?
+              Let's connect you to great events
             </h2>
 
             {/* --- Existing member path --- */}
