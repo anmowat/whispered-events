@@ -1,9 +1,9 @@
 import {
   AirtableEvent,
   AirtableUser,
-  getActiveUsers,
-  getFutureEvents,
 } from './airtable'
+import { getActiveUsers } from './users'
+import { getFutureEvents } from './events'
 import { isMatchEligible, NEARBY_RADIUS_MILES } from './matching'
 import { sendUserDigest, sendCoaching, sendRecap } from './email'
 import type { DigestEventEntry } from './email'
