@@ -8,6 +8,8 @@ interface MultiSelectProps {
   onChange: (next: string[]) => void
   /** Label shown when every option is selected (e.g. "All types"). */
   allLabel?: string
+  /** Optional display labels keyed by option value. Falls back to the value itself. */
+  labelMap?: Record<string, string>
 }
 
 // Multi-select with a button trigger + a click-outside popover. Used on
@@ -21,6 +23,7 @@ export default function MultiSelect({
   selected,
   onChange,
   allLabel = 'All',
+  labelMap,
 }: MultiSelectProps) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -33,6 +36,7 @@ export default function MultiSelect({
     return () => document.removeEventListener('mousedown', onDown)
   }, [])
 
+  const label = (o: string) => labelMap?.[o] ?? o
   const all = selected.length === options.length
   const display =
     all
@@ -40,7 +44,7 @@ export default function MultiSelect({
       : selected.length === 0
         ? 'None'
         : selected.length === 1
-          ? selected[0]
+          ? label(selected[0])
           : `${selected.length} selected`
 
   function toggle(opt: string) {
@@ -97,7 +101,7 @@ export default function MultiSelect({
                 onChange={() => toggle(o)}
                 style={{ accentColor: 'var(--accent)' }}
               />
-              {o}
+              {label(o)}
             </label>
           ))}
         </div>

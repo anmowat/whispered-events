@@ -63,6 +63,10 @@ const SORT_OPTIONS: { id: 'match' | 'date-asc' | 'date-desc'; label: string }[] 
   { id: 'date-desc', label: 'Date (latest)' },
 ]
 
+const ALL_RATINGS = ['going', 'cant_make_it', 'not_a_fit', 'unrated'] as const
+type Rating = typeof ALL_RATINGS[number]
+const DEFAULT_RATINGS: Rating[] = ['going', 'cant_make_it', 'unrated']
+
 export default function DashboardPage() {
   const [user, setUser] = useState<DashboardUser | null>(null)
   const [events, setEvents] = useState<DashboardEvent[]>([])
@@ -87,10 +91,9 @@ export default function DashboardPage() {
   // Filter state — Type is multi-select per the redesign, the other two
   // remain single-select wrapped around the existing values.
   const [typeFilter, setTypeFilter] = useState<string[] | null>(null)
-  // 'hide_not_a_fit' = default (hides events rated Not a fit)
-  // 'all' = show all ratings
-  // 'going' | 'cant_make_it' | 'not_a_fit' = show only that rating
-  const [ratingFilter, setRatingFilter] = useState<'hide_not_a_fit' | 'all' | 'going' | 'cant_make_it' | 'not_a_fit'>('hide_not_a_fit')
+  // Multi-select mirroring Type: null = all selected (going + cant_make_it + not_a_fit + unrated).
+  // Default hides 'not_a_fit' so rated-out events disappear automatically.
+  const [ratingFilter, setRatingFilter] = useState<Rating[] | null>(DEFAULT_RATINGS)
   const [dateRange, setDateRange] = useState<'' | '30' | '60' | '90'>('')
   const [sortBy, setSortBy] = useState<'match' | 'date-asc' | 'date-desc'>('match')
   const [showFilterDialog, setShowFilterDialog] = useState(false)
@@ -150,14 +153,13 @@ export default function DashboardPage() {
     return d.toISOString().slice(0, 10)
   })()
 
+  const effectiveRatings = ratingFilter ?? [...ALL_RATINGS]
   const filteredEvents = events
     .filter((e) => {
       if (effectiveTypes.length !== types.length && !effectiveTypes.includes(e.type)) return false
       if (cutoffDate && e.date && e.date > cutoffDate) return false
-      if (ratingFilter === 'hide_not_a_fit' && e.rating === 'not_a_fit') return false
-      if (ratingFilter === 'going' && e.rating !== 'going') return false
-      if (ratingFilter === 'cant_make_it' && e.rating !== 'cant_make_it') return false
-      if (ratingFilter === 'not_a_fit' && e.rating !== 'not_a_fit') return false
+      const eventRatingKey: Rating = e.rating ?? 'unrated'
+      if (effectiveRatings.length !== ALL_RATINGS.length && !effectiveRatings.includes(eventRatingKey)) return false
       return true
     })
     .sort((a, b) => {
@@ -330,7 +332,7 @@ export default function DashboardPage() {
                 <path d="M1 3h14M4 8h8M7 13h2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" fill="none"/>
               </svg>
               Filter
-              {(typeFilter !== null || ratingFilter !== 'hide_not_a_fit' || dateRange !== '' || sortBy !== 'match') && (
+              {(typeFilter !== null || (ratingFilter !== null && (ratingFilter.length !== DEFAULT_RATINGS.length || ratingFilter.some((r) => !DEFAULT_RATINGS.includes(r)))) || dateRange !== '' || sortBy !== 'match') && (
                 <span
                   className="inline-flex items-center justify-center rounded-full"
                   style={{ width: 6, height: 6, background: 'var(--accent)' }}
@@ -377,6 +379,7 @@ export default function DashboardPage() {
           setTypeFilter={setTypeFilter}
           ratingFilter={ratingFilter}
           setRatingFilter={setRatingFilter}
+          defaultRatings={DEFAULT_RATINGS}
           dateRange={dateRange}
           setDateRange={setDateRange}
           sortBy={sortBy}
@@ -417,12 +420,20 @@ export default function DashboardPage() {
   )
 }
 
+const RATING_OPTIONS = [
+  { value: 'going', label: 'Going' },
+  { value: 'cant_make_it', label: "Can't make it" },
+  { value: 'not_a_fit', label: 'Not a fit' },
+  { value: 'unrated', label: 'Not yet rated' },
+]
+
 function FilterDialog({
   types,
   typeFilter,
   setTypeFilter,
   ratingFilter,
   setRatingFilter,
+  defaultRatings,
   dateRange,
   setDateRange,
   sortBy,
@@ -432,16 +443,20 @@ function FilterDialog({
   types: string[]
   typeFilter: string[] | null
   setTypeFilter: (v: string[] | null) => void
-  ratingFilter: 'hide_not_a_fit' | 'all' | 'going' | 'cant_make_it' | 'not_a_fit'
-  setRatingFilter: (v: 'hide_not_a_fit' | 'all' | 'going' | 'cant_make_it' | 'not_a_fit') => void
+  ratingFilter: string[] | null
+  setRatingFilter: (v: string[] | null) => void
+  defaultRatings: string[]
   dateRange: '' | '30' | '60' | '90'
   setDateRange: (v: '' | '30' | '60' | '90') => void
   sortBy: 'match' | 'date-asc' | 'date-desc'
   setSortBy: (v: 'match' | 'date-asc' | 'date-desc') => void
   onClose: () => void
 }) {
+  const allRatingValues = RATING_OPTIONS.map((o) => o.value)
   const effectiveTypes = typeFilter ?? types
-  const hasActiveFilters = typeFilter !== null || ratingFilter !== 'hide_not_a_fit' || dateRange !== '' || sortBy !== 'match'
+  const effectiveRatings = ratingFilter ?? allRatingValues
+  const ratingIsDefault = ratingFilter !== null && ratingFilter.length === defaultRatings.length && ratingFilter.every((r) => defaultRatings.includes(r))
+  const hasActiveFilters = typeFilter !== null || !ratingIsDefault || dateRange !== '' || sortBy !== 'match'
 
   return (
     <div
@@ -465,7 +480,7 @@ function FilterDialog({
             {hasActiveFilters && (
               <button
                 type="button"
-                onClick={() => { setTypeFilter(null); setRatingFilter('hide_not_a_fit'); setDateRange(''); setSortBy('match') }}
+                onClick={() => { setTypeFilter(null); setRatingFilter(DEFAULT_RATINGS); setDateRange(''); setSortBy('match') }}
                 className="text-[12px] underline"
                 style={{ color: 'var(--ink-3)', textUnderlineOffset: 3 }}
               >
@@ -490,16 +505,12 @@ function FilterDialog({
           </div>
           <div>
             <div className="eyebrow mb-2">Rating</div>
-            <NativeSelect
-              value={ratingFilter}
-              onChange={(v) => setRatingFilter(v as 'hide_not_a_fit' | 'all' | 'going' | 'cant_make_it' | 'not_a_fit')}
-              options={[
-                { value: 'hide_not_a_fit', label: 'Hide "Not a fit"' },
-                { value: 'all', label: 'All ratings' },
-                { value: 'going', label: 'Going' },
-                { value: 'cant_make_it', label: "Can't make it" },
-                { value: 'not_a_fit', label: 'Not a fit' },
-              ]}
+            <MultiSelect
+              options={allRatingValues}
+              selected={effectiveRatings}
+              onChange={(next) => setRatingFilter(next)}
+              allLabel="All ratings"
+              labelMap={Object.fromEntries(RATING_OPTIONS.map((o) => [o.value, o.label]))}
             />
           </div>
           <div>
