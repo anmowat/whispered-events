@@ -1357,15 +1357,20 @@ function EventCard({
   // glance signal that they've rated this one. Thumbs-down stays neutral
   // (the filled icon is the visual cue) so the negative isn't visually
   // shouty when scanning the list.
-  const ratedGoing = event.rating === 'going'
+  const ratingColors: Record<string, { bg: string; border: string }> = {
+    going:        { bg: 'rgba(45,106,79,0.12)',  border: '#2D6A4F' },
+    cant_make_it: { bg: 'rgba(58,95,138,0.12)',  border: '#3A5F8A' },
+    not_a_fit:    { bg: 'rgba(138,42,56,0.12)',  border: '#8A2A38' },
+  }
+  const ratingColor = event.rating ? ratingColors[event.rating] : null
 
   return (
     <>
       <article
         className="rounded-card border px-5 py-4"
         style={{
-          background: ratedGoing ? 'var(--accent-soft)' : 'var(--paper)',
-          borderColor: ratedGoing ? 'var(--accent)' : 'var(--rule)',
+          background: ratingColor ? ratingColor.bg : 'var(--paper)',
+          borderColor: ratingColor ? ratingColor.border : 'var(--rule)',
         }}
       >
         <div className="flex items-start justify-between gap-4">
@@ -1608,7 +1613,7 @@ function GrowAfterThumbsUpModal({ onClose }: { onClose: () => void }) {
           Each feedback you share helps us improve the matches we send you. Rate them in your email or on the dashboard.
         </p>
         <p className="mt-2 leading-relaxed m-0" style={{ fontSize: 14, color: 'var(--ink-2)' }}>
-          <em><strong>Love what we are doing? Want to help us grow?</strong></em> Post on LinkedIn and tag Whispered Events - feel free to screenshot your dashboard in the post!!
+          <strong style={{ color: 'var(--accent)' }}>Love what we are doing? Want to help us grow?</strong> Post on LinkedIn and tag Whispered Events - feel free to screenshot your dashboard in the post!!
         </p>
         <div className="mt-5 flex flex-col gap-2.5">
           <a
