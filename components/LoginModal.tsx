@@ -68,64 +68,78 @@ export default function LoginModal({
             <h2
               className="font-serif m-0"
               style={{
-                fontSize: 30,
+                fontSize: 26,
                 lineHeight: 1.1,
                 color: 'var(--ink)',
                 letterSpacing: '-0.01em',
               }}
             >
-              <span className="italic">Welcome</span> back.
+              Member or new?
             </h2>
-            <p
-              className="m-0 leading-relaxed"
-              style={{ fontSize: 13.5, color: 'var(--ink-2)' }}
+
+            {/* --- Existing member path --- */}
+            <div
+              className="rounded-card border p-4 space-y-3"
+              style={{ borderColor: 'var(--rule)', background: 'var(--paper-2)' }}
             >
-              Enter your email and we&apos;ll send a one-time login link — no password
-              needed.
-            </p>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleSubmit()
-              }}
-              placeholder="you@company.com"
-              autoFocus
-              className="w-full rounded-input border px-3.5 py-2.5 text-[14px] focus:outline-none transition-colors"
-              style={{
-                background: 'var(--paper-2)',
-                borderColor: 'var(--rule)',
-                color: 'var(--ink)',
-              }}
-            />
-            <button
-              onClick={handleSubmit}
-              disabled={state === 'loading' || !email.trim()}
-              className="w-full py-2.5 rounded-pill text-[13px] font-medium text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              style={{ background: 'var(--accent)' }}
-              onMouseEnter={(e) =>
-                state !== 'loading' &&
-                email.trim() &&
-                (e.currentTarget.style.background = 'var(--accent-2)')
-              }
-              onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--accent)')}
-            >
-              {state === 'loading' ? 'Sending…' : 'Send login link →'}
-            </button>
-            <p
-              className="text-center text-[11.5px] mt-3"
-              style={{ color: 'var(--ink-3)' }}
-            >
-              New here?{' '}
-              <a
-                href="/?apply=profile"
-                className="underline font-medium"
-                style={{ color: 'var(--accent)', textUnderlineOffset: 3 }}
+              <p className="m-0 font-medium" style={{ fontSize: 13, color: 'var(--ink)' }}>
+                Already a member
+              </p>
+              <p className="m-0" style={{ fontSize: 12.5, color: 'var(--ink-3)', lineHeight: 1.45 }}>
+                Enter your email and we&apos;ll send a one-time login link — no password needed.
+              </p>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleSubmit()
+                }}
+                placeholder="you@company.com"
+                autoFocus
+                className="w-full rounded-input border px-3.5 py-2.5 text-[14px] focus:outline-none transition-colors"
+                style={{
+                  background: 'var(--paper)',
+                  borderColor: 'var(--rule)',
+                  color: 'var(--ink)',
+                }}
+              />
+              <button
+                onClick={handleSubmit}
+                disabled={state === 'loading' || !email.trim()}
+                className="w-full py-2.5 rounded-pill text-[13px] font-medium text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ background: 'var(--accent)' }}
+                onMouseEnter={(e) =>
+                  state !== 'loading' &&
+                  email.trim() &&
+                  (e.currentTarget.style.background = 'var(--accent-2)')
+                }
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--accent)')}
               >
-                Apply for access →
-              </a>
-            </p>
+                {state === 'loading' ? 'Sending…' : 'Send login link →'}
+              </button>
+            </div>
+
+            {/* --- Divider --- */}
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-px" style={{ background: 'var(--rule)' }} />
+              <span style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>or</span>
+              <div className="flex-1 h-px" style={{ background: 'var(--rule)' }} />
+            </div>
+
+            {/* --- New user path --- */}
+            <a
+              href="/?apply=profile"
+              className="block w-full py-2.5 rounded-pill text-[13px] font-medium text-center border transition-colors"
+              style={{
+                borderColor: 'var(--accent)',
+                color: 'var(--accent)',
+                background: 'transparent',
+                textDecoration: 'none',
+              }}
+            >
+              New to Whispered Events? Create profile →
+            </a>
           </div>
         ) : state === 'sent' ? (
           <div className="space-y-3 py-2">
