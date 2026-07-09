@@ -1251,3 +1251,27 @@ export async function seedTopicsIfEmpty(defaults: DefaultTopic[]): Promise<numbe
   }
   return rows.length
 }
+
+export async function deleteUser(userId: string): Promise<void> {
+  const supabase = getClient()
+  await Promise.all([
+    supabase.from('matches').delete().eq('user_id', userId),
+    supabase.from('sessions').delete().eq('user_id', userId),
+    supabase.from('user_digest_state').delete().eq('user_id', userId),
+  ])
+  const { error } = await supabase
+    .from('users')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', userId)
+  if (error) throw new Error(`deleteUser failed: ${error.message}`)
+}
+
+export async function deleteEvent(eventId: string): Promise<void> {
+  const supabase = getClient()
+  await supabase.from('matches').delete().eq('event_id', eventId)
+  const { error } = await supabase
+    .from('events')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', eventId)
+  if (error) throw new Error(`deleteEvent failed: ${error.message}`)
+}

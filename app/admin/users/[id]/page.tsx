@@ -153,6 +153,23 @@ export default function AdminUserDetailPage() {
   const [enrichMessage, setEnrichMessage] = useState<string | null>(null)
   // Tracks the per-user rescore the Refresh button kicks off.
   const [rescoring, setRescoring] = useState(false)
+  const [deleteConfirm, setDeleteConfirm] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+
+  async function handleDelete() {
+    if (!userId) return
+    try {
+      const res = await fetch(`/api/admin/users/${userId}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string }
+        setDeleteError(data.error || `HTTP ${res.status}`)
+        return
+      }
+      window.location.href = '/admin'
+    } catch (e) {
+      setDeleteError(e instanceof Error ? e.message : String(e))
+    }
+  }
 
   // Refresh = rescore this user's matches across every future event,
   // then re-read. noEmail=1 keeps the trigger from sending a welcome
@@ -560,6 +577,39 @@ export default function AdminUserDetailPage() {
               </table>
               {events.length === 0 && (
                 <p className="px-4 py-6 text-sm text-gray-500 text-center">No future events.</p>
+              )}
+            </div>
+
+            {/* Delete user */}
+            <div className="mt-10 pt-6 border-t border-[#E8DDD0]">
+              {!deleteConfirm ? (
+                <button
+                  onClick={() => setDeleteConfirm(true)}
+                  className="px-4 py-2 rounded-lg border border-red-200 text-red-600 text-sm hover:bg-red-50 transition-colors"
+                >
+                  Delete user
+                </button>
+              ) : (
+                <div className="bg-red-50 border border-red-200 rounded-2xl p-4 space-y-3">
+                  <p className="text-sm text-red-800 font-medium">
+                    This will permanently delete the user and all their matches. This cannot be undone.
+                  </p>
+                  {deleteError && <p className="text-xs text-red-600">{deleteError}</p>}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleDelete}
+                      className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors"
+                    >
+                      Yes, delete
+                    </button>
+                    <button
+                      onClick={() => { setDeleteConfirm(false); setDeleteError(null) }}
+                      className="px-4 py-2 rounded-lg border border-[#E8DDD0] text-sm text-gray-600 hover:bg-[#F5EFE6] transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
           </>

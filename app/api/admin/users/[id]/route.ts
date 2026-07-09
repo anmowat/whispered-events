@@ -3,7 +3,7 @@ import { waitUntil } from '@vercel/functions'
 import { isAdmin } from '@/lib/admin-auth'
 import { getUserById, getUserByEmail } from '@/lib/users'
 import { getFutureEvents } from '@/lib/events'
-import { getAllMatchesForUser, getContributionStatsForUser, getLastSeenForUser, getLastEmailSentForUser } from '@/lib/supabase'
+import { getAllMatchesForUser, getContributionStatsForUser, getLastSeenForUser, getLastEmailSentForUser, deleteUser } from '@/lib/supabase'
 import { updateUserAdmin, type UserAdminUpdate } from '@/lib/airtable'
 import { triggerUserApprovedFlow } from '@/lib/user-approval'
 import { withinMiles } from '@/lib/geocode'
@@ -253,6 +253,20 @@ export async function PATCH(
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     console.error('admin/users/[id] PATCH error:', message)
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
+}
+
+export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+  if (!(await isAdmin(req))) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  }
+  try {
+    await deleteUser(params.id)
+    return NextResponse.json({ ok: true })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    console.error('admin/users/[id] DELETE error:', message)
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }
