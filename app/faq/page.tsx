@@ -148,6 +148,47 @@ export default function FaqPage() {
             }}
           >
             <span style={{ color: 'var(--ink-3)', marginRight: 8 }}>Q:</span>
+            How do I improve my matches?
+          </h2>
+          <p
+            className="mt-3 mb-0"
+            style={{ fontSize: 15, color: 'var(--ink-2)', lineHeight: 1.6 }}
+          >
+            <strong style={{ color: 'var(--ink-3)', fontWeight: 600, marginRight: 6 }}>
+              A:
+            </strong>
+            Give us feedback — in email or on your dashboard — on each event we send you. It helps us improve the matching algorithm for everyone and improve your matches.
+          </p>
+          <div className="flex items-center gap-2 mt-4 flex-wrap">
+            <RatingPill color="#2D6A4F" bg="rgba(45,106,79,0.10)" border="rgba(45,106,79,0.35)" label="Going">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M5 1v4M11 1v4M2 7h12"/>
+              </svg>
+            </RatingPill>
+            <RatingPill color="#3A5F8A" bg="rgba(58,95,138,0.10)" border="rgba(58,95,138,0.35)" label="Can't make it">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M8 14s-6-3.5-6-7.5a4 4 0 0 1 6-3.46A4 4 0 0 1 14 6.5C14 10.5 8 14 8 14z"/>
+              </svg>
+            </RatingPill>
+            <RatingPill color="#8A2A38" bg="rgba(138,42,56,0.10)" border="rgba(201,129,140,0.35)" label="Not a fit">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" aria-hidden>
+                <path d="M4 4l8 8M12 4l-8 8"/>
+              </svg>
+            </RatingPill>
+          </div>
+        </section>
+
+        <section className="mt-12">
+          <h2
+            className="font-serif m-0"
+            style={{
+              fontSize: 22,
+              lineHeight: 1.2,
+              color: 'var(--accent)',
+              letterSpacing: '-0.01em',
+            }}
+          >
+            <span style={{ color: 'var(--ink-3)', marginRight: 8 }}>Q:</span>
             Can I have more than one location for matches?
           </h2>
           <p
@@ -299,5 +340,29 @@ function Link({ href, children }: { href: string; children: React.ReactNode }) {
     >
       {children}
     </a>
+  )
+}
+
+function RatingPill({
+  color,
+  bg,
+  border,
+  label,
+  children,
+}: {
+  color: string
+  bg: string
+  border: string
+  label: string
+  children: React.ReactNode
+}) {
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-pill border text-[12px] font-medium whitespace-nowrap"
+      style={{ color, background: bg, borderColor: border }}
+    >
+      {children}
+      {label}
+    </span>
   )
 }
