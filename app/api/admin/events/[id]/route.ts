@@ -293,10 +293,13 @@ export async function PATCH(
         ),
       )
     }
-    // → Live: only re-score if scoring inputs also changed. If only the status
-    // changed (Pending → Live), the pre-scored rows already exist and will be
-    // picked up by the next digest without needing a full re-run.
-    if (update.status === 'Live' && priorStatus !== 'Live' && scoringFieldChanged) {
+    // → Live: always score (or rescore) so the event has match rows and the
+    // daily cron can deliver them. An event that went Pending → Live without
+    // scoring-field changes may have zero rows (submitted via Airtable/admin
+    // rather than inbound-email), so we can't assume pre-scored rows exist.
+    // logMatch preserves notified_at on existing rows, so already-notified
+    // users won't get a duplicate email.
+    if (update.status === 'Live' && priorStatus !== 'Live') {
       waitUntil(
         fetch(`${appUrl}/api/process-matches?trigger=event&id=${eventId}`).catch(
           (e) => console.error('admin/events/[id] PATCH: trigger event match (live) failed', e),
