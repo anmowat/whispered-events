@@ -408,31 +408,28 @@ export async function getRegionCountsByEventId(
 
 // Returns event_id -> count of matches with match_percent >= 40.
 // Mirrors the threshold used on the event detail page so list and detail agree.
+// Uses individual COUNT queries per event (head:true = no rows returned) to
+// avoid PostgREST max_rows limits that silently truncate bulk .in() results.
 export async function getMatchCountsByEventId(
   eventIds: string[],
 ): Promise<Map<string, number>> {
   if (eventIds.length === 0) return new Map()
   const supabase = getClient()
-  const { data, error } = await supabase
-    .from('matches')
-    .select('event_id, user_id')
-    .gte('match_percent', 40)
-    .in('event_id', eventIds)
-    .limit(50000)
-  if (error) {
-    console.error('getMatchCountsByEventId error', error)
-    return new Map()
-  }
-  // Dedupe by (event_id, user_id) in case of stray duplicate rows.
-  const seen = new Map<string, Set<string>>()
-  for (const row of (data ?? []) as Array<{ event_id: string; user_id: string }>) {
-    if (!row.event_id || !row.user_id) continue
-    const set = seen.get(row.event_id) ?? new Set<string>()
-    set.add(row.user_id)
-    seen.set(row.event_id, set)
-  }
   const counts = new Map<string, number>()
-  seen.forEach((set, id) => counts.set(id, set.size))
+  await Promise.all(
+    eventIds.map(async (id) => {
+      const { count, error } = await supabase
+        .from('matches')
+        .select('*', { count: 'exact', head: true })
+        .eq('event_id', id)
+        .gte('match_percent', 40)
+      if (error) {
+        console.error('getMatchCountsByEventId error', { id, error })
+        return
+      }
+      if (count !== null) counts.set(id, count)
+    }),
+  )
   return counts
 }
 
