@@ -444,7 +444,8 @@ export interface EventMatchRow {
   quality_score: number | null
   preference_score: number | null
   skipped_reason: string | null
-  rating?: 'up' | 'down' | null
+  rating?: 'going' | 'cant_make_it' | 'not_a_fit' | null
+  rating_reason?: string | null
   host_rating?: 'up' | 'down' | null
   host_feedback?: string | null
 }
@@ -475,7 +476,7 @@ export async function getMatchesForEvent(eventId: string): Promise<EventMatchRow
   const supabase = getClient()
   const { data, error } = await supabase
     .from('matches')
-    .select('user_id, score, match_percent, location_score, audience_score, quality_score, preference_score, rating, host_rating, host_feedback')
+    .select('user_id, score, match_percent, location_score, audience_score, quality_score, preference_score, rating, rating_reason, host_rating, host_feedback')
     .eq('event_id', eventId)
     .gte('match_percent', MATCH_PERCENT_THRESHOLD)
     .order('match_percent', { ascending: false })

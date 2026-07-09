@@ -34,7 +34,8 @@ interface HostMatch {
   audienceScore: number | null
   qualityScore: number | null
   preferenceScore: number | null
-  rating: 'up' | 'down' | null
+  rating: 'going' | 'cant_make_it' | 'not_a_fit' | null
+  ratingReason: string | null
   hostRating: 'up' | 'down' | null
   hostFeedback: string | null
 }
@@ -75,6 +76,7 @@ export default function HostEventDetailPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [showLogin, setShowLogin] = useState(false)
   const [editing, setEditing] = useState(false)
+  const [hostTab, setHostTab] = useState<'matches' | 'insights'>('matches')
   const [feedbackFor, setFeedbackFor] = useState<string | null>(null)
   const [feedbackText, setFeedbackText] = useState('')
   const [ratingBusy, setRatingBusy] = useState<Set<string>>(new Set())
@@ -290,23 +292,24 @@ export default function HostEventDetailPage() {
 
             <EventSummary event={event} />
 
-            <div className="flex items-end justify-between mt-10 mb-3.5 flex-wrap gap-2">
-              <div className="eyebrow">
-                Matches · {matches.length}
-                {regionCount !== null && regionCount > 0 && (
-                  <span
-                    style={{ fontWeight: 400, color: 'var(--ink-3)', letterSpacing: 0 }}
-                    title={`${matches.length} matched · ${regionCount} members within 150 miles`}
-                  >
-                    {' '}out of {regionCount} within region
-                  </span>
-                )}
-              </div>
-              <p style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>
-                Execs whose profile fits this event (≥ 40% match)
-              </p>
+            <div className="flex gap-0 mt-10 mb-4 border-b" style={{ borderColor: 'var(--rule)' }}>
+              {(['matches', 'insights'] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setHostTab(tab)}
+                  className="px-5 py-2 text-[13px] font-medium capitalize transition-colors"
+                  style={{
+                    borderBottom: hostTab === tab ? '2px solid var(--accent)' : '2px solid transparent',
+                    color: hostTab === tab ? 'var(--accent)' : 'var(--ink-3)',
+                    marginBottom: -1,
+                  }}
+                >
+                  {tab === 'matches' ? `Matches · ${matches.length}` : 'Insights'}
+                </button>
+              ))}
             </div>
 
+            {hostTab === 'matches' && (<>
             {feedbackFor && (
               <div
                 style={{
@@ -430,11 +433,11 @@ export default function HostEventDetailPage() {
                             ) : (
                               <span style={{ color: 'var(--ink)' }}>{m.name}</span>
                             )}
-                            {m.rating === 'down' && (
-                              <span title="Guest rated this event 👎" style={{ fontSize: 11, opacity: 0.6 }}>👎</span>
+                            {m.rating === 'not_a_fit' && (
+                              <span title="Guest rated this event: not a fit" style={{ fontSize: 11, opacity: 0.6 }}>❌</span>
                             )}
-                            {m.rating === 'up' && (
-                              <span title="Guest rated this event 👍" style={{ fontSize: 11, opacity: 0.6 }}>👍</span>
+                            {m.rating === 'going' && (
+                              <span title="Guest rated this event: going" style={{ fontSize: 11, opacity: 0.6 }}>✅</span>
                             )}
                           </div>
                         ) : (
@@ -521,9 +524,93 @@ export default function HostEventDetailPage() {
                 </p>
               )}
             </div>
+            </>)}
+
+            {hostTab === 'insights' && <InsightsTab matches={matches} />}
           </>
         )}
       </main>
+    </div>
+  )
+}
+
+
+function InsightsTab({ matches }: { matches: HostMatch[] }) {
+  const going = matches.filter((m) => m.rating === 'going')
+  const cantMakeIt = matches.filter((m) => m.rating === 'cant_make_it')
+  const notAFit = matches.filter((m) => m.rating === 'not_a_fit')
+  const withFeedback = notAFit.filter((m) => m.ratingReason)
+
+  const total = going.length + cantMakeIt.length + notAFit.length
+
+  if (total === 0) {
+    return (
+      <p className="py-8 text-center" style={{ fontSize: 13, color: 'var(--ink-3)' }}>
+        No user ratings yet for this event.
+      </p>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      <div
+        className="rounded-card border p-5"
+        style={{ background: 'var(--paper)', borderColor: 'var(--rule)' }}
+      >
+        <p className="eyebrow mb-4">User Ratings</p>
+        <div className="flex gap-4 flex-wrap">
+          <RatingPill label="Going" count={going.length} color="#2D6A4F" />
+          <RatingPill label="Can't Make It" count={cantMakeIt.length} color="#3A5F8A" />
+          <RatingPill label="Not a Fit" count={notAFit.length} color="#8A2A38" />
+        </div>
+      </div>
+
+      {withFeedback.length > 0 && (
+        <div
+          className="rounded-card border p-5"
+          style={{ background: 'var(--paper)', borderColor: 'var(--rule)' }}
+        >
+          <p className="eyebrow mb-4">Not a Fit — Feedback</p>
+          <div className="space-y-3">
+            {withFeedback.map((m, i) => (
+              <div
+                key={m.userId}
+                className="rounded-input px-4 py-3"
+                style={{
+                  background: 'var(--paper-2)',
+                  borderLeft: '3px solid #8A2A38',
+                  fontSize: 13,
+                  color: 'var(--ink-2)',
+                  lineHeight: 1.5,
+                }}
+              >
+                {m.ratingReason}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function RatingPill({ label, count, color }: { label: string; count: number; color: string }) {
+  return (
+    <div
+      className="flex items-center gap-2 px-4 py-2.5 rounded-pill"
+      style={{ background: color + '18', border: `1px solid ${color}40` }}
+    >
+      <span
+        className="w-2.5 h-2.5 rounded-full shrink-0"
+        style={{ background: color }}
+      />
+      <span style={{ fontSize: 13, color: 'var(--ink)', fontWeight: 500 }}>{label}</span>
+      <span
+        className="ml-1 font-semibold tabular-nums"
+        style={{ fontSize: 15, color }}
+      >
+        {count}
+      </span>
     </div>
   )
 }
