@@ -1044,9 +1044,9 @@ function renderEntry(entry: DigestEventEntry, userId: string, baseUrl: string): 
   const notFitUrl = ratingUrl(userId, event.id, 'not_a_fit', baseUrl)
   const btnBase = 'border-radius:99px;padding:3px 10px;font-size:12px;text-decoration:none;display:inline-block;margin-right:4px;white-space:nowrap;font-weight:500;'
   const ratingHtml = [
-    `<a href="${goingUrl}" style="${btnBase}background:#2D6A4F;color:#fff;border:1px solid #2D6A4F;">✅ Going</a>`,
-    `<a href="${cantUrl}" style="${btnBase}background:#3A5F8A;color:#fff;border:1px solid #3A5F8A;">🗓 Can't make it</a>`,
-    `<a href="${notFitUrl}" style="${btnBase}background:#8A2A38;color:#fff;border:1px solid #8A2A38;">❌ Not a fit</a>`,
+    `<a href="${goingUrl}" style="${btnBase}background:#2D6A4F;color:#fff;border:1px solid #2D6A4F;">Going</a>`,
+    `<a href="${cantUrl}" style="${btnBase}background:#3A5F8A;color:#fff;border:1px solid #3A5F8A;">Can't make it</a>`,
+    `<a href="${notFitUrl}" style="${btnBase}background:#8A2A38;color:#fff;border:1px solid #8A2A38;">Not a fit</a>`,
   ].join('')
 
   // Event title: oxblood + underlined so the click affordance is

@@ -1476,7 +1476,6 @@ function ThreeRatingButtons({
   const BTNS: {
     id: 'going' | 'cant_make_it' | 'not_a_fit'
     label: string
-    icon: string
     activeBg: string
     activeText: string
     inactiveBg: string
@@ -1486,7 +1485,6 @@ function ThreeRatingButtons({
     {
       id: 'going',
       label: 'Going',
-      icon: '📅',
       activeBg: '#2D6A4F',
       activeText: '#fff',
       inactiveBg: 'rgba(45,106,79,0.10)',
@@ -1496,7 +1494,6 @@ function ThreeRatingButtons({
     {
       id: 'cant_make_it',
       label: "Can't make it",
-      icon: '♡',
       activeBg: '#3A5F8A',
       activeText: '#fff',
       inactiveBg: 'rgba(58,95,138,0.10)',
@@ -1506,7 +1503,6 @@ function ThreeRatingButtons({
     {
       id: 'not_a_fit',
       label: 'Not a fit',
-      icon: '✕',
       activeBg: '#8A2A38',
       activeText: '#fff',
       inactiveBg: 'rgba(138,42,56,0.10)',
@@ -1525,14 +1521,13 @@ function ThreeRatingButtons({
             onClick={() => onRate(btn.id)}
             disabled={disabled}
             aria-pressed={active}
-            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-pill border text-[12px] font-medium transition-colors disabled:opacity-50 whitespace-nowrap"
+            className="inline-flex items-center px-2.5 py-1 rounded-pill border text-[12px] font-medium transition-colors disabled:opacity-50 whitespace-nowrap"
             style={{
               background: active ? btn.activeBg : btn.inactiveBg,
               borderColor: active ? btn.activeBg : btn.inactiveBorder,
               color: active ? btn.activeText : btn.inactiveText,
             }}
           >
-            <span aria-hidden style={{ fontSize: 11 }}>{btn.icon}</span>
             {btn.label}
           </button>
         )
