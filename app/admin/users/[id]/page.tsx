@@ -241,13 +241,14 @@ export default function AdminUserDetailPage() {
       const data = (await res.json().catch(() => ({}))) as {
         ok?: boolean
         error?: string
-        result?: { function?: string[]; seniority?: string; functionFrom?: string }
+        result?: { function?: string | string[]; seniority?: string; functionFrom?: string }
       }
       if (!res.ok || !data.ok) {
         setEnrichMessage(`Enrich failed: ${data.error || `HTTP ${res.status}`}`)
         return
       }
-      const fn = data.result?.function?.join(', ') || '?'
+      const rawFn = data.result?.function
+      const fn = Array.isArray(rawFn) ? rawFn.join(', ') : rawFn || '?'
       const sen = data.result?.seniority || '?'
       const from = data.result?.functionFrom ? ` (from ${data.result.functionFrom})` : ''
       setEnrichMessage(`Enriched → ${fn} / ${sen}${from}`)
