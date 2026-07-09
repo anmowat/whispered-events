@@ -188,14 +188,16 @@ export default function FaqPage() {
             <strong style={{ color: 'var(--ink-3)', fontWeight: 600, marginRight: 6 }}>
               A:
             </strong>
-            Yes — everyone&apos;s in. Whispered Events skews executive-level,
-            but we admit everyone who applies — as long as your profile matches
-            your LinkedIn. Instead of sending every event to every user, we use
-            your profile and interests to surface the ones that actually fit.
-            Final say belongs to each organizer — they decide who attends; we
-            just point you to the right rooms and make the best matches we can.
-            Rate your matches 👍 or 👎 on your{' '}
-            <Link href="/dashboard">dashboard</Link> to help us improve.
+            Whispered Events skews executive-level, but we default to admitting
+            everyone who applies (assuming you are positive, professional and
+            constructive) — as long as your profile matches your LinkedIn.
+            Instead of sending every event to every user, we use your profile
+            and interests to surface the ones that actually fit. Final say
+            belongs to each organizer — they decide who attends; we just point
+            you to the right rooms and make the best matches we can. Rate your
+            matches on your{' '}
+            <Link href="/dashboard">dashboard</Link> to help us improve the
+            events we match to you.
           </p>
         </section>
 
