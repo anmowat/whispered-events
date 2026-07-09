@@ -142,8 +142,9 @@ const USER_CSV_COLUMNS: CsvColumn<UserRow>[] = [
   { id: 'localMatchPct', header: 'local_match_pct', format: (r) => r.localMatchPct },
   { id: 'totalContributions', header: 'contributions_total', format: (r) => r.totalContributions },
   { id: 'lastContribution', header: 'last_contribution_at', format: (r) => r.lastContribution },
-  { id: 'ratingsUp', header: 'going', format: (r) => r.ratingsUp },
-  { id: 'ratingsDown', header: 'not_a_fit', format: (r) => r.ratingsDown },
+  { id: 'ratingsGoing', header: 'going', format: (r) => r.ratingsGoing },
+  { id: 'ratingsCantMakeIt', header: 'cant_make_it', format: (r) => r.ratingsCantMakeIt },
+  { id: 'ratingsNotAFit', header: 'not_a_fit', format: (r) => r.ratingsNotAFit },
   { id: 'isHost', header: 'is_host', format: (r) => (r.isHost ? 'true' : 'false') },
 ]
 
@@ -189,7 +190,7 @@ function compareByKey(a: UserRow, b: UserRow, key: SortKey): number {
     case 'lastSeen': return dateMs(a.lastSeen) - dateMs(b.lastSeen)
     case 'lastDigestSent': return dateMs(a.lastDigestSent) - dateMs(b.lastDigestSent)
     case 'lastBlastSent': return dateMs(a.lastBlastSent) - dateMs(b.lastBlastSent)
-    case 'ratings': return (a.ratingsUp + a.ratingsDown) - (b.ratingsUp + b.ratingsDown)
+    case 'ratings': return (a.ratingsGoing + a.ratingsCantMakeIt + a.ratingsNotAFit) - (b.ratingsGoing + b.ratingsCantMakeIt + b.ratingsNotAFit)
   }
 }
 
@@ -698,7 +699,7 @@ export default function AdminPage() {
                           sortBy={sortBy}
                           sortDir={sortDir}
                           onToggle={toggleSort}
-                          title="Lifetime ratings submitted on their dashboard. Format: going / not_a_fit. Sorted by total."
+                          title="Lifetime ratings submitted on their dashboard. Format: going / can't make it / not a fit. Sorted by total."
                         />
                         <SortHeader
                           label="Sent"
@@ -846,12 +847,12 @@ export default function AdminPage() {
                             {formatDateShort(u.lastContribution)}
                           </td>
                           <td
-                            className={`px-4 py-3 text-right tabular-nums whitespace-nowrap ${u.ratingsUp === 0 && u.ratingsDown === 0 ? 'text-gray-400' : 'text-gray-800'}`}
-                            title={`${u.ratingsUp} going, ${u.ratingsDown} not a fit`}
+                            className={`px-4 py-3 text-right tabular-nums whitespace-nowrap ${u.ratingsGoing + u.ratingsCantMakeIt + u.ratingsNotAFit === 0 ? 'text-gray-400' : 'text-gray-800'}`}
+                            title={`${u.ratingsGoing} going / ${u.ratingsCantMakeIt} can't make it / ${u.ratingsNotAFit} not a fit`}
                           >
-                            {u.ratingsUp + u.ratingsDown === 0
+                            {u.ratingsGoing + u.ratingsCantMakeIt + u.ratingsNotAFit === 0
                               ? '—'
-                              : `${u.ratingsUp} / ${u.ratingsDown}`}
+                              : `${u.ratingsGoing} / ${u.ratingsCantMakeIt} / ${u.ratingsNotAFit}`}
                           </td>
                           <td
                             className={`px-4 py-3 text-right tabular-nums whitespace-nowrap ${u.lastDigestSent ? 'text-gray-800' : 'text-gray-400'}`}

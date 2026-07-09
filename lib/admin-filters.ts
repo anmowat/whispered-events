@@ -36,8 +36,9 @@ export interface UserRow {
   lastSeen: string | null
   lastDigestSent: string | null
   lastBlastSent: string | null
-  ratingsUp: number
-  ratingsDown: number
+  ratingsGoing: number
+  ratingsCantMakeIt: number
+  ratingsNotAFit: number
 }
 
 export type FieldType = 'text' | 'enum' | 'number' | 'date' | 'boolean' | 'geo'
@@ -201,8 +202,9 @@ export const FIELDS: FieldDef<UserRow>[] = [
   { id: 'totalContributions', label: 'Contributions', type: 'number', accessor: (r) => r.totalContributions },
   { id: 'localMatchPct', label: 'Local match %', type: 'number', accessor: (r) => r.localMatchPct },
   { id: 'nearbyEventCount', label: 'Nearby events', type: 'number', accessor: (r) => r.nearbyEventCount },
-  { id: 'ratingsUp', label: 'Thumbs up', type: 'number', accessor: (r) => r.ratingsUp },
-  { id: 'ratingsDown', label: 'Thumbs down', type: 'number', accessor: (r) => r.ratingsDown },
+  { id: 'ratingsGoing', label: 'Going', type: 'number', accessor: (r) => r.ratingsGoing },
+  { id: 'ratingsCantMakeIt', label: "Can't make it", type: 'number', accessor: (r) => r.ratingsCantMakeIt },
+  { id: 'ratingsNotAFit', label: 'Not a fit', type: 'number', accessor: (r) => r.ratingsNotAFit },
   // Date
   { id: 'created', label: 'Signed up', type: 'date', accessor: (r) => r.created },
   { id: 'lastContribution', label: 'Last contribution', type: 'date', accessor: (r) => r.lastContribution },
