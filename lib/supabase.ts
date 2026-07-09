@@ -418,6 +418,7 @@ export async function getMatchCountsByEventId(
     .select('event_id, user_id')
     .gte('match_percent', 40)
     .in('event_id', eventIds)
+    .limit(50000)
   if (error) {
     console.error('getMatchCountsByEventId error', error)
     return new Map()
