@@ -1476,6 +1476,7 @@ function ThreeRatingButtons({
   const BTNS: {
     id: 'going' | 'cant_make_it' | 'not_a_fit'
     label: string
+    icon: React.ReactNode
     activeBg: string
     activeText: string
     inactiveBg: string
@@ -1485,6 +1486,12 @@ function ThreeRatingButtons({
     {
       id: 'going',
       label: 'Going',
+      icon: (
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <rect x="2" y="3" width="12" height="11" rx="1.5"/>
+          <path d="M5 1v4M11 1v4M2 7h12"/>
+        </svg>
+      ),
       activeBg: '#2D6A4F',
       activeText: '#fff',
       inactiveBg: 'rgba(45,106,79,0.10)',
@@ -1494,6 +1501,11 @@ function ThreeRatingButtons({
     {
       id: 'cant_make_it',
       label: "Can't make it",
+      icon: (
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="M8 14s-6-3.5-6-7.5a4 4 0 0 1 6-3.46A4 4 0 0 1 14 6.5C14 10.5 8 14 8 14z"/>
+        </svg>
+      ),
       activeBg: '#3A5F8A',
       activeText: '#fff',
       inactiveBg: 'rgba(58,95,138,0.10)',
@@ -1503,11 +1515,16 @@ function ThreeRatingButtons({
     {
       id: 'not_a_fit',
       label: 'Not a fit',
+      icon: (
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" aria-hidden>
+          <path d="M4 4l8 8M12 4l-8 8"/>
+        </svg>
+      ),
       activeBg: '#8A2A38',
       activeText: '#fff',
       inactiveBg: 'rgba(138,42,56,0.10)',
       inactiveBorder: 'rgba(201,129,140,0.35)',
-      inactiveText: '#E8B4BC',
+      inactiveText: '#C97B88',
     },
   ]
   return (
@@ -1521,13 +1538,14 @@ function ThreeRatingButtons({
             onClick={() => onRate(btn.id)}
             disabled={disabled}
             aria-pressed={active}
-            className="inline-flex items-center px-2.5 py-1 rounded-pill border text-[12px] font-medium transition-colors disabled:opacity-50 whitespace-nowrap"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-pill border text-[12px] font-medium transition-colors disabled:opacity-50 whitespace-nowrap"
             style={{
               background: active ? btn.activeBg : btn.inactiveBg,
               borderColor: active ? btn.activeBg : btn.inactiveBorder,
               color: active ? btn.activeText : btn.inactiveText,
             }}
           >
+            {btn.icon}
             {btn.label}
           </button>
         )

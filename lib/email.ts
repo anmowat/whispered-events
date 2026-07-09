@@ -1042,11 +1042,14 @@ function renderEntry(entry: DigestEventEntry, userId: string, baseUrl: string): 
   const goingUrl = ratingUrl(userId, event.id, 'going', baseUrl)
   const cantUrl = ratingUrl(userId, event.id, 'cant_make_it', baseUrl)
   const notFitUrl = ratingUrl(userId, event.id, 'not_a_fit', baseUrl)
-  const btnBase = 'border-radius:99px;padding:3px 10px;font-size:12px;text-decoration:none;display:inline-block;margin-right:4px;white-space:nowrap;font-weight:500;'
+  const btnBase = 'border-radius:99px;padding:4px 12px;font-size:12px;text-decoration:none;display:inline-flex;align-items:center;gap:5px;margin-right:6px;white-space:nowrap;font-weight:500;border:1px solid;'
+  const calIcon = `<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M5 1v4M11 1v4M2 7h12"/></svg>`
+  const heartIcon = `<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 14s-6-3.5-6-7.5a4 4 0 0 1 6-3.46A4 4 0 0 1 14 6.5C14 10.5 8 14 8 14z"/></svg>`
+  const xIcon = `<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>`
   const ratingHtml = [
-    `<a href="${goingUrl}" style="${btnBase}background:#2D6A4F;color:#fff;border:1px solid #2D6A4F;">Going</a>`,
-    `<a href="${cantUrl}" style="${btnBase}background:#3A5F8A;color:#fff;border:1px solid #3A5F8A;">Can't make it</a>`,
-    `<a href="${notFitUrl}" style="${btnBase}background:#8A2A38;color:#fff;border:1px solid #8A2A38;">Not a fit</a>`,
+    `<a href="${goingUrl}" style="${btnBase}background:rgba(45,106,79,0.10);color:#2D6A4F;border-color:rgba(45,106,79,0.35);">${calIcon} Going</a>`,
+    `<a href="${cantUrl}" style="${btnBase}background:rgba(58,95,138,0.10);color:#3A5F8A;border-color:rgba(58,95,138,0.35);">${heartIcon} Can't make it</a>`,
+    `<a href="${notFitUrl}" style="${btnBase}background:rgba(138,42,56,0.10);color:#8A2A38;border-color:rgba(201,129,140,0.35);">${xIcon} Not a fit</a>`,
   ].join('')
 
   // Event title: oxblood + underlined so the click affordance is
