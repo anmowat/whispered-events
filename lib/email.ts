@@ -1106,7 +1106,7 @@ export async function sendApprovedWithDigest(
     : []
 
   const baseIntro = hasMatches
-    ? "You've been approved for Whispered Events. Here are some upcoming events that match your profile:"
+    ? "You've been approved for Whispered Events. Here are your first matches:"
     : includeCoaching
       ? null
       : "You've been approved for Whispered Events."
@@ -1127,10 +1127,15 @@ export async function sendApprovedWithDigest(
   const moreText = moreOnDashboardTextLine(moreCount)
 
   const eb = todayEyebrow()
+  const ratingNudgeHtml = hasMatches
+    ? p(`<strong>Feedback &rarr; Better Matches:</strong> Rate your matches with 1-click! It helps us improve the events we send you.`, { mt: 12 })
+    : ''
+
   const html = shell(`
 
     ${h1(`<span style="font-style:italic;">Welcome</span> to the club, ${escapeHtml(firstName)}.`)}
     ${p(introCopyHtml, { mt: 14 })}
+    ${ratingNudgeHtml}
     ${renderEntries(annotated.newEvents, user.id)}
     ${moreHtml}
     ${coachingHtml}
@@ -1144,6 +1149,7 @@ export async function sendApprovedWithDigest(
     '',
     introCopyText,
     '',
+    ...(hasMatches ? ['Feedback → Better Matches: Rate your matches with 1-click! It helps us improve the events we send you.', ''] : []),
   ]
   const appendEntries = (entries: DigestEventEntry[]) => {
     if (!entries.length) return
