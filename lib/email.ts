@@ -1058,9 +1058,10 @@ function renderEntry(entry: DigestEventEntry, userId: string, baseUrl: string): 
   // obvious. text-underline-offset matches the rest of the email's
   // link treatment.
   return `
-<p style="font-family:${SANS};margin:0 0 16px;font-size:14.5px;line-height:1.55;">
-  <a href="${event.link}" style="font-family:${SERIF};font-size:17px;color:${C.accent};text-decoration:underline;text-underline-offset:3px;font-weight:400;letter-spacing:-0.01em;">${escapeHtml(event.name)}</a>${datePart}${body}<br>${match}<br><span style="display:inline-block;margin-top:5px;">${ratingHtml}</span>
+<p style="font-family:${SANS};margin:0;font-size:14.5px;line-height:1.55;">
+  <a href="${event.link}" style="font-family:${SERIF};font-size:17px;color:${C.accent};text-decoration:underline;text-underline-offset:3px;font-weight:400;letter-spacing:-0.01em;">${escapeHtml(event.name)}</a>${datePart}${body}<br>${match}<br><span style="display:inline-block;margin-top:4px;">${ratingHtml}</span>
 </p>
+<div style="margin-bottom:20px;"></div>
 `.trim()
 }
 
