@@ -162,15 +162,21 @@ export default function LoginModal({
               Not in our system yet.
             </h2>
             <p style={{ fontSize: 13.5, color: 'var(--ink-2)', lineHeight: 1.55 }}>
-              Head over to <strong>Find Events</strong> to share your profile and apply
-              for access.
+              No account found for <strong>{email}</strong>. Create a profile to apply for access — it only takes a minute.
             </p>
-            <button
-              onClick={onClose}
-              className="w-full py-2.5 rounded-pill text-[13px] font-medium text-white"
-              style={{ background: 'var(--accent)' }}
+            <a
+              href="/?apply=profile"
+              className="block w-full py-2.5 rounded-pill text-[13px] font-medium text-white text-center"
+              style={{ background: 'var(--accent)', textDecoration: 'none' }}
             >
-              Got it
+              Create profile →
+            </a>
+            <button
+              onClick={() => setState('idle')}
+              className="w-full py-1.5 text-[12px]"
+              style={{ color: 'var(--ink-3)' }}
+            >
+              ← Back
             </button>
           </div>
         ) : state === 'inactive' ? (
