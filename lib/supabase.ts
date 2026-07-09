@@ -242,9 +242,9 @@ export async function setMatchRating(params: {
   return (data?.length ?? 0) > 0
 }
 
-// Aggregates lifetime up/down counts per user_email. Drives the "Rating"
-// column on the admin users list. One bulk read; counted in app code so
-// we don't depend on a Postgres aggregate function on Supabase's PostgREST.
+// Aggregates lifetime up/down counts per user. Drives the "Rating"
+// column on the admin users list. Explicit high limit overrides PostgREST's
+// default max_rows so the table is never silently truncated.
 export async function getRatingCountsByUserId(): Promise<
   Map<string, { going: number; cantMakeIt: number; notAFit: number }>
 > {
@@ -253,6 +253,7 @@ export async function getRatingCountsByUserId(): Promise<
     .from('matches')
     .select('user_id, rating')
     .not('rating', 'is', null)
+    .limit(100_000)
   if (error) throw new Error(`getRatingCountsByUserId failed: ${error.message}`)
   const counts = new Map<string, { going: number; cantMakeIt: number; notAFit: number }>()
   for (const row of data ?? []) {
@@ -380,29 +381,28 @@ export async function getMatchCountsByUserId(
 // MAX_MILES. This excludes grade_c (location never computed) and location_zero
 // (explicitly out of range), so it's an accurate "nearby eligible population"
 // denominator for the host UI.
+// Uses individual COUNT queries per event (head:true = no rows returned) to
+// avoid PostgREST max_rows limits that silently truncate bulk .in() results.
 export async function getRegionCountsByEventId(
   eventIds: string[],
 ): Promise<Map<string, number>> {
   if (eventIds.length === 0) return new Map()
   const supabase = getClient()
-  const { data, error } = await supabase
-    .from('matches')
-    .select('event_id, user_id')
-    .gt('location_score', 0)
-    .in('event_id', eventIds)
-  if (error) {
-    console.error('getRegionCountsByEventId error', error)
-    return new Map()
-  }
-  const seen = new Map<string, Set<string>>()
-  for (const row of (data ?? []) as Array<{ event_id: string; user_id: string }>) {
-    if (!row.event_id || !row.user_id) continue
-    const set = seen.get(row.event_id) ?? new Set<string>()
-    set.add(row.user_id)
-    seen.set(row.event_id, set)
-  }
   const counts = new Map<string, number>()
-  seen.forEach((set, id) => counts.set(id, set.size))
+  await Promise.all(
+    eventIds.map(async (id) => {
+      const { count, error } = await supabase
+        .from('matches')
+        .select('*', { count: 'exact', head: true })
+        .eq('event_id', id)
+        .gt('location_score', 0)
+      if (error) {
+        console.error('getRegionCountsByEventId error', { id, error })
+        return
+      }
+      if (count !== null) counts.set(id, count)
+    }),
+  )
   return counts
 }
 
@@ -752,25 +752,30 @@ export async function getLastSeenByUserId(): Promise<Map<string, string>> {
 // `matches` covering the given future events. Used by the admin rescore
 // endpoint to detect missing pairs (key absent) AND stale pairs (key
 // present but hash differs from the current MATCHING_VERSION hash).
+// Queries per-event in parallel with an explicit high limit to avoid
+// PostgREST max_rows silently truncating a bulk cross-product fetch.
 export async function getExistingMatchHashes(
   eventIds: string[],
 ): Promise<Map<string, string | null>> {
   if (eventIds.length === 0) return new Map()
   const supabase = getClient()
-  const { data, error } = await supabase
-    .from('matches')
-    .select('event_id, user_id, inputs_hash')
-    .in('event_id', eventIds)
-  if (error) {
-    console.error('getExistingMatchHashes error', error)
-    return new Map()
-  }
   const out = new Map<string, string | null>()
-  for (const row of (data ?? []) as Array<{ event_id: string; user_id: string; inputs_hash: string | null }>) {
-    if (row.event_id && row.user_id) {
-      out.set(`${row.event_id}:${row.user_id}`, row.inputs_hash ?? null)
-    }
-  }
+  await Promise.all(
+    eventIds.map(async (eventId) => {
+      const { data, error } = await supabase
+        .from('matches')
+        .select('user_id, inputs_hash')
+        .eq('event_id', eventId)
+        .limit(10_000)
+      if (error) {
+        console.error('getExistingMatchHashes error', { eventId, error })
+        return
+      }
+      for (const row of (data ?? []) as Array<{ user_id: string; inputs_hash: string | null }>) {
+        if (row.user_id) out.set(`${eventId}:${row.user_id}`, row.inputs_hash ?? null)
+      }
+    }),
+  )
   return out
 }
 
@@ -819,6 +824,8 @@ export async function logDigestSend(entry: DigestSendLog): Promise<void> {
 // never the silent notified_at stamps from a Frequency flip. Excludes
 // admin blast sends (kind='blast') so the admin 'Last sent' column stays
 // semantically "last matching-event digest."
+// Explicit high limit overrides PostgREST default max_rows; digest_sends
+// grows unboundedly so we must not let it silently truncate.
 export async function getLastDigestSentByUserId(): Promise<Map<string, string>> {
   const supabase = getClient()
   const { data, error } = await supabase
@@ -826,6 +833,7 @@ export async function getLastDigestSentByUserId(): Promise<Map<string, string>> 
     .select('user_id, sent_at')
     .neq('kind', 'blast')
     .order('sent_at', { ascending: false })
+    .limit(100_000)
   if (error) {
     console.error('getLastDigestSentByUserId error', error)
     return new Map()
