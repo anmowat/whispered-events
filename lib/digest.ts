@@ -211,7 +211,7 @@ export async function runDigests(now: Date): Promise<{
   // Total above-threshold match count per user — used to distinguish
   // 'no matches at all' (true coaching path) from 'has matches but
   // none unnotified' (recap path). Single bulk query covers everyone.
-  const matchCountByUserId = await getMatchCountsByUserId(futureIds)
+  const matchCountByUserId = await getMatchCountsByUserId(futureIds, allUsers.map((u) => u.id))
 
   const weekly: FrequencyStats = { processed: 0, sent: 0, recapped: 0, coached: 0, skippedRecent: 0 }
   const monthly: FrequencyStats = { processed: 0, sent: 0, recapped: 0, coached: 0, skippedRecent: 0 }

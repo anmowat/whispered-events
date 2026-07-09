@@ -51,7 +51,8 @@ export async function GET(req: NextRequest) {
       getFutureEventHostIds(),
     ])
     const futureEventIds = futureEvents.map((e) => e.id)
-    const counts = await getMatchCountsByUserId(futureEventIds)
+    const userIds = activeUsers.map((u) => u.id)
+    const counts = await getMatchCountsByUserId(futureEventIds, userIds)
 
     // When eventId is set, intersect users against the match set for
     // that event (already-threshold-filtered by getMatchesForEvent).

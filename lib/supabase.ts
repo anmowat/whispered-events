@@ -346,31 +346,31 @@ export async function getUpcomingMatchesForUser(
   return (data ?? []) as DigestMatchRow[]
 }
 
-// Returns user_id -> count of distinct future event matches at match_percent >= 40.
-// Mirrors the threshold used everywhere else (dashboard, detail page, digest).
+// Returns user_id -> count of future event matches at match_percent >= 40.
+// Uses individual COUNT queries per user (head:true = no rows returned) to
+// avoid PostgREST max_rows limits that silently truncate bulk .in() results.
 export async function getMatchCountsByUserId(
   futureEventIds: string[],
+  userIds: string[],
 ): Promise<Map<string, number>> {
-  if (futureEventIds.length === 0) return new Map()
+  if (futureEventIds.length === 0 || userIds.length === 0) return new Map()
   const supabase = getClient()
-  const { data, error } = await supabase
-    .from('matches')
-    .select('user_id, event_id')
-    .gte('match_percent', MATCH_PERCENT_THRESHOLD)
-    .in('event_id', futureEventIds)
-  if (error) throw new Error(`getMatchCountsByUserId failed: ${error.message}`)
-  // Dedupe (user_id, event_id) pairs in case of stray duplicates, then count.
-  // forEach (rather than for-of) avoids needing the downlevelIteration tsconfig flag.
-  const seen = new Map<string, Set<string>>()
-  for (const row of data ?? []) {
-    const r = row as { user_id: string; event_id: string }
-    if (!r.user_id || !r.event_id) continue
-    const set = seen.get(r.user_id) ?? new Set<string>()
-    set.add(r.event_id)
-    seen.set(r.user_id, set)
-  }
   const counts = new Map<string, number>()
-  seen.forEach((set, userId) => counts.set(userId, set.size))
+  await Promise.all(
+    userIds.map(async (uid) => {
+      const { count, error } = await supabase
+        .from('matches')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', uid)
+        .gte('match_percent', MATCH_PERCENT_THRESHOLD)
+        .in('event_id', futureEventIds)
+      if (error) {
+        console.error('getMatchCountsByUserId error', { uid, error })
+        return
+      }
+      if (count !== null) counts.set(uid, count)
+    }),
+  )
   return counts
 }
 
