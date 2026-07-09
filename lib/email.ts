@@ -279,7 +279,7 @@ export async function sendUserApprovedEmail(user: AirtableUser): Promise<void> {
   const firstName = firstNameOrThere(user)
   const eb = todayEyebrow()
   const html = shell(`
-    ${eyebrow(`Welcome · ${eb}`)}
+
     ${h1(`<span style="font-style:italic;">Welcome</span> to the club, ${escapeHtml(firstName)}.`)}
     ${p("You've been approved for Whispered Events. Login via the top right of the site to see your matches — matches typically appear within ~5 minutes of approval.", { mt: 14 })}
     ${p("You can update your profile anytime to refine your matches — and we &#10084; feedback and feature ideas.", { mt: 12 })}
@@ -287,7 +287,7 @@ export async function sendUserApprovedEmail(user: AirtableUser): Promise<void> {
     ${digestFooterHtml(firstName)}
   `)
   const text = [
-    `Welcome · ${eb}`,
+    '',
     '',
     `Welcome to the club, ${firstName}.`,
     '',
@@ -680,7 +680,7 @@ function renderCoachingNoNearby(
   // elements with manual numbering keeps the look but flat content
   // doesn't trigger the quoted-content heuristic.
   const html = shell(`
-    ${eyebrow(`A nudge · ${eb}`)}
+
     ${h1(`Hi <span style="font-style:italic;">${safeName}</span>.`)}
     ${p(
       `We don't have any upcoming Whispered Events near ${locationPhrase} yet. Two quick ways to change that:`,
@@ -695,7 +695,7 @@ function renderCoachingNoNearby(
     ${digestFooterHtml(firstName)}
   `)
   const text = [
-    `A nudge · ${eb}`,
+    '',
     '',
     `Hi ${safeName}.`,
     '',
@@ -722,7 +722,7 @@ function renderCoachingNoMatches(
   // Same anti-collapse rewrite as Variant A: discrete <p> elements
   // instead of <ol>/<li> so Gmail doesn't hide the CTAs behind '...'.
   const html = shell(`
-    ${eyebrow(`A nudge · ${eb}`)}
+
     ${h1(`Hi <span style="font-style:italic;">${safeName}</span>.`)}
     ${p(
       `We have ${nearbyCount} upcoming ${noun} near ${locationPhrase}, but none are matching your profile yet. Two ways to fix that:`,
@@ -737,7 +737,7 @@ function renderCoachingNoMatches(
     ${digestFooterHtml(firstName)}
   `)
   const text = [
-    `A nudge · ${eb}`,
+    '',
     '',
     `Hi ${safeName}.`,
     '',
@@ -782,7 +782,7 @@ export async function sendRecap(
   const annotated = markDuplicates({ newEvents: [], topMatches })
 
   const html = shell(`
-    ${eyebrow(`Quick recap · ${eb}`)}
+
     ${h1(`Hi <span style="font-style:italic;">${safeName}</span>.`)}
     ${p(
       `Quick recap — we have ${nearbyCount} upcoming ${nearbyNoun} near ${locationPhrase}, and your profile ${matchVerb} ${totalMatchCount} of them. Here are your top ${matchNoun}:`,
@@ -797,7 +797,7 @@ export async function sendRecap(
   `)
 
   const textLines: string[] = [
-    `Quick recap · ${eb}`,
+    '',
     '',
     `Hi ${firstName}.`,
     '',
@@ -1039,18 +1039,22 @@ function renderEntry(entry: DigestEventEntry, userId: string, baseUrl: string): 
       ? `<span style="color:${C.ink2};">${escapeHtml(event.description)}</span> `
       : ''
 
-  const btnStyle = `border-radius:99px;border:1px solid #DDD3C0;padding:3px 10px;font-size:12px;color:#4A433B;text-decoration:none;display:inline-block;margin-left:4px;white-space:nowrap;`
   const goingUrl = ratingUrl(userId, event.id, 'going', baseUrl)
   const cantUrl = ratingUrl(userId, event.id, 'cant_make_it', baseUrl)
   const notFitUrl = ratingUrl(userId, event.id, 'not_a_fit', baseUrl)
-  const ratingHtml = `<a href="${goingUrl}" style="${btnStyle}">✅ Going</a><a href="${cantUrl}" style="${btnStyle}">🗓 Can't make it</a><a href="${notFitUrl}" style="${btnStyle}">❌ Not a fit</a>`
+  const btnBase = 'border-radius:99px;padding:3px 10px;font-size:12px;text-decoration:none;display:inline-block;margin-right:4px;white-space:nowrap;font-weight:500;'
+  const ratingHtml = [
+    `<a href="${goingUrl}" style="${btnBase}background:#2D6A4F;color:#fff;border:1px solid #2D6A4F;">✅ Going</a>`,
+    `<a href="${cantUrl}" style="${btnBase}background:#3A5F8A;color:#fff;border:1px solid #3A5F8A;">🗓 Can't make it</a>`,
+    `<a href="${notFitUrl}" style="${btnBase}background:#8A2A38;color:#fff;border:1px solid #8A2A38;">❌ Not a fit</a>`,
+  ].join('')
 
   // Event title: oxblood + underlined so the click affordance is
   // obvious. text-underline-offset matches the rest of the email's
   // link treatment.
   return `
-<p style="font-family:${SANS};margin:0 0 14px;font-size:14.5px;line-height:1.55;">
-  <a href="${event.link}" style="font-family:${SERIF};font-size:17px;color:${C.accent};text-decoration:underline;text-underline-offset:3px;font-weight:400;letter-spacing:-0.01em;">${escapeHtml(event.name)}</a>${datePart}${body}${match} ${ratingHtml}
+<p style="font-family:${SANS};margin:0 0 16px;font-size:14.5px;line-height:1.55;">
+  <a href="${event.link}" style="font-family:${SERIF};font-size:17px;color:${C.accent};text-decoration:underline;text-underline-offset:3px;font-weight:400;letter-spacing:-0.01em;">${escapeHtml(event.name)}</a>${datePart}${body}<br>${match}<br><span style="display:inline-block;margin-top:5px;">${ratingHtml}</span>
 </p>
 `.trim()
 }
@@ -1121,7 +1125,7 @@ export async function sendApprovedWithDigest(
 
   const eb = todayEyebrow()
   const html = shell(`
-    ${eyebrow(`Welcome · ${eb}`)}
+
     ${h1(`<span style="font-style:italic;">Welcome</span> to the club, ${escapeHtml(firstName)}.`)}
     ${p(introCopyHtml, { mt: 14 })}
     ${renderEntries(annotated.newEvents, user.id)}
@@ -1131,7 +1135,7 @@ export async function sendApprovedWithDigest(
   `)
 
   const textLines: string[] = [
-    `Welcome · ${eb}`,
+    '',
     '',
     `Welcome to the club, ${firstName}.`,
     '',
@@ -1219,7 +1223,7 @@ export async function sendLocationUpdatedDigest(
   const introCopy = `We saw you just updated your location to ${cityLabel} — here are upcoming events that match your profile.`
 
   const html = shell(`
-    ${eyebrow(`Location update · ${eb}`)}
+
     ${h1(`New <span style="font-style:italic;">whispers</span> in ${escapeHtml(cityLabel)}, ${escapeHtml(firstName)}.`)}
     ${p(introCopy, { mt: 14 })}
     ${renderEntries(annotated.newEvents, user.id)}
@@ -1228,7 +1232,7 @@ export async function sendLocationUpdatedDigest(
   `)
 
   const textLines: string[] = [
-    `Location update · ${eb}`,
+    '',
     '',
     `New whispers in ${cityLabel}, ${firstName}.`,
     '',
@@ -1337,7 +1341,7 @@ export async function sendUserDigest(
   // events on a weekly clock, where both make sense.
   const isPerEvent = kind === 'per_event'
   const eb = todayEyebrow()
-  const eyebrowMarkup = isPerEvent ? '' : eyebrow(`Week of ${eb}`)
+  const eyebrowMarkup = isPerEvent ? '' : ''
   const introCopy = isPerEvent
     ? 'We have a new matching event for you.'
     : 'We have some new matching Whispered Events for you.'
