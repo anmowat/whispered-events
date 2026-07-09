@@ -1042,14 +1042,16 @@ function renderEntry(entry: DigestEventEntry, userId: string, baseUrl: string): 
   const goingUrl = ratingUrl(userId, event.id, 'going', baseUrl)
   const cantUrl = ratingUrl(userId, event.id, 'cant_make_it', baseUrl)
   const notFitUrl = ratingUrl(userId, event.id, 'not_a_fit', baseUrl)
-  const btnBase = 'border-radius:99px;padding:4px 12px;font-size:12px;text-decoration:none;display:inline-flex;align-items:center;gap:5px;margin-right:6px;white-space:nowrap;font-weight:500;border:1px solid;'
-  const calIcon = `<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M5 1v4M11 1v4M2 7h12"/></svg>`
-  const heartIcon = `<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 14s-6-3.5-6-7.5a4 4 0 0 1 6-3.46A4 4 0 0 1 14 6.5C14 10.5 8 14 8 14z"/></svg>`
-  const xIcon = `<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>`
+  // SVG is stripped by Gmail/Outlook — use Unicode symbols instead.
+  // U+1F4C5 (📅) and emoji are excluded; these plain-text symbols inherit
+  // the anchor's color and render reliably across all major clients.
+  const btnBase = 'border-radius:99px;padding:4px 12px;font-size:12px;text-decoration:none;display:inline-block;margin-right:6px;white-space:nowrap;font-weight:500;border:1px solid;'
+  // ✓ U+2713, ♡ U+2661 (outline heart, not emoji), ✕ U+2715 —
+  // plain Unicode symbols that inherit the anchor color in all major clients.
   const ratingHtml = [
-    `<a href="${goingUrl}" style="${btnBase}background:rgba(45,106,79,0.10);color:#2D6A4F;border-color:rgba(45,106,79,0.35);">${calIcon} Going</a>`,
-    `<a href="${cantUrl}" style="${btnBase}background:rgba(58,95,138,0.10);color:#3A5F8A;border-color:rgba(58,95,138,0.35);">${heartIcon} Can't make it</a>`,
-    `<a href="${notFitUrl}" style="${btnBase}background:rgba(138,42,56,0.10);color:#8A2A38;border-color:rgba(201,129,140,0.35);">${xIcon} Not a fit</a>`,
+    `<a href="${goingUrl}" style="${btnBase}background:rgba(45,106,79,0.10);color:#2D6A4F;border-color:rgba(45,106,79,0.35);">&#10003; Going</a>`,
+    `<a href="${cantUrl}" style="${btnBase}background:rgba(58,95,138,0.10);color:#3A5F8A;border-color:rgba(58,95,138,0.35);">&#9825; Can't make it</a>`,
+    `<a href="${notFitUrl}" style="${btnBase}background:rgba(138,42,56,0.10);color:#8A2A38;border-color:rgba(201,129,140,0.35);">&#10005; Not a fit</a>`,
   ].join('')
 
   // Event title: oxblood + underlined so the click affordance is
@@ -1128,7 +1130,9 @@ export async function sendApprovedWithDigest(
 
   const eb = todayEyebrow()
   const ratingNudgeHtml = hasMatches
-    ? p(`<strong>Feedback &rarr; Better Matches:</strong> Rate your matches with 1-click! It helps us improve the events we send you.`, { mt: 12 })
+    ? `<div style="margin-top:16px;padding:12px 16px;background:rgba(93,64,37,0.06);border-left:3px solid #8B5E3C;border-radius:4px;font-family:${SANS};font-size:13.5px;line-height:1.55;color:#4A3728;">
+        <strong style="color:#3d2b1a;">Feedback &rarr; Better Matches:</strong> Rate your matches with 1-click! It helps us improve the events we send you.
+      </div>`
     : ''
 
   const html = shell(`
