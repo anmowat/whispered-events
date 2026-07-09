@@ -378,7 +378,7 @@ export default function DashboardPage() {
           typeFilter={typeFilter}
           setTypeFilter={setTypeFilter}
           ratingFilter={ratingFilter}
-          setRatingFilter={setRatingFilter}
+          setRatingFilter={setRatingFilter as (v: string[] | null) => void}
           defaultRatings={DEFAULT_RATINGS}
           dateRange={dateRange}
           setDateRange={setDateRange}
