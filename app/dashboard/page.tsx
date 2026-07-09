@@ -1605,7 +1605,10 @@ function GrowAfterThumbsUpModal({ onClose }: { onClose: () => void }) {
           Thanks for sharing we made a good match <span aria-hidden>♥️</span>
         </p>
         <p className="mt-3 leading-relaxed m-0" style={{ fontSize: 14, color: 'var(--ink-2)' }}>
-          Here are some ways you can help us grow so we can find more great matches for you.
+          Each feedback you share helps us improve the matches we send you. Rate them in your email or on the dashboard.
+        </p>
+        <p className="mt-2 leading-relaxed m-0" style={{ fontSize: 14, color: 'var(--ink-2)' }}>
+          <em><strong>Love what we are doing? Want to help us grow?</strong></em> Post on LinkedIn and tag Whispered Events - feel free to screenshot your dashboard in the post!!
         </p>
         <div className="mt-5 flex flex-col gap-2.5">
           <a
@@ -1615,22 +1618,7 @@ function GrowAfterThumbsUpModal({ onClose }: { onClose: () => void }) {
             className={`${ctaCls} flex-1`}
             style={{ background: 'var(--accent)', color: 'var(--paper)', fontSize: 14, fontWeight: 500 }}
           >
-            LinkedIn Post (see examples)
-          </a>
-          <a
-            href="/?tab=contribute"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={`${ctaCls} flex-1 border`}
-            style={{
-              background: 'transparent',
-              borderColor: 'var(--accent)',
-              color: 'var(--accent)',
-              fontSize: 14,
-              fontWeight: 500,
-            }}
-          >
-            Share event
+            See Example Posts from Others
           </a>
         </div>
       </div>
