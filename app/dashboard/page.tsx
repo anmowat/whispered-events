@@ -65,7 +65,7 @@ const SORT_OPTIONS: { id: 'match' | 'date-asc' | 'date-desc'; label: string }[] 
 
 const ALL_RATINGS = ['going', 'cant_make_it', 'not_a_fit', 'unrated'] as const
 type Rating = typeof ALL_RATINGS[number]
-const DEFAULT_RATINGS: Rating[] = ['going', 'cant_make_it', 'unrated']
+const DEFAULT_RATINGS: Rating[] = ['going', 'unrated']
 
 export default function DashboardPage() {
   const [user, setUser] = useState<DashboardUser | null>(null)
