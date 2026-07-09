@@ -460,6 +460,7 @@ export async function getAllMatchesForEvent(eventId: string): Promise<EventMatch
       'user_id, score, match_percent, location_score, audience_score, quality_score, preference_score, skipped_reason',
     )
     .eq('event_id', eventId)
+    .limit(10_000)
   if (error) {
     console.error('getAllMatchesForEvent error', error)
     return []
@@ -478,6 +479,7 @@ export async function getMatchesForEvent(eventId: string): Promise<EventMatchRow
     .eq('event_id', eventId)
     .gte('match_percent', MATCH_PERCENT_THRESHOLD)
     .order('match_percent', { ascending: false })
+    .limit(10_000)
   if (error) {
     console.error('getMatchesForEvent error', error)
     return []
@@ -729,12 +731,16 @@ export async function verifySession(
 
 // Returns user_id -> ISO last_seen_at (latest across all of that user's
 // sessions). Used by the admin overview as a "last visit" signal.
+// Explicit high limit: users accumulate multiple session rows (one per
+// browser/device, 60-day TTL), so the table easily exceeds PostgREST
+// default max_rows without it.
 export async function getLastSeenByUserId(): Promise<Map<string, string>> {
   const supabase = getClient()
   const { data, error } = await supabase
     .from('sessions')
     .select('user_id, last_seen_at')
     .order('last_seen_at', { ascending: false })
+    .limit(100_000)
   if (error) {
     console.error('getLastSeenByUserId error', error)
     return new Map()
@@ -847,7 +853,8 @@ export async function getLastDigestSentByUserId(): Promise<Map<string, string>> 
 }
 
 // Companion reader: last admin blast send per user. Same digest_sends
-// table, filtered to kind='blast'.
+// table, filtered to kind='blast'. Explicit limit guards against PostgREST
+// default max_rows as the table grows.
 export async function getLastBlastSentByUserId(): Promise<Map<string, string>> {
   const supabase = getClient()
   const { data, error } = await supabase
@@ -855,6 +862,7 @@ export async function getLastBlastSentByUserId(): Promise<Map<string, string>> {
     .select('user_id, sent_at')
     .eq('kind', 'blast')
     .order('sent_at', { ascending: false })
+    .limit(100_000)
   if (error) {
     console.error('getLastBlastSentByUserId error', error)
     return new Map()
@@ -1034,6 +1042,8 @@ function computeContributionStats(rows: Array<{ submitted_at: string }>): Contri
 // + lastAt keyed by user_id. Used by the admin overview to avoid N
 // round-trips. Pre-signup contributions (airtable_user_id IS NULL) are
 // excluded — they aren't owned by a user yet.
+// Explicit high limit: contributions grow indefinitely, must not rely on
+// PostgREST default max_rows.
 export async function getContributionTotalsByUserId(): Promise<
   Map<string, { total: number; lastAt: string | null }>
 > {
@@ -1043,6 +1053,7 @@ export async function getContributionTotalsByUserId(): Promise<
     .select('airtable_user_id, submitted_at')
     .not('airtable_user_id', 'is', null)
     .order('submitted_at', { ascending: false })
+    .limit(100_000)
   if (error) {
     console.error('getContributionTotalsByUserId error', error)
     return new Map()
