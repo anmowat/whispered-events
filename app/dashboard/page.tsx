@@ -251,7 +251,7 @@ export default function DashboardPage() {
             style={{ background: 'var(--paper)', borderColor: 'var(--rule)' }}
           >
             <p className="m-0 font-medium" style={{ fontSize: 17, color: 'var(--ink)' }}>
-              Update your profile to improve your matches
+              Improve your matches
             </p>
             <div className="mt-3 pl-3 space-y-1">
               <ProfileSubRow
@@ -280,7 +280,7 @@ export default function DashboardPage() {
         <section className="mb-8">
           <div className="eyebrow mb-2.5">Email updates</div>
           <div
-            className="rounded-card border px-5 py-3.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4"
+            className="rounded-card border px-4 sm:px-5 py-3.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4"
             style={{
               background: 'var(--paper)',
               borderColor: 'var(--rule)',
@@ -288,10 +288,10 @@ export default function DashboardPage() {
           >
             <div className="min-w-0">
               <p className="m-0 font-medium" style={{ fontSize: 17, color: 'var(--ink)' }}>
-                How often should we whisper to you?
+                Email frequency
               </p>
               <p className="mt-0.5 m-0" style={{ fontSize: 14, color: 'var(--ink-3)' }}>
-                Email digest of new matched events.
+                How often should we send you matches?
               </p>
             </div>
             <FrequencyControl user={user} onSaved={(u) => setUser(u)} />
@@ -608,7 +608,7 @@ function FrequencyControl({
 
   return (
     <div
-      className="flex flex-wrap p-[3px] rounded-full border"
+      className="grid grid-cols-2 sm:flex sm:flex-wrap p-[3px] rounded-2xl sm:rounded-full border gap-[3px] sm:gap-0"
       style={{ background: 'var(--paper-2)', borderColor: 'var(--rule)' }}
     >
       {FREQUENCY_OPTIONS.map((opt) => {
@@ -618,7 +618,7 @@ function FrequencyControl({
             key={opt}
             onClick={() => setValue(opt)}
             disabled={saving}
-            className="px-3 py-1.5 rounded-full text-[14px] font-medium transition-colors disabled:opacity-60"
+            className="px-3 py-2 sm:py-1.5 rounded-xl sm:rounded-full text-[14px] font-medium transition-colors disabled:opacity-60"
             style={{
               background: active ? 'var(--ink)' : 'transparent',
               color: active ? 'var(--paper)' : 'var(--ink-2)',
