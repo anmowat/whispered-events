@@ -882,6 +882,66 @@ export async function sendEventCouldNotReadEmail(email: string, submittedUrl?: s
   }
 }
 
+export async function sendDroppedEmailNotification(params: {
+  reason: string
+  originalFrom: string
+  originalSubject: string
+  originalBody: string
+  urlFound: string | undefined
+  autoSubmittedHeader?: string
+}): Promise<void> {
+  const resend = getResend()
+  const safeFrom = escapeHtml(params.originalFrom)
+  const safeSubject = escapeHtml(params.originalSubject || '(no subject)')
+  const safeUrl = params.urlFound ? escapeHtml(params.urlFound) : null
+  const safeBody = escapeHtml(params.originalBody.slice(0, 3000))
+  const urlRow = safeUrl
+    ? `<p style="margin:8px 0 0;"><strong>URL found:</strong> <a href="${safeUrl}" style="color:#c9a86a;">${safeUrl}</a></p>`
+    : `<p style="margin:8px 0 0;color:#888;"><em>No URL found in email</em></p>`
+  const autoHeader = params.autoSubmittedHeader
+    ? `<p style="margin:8px 0 0;"><strong>Auto-Submitted header:</strong> <code>${escapeHtml(params.autoSubmittedHeader)}</code></p>`
+    : ''
+  const html = `
+<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#1b1814;color:#ece6da;padding:24px;">
+  <div style="max-width:600px;margin:0 auto;background:#251e19;border:1px solid rgba(201,168,106,0.2);border-radius:8px;padding:24px;">
+    <p style="margin:0 0 16px;font-size:18px;font-weight:600;color:#c9a86a;">⚠️ Inbound event email dropped</p>
+    <p style="margin:0 0 8px;"><strong>Reason:</strong> <code>${escapeHtml(params.reason)}</code></p>
+    <p style="margin:8px 0 0;"><strong>From:</strong> ${safeFrom}</p>
+    <p style="margin:8px 0 0;"><strong>Subject:</strong> ${safeSubject}</p>
+    ${urlRow}
+    ${autoHeader}
+    <hr style="border:none;border-top:1px solid rgba(201,168,106,0.2);margin:16px 0;">
+    <p style="margin:0 0 8px;font-size:12px;color:#9c8b7e;text-transform:uppercase;letter-spacing:.06em;">Original email body</p>
+    <pre style="margin:0;font-size:12px;line-height:1.5;white-space:pre-wrap;word-break:break-word;color:#c8b89a;background:rgba(0,0,0,0.3);padding:12px;border-radius:4px;border:1px solid rgba(201,168,106,0.1);">${safeBody}</pre>
+  </div>
+</div>`.trim()
+  const text = [
+    `Inbound event email dropped`,
+    `Reason: ${params.reason}`,
+    `From: ${params.originalFrom}`,
+    `Subject: ${params.originalSubject || '(no subject)'}`,
+    `URL found: ${params.urlFound ?? 'none'}`,
+    params.autoSubmittedHeader ? `Auto-Submitted header: ${params.autoSubmittedHeader}` : '',
+    '',
+    '--- Original email body ---',
+    params.originalBody.slice(0, 3000),
+  ].filter((l) => l !== null).join('\n')
+
+  try {
+    const { error } = await resend.emails.send({
+      from: EVENT_FROM,
+      to: 'andy@whispered.com',
+      subject: `[Event email drop] ${params.reason} — from ${params.originalFrom}`,
+      html,
+      text,
+      headers: AUTO_HEADERS,
+    })
+    if (error) console.error('sendDroppedEmailNotification: Resend error', error)
+  } catch (e) {
+    console.error('sendDroppedEmailNotification failed', e)
+  }
+}
+
 export async function sendMagicLink(email: string, token: string, baseUrl: string, next?: string): Promise<void> {
   const resend = getResend()
   // /auth/login is a passive interstitial — it never consumes the

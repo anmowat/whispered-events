@@ -7,7 +7,7 @@ import { createEvent } from '@/lib/airtable'
 import { getUserByEmail } from '@/lib/users'
 import { checkDuplicate } from '@/lib/events'
 import { recordContribution, getContributionStatsByEmail } from '@/lib/supabase'
-import { sendEventCouldNotReadEmail, sendEventSubmittedEmail } from '@/lib/email'
+import { sendEventCouldNotReadEmail, sendEventSubmittedEmail, sendDroppedEmailNotification } from '@/lib/email'
 import { notifyNewEvent } from '@/lib/slack'
 import { EventRecord, VIRTUAL_LOCATION_RE } from '@/lib/types'
 
@@ -70,6 +70,13 @@ export async function POST(req: NextRequest) {
   )
   if (fetched.error || !fetched.data) {
     console.error('inbound-email: receiving.get failed', fetched.error)
+    void sendDroppedEmailNotification({
+      reason: 'fetch failed',
+      originalFrom: senderEmail,
+      originalSubject: payload.data?.subject ?? '',
+      originalBody: `Could not fetch email from Resend. Error: ${JSON.stringify(fetched.error)}`,
+      urlFound: undefined,
+    })
     return NextResponse.json({ ok: true, reason: 'fetch failed' })
   }
 
@@ -93,10 +100,26 @@ export async function POST(req: NextRequest) {
     Object.entries(headersRaw).map(([k, v]) => [k.toLowerCase(), String(v).toLowerCase()]),
   )
   const autoSubmitted = headerLookup['auto-submitted']
-  // Only drop machine-generated mail (our own outbound) and auto-replies (OOO).
-  // auto-forwarded means a human manually forwarded the email — allow those through.
-  if (autoSubmitted && autoSubmitted !== 'no' && autoSubmitted !== 'auto-forwarded') {
-    console.log('inbound-email: dropping machine-generated message', { autoSubmitted })
+  // Only drop definitively machine-generated mail: auto-generated (our own
+  // outbound) and auto-replied (OOO responses). Anything else — including
+  // auto-forwarded, 'auto-forwarded; type=group', or relay artifacts — is
+  // allowed through. Old code dropped everything except 'no'/'auto-forwarded',
+  // which silently swallowed legitimate submissions from corporate relays.
+  const MACHINE_GENERATED = new Set(['auto-generated', 'auto-replied'])
+  if (autoSubmitted && MACHINE_GENERATED.has(autoSubmitted)) {
+    console.log('inbound-email: dropping machine-generated message', { autoSubmitted, senderEmail })
+    // If this is NOT our own domain sending it, it may be a legitimate submission
+    // that got wrongly flagged by a relay. Notify Andy so nothing is silently lost.
+    if (!isOwnDomain(senderEmail)) {
+      void sendDroppedEmailNotification({
+        reason: 'auto-submitted',
+        originalFrom: senderEmail,
+        originalSubject: subject,
+        originalBody: text,
+        urlFound: url,
+        autoSubmittedHeader: autoSubmitted,
+      })
+    }
     return NextResponse.json({ ok: true, reason: 'auto-submitted' })
   }
 
@@ -121,8 +144,27 @@ export async function POST(req: NextRequest) {
       console.warn(
         'inbound-email: envelope sender',
         senderEmail,
-        'looks like a forwarder but no original From: found in body',
+        'looks like a forwarder but no original From: found in body — body preview:',
+        text.slice(0, 500),
       )
+      if (url) {
+        // A URL was found so this is likely a real submission whose sender
+        // couldn't be recovered. Use a placeholder and still create the event.
+        // Andy sees the Slack notification from notifyNewEvent as usual.
+        console.log('inbound-email: proceeding with unknown@external sender, url', url)
+        senderEmail = 'unknown@external'
+      } else {
+        // No URL and no identifiable sender — notify Andy with the raw body
+        // so he can investigate, then drop.
+        void sendDroppedEmailNotification({
+          reason: 'self-domain (no url, no original sender found)',
+          originalFrom: senderEmail,
+          originalSubject: subject,
+          originalBody: text,
+          urlFound: undefined,
+        })
+        return NextResponse.json({ ok: true, reason: 'self-domain' })
+      }
     }
   }
 
@@ -156,11 +198,21 @@ export async function POST(req: NextRequest) {
   const link = parsed.link || url
   if (!parsed.name || !link) {
     console.error('inbound-email: parse incomplete', parsed)
-    try {
-      await sendEventCouldNotReadEmail(senderEmail, url)
-    } catch (e) {
-      console.error('inbound-email: sendEventCouldNotReadEmail failed', e)
+    const isUnknown = senderEmail === 'unknown@external'
+    if (!isUnknown) {
+      try {
+        await sendEventCouldNotReadEmail(senderEmail, url)
+      } catch (e) {
+        console.error('inbound-email: sendEventCouldNotReadEmail failed', e)
+      }
     }
+    void sendDroppedEmailNotification({
+      reason: 'parse incomplete',
+      originalFrom: senderEmail,
+      originalSubject: subject,
+      originalBody: text,
+      urlFound: url,
+    })
     return NextResponse.json({ ok: true, reason: 'parse incomplete' })
   }
 
@@ -210,15 +262,21 @@ export async function POST(req: NextRequest) {
     id = await createEvent(eventToCreate, undefined, 'Email')
   } catch (e) {
     console.error('inbound-email: createEvent failed', e)
-    // Send the "couldn't read your event" reply so the submitter
-    // isn't ghosted. Same end-user experience as the parse-incomplete
-    // path. Return 200 so Resend doesn't retry the webhook (the email
-    // body's data is fundamentally broken — retrying won't help).
-    try {
-      await sendEventCouldNotReadEmail(senderEmail, url)
-    } catch (e2) {
-      console.error('inbound-email: sendEventCouldNotReadEmail (post-create-failure) failed', e2)
+    const isUnknown = senderEmail === 'unknown@external'
+    if (!isUnknown) {
+      try {
+        await sendEventCouldNotReadEmail(senderEmail, url)
+      } catch (e2) {
+        console.error('inbound-email: sendEventCouldNotReadEmail (post-create-failure) failed', e2)
+      }
     }
+    void sendDroppedEmailNotification({
+      reason: `create failed: ${e instanceof Error ? e.message : String(e)}`,
+      originalFrom: senderEmail,
+      originalSubject: subject,
+      originalBody: text,
+      urlFound: url,
+    })
     return NextResponse.json({ ok: true, reason: 'create failed' })
   }
 
@@ -232,23 +290,26 @@ export async function POST(req: NextRequest) {
   // running total post-insert (used to surface contribution
   // milestones). Inbound-email is a webhook, not a user-facing
   // route, so the extra ~200ms here doesn't affect any human.
-  try {
-    await recordContribution({
-      email: senderEmail,
-      eventId: id,
-      eventName: parsed.name,
-      source: 'inbound_email',
-      airtableUserId: existingUser?.id ?? null,
-    })
-  } catch (e) {
-    console.error('inbound-email: recordContribution error', e)
-  }
+  // Skip for unknown@external — we have no real email to attribute.
   let contributionsTotal = 0
-  try {
-    const stats = await getContributionStatsByEmail(senderEmail)
-    contributionsTotal = stats.total
-  } catch (e) {
-    console.error('inbound-email: getContributionStats failed', e)
+  if (senderEmail !== 'unknown@external') {
+    try {
+      await recordContribution({
+        email: senderEmail,
+        eventId: id,
+        eventName: parsed.name,
+        source: 'inbound_email',
+        airtableUserId: existingUser?.id ?? null,
+      })
+    } catch (e) {
+      console.error('inbound-email: recordContribution error', e)
+    }
+    try {
+      const stats = await getContributionStatsByEmail(senderEmail)
+      contributionsTotal = stats.total
+    } catch (e) {
+      console.error('inbound-email: getContributionStats failed', e)
+    }
   }
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.whisperedevents.com'
@@ -258,17 +319,19 @@ export async function POST(req: NextRequest) {
     ),
   )
 
-  try {
-    console.log(
-      'inbound-email: sending confirmation to',
-      senderEmail,
-      'for event',
-      parsed.name,
-    )
-    await sendEventSubmittedEmail(senderEmail, parsed.name, contributionsTotal, link)
-    console.log('inbound-email: confirmation sent OK to', senderEmail)
-  } catch (e) {
-    console.error('inbound-email: sendEventSubmittedEmail failed', e)
+  if (senderEmail !== 'unknown@external') {
+    try {
+      console.log(
+        'inbound-email: sending confirmation to',
+        senderEmail,
+        'for event',
+        parsed.name,
+      )
+      await sendEventSubmittedEmail(senderEmail, parsed.name, contributionsTotal, link)
+      console.log('inbound-email: confirmation sent OK to', senderEmail)
+    } catch (e) {
+      console.error('inbound-email: sendEventSubmittedEmail failed', e)
+    }
   }
 
   return NextResponse.json({ ok: true, id })
