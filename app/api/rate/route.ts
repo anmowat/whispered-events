@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyRatingToken } from '@/lib/email-rating'
-import { setMatchRating } from '@/lib/supabase'
+import { setMatchRating, touchEmailLastSeen } from '@/lib/supabase'
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL ?? 'https://whisperedevents.com'
 
@@ -21,6 +21,7 @@ export async function GET(req: NextRequest) {
 
   try {
     await setMatchRating({ eventId, userId, rating, reason: null })
+    void touchEmailLastSeen(userId)
   } catch (err) {
     console.error('email rate error:', err instanceof Error ? err.message : String(err))
   }

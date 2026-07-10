@@ -753,27 +753,45 @@ export async function verifySession(
   return { userId: data.user_id, email: data.email }
 }
 
-// Returns user_id -> ISO last_seen_at (latest across all of that user's
-// sessions). Used by the admin overview as a "last visit" signal.
-// Explicit high limit: users accumulate multiple session rows (one per
-// browser/device, 60-day TTL), so the table easily exceeds PostgREST
-// default max_rows without it.
+// Stamps email_last_seen_at on the users table when a user clicks a rating
+// link in an email. Fire-and-forget — callers should not await this.
+export async function touchEmailLastSeen(userId: string): Promise<void> {
+  const supabase = getClient()
+  const { error } = await supabase
+    .from('users')
+    .update({ email_last_seen_at: new Date().toISOString() })
+    .eq('id', userId)
+  if (error) console.error('touchEmailLastSeen error', error)
+}
+
+// Returns user_id -> ISO last_seen_at (latest across sessions OR email clicks).
+// Used by the admin overview as a "last activity" signal.
 export async function getLastSeenByUserId(): Promise<Map<string, string>> {
   const supabase = getClient()
-  const { data, error } = await supabase
-    .from('sessions')
-    .select('user_id, last_seen_at')
-    .order('last_seen_at', { ascending: false })
-    .limit(100_000)
-  if (error) {
-    console.error('getLastSeenByUserId error', error)
-    return new Map()
-  }
+  const [sessionsResult, usersResult] = await Promise.all([
+    supabase
+      .from('sessions')
+      .select('user_id, last_seen_at')
+      .order('last_seen_at', { ascending: false })
+      .limit(100_000),
+    supabase
+      .from('users')
+      .select('id, email_last_seen_at')
+      .not('email_last_seen_at', 'is', null)
+      .limit(100_000),
+  ])
+  if (sessionsResult.error) console.error('getLastSeenByUserId sessions error', sessionsResult.error)
+  if (usersResult.error) console.error('getLastSeenByUserId users error', usersResult.error)
+
   const out = new Map<string, string>()
-  for (const row of (data ?? []) as Array<{ user_id: string | null; last_seen_at: string | null }>) {
+  for (const row of (sessionsResult.data ?? []) as Array<{ user_id: string | null; last_seen_at: string | null }>) {
     if (!row.user_id || !row.last_seen_at) continue
-    // First row per key wins (data is sorted by last_seen_at desc).
     if (!out.has(row.user_id)) out.set(row.user_id, row.last_seen_at)
+  }
+  for (const row of (usersResult.data ?? []) as Array<{ id: string | null; email_last_seen_at: string | null }>) {
+    if (!row.id || !row.email_last_seen_at) continue
+    const existing = out.get(row.id)
+    if (!existing || row.email_last_seen_at > existing) out.set(row.id, row.email_last_seen_at)
   }
   return out
 }
@@ -902,18 +920,28 @@ export async function getLastBlastSentByUserId(): Promise<Map<string, string>> {
 export async function getLastSeenForUser(userId: string): Promise<string | null> {
   if (!userId) return null
   const supabase = getClient()
-  const { data, error } = await supabase
-    .from('sessions')
-    .select('last_seen_at')
-    .eq('user_id', userId)
-    .order('last_seen_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-  if (error) {
-    console.error('getLastSeenForUser error', error)
-    return null
-  }
-  return (data as { last_seen_at: string } | null)?.last_seen_at ?? null
+  const [sessionResult, userResult] = await Promise.all([
+    supabase
+      .from('sessions')
+      .select('last_seen_at')
+      .eq('user_id', userId)
+      .order('last_seen_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from('users')
+      .select('email_last_seen_at')
+      .eq('id', userId)
+      .maybeSingle(),
+  ])
+  if (sessionResult.error) console.error('getLastSeenForUser session error', sessionResult.error)
+  if (userResult.error) console.error('getLastSeenForUser user error', userResult.error)
+  const sessionTs = (sessionResult.data as { last_seen_at: string } | null)?.last_seen_at ?? null
+  const emailTs = (userResult.data as { email_last_seen_at: string | null } | null)?.email_last_seen_at ?? null
+  if (!sessionTs && !emailTs) return null
+  if (!sessionTs) return emailTs
+  if (!emailTs) return sessionTs
+  return sessionTs > emailTs ? sessionTs : emailTs
 }
 
 // Most recent email of ANY kind sent to this user (digest OR admin blast OR
