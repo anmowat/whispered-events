@@ -726,7 +726,7 @@ export default function AdminPage() {
                           sortBy={sortBy}
                           sortDir={sortDir}
                           onToggle={toggleSort}
-                          title="Last seen — last time this user had an active session on the site (refreshed on any page load while logged in, throttled to once per 5 minutes per session). Empty means they've never logged in or sessions have all expired."
+                          title="Last seen — most recent of: (1) active session on the site (refreshed on page load while logged in, throttled to once per 5 min), or (2) click on a rating button in an email. Empty means no login and no email engagement recorded."
                         />
                         <SortHeader
                           label="Create"
