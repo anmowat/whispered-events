@@ -34,7 +34,7 @@ interface HostMatch {
   audienceScore: number | null
   qualityScore: number | null
   preferenceScore: number | null
-  rating: 'going' | 'cant_make_it' | 'not_a_fit' | null
+  rating: 'interested' | 'hide' | 'not_a_fit' | null
   ratingReason: string | null
   hostRating: 'up' | 'down' | null
   hostFeedback: string | null
@@ -436,8 +436,8 @@ export default function HostEventDetailPage() {
                             {m.rating === 'not_a_fit' && (
                               <span title="Guest rated this event: not a fit" style={{ fontSize: 11, opacity: 0.6 }}>❌</span>
                             )}
-                            {m.rating === 'going' && (
-                              <span title="Guest rated this event: going" style={{ fontSize: 11, opacity: 0.6 }}>✅</span>
+                            {m.rating === 'interested' && (
+                              <span title="Guest rated this event: interested" style={{ fontSize: 11, opacity: 0.6 }}>✅</span>
                             )}
                           </div>
                         ) : (
@@ -536,8 +536,8 @@ export default function HostEventDetailPage() {
 
 
 function InsightsTab({ matches }: { matches: HostMatch[] }) {
-  const going = matches.filter((m) => m.rating === 'going')
-  const cantMakeIt = matches.filter((m) => m.rating === 'cant_make_it')
+  const going = matches.filter((m) => m.rating === 'interested')
+  const cantMakeIt = matches.filter((m) => m.rating === 'hide')
   const notAFit = matches.filter((m) => m.rating === 'not_a_fit')
   const withFeedback = notAFit.filter((m) => m.ratingReason)
 
@@ -559,8 +559,8 @@ function InsightsTab({ matches }: { matches: HostMatch[] }) {
       >
         <p className="eyebrow mb-4">User Ratings</p>
         <div className="flex gap-4 flex-wrap">
-          <RatingPill label="Going" count={going.length} color="#2D6A4F" />
-          <RatingPill label="Can't Make It" count={cantMakeIt.length} color="#3A5F8A" />
+          <RatingPill label="Interested" count={going.length} color="#2D6A4F" />
+          <RatingPill label="Hide" count={cantMakeIt.length} color="#3A5F8A" />
           <RatingPill label="Not a Fit" count={notAFit.length} color="#8A2A38" />
         </div>
       </div>

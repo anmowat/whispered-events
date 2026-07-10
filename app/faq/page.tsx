@@ -160,12 +160,12 @@ export default function FaqPage() {
             Give us feedback — in email or on your dashboard — on each event we send you. It helps us improve the matching algorithm for everyone and improve your matches.
           </p>
           <div className="flex items-center gap-2 mt-4 flex-wrap">
-            <RatingPill color="#2D6A4F" bg="rgba(45,106,79,0.10)" border="rgba(45,106,79,0.35)" label="Going">
+            <RatingPill color="#2D6A4F" bg="rgba(45,106,79,0.10)" border="rgba(45,106,79,0.35)" label="Interested">
               <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                 <rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M5 1v4M11 1v4M2 7h12"/>
               </svg>
             </RatingPill>
-            <RatingPill color="#3A5F8A" bg="rgba(58,95,138,0.10)" border="rgba(58,95,138,0.35)" label="Can't make it">
+            <RatingPill color="#3A5F8A" bg="rgba(58,95,138,0.10)" border="rgba(58,95,138,0.35)" label="Hide">
               <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                 <path d="M8 14s-6-3.5-6-7.5a4 4 0 0 1 6-3.46A4 4 0 0 1 14 6.5C14 10.5 8 14 8 14z"/>
               </svg>

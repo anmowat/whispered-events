@@ -202,8 +202,8 @@ export const FIELDS: FieldDef<UserRow>[] = [
   { id: 'totalContributions', label: 'Contributions', type: 'number', accessor: (r) => r.totalContributions },
   { id: 'localMatchPct', label: 'Local match %', type: 'number', accessor: (r) => r.localMatchPct },
   { id: 'nearbyEventCount', label: 'Nearby events', type: 'number', accessor: (r) => r.nearbyEventCount },
-  { id: 'ratingsGoing', label: 'Going', type: 'number', accessor: (r) => r.ratingsGoing },
-  { id: 'ratingsCantMakeIt', label: "Can't make it", type: 'number', accessor: (r) => r.ratingsCantMakeIt },
+  { id: 'ratingsGoing', label: 'Interested', type: 'number', accessor: (r) => r.ratingsGoing },
+  { id: 'ratingsCantMakeIt', label: 'Hide', type: 'number', accessor: (r) => r.ratingsCantMakeIt },
   { id: 'ratingsNotAFit', label: 'Not a fit', type: 'number', accessor: (r) => r.ratingsNotAFit },
   // Date
   { id: 'created', label: 'Signed up', type: 'date', accessor: (r) => r.created },

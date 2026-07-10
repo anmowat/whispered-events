@@ -142,8 +142,8 @@ const USER_CSV_COLUMNS: CsvColumn<UserRow>[] = [
   { id: 'localMatchPct', header: 'local_match_pct', format: (r) => r.localMatchPct },
   { id: 'totalContributions', header: 'contributions_total', format: (r) => r.totalContributions },
   { id: 'lastContribution', header: 'last_contribution_at', format: (r) => r.lastContribution },
-  { id: 'ratingsGoing', header: 'going', format: (r) => r.ratingsGoing },
-  { id: 'ratingsCantMakeIt', header: 'cant_make_it', format: (r) => r.ratingsCantMakeIt },
+  { id: 'ratingsGoing', header: 'interested', format: (r) => r.ratingsGoing },
+  { id: 'ratingsCantMakeIt', header: 'hide', format: (r) => r.ratingsCantMakeIt },
   { id: 'ratingsNotAFit', header: 'not_a_fit', format: (r) => r.ratingsNotAFit },
   { id: 'isHost', header: 'is_host', format: (r) => (r.isHost ? 'true' : 'false') },
 ]
@@ -699,7 +699,7 @@ export default function AdminPage() {
                           sortBy={sortBy}
                           sortDir={sortDir}
                           onToggle={toggleSort}
-                          title="Lifetime ratings submitted on their dashboard. Format: going / can't make it / not a fit. Sorted by total."
+                          title="Lifetime ratings submitted on their dashboard. Format: interested / hide / not a fit. Sorted by total."
                         />
                         <SortHeader
                           label="Sent"
@@ -848,7 +848,7 @@ export default function AdminPage() {
                           </td>
                           <td
                             className={`px-4 py-3 text-right tabular-nums whitespace-nowrap ${u.ratingsGoing + u.ratingsCantMakeIt + u.ratingsNotAFit === 0 ? 'text-gray-400' : 'text-gray-800'}`}
-                            title={`${u.ratingsGoing} going / ${u.ratingsCantMakeIt} can't make it / ${u.ratingsNotAFit} not a fit`}
+                            title={`${u.ratingsGoing} interested / ${u.ratingsCantMakeIt} hide / ${u.ratingsNotAFit} not a fit`}
                           >
                             {u.ratingsGoing + u.ratingsCantMakeIt + u.ratingsNotAFit === 0
                               ? '—'

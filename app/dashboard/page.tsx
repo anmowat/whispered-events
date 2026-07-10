@@ -40,7 +40,7 @@ function displayFrequency(value: string): string {
 type DashboardEvent = AirtableEvent & {
   matchScore: number | null
   matchPercent: number | null
-  rating: 'going' | 'cant_make_it' | 'not_a_fit' | null
+  rating: 'interested' | 'hide' | 'not_a_fit' | null
   ratingReason: string | null
 }
 
@@ -63,9 +63,9 @@ const SORT_OPTIONS: { id: 'match' | 'date-asc' | 'date-desc'; label: string }[] 
   { id: 'date-desc', label: 'Date (latest)' },
 ]
 
-const ALL_RATINGS = ['going', 'cant_make_it', 'not_a_fit', 'unrated'] as const
+const ALL_RATINGS = ['interested', 'hide', 'not_a_fit', 'unrated'] as const
 type Rating = typeof ALL_RATINGS[number]
-const DEFAULT_RATINGS: Rating[] = ['going', 'unrated']
+const DEFAULT_RATINGS: Rating[] = ['interested', 'unrated']
 
 export default function DashboardPage() {
   const [user, setUser] = useState<DashboardUser | null>(null)
@@ -91,7 +91,7 @@ export default function DashboardPage() {
   // Filter state — Type is multi-select per the redesign, the other two
   // remain single-select wrapped around the existing values.
   const [typeFilter, setTypeFilter] = useState<string[] | null>(null)
-  // Multi-select mirroring Type: null = all selected (going + cant_make_it + not_a_fit + unrated).
+  // Multi-select mirroring Type: null = all selected (interested + hide + not_a_fit + unrated).
   // Default hides 'not_a_fit' so rated-out events disappear automatically.
   const [ratingFilter, setRatingFilter] = useState<Rating[] | null>(DEFAULT_RATINGS)
   const [dateRange, setDateRange] = useState<'' | '30' | '60' | '90'>('')
@@ -421,8 +421,8 @@ export default function DashboardPage() {
 }
 
 const RATING_OPTIONS = [
-  { value: 'going', label: 'Going' },
-  { value: 'cant_make_it', label: "Can't make it" },
+  { value: 'interested', label: 'Interested' },
+  { value: 'hide', label: 'Hide' },
   { value: 'not_a_fit', label: 'Not a fit' },
   { value: 'unrated', label: 'Not yet rated' },
 ]
@@ -1325,7 +1325,7 @@ function EventCard({
   onGrowRequested,
 }: {
   event: DashboardEvent
-  onRated: (rating: 'going' | 'cant_make_it' | 'not_a_fit' | null, reason: string | null) => void
+  onRated: (rating: 'interested' | 'hide' | 'not_a_fit' | null, reason: string | null) => void
   // Called when the rating API response says we should pop the
   // "thanks, here's how to help us grow" modal — only fires on a
   // successful 👍 toggle-on under the current phase rule.
@@ -1349,7 +1349,7 @@ function EventCard({
   // Optimistically flip the UI, fire to the API, revert + alert on failure.
   // Net-negative UX to spin forever waiting on the network for a one-bit
   // rating that the user can re-click to fix anyway.
-  async function writeRating(rating: 'going' | 'cant_make_it' | 'not_a_fit' | null, reason: string | null) {
+  async function writeRating(rating: 'interested' | 'hide' | 'not_a_fit' | null, reason: string | null) {
     const prevRating = event.rating
     const prevReason = event.ratingReason
     onRated(rating, reason)
@@ -1375,7 +1375,7 @@ function EventCard({
     }
   }
 
-  function handleRating(r: 'going' | 'cant_make_it' | 'not_a_fit') {
+  function handleRating(r: 'interested' | 'hide' | 'not_a_fit') {
     if (submitting) return
     if (event.rating === r) {
       void writeRating(null, null)
@@ -1397,9 +1397,9 @@ function EventCard({
   // (the filled icon is the visual cue) so the negative isn't visually
   // shouty when scanning the list.
   const ratingColors: Record<string, { bg: string; border: string }> = {
-    going:        { bg: 'rgba(45,106,79,0.12)',  border: '#2D6A4F' },
-    cant_make_it: { bg: 'rgba(58,95,138,0.12)',  border: '#3A5F8A' },
-    not_a_fit:    { bg: 'rgba(138,42,56,0.12)',  border: '#8A2A38' },
+    interested: { bg: 'rgba(45,106,79,0.12)',  border: '#2D6A4F' },
+    hide:       { bg: 'rgba(58,95,138,0.12)',  border: '#3A5F8A' },
+    not_a_fit:  { bg: 'rgba(138,42,56,0.12)',  border: '#8A2A38' },
   }
   const ratingColor = event.rating ? ratingColors[event.rating] : null
 
@@ -1469,12 +1469,12 @@ function ThreeRatingButtons({
   disabled,
   onRate,
 }: {
-  rating: 'going' | 'cant_make_it' | 'not_a_fit' | null
+  rating: 'interested' | 'hide' | 'not_a_fit' | null
   disabled: boolean
-  onRate: (r: 'going' | 'cant_make_it' | 'not_a_fit') => void
+  onRate: (r: 'interested' | 'hide' | 'not_a_fit') => void
 }) {
   const BTNS: {
-    id: 'going' | 'cant_make_it' | 'not_a_fit'
+    id: 'interested' | 'hide' | 'not_a_fit'
     label: string
     icon: React.ReactNode
     activeBg: string
@@ -1484,8 +1484,8 @@ function ThreeRatingButtons({
     inactiveText: string
   }[] = [
     {
-      id: 'going',
-      label: 'Going',
+      id: 'interested',
+      label: 'Interested',
       icon: (
         <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
           <rect x="2" y="3" width="12" height="11" rx="1.5"/>
@@ -1499,8 +1499,8 @@ function ThreeRatingButtons({
       inactiveText: '#52B788',
     },
     {
-      id: 'cant_make_it',
-      label: "Can't make it",
+      id: 'hide',
+      label: 'Hide',
       icon: (
         <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
           <path d="M8 14s-6-3.5-6-7.5a4 4 0 0 1 6-3.46A4 4 0 0 1 14 6.5C14 10.5 8 14 8 14z"/>

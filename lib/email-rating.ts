@@ -45,7 +45,7 @@ export function verifyRatingToken(token: string): { userId: string; eventId: str
 export function ratingUrl(
   userId: string,
   eventId: string,
-  rating: 'going' | 'cant_make_it' | 'not_a_fit',
+  rating: 'interested' | 'hide' | 'not_a_fit',
   baseUrl: string,
 ): string {
   const token = signRatingToken(userId, eventId)

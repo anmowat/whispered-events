@@ -44,11 +44,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'eventId required' }, { status: 400 })
   }
 
-  // null = clear. We accept 'going' / 'cant_make_it' / 'not_a_fit' / null.
+  // null = clear. We accept 'interested' / 'hide' / 'not_a_fit' / null.
   let rating: MatchRating | null
   if (body.rating === null) {
     rating = null
-  } else if (body.rating === 'going' || body.rating === 'cant_make_it' || body.rating === 'not_a_fit') {
+  } else if (body.rating === 'interested' || body.rating === 'hide' || body.rating === 'not_a_fit') {
     rating = body.rating
   } else {
     return NextResponse.json({ error: 'invalid rating' }, { status: 400 })
@@ -103,17 +103,17 @@ export async function POST(req: NextRequest) {
     }
 
     // Decide whether to surface the dashboard's "thanks, help us grow"
-    // modal. Only fires on toggle-on of 'going'; a clear leaves the user's
+    // modal. Only fires on toggle-on of 'interested'; a clear leaves the user's
     // UX untouched. Count is read AFTER the save so milestones tier off
     // the rating they just gave.
     let showGrowModal = false
-    if (rating === 'going') {
+    if (rating === 'interested') {
       if (SHOW_GROW_MODAL_ALWAYS) {
         showGrowModal = true
       } else {
         try {
           const counts = await getRatingCountByUserId(session.userId)
-          if (ANNIVERSARY_MILESTONES.includes(counts.going)) showGrowModal = true
+          if (ANNIVERSARY_MILESTONES.includes(counts.interested)) showGrowModal = true
         } catch (err) {
           console.error('match-rating: getRatingCountByUserId failed', err)
         }

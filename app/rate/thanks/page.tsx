@@ -108,13 +108,13 @@ function RateThanksContent() {
     )
   }
 
-  if (rating === 'going') {
+  if (rating === 'interested') {
     return (
       <div style={page}>
         <div style={card}>
           <div style={{ fontSize: 40, marginBottom: 14 }}>📅</div>
           <div style={{ fontFamily: SERIF, fontSize: 32, color: ink, marginBottom: 12, lineHeight: 1.1 }}>
-            You&apos;re going!
+            You&apos;re interested!
           </div>
           <p style={{ color: muted, fontSize: 15, lineHeight: 1.65, margin: '0 0 28px' }}>
             Great — we&apos;ll use this to surface more events like it for you.
@@ -233,7 +233,7 @@ function RateThanksContent() {
     )
   }
 
-  if (rating === 'cant_make_it') {
+  if (rating === 'hide') {
     return (
       <div style={page}>
         <div style={card}>

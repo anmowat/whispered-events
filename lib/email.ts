@@ -398,12 +398,12 @@ export async function sendMatchRatingNotification(params: {
   userName: string
   userEmail: string
   eventName: string
-  rating: 'going' | 'cant_make_it' | 'not_a_fit'
+  rating: 'interested' | 'hide' | 'not_a_fit'
   reason: string | null
 }): Promise<void> {
   const resend = getResend()
   const adminUrl = `https://www.whisperedevents.com/admin/users/${params.userId}`
-  const RATING_LABEL: Record<string, string> = { going: '✅ Going', cant_make_it: "🗓 Can't make it", not_a_fit: '❌ Not a fit' }
+  const RATING_LABEL: Record<string, string> = { interested: '✅ Interested', hide: "🗓 Hide", not_a_fit: '❌ Not a fit' }
   const emoji = RATING_LABEL[params.rating] ?? params.rating
   const safeName = escapeHtml(params.userName || params.userEmail)
   const safeEmail = escapeHtml(params.userEmail)
@@ -1039,8 +1039,8 @@ function renderEntry(entry: DigestEventEntry, userId: string, baseUrl: string): 
       ? `<span style="color:${C.ink2};">${escapeHtml(event.description)}</span> `
       : ''
 
-  const goingUrl = ratingUrl(userId, event.id, 'going', baseUrl)
-  const cantUrl = ratingUrl(userId, event.id, 'cant_make_it', baseUrl)
+  const interestedUrl = ratingUrl(userId, event.id, 'interested', baseUrl)
+  const hideUrl = ratingUrl(userId, event.id, 'hide', baseUrl)
   const notFitUrl = ratingUrl(userId, event.id, 'not_a_fit', baseUrl)
   // SVG is stripped by Gmail/Outlook — use Unicode symbols instead.
   // U+1F4C5 (📅) and emoji are excluded; these plain-text symbols inherit
@@ -1049,8 +1049,8 @@ function renderEntry(entry: DigestEventEntry, userId: string, baseUrl: string): 
   // ✓ U+2713, ♡ U+2661 (outline heart, not emoji), ✕ U+2715 —
   // plain Unicode symbols that inherit the anchor color in all major clients.
   const ratingHtml = [
-    `<a href="${goingUrl}" style="${btnBase}background:rgba(45,106,79,0.10);color:#2D6A4F;border-color:rgba(45,106,79,0.35);">&#10003; Going</a>`,
-    `<a href="${cantUrl}" style="${btnBase}background:rgba(58,95,138,0.10);color:#3A5F8A;border-color:rgba(58,95,138,0.35);">&#9825; Can't make it</a>`,
+    `<a href="${interestedUrl}" style="${btnBase}background:rgba(45,106,79,0.10);color:#2D6A4F;border-color:rgba(45,106,79,0.35);">&#10003; Interested</a>`,
+    `<a href="${hideUrl}" style="${btnBase}background:rgba(58,95,138,0.10);color:#3A5F8A;border-color:rgba(58,95,138,0.35);">&#9825; Hide</a>`,
     `<a href="${notFitUrl}" style="${btnBase}background:rgba(138,42,56,0.10);color:#8A2A38;border-color:rgba(201,129,140,0.35);">&#10005; Not a fit</a>`,
   ].join('')
 
