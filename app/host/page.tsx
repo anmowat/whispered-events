@@ -268,21 +268,6 @@ export default function HostPage() {
                 className="mt-2 mb-0 max-w-2xl leading-relaxed"
                 style={{ fontSize: 13.5, color: 'var(--ink-2)' }}
               >
-                <strong style={{ color: 'var(--accent)' }}>Want to change your event criteria and refine matches?</strong>{' '}
-                Email{' '}
-                <a
-                  href="mailto:team@whisperedevents.com"
-                  className="underline"
-                  style={{ color: 'var(--accent)', textUnderlineOffset: 3 }}
-                >
-                  team@whisperedevents.com
-                </a>
-                {' '}with adjustments.
-              </p>
-              <p
-                className="mt-2 mb-0 max-w-2xl leading-relaxed"
-                style={{ fontSize: 13.5, color: 'var(--ink-2)' }}
-              >
                 <strong style={{ color: 'var(--accent)' }}>Feedback / questions / feature suggestions?</strong>{' '}
                 Email{' '}
                 <a
