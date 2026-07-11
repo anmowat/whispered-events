@@ -159,8 +159,7 @@ export default function HostPage() {
               className="mb-6 leading-relaxed"
               style={{ fontSize: 14, color: 'var(--ink-2)' }}
             >
-              This page is for partners to view and refine matches for events
-              they host. If you are a partner, log in.
+              Login to view events you are the host of.
             </p>
             <button
               onClick={() => setShowLogin(true)}
@@ -229,16 +228,15 @@ export default function HostPage() {
               className="mb-6 leading-relaxed"
               style={{ fontSize: 14, color: 'var(--ink-2)' }}
             >
-              This page is for partners to view and refine matches for events
-              they host.{' '}
+              If there are events you are running that aren&rsquo;t here, feel free to contact our team at{' '}
               <a
-                href="/?apply=partner"
+                href="mailto:team@whisperedevents.com"
                 className="underline"
                 style={{ color: 'var(--accent)', textUnderlineOffset: 3 }}
               >
-                Apply here to become a partner
-              </a>{' '}
-              (it&rsquo;s free).
+                team@whisperedevents.com
+              </a>
+              .
             </p>
           </div>
         )}
