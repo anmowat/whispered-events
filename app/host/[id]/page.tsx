@@ -87,6 +87,7 @@ export default function HostEventDetailPage() {
   const [feedbackFor, setFeedbackFor] = useState<string | null>(null)
   const [feedbackText, setFeedbackText] = useState('')
   const [ratingBusy, setRatingBusy] = useState<Set<string>>(new Set())
+  const [upgradePrompt, setUpgradePrompt] = useState<'rate' | 'edit' | null>(null)
   const [matchSortBy, setMatchSortBy] = useState<MatchSortKey | null>(null)
   const [matchSortDir, setMatchSortDir] = useState<'asc' | 'desc'>('asc')
 
@@ -187,6 +188,68 @@ export default function HostEventDetailPage() {
   return (
     <div className="min-h-screen flex flex-col">
       {showLogin && <LoginModal onClose={() => { setShowLogin(false); fetchDetail() }} />}
+
+      {upgradePrompt && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.55)',
+            zIndex: 50,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1rem',
+          }}
+          onClick={() => setUpgradePrompt(null)}
+        >
+          <div
+            className="rounded-card border"
+            style={{
+              background: 'var(--paper)',
+              borderColor: 'var(--rule)',
+              padding: '1.5rem',
+              maxWidth: 380,
+              width: '100%',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {upgradePrompt === 'rate' ? (
+              <>
+                <p className="font-serif mb-2" style={{ fontSize: 18, color: 'var(--ink)', letterSpacing: '-0.01em' }}>Partner feature</p>
+                <p style={{ fontSize: 13.5, color: 'var(--ink-2)', lineHeight: 1.6 }}>
+                  You need partner access to view names and rate guests. Feel free to apply to become a partner.
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="font-serif mb-2" style={{ fontSize: 18, color: 'var(--ink)', letterSpacing: '-0.01em' }}>Partner feature</p>
+                <p style={{ fontSize: 13.5, color: 'var(--ink-2)', lineHeight: 1.6 }}>
+                  Editing event details to update matches is available for partners. Feel free to apply to become a partner.
+                </p>
+              </>
+            )}
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                onClick={() => setUpgradePrompt(null)}
+                className="px-4 py-2 rounded-pill text-[13px]"
+                style={{ color: 'var(--ink-2)' }}
+              >
+                Close
+              </button>
+              <a
+                href="/?apply=partner"
+                className="px-5 py-2 rounded-pill text-[13px] font-medium text-white transition-colors"
+                style={{ background: 'var(--accent)' }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--accent-2)')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--accent)')}
+              >
+                Apply
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Header
         activeTab={null}
@@ -326,23 +389,21 @@ export default function HostEventDetailPage() {
             ) : (
               <>
                 <EventSummary event={event} />
-                {isPartner && (
-                  <div className="flex justify-end mt-3 mb-2">
-                    <button
-                      onClick={() => setEditing(true)}
-                      className="px-4 py-2 rounded-pill border text-[13px] transition-colors"
-                      style={{
-                        background: 'var(--paper)',
-                        borderColor: 'var(--rule)',
-                        color: 'var(--ink-2)',
-                      }}
-                      onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--accent)')}
-                      onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--rule)')}
-                    >
-                      Edit
-                    </button>
-                  </div>
-                )}
+                <div className="flex justify-end mt-3 mb-2">
+                  <button
+                    onClick={() => isPartner ? setEditing(true) : setUpgradePrompt('edit')}
+                    className="px-4 py-2 rounded-pill border text-[13px] transition-colors"
+                    style={{
+                      background: 'var(--paper)',
+                      borderColor: 'var(--rule)',
+                      color: 'var(--ink-2)',
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--accent)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--rule)')}
+                  >
+                    Edit
+                  </button>
+                </div>
               </>
             )}
 
@@ -468,13 +529,11 @@ export default function HostEventDetailPage() {
                         Match <SortArrow col="matchPercent" sortBy={matchSortBy} dir={matchSortDir} />
                       </button>
                     </th>
-                    {isPartner && (
-                      <th className="text-right px-4 py-3">
-                        <button onClick={() => toggleMatchSort('hostRating')} className="eyebrow" style={{ cursor: 'pointer', background: 'none', border: 'none', padding: 0, display: 'flex', alignItems: 'center', gap: 4, marginLeft: 'auto' }}>
-                          Rate <SortArrow col="hostRating" sortBy={matchSortBy} dir={matchSortDir} />
-                        </button>
-                      </th>
-                    )}
+                    <th className="text-right px-4 py-3">
+                      <button onClick={() => toggleMatchSort('hostRating')} className="eyebrow" style={{ cursor: 'pointer', background: 'none', border: 'none', padding: 0, display: 'flex', alignItems: 'center', gap: 4, marginLeft: 'auto' }}>
+                        Rate <SortArrow col="hostRating" sortBy={matchSortBy} dir={matchSortDir} />
+                      </button>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -546,45 +605,44 @@ export default function HostEventDetailPage() {
                       >
                         {m.matchPercent}%
                       </td>
-                      {isPartner && (
-                        <td className="px-4 py-3 text-right">
-                          <div className="inline-flex items-center gap-1">
-                            <button
-                              disabled={ratingBusy.has(m.userId)}
-                              onClick={() => rateGuest(m.userId, m.hostRating === 'up' ? null : 'up')}
-                              title={m.hostRating === 'up' ? 'Clear rating' : 'Good fit'}
-                              className="rounded-pill border text-[12px] px-2 py-0.5 transition-colors disabled:opacity-40"
-                              style={{
-                                background: m.hostRating === 'up' ? 'var(--accent)' : 'transparent',
-                                borderColor: m.hostRating === 'up' ? 'var(--accent)' : 'var(--rule)',
-                                color: m.hostRating === 'up' ? '#fff' : 'var(--ink-2)',
-                              }}
-                            >
-                              👍
-                            </button>
-                            <button
-                              disabled={ratingBusy.has(m.userId)}
-                              onClick={() => {
-                                if (m.hostRating === 'down') {
-                                  rateGuest(m.userId, null)
-                                } else {
-                                  setFeedbackFor(m.userId)
-                                  setFeedbackText('')
-                                }
-                              }}
-                              title={m.hostRating === 'down' ? 'Clear rating' : 'Not a fit'}
-                              className="rounded-pill border text-[12px] px-2 py-0.5 transition-colors disabled:opacity-40"
-                              style={{
-                                background: m.hostRating === 'down' ? '#7A2A36' : 'transparent',
-                                borderColor: m.hostRating === 'down' ? '#7A2A36' : 'var(--rule)',
-                                color: m.hostRating === 'down' ? '#fff' : 'var(--ink-2)',
-                              }}
-                            >
-                              👎
-                            </button>
-                          </div>
-                        </td>
-                      )}
+                      <td className="px-4 py-3 text-right">
+                        <div className="inline-flex items-center gap-1">
+                          <button
+                            disabled={isPartner && ratingBusy.has(m.userId)}
+                            onClick={() => isPartner ? rateGuest(m.userId, m.hostRating === 'up' ? null : 'up') : setUpgradePrompt('rate')}
+                            title={isPartner ? (m.hostRating === 'up' ? 'Clear rating' : 'Good fit') : 'Partner feature'}
+                            className="rounded-pill border text-[12px] px-2 py-0.5 transition-colors disabled:opacity-40"
+                            style={{
+                              background: isPartner && m.hostRating === 'up' ? 'var(--accent)' : 'transparent',
+                              borderColor: isPartner && m.hostRating === 'up' ? 'var(--accent)' : 'var(--rule)',
+                              color: isPartner && m.hostRating === 'up' ? '#fff' : 'var(--ink-2)',
+                            }}
+                          >
+                            👍
+                          </button>
+                          <button
+                            disabled={isPartner && ratingBusy.has(m.userId)}
+                            onClick={() => {
+                              if (!isPartner) { setUpgradePrompt('rate'); return }
+                              if (m.hostRating === 'down') {
+                                rateGuest(m.userId, null)
+                              } else {
+                                setFeedbackFor(m.userId)
+                                setFeedbackText('')
+                              }
+                            }}
+                            title={isPartner ? (m.hostRating === 'down' ? 'Clear rating' : 'Not a fit') : 'Partner feature'}
+                            className="rounded-pill border text-[12px] px-2 py-0.5 transition-colors disabled:opacity-40"
+                            style={{
+                              background: isPartner && m.hostRating === 'down' ? '#7A2A36' : 'transparent',
+                              borderColor: isPartner && m.hostRating === 'down' ? '#7A2A36' : 'var(--rule)',
+                              color: isPartner && m.hostRating === 'down' ? '#fff' : 'var(--ink-2)',
+                            }}
+                          >
+                            👎
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
