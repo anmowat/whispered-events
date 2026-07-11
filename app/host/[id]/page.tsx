@@ -444,7 +444,7 @@ export default function HostEventDetailPage() {
                     <th className="text-left px-4 py-3 eyebrow">Interest</th>
                     <th className="text-right px-4 py-3">
                       <button onClick={() => toggleMatchSort('matchPercent')} className="eyebrow" style={{ cursor: 'pointer', background: 'none', border: 'none', padding: 0, display: 'flex', alignItems: 'center', gap: 4, marginLeft: 'auto' }}>
-                        % Match <SortArrow col="matchPercent" sortBy={matchSortBy} dir={matchSortDir} />
+                        Match <SortArrow col="matchPercent" sortBy={matchSortBy} dir={matchSortDir} />
                       </button>
                     </th>
                     <th className="text-right px-4 py-3">
