@@ -307,23 +307,44 @@ export default function HostEventDetailPage() {
               {[event.type, event.location, shortDate(event.date)].filter(Boolean).join(' · ')}
             </p>
 
-            <p
-              className="mt-2 mb-5 max-w-2xl leading-relaxed"
-              style={{ fontSize: 13.5, color: 'var(--ink-2)' }}
-            >
-              <strong style={{ color: 'var(--accent)' }}>Want to change your event criteria and refine matches?</strong>{' '}
-              Email{' '}
-              <a
-                href="mailto:team@whisperedevents.com"
-                className="underline"
-                style={{ color: 'var(--accent)', textUnderlineOffset: 3 }}
+            {isPartner && !editing && (
+              <p
+                className="mt-2 mb-5 max-w-2xl leading-relaxed"
+                style={{ fontSize: 13.5, color: 'var(--ink-2)' }}
               >
-                team@whisperedevents.com
-              </a>
-              {' '}with adjustments.
-            </p>
+                <strong style={{ color: 'var(--accent)' }}>Change any information yourself.</strong>{' '}
+                Hit <strong>Edit</strong> below to update event details — matches will automatically be rerun.
+              </p>
+            )}
 
-            <EventSummary event={event} />
+            {editing ? (
+              <EditForm
+                event={event}
+                onCancel={() => setEditing(false)}
+                onSaved={() => { setEditing(false); fetchDetail() }}
+              />
+            ) : (
+              <>
+                <EventSummary event={event} />
+                {isPartner && (
+                  <div className="flex justify-end mt-3 mb-2">
+                    <button
+                      onClick={() => setEditing(true)}
+                      className="px-4 py-2 rounded-pill border text-[13px] transition-colors"
+                      style={{
+                        background: 'var(--paper)',
+                        borderColor: 'var(--rule)',
+                        color: 'var(--ink-2)',
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--accent)')}
+                      onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--rule)')}
+                    >
+                      Edit
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
 
             <div className="flex gap-0 mt-10 mb-4 border-b" style={{ borderColor: 'var(--rule)' }}>
               {(['matches', 'insights'] as const).map((tab) => (
@@ -447,11 +468,13 @@ export default function HostEventDetailPage() {
                         Match <SortArrow col="matchPercent" sortBy={matchSortBy} dir={matchSortDir} />
                       </button>
                     </th>
-                    <th className="text-right px-4 py-3">
-                      <button onClick={() => toggleMatchSort('hostRating')} className="eyebrow" style={{ cursor: 'pointer', background: 'none', border: 'none', padding: 0, display: 'flex', alignItems: 'center', gap: 4, marginLeft: 'auto' }}>
-                        Rate <SortArrow col="hostRating" sortBy={matchSortBy} dir={matchSortDir} />
-                      </button>
-                    </th>
+                    {isPartner && (
+                      <th className="text-right px-4 py-3">
+                        <button onClick={() => toggleMatchSort('hostRating')} className="eyebrow" style={{ cursor: 'pointer', background: 'none', border: 'none', padding: 0, display: 'flex', alignItems: 'center', gap: 4, marginLeft: 'auto' }}>
+                          Rate <SortArrow col="hostRating" sortBy={matchSortBy} dir={matchSortDir} />
+                        </button>
+                      </th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
@@ -523,43 +546,45 @@ export default function HostEventDetailPage() {
                       >
                         {m.matchPercent}%
                       </td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="inline-flex items-center gap-1">
-                          <button
-                            disabled={ratingBusy.has(m.userId)}
-                            onClick={() => rateGuest(m.userId, m.hostRating === 'up' ? null : 'up')}
-                            title={m.hostRating === 'up' ? 'Clear rating' : 'Good fit'}
-                            className="rounded-pill border text-[12px] px-2 py-0.5 transition-colors disabled:opacity-40"
-                            style={{
-                              background: m.hostRating === 'up' ? 'var(--accent)' : 'transparent',
-                              borderColor: m.hostRating === 'up' ? 'var(--accent)' : 'var(--rule)',
-                              color: m.hostRating === 'up' ? '#fff' : 'var(--ink-2)',
-                            }}
-                          >
-                            👍
-                          </button>
-                          <button
-                            disabled={ratingBusy.has(m.userId)}
-                            onClick={() => {
-                              if (m.hostRating === 'down') {
-                                rateGuest(m.userId, null)
-                              } else {
-                                setFeedbackFor(m.userId)
-                                setFeedbackText('')
-                              }
-                            }}
-                            title={m.hostRating === 'down' ? 'Clear rating' : 'Not a fit'}
-                            className="rounded-pill border text-[12px] px-2 py-0.5 transition-colors disabled:opacity-40"
-                            style={{
-                              background: m.hostRating === 'down' ? '#7A2A36' : 'transparent',
-                              borderColor: m.hostRating === 'down' ? '#7A2A36' : 'var(--rule)',
-                              color: m.hostRating === 'down' ? '#fff' : 'var(--ink-2)',
-                            }}
-                          >
-                            👎
-                          </button>
-                        </div>
-                      </td>
+                      {isPartner && (
+                        <td className="px-4 py-3 text-right">
+                          <div className="inline-flex items-center gap-1">
+                            <button
+                              disabled={ratingBusy.has(m.userId)}
+                              onClick={() => rateGuest(m.userId, m.hostRating === 'up' ? null : 'up')}
+                              title={m.hostRating === 'up' ? 'Clear rating' : 'Good fit'}
+                              className="rounded-pill border text-[12px] px-2 py-0.5 transition-colors disabled:opacity-40"
+                              style={{
+                                background: m.hostRating === 'up' ? 'var(--accent)' : 'transparent',
+                                borderColor: m.hostRating === 'up' ? 'var(--accent)' : 'var(--rule)',
+                                color: m.hostRating === 'up' ? '#fff' : 'var(--ink-2)',
+                              }}
+                            >
+                              👍
+                            </button>
+                            <button
+                              disabled={ratingBusy.has(m.userId)}
+                              onClick={() => {
+                                if (m.hostRating === 'down') {
+                                  rateGuest(m.userId, null)
+                                } else {
+                                  setFeedbackFor(m.userId)
+                                  setFeedbackText('')
+                                }
+                              }}
+                              title={m.hostRating === 'down' ? 'Clear rating' : 'Not a fit'}
+                              className="rounded-pill border text-[12px] px-2 py-0.5 transition-colors disabled:opacity-40"
+                              style={{
+                                background: m.hostRating === 'down' ? '#7A2A36' : 'transparent',
+                                borderColor: m.hostRating === 'down' ? '#7A2A36' : 'var(--rule)',
+                                color: m.hostRating === 'down' ? '#fff' : 'var(--ink-2)',
+                              }}
+                            >
+                              👎
+                            </button>
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
