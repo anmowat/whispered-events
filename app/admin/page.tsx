@@ -211,6 +211,7 @@ export default function AdminPage() {
   const [rescoring, setRescoring] = useState(false)
   const [rescoreResult, setRescoreResult] = useState<string | null>(null)
   const [refreshingCache, setRefreshingCache] = useState(false)
+  const [loadingCounts, setLoadingCounts] = useState(false)
   const [cacheResult, setCacheResult] = useState<string | null>(null)
   // Server-side status filter — translates to ?statusBucket= on the API
   // call. Defaults to 'toApprove' so admin lands on the triage queue first;
@@ -230,6 +231,7 @@ export default function AdminPage() {
   }
 
   async function fetchCounts() {
+    setLoadingCounts(true)
     try {
       const params = new URLSearchParams()
       params.set('statusBucket', statusBucket)
@@ -271,6 +273,8 @@ export default function AdminPage() {
     } catch (e) {
       setAuthState('error')
       setErrorMsg(e instanceof Error ? e.message : String(e))
+    } finally {
+      setLoadingCounts(false)
     }
   }
 
@@ -503,9 +507,10 @@ export default function AdminPage() {
                 </button>
                 <button
                   onClick={fetchCounts}
-                  className="px-3 py-1.5 rounded-lg border border-[#E8DDD0] bg-white text-xs text-gray-700 hover:bg-[#F5EFE6] transition-colors shadow-sm"
+                  disabled={loadingCounts}
+                  className="px-3 py-1.5 rounded-lg border border-[#E8DDD0] bg-white text-xs text-gray-700 hover:bg-[#F5EFE6] transition-colors shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  Refresh
+                  {loadingCounts ? 'Loading…' : 'Refresh'}
                 </button>
               </div>
             </div>
