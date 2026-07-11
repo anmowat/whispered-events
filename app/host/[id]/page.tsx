@@ -67,8 +67,8 @@ function shortDate(iso: string): string {
 type MatchSortKey = 'function' | 'seniority' | 'matchPercent' | 'hostRating'
 
 function SortArrow({ col, sortBy, dir }: { col: MatchSortKey; sortBy: MatchSortKey | null; dir: 'asc' | 'desc' }) {
-  if (sortBy !== col) return <span style={{ opacity: 0.25, fontSize: 10 }}>↕</span>
-  return <span style={{ fontSize: 10 }}>{dir === 'asc' ? '↑' : '↓'}</span>
+  if (sortBy !== col) return <span style={{ opacity: 0.35 }}>⇅</span>
+  return <span style={{ color: 'var(--accent)' }}>{dir === 'asc' ? '↑' : '↓'}</span>
 }
 
 export default function HostEventDetailPage() {
@@ -431,24 +431,24 @@ export default function HostEventDetailPage() {
                 >
                   <tr>
                     <th className="text-left px-4 py-3 eyebrow">Name</th>
-                    <th className="text-left px-4 py-3 eyebrow">
-                      <button onClick={() => toggleMatchSort('function')} style={{ cursor: 'pointer', background: 'none', border: 'none', padding: 0, font: 'inherit', color: 'inherit', display: 'flex', alignItems: 'center', gap: 3 }}>
+                    <th className="text-left px-4 py-3">
+                      <button onClick={() => toggleMatchSort('function')} className="eyebrow" style={{ cursor: 'pointer', background: 'none', border: 'none', padding: 0, display: 'flex', alignItems: 'center', gap: 4 }}>
                         Function <SortArrow col="function" sortBy={matchSortBy} dir={matchSortDir} />
                       </button>
                     </th>
-                    <th className="text-left px-4 py-3 eyebrow">
-                      <button onClick={() => toggleMatchSort('seniority')} style={{ cursor: 'pointer', background: 'none', border: 'none', padding: 0, font: 'inherit', color: 'inherit', display: 'flex', alignItems: 'center', gap: 3 }}>
+                    <th className="text-left px-4 py-3">
+                      <button onClick={() => toggleMatchSort('seniority')} className="eyebrow" style={{ cursor: 'pointer', background: 'none', border: 'none', padding: 0, display: 'flex', alignItems: 'center', gap: 4 }}>
                         Seniority <SortArrow col="seniority" sortBy={matchSortBy} dir={matchSortDir} />
                       </button>
                     </th>
                     <th className="text-left px-4 py-3 eyebrow">Interest</th>
-                    <th className="text-right px-4 py-3 eyebrow">
-                      <button onClick={() => toggleMatchSort('matchPercent')} style={{ cursor: 'pointer', background: 'none', border: 'none', padding: 0, font: 'inherit', color: 'inherit', display: 'flex', alignItems: 'center', gap: 3, marginLeft: 'auto' }}>
+                    <th className="text-right px-4 py-3">
+                      <button onClick={() => toggleMatchSort('matchPercent')} className="eyebrow" style={{ cursor: 'pointer', background: 'none', border: 'none', padding: 0, display: 'flex', alignItems: 'center', gap: 4, marginLeft: 'auto' }}>
                         % Match <SortArrow col="matchPercent" sortBy={matchSortBy} dir={matchSortDir} />
                       </button>
                     </th>
-                    <th className="text-right px-4 py-3 eyebrow">
-                      <button onClick={() => toggleMatchSort('hostRating')} style={{ cursor: 'pointer', background: 'none', border: 'none', padding: 0, font: 'inherit', color: 'inherit', display: 'flex', alignItems: 'center', gap: 3, marginLeft: 'auto' }}>
+                    <th className="text-right px-4 py-3">
+                      <button onClick={() => toggleMatchSort('hostRating')} className="eyebrow" style={{ cursor: 'pointer', background: 'none', border: 'none', padding: 0, display: 'flex', alignItems: 'center', gap: 4, marginLeft: 'auto' }}>
                         Rate <SortArrow col="hostRating" sortBy={matchSortBy} dir={matchSortDir} />
                       </button>
                     </th>
