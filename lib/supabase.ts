@@ -768,17 +768,15 @@ export async function touchEmailLastSeen(userId: string): Promise<void> {
 // Used by the admin overview as a "last activity" signal.
 export async function getLastSeenByUserId(): Promise<Map<string, string>> {
   const supabase = getClient()
+  // Use server-side GROUP BY via RPC (O(users)) instead of fetching all
+  // session rows and deduplicating in JS (O(all sessions)).
   const [sessionsResult, usersResult] = await Promise.all([
-    supabase
-      .from('sessions')
-      .select('user_id, last_seen_at')
-      .order('last_seen_at', { ascending: false })
-      .limit(100_000),
+    supabase.rpc('get_last_session_by_user'),
     supabase
       .from('users')
       .select('id, email_last_seen_at')
       .not('email_last_seen_at', 'is', null)
-      .limit(100_000),
+      .limit(10_000),
   ])
   if (sessionsResult.error) console.error('getLastSeenByUserId sessions error', sessionsResult.error)
   if (usersResult.error) console.error('getLastSeenByUserId users error', usersResult.error)
@@ -786,7 +784,7 @@ export async function getLastSeenByUserId(): Promise<Map<string, string>> {
   const out = new Map<string, string>()
   for (const row of (sessionsResult.data ?? []) as Array<{ user_id: string | null; last_seen_at: string | null }>) {
     if (!row.user_id || !row.last_seen_at) continue
-    if (!out.has(row.user_id)) out.set(row.user_id, row.last_seen_at)
+    out.set(row.user_id, row.last_seen_at)
   }
   for (const row of (usersResult.data ?? []) as Array<{ id: string | null; email_last_seen_at: string | null }>) {
     if (!row.id || !row.email_last_seen_at) continue
@@ -876,12 +874,7 @@ export async function logDigestSend(entry: DigestSendLog): Promise<void> {
 // grows unboundedly so we must not let it silently truncate.
 export async function getLastDigestSentByUserId(): Promise<Map<string, string>> {
   const supabase = getClient()
-  const { data, error } = await supabase
-    .from('digest_sends')
-    .select('user_id, sent_at')
-    .neq('kind', 'blast')
-    .order('sent_at', { ascending: false })
-    .limit(100_000)
+  const { data, error } = await supabase.rpc('get_last_digest_by_user')
   if (error) {
     console.error('getLastDigestSentByUserId error', error)
     return new Map()
@@ -889,7 +882,7 @@ export async function getLastDigestSentByUserId(): Promise<Map<string, string>> 
   const out = new Map<string, string>()
   for (const row of (data ?? []) as Array<{ user_id: string | null; sent_at: string | null }>) {
     if (!row.user_id || !row.sent_at) continue
-    if (!out.has(row.user_id)) out.set(row.user_id, row.sent_at)
+    out.set(row.user_id, row.sent_at)
   }
   return out
 }
@@ -899,12 +892,7 @@ export async function getLastDigestSentByUserId(): Promise<Map<string, string>> 
 // default max_rows as the table grows.
 export async function getLastBlastSentByUserId(): Promise<Map<string, string>> {
   const supabase = getClient()
-  const { data, error } = await supabase
-    .from('digest_sends')
-    .select('user_id, sent_at')
-    .eq('kind', 'blast')
-    .order('sent_at', { ascending: false })
-    .limit(100_000)
+  const { data, error } = await supabase.rpc('get_last_blast_by_user')
   if (error) {
     console.error('getLastBlastSentByUserId error', error)
     return new Map()
@@ -912,7 +900,7 @@ export async function getLastBlastSentByUserId(): Promise<Map<string, string>> {
   const out = new Map<string, string>()
   for (const row of (data ?? []) as Array<{ user_id: string | null; sent_at: string | null }>) {
     if (!row.user_id || !row.sent_at) continue
-    if (!out.has(row.user_id)) out.set(row.user_id, row.sent_at)
+    out.set(row.user_id, row.sent_at)
   }
   return out
 }
