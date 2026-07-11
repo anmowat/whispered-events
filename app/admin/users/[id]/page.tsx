@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
 import LoginModal from '@/components/LoginModal'
 import {
@@ -39,6 +39,7 @@ interface UserDetail {
   contributionsLast90: number
   lastSeen: string | null
   lastEmailSent: string | null
+  hostedEvents: { id: string; name: string; date: string }[]
 }
 
 // Draft mirrors UserDetail's editable subset. Email and the read-only
@@ -156,6 +157,13 @@ export default function AdminUserDetailPage() {
   const [deleteConfirm, setDeleteConfirm] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
+  // Hosted-events edit state
+  const [hostedEventsDraft, setHostedEventsDraft] = useState<{ id: string; name: string; date: string }[] | null>(null)
+  const [eventSearch, setEventSearch] = useState('')
+  const [eventSearchResults, setEventSearchResults] = useState<{ id: string; name: string; date: string }[]>([])
+  const [hostingBusy, setHostingBusy] = useState(false)
+  const eventSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   async function handleDelete() {
     if (!userId) return
     try {
@@ -207,7 +215,7 @@ export default function AdminUserDetailPage() {
         setErrorMsg(data.error || `HTTP ${res.status}`)
         return
       }
-      const data = (await res.json()) as { user: UserDetail; events: EventRow[] }
+      const data = (await res.json()) as { user: UserDetail; events: EventRow[]; hostedEvents: { id: string; name: string; date: string }[] }
       setUser(data.user)
       setEvents(data.events)
       setAuthState('authorized')
@@ -221,11 +229,17 @@ export default function AdminUserDetailPage() {
     if (!user) return
     setEditError(null)
     setDraft(draftFromUser(user))
+    setHostedEventsDraft([...(user.hostedEvents ?? [])])
+    setEventSearch('')
+    setEventSearchResults([])
   }
 
   function cancelEdit() {
     setEditError(null)
     setDraft(null)
+    setHostedEventsDraft(null)
+    setEventSearch('')
+    setEventSearchResults([])
   }
 
   async function handleEnrich() {
@@ -267,33 +281,87 @@ export default function AdminUserDetailPage() {
     return () => clearTimeout(id)
   }, [enrichMessage])
 
+  function searchEvents(q: string) {
+    setEventSearch(q)
+    if (eventSearchTimer.current) clearTimeout(eventSearchTimer.current)
+    if (!q.trim()) { setEventSearchResults([]); return }
+    eventSearchTimer.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/admin/events/search?q=${encodeURIComponent(q)}`)
+        const data = (await res.json()) as { results: { id: string; name: string; date: string }[] }
+        const draft = hostedEventsDraft ?? []
+        const draftIds = new Set(draft.map((e) => e.id))
+        setEventSearchResults((data.results ?? []).filter((e) => !draftIds.has(e.id)))
+      } catch { /* ignore */ }
+    }, 200)
+  }
+
+  function addHostEvent(e: { id: string; name: string; date: string }) {
+    setHostedEventsDraft((prev) => {
+      if (!prev) return [e]
+      if (prev.some((x) => x.id === e.id)) return prev
+      return [...prev, e]
+    })
+    setEventSearch('')
+    setEventSearchResults([])
+  }
+
+  function removeHostEvent(id: string) {
+    setHostedEventsDraft((prev) => (prev ?? []).filter((e) => e.id !== id))
+  }
+
   async function saveEdit() {
     if (!userId || !user || !draft) return
     const original = draftFromUser(user)
     const diff = draftDiff(draft, original)
-    if (Object.keys(diff).length === 0) {
+
+    const originalHostIds = new Set((user.hostedEvents ?? []).map((e) => e.id))
+    const draftHostIds = new Set((hostedEventsDraft ?? []).map((e) => e.id))
+    const add = (hostedEventsDraft ?? []).map((e) => e.id).filter((id) => !originalHostIds.has(id))
+    const remove = (user.hostedEvents ?? []).map((e) => e.id).filter((id) => !draftHostIds.has(id))
+    const hostingChanged = add.length > 0 || remove.length > 0
+
+    if (Object.keys(diff).length === 0 && !hostingChanged) {
       setDraft(null)
+      setHostedEventsDraft(null)
       return
     }
+
     setEditError(null)
     setEditBusy(true)
     try {
-      const res = await fetch(`/api/admin/users/${userId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(diff),
-      })
-      if (!res.ok) {
-        const data = (await res.json().catch(() => ({}))) as { error?: string }
-        setEditError(data.error || `HTTP ${res.status}`)
-        return
+      const tasks: Promise<Response>[] = []
+      if (Object.keys(diff).length > 0) {
+        tasks.push(fetch(`/api/admin/users/${userId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(diff),
+        }))
+      }
+      if (hostingChanged) {
+        setHostingBusy(true)
+        tasks.push(fetch(`/api/admin/users/${userId}/hosted-events`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ add, remove }),
+        }))
+      }
+      const results = await Promise.all(tasks)
+      for (const res of results) {
+        if (!res.ok) {
+          const data = (await res.json().catch(() => ({}))) as { error?: string }
+          setEditError(data.error || `HTTP ${res.status}`)
+          return
+        }
       }
       setDraft(null)
+      setHostedEventsDraft(null)
       await fetchDetail()
     } catch (e) {
       setEditError(e instanceof Error ? e.message : String(e))
     } finally {
       setEditBusy(false)
+      setHostingBusy(false)
     }
   }
 
@@ -427,7 +495,11 @@ export default function AdminUserDetailPage() {
                       <button
                         type="button"
                         onClick={saveEdit}
-                        disabled={editBusy || Object.keys(draftDiff(draft!, draftFromUser(user))).length === 0}
+                        disabled={editBusy || (
+                          Object.keys(draftDiff(draft!, draftFromUser(user))).length === 0 &&
+                          JSON.stringify((hostedEventsDraft ?? []).map(e => e.id).sort()) ===
+                          JSON.stringify((user.hostedEvents ?? []).map(e => e.id).sort())
+                        )}
                         className="px-3 py-1.5 rounded-lg text-white text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                         style={{ background: '#6E1F2B' }}
                       >
@@ -517,6 +589,81 @@ export default function AdminUserDetailPage() {
                   onChange={setDraft}
                   disabled={editBusy}
                 />
+              )}
+            </div>
+
+            {/* Events hosting */}
+            <div className="bg-white border border-[#E8DDD0] rounded-2xl p-6 shadow-sm mb-8">
+              <h3 className="text-xs uppercase tracking-widest text-gold-700 font-medium mb-3">Events hosting</h3>
+              {!isEditing ? (
+                <div className="flex flex-wrap gap-2">
+                  {(user.hostedEvents ?? []).length === 0 ? (
+                    <span className="text-sm text-gray-400 italic">None</span>
+                  ) : (
+                    (user.hostedEvents ?? []).map((e) => (
+                      <a
+                        key={e.id}
+                        href={`/admin/events/${e.id}`}
+                        title={e.date}
+                        className="inline-flex items-center gap-1 px-3 py-1 rounded-full border border-[#E8DDD0] bg-[#FDFAF6] text-xs text-gray-700 hover:border-gold-400 hover:text-gold-700 transition-colors"
+                      >
+                        {e.name}
+                      </a>
+                    ))
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {(hostedEventsDraft ?? []).length === 0 ? (
+                      <span className="text-sm text-gray-400 italic">None</span>
+                    ) : (
+                      (hostedEventsDraft ?? []).map((e) => (
+                        <span
+                          key={e.id}
+                          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-[#E8DDD0] bg-[#FDFAF6] text-xs text-gray-700"
+                        >
+                          {e.name}
+                          <button
+                            type="button"
+                            onClick={() => removeHostEvent(e.id)}
+                            disabled={editBusy}
+                            className="text-gray-400 hover:text-red-500 transition-colors leading-none disabled:opacity-50"
+                            title="Remove"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))
+                    )}
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={eventSearch}
+                      onChange={(e) => searchEvents(e.target.value)}
+                      placeholder="Search events to add…"
+                      disabled={editBusy}
+                      className="w-full bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:border-[#6E1F2B] disabled:opacity-50 transition-colors"
+                    />
+                    {eventSearchResults.length > 0 && (
+                      <div className="absolute z-10 left-0 right-0 mt-1 bg-white border border-[#E8DDD0] rounded-xl shadow-lg overflow-hidden">
+                        {eventSearchResults.map((e) => (
+                          <button
+                            key={e.id}
+                            type="button"
+                            onClick={() => addHostEvent(e)}
+                            className="w-full text-left px-4 py-2.5 text-sm text-gray-800 hover:bg-[#F5EFE6] transition-colors border-b border-[#F0E8DC] last:border-b-0"
+                          >
+                            {e.name}
+                            {e.date && <span className="ml-2 text-xs text-gray-400">{e.date}</span>}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {hostingBusy && <p className="text-xs text-gray-400 mt-2">Saving hosting changes…</p>}
+                </div>
               )}
             </div>
 

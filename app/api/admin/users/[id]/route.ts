@@ -3,6 +3,7 @@ import { waitUntil } from '@vercel/functions'
 import { isAdmin } from '@/lib/admin-auth'
 import { getUserById, getUserByEmail } from '@/lib/users'
 import { getFutureEvents } from '@/lib/events'
+import { createClient } from '@supabase/supabase-js'
 import { getAllMatchesForUser, getContributionStatsForUser, getLastSeenForUser, getLastEmailSentForUser, deleteUser } from '@/lib/supabase'
 import { updateUserAdmin, type UserAdminUpdate } from '@/lib/airtable'
 import { triggerUserApprovedFlow } from '@/lib/user-approval'
@@ -35,12 +36,20 @@ export async function GET(
       return NextResponse.json({ error: 'user not found' }, { status: 404 })
     }
 
-    const [futureEvents, matchRows, contributions, lastSeen, lastEmailSent] = await Promise.all([
+    const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+    const [futureEvents, matchRows, contributions, lastSeen, lastEmailSent, hostedEventsResult] = await Promise.all([
       getFutureEvents(),
       getAllMatchesForUser(user.id),
       getContributionStatsForUser(user.id),
       getLastSeenForUser(user.id),
       getLastEmailSentForUser(user.id),
+      supabase
+        .from('events')
+        .select('id, name, date')
+        .contains('host_ids', [user.id])
+        .is('deleted_at', null)
+        .is('airtable_deleted_at', null)
+        .order('date', { ascending: true }),
     ])
 
     const byEventId = new Map(matchRows.map((m) => [m.event_id, m]))
@@ -96,6 +105,12 @@ export async function GET(
         return a.date.localeCompare(b.date)
       })
 
+    const hostedEvents = (hostedEventsResult.data ?? []).map((e) => ({
+      id: e.id as string,
+      name: e.name as string,
+      date: e.date as string,
+    }))
+
     return NextResponse.json({
       user: {
         id: user.id,
@@ -125,6 +140,7 @@ export async function GET(
         lastEmailSent,
       },
       events,
+      hostedEvents,
       generatedAt: new Date().toISOString(),
     })
   } catch (err) {
