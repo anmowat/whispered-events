@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { Wordmark } from '@/components/Wordmark'
 
 type State = 'idle' | 'loading' | 'sent' | 'not_found' | 'inactive' | 'error'
 
@@ -52,7 +51,7 @@ export default function LoginModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-5">
-          <Wordmark size={18} />
+          <img src="/w-olive-gold-on-black.png" alt="Whispered Events" style={{ height: 36 }} />
           <button
             onClick={onClose}
             aria-label="Close"
