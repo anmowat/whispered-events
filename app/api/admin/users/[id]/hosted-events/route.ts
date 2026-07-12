@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { waitUntil } from '@vercel/functions'
 import { isAdmin } from '@/lib/admin-auth'
-import { getEventFlags } from '@/lib/events'
+import { getEventById } from '@/lib/events'
 import { updateEvent } from '@/lib/airtable'
+import { getUserById } from '@/lib/users'
+import { sendHostAddedEmail } from '@/lib/email'
 
 // Adds or removes a user as host for one or more events. Accepts a single
 // request with { add?: string[], remove?: string[] } (arrays of event IDs).
@@ -32,19 +35,36 @@ export async function POST(
 
   const allEventIds = Array.from(new Set([...toAdd, ...toRemove]))
 
+  // Fetch the user once upfront so we have email/name for the host-added email.
+  const hostUser = toAdd.length > 0 ? await getUserById(userId) : null
+
   try {
     await Promise.all(
       allEventIds.map(async (eventId) => {
-        const flags = await getEventFlags(eventId)
-        if (!flags) return
-        let hostIds = [...(flags.host_ids ?? [])]
-        if (toAdd.includes(eventId) && !hostIds.includes(userId)) {
+        const event = await getEventById(eventId)
+        if (!event) return
+        let hostIds = [...(event.hostIds ?? [])]
+        const wasAlreadyHost = hostIds.includes(userId)
+        if (toAdd.includes(eventId) && !wasAlreadyHost) {
           hostIds.push(userId)
         }
         if (toRemove.includes(eventId)) {
           hostIds = hostIds.filter((id) => id !== userId)
         }
         await updateEvent(eventId, {}, hostIds)
+
+        // Mirror the event-side behaviour: email the newly-added host.
+        if (toAdd.includes(eventId) && !wasAlreadyHost && hostUser) {
+          const firstName = (hostUser.firstName && hostUser.firstName !== 'DEFAULT')
+            ? hostUser.firstName
+            : (hostUser.name && hostUser.name !== 'DEFAULT')
+              ? hostUser.name.split(' ')[0]
+              : ''
+          waitUntil(
+            sendHostAddedEmail({ hostEmail: hostUser.email, hostFirstName: firstName, eventName: event.name ?? '', eventId })
+              .catch((e) => console.error('sendHostAddedEmail failed', { email: hostUser.email, error: e })),
+          )
+        }
       }),
     )
     return NextResponse.json({ ok: true, changed: allEventIds.length })
