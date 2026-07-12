@@ -34,7 +34,7 @@ export default function Header({
 }: HeaderProps) {
   return (
     <header
-      className="sticky top-0 z-10 border-b"
+      className="border-b"
       style={{ borderColor: 'var(--rule)', background: 'var(--bg)' }}
     >
       <div className="max-w-[1100px] mx-auto h-16 px-3 sm:px-8 flex sm:grid sm:grid-cols-[1fr_auto_1fr] items-center justify-between gap-2 sm:gap-6">

@@ -456,7 +456,7 @@ function AfterHoursHeader({
 }) {
   return (
     <div
-      className="sticky top-0 z-10"
+      className=""
       style={{ background: '#1b1814' }}
     >
       <div className="max-w-[1200px] mx-auto px-4 sm:px-11 py-4 sm:py-5 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
