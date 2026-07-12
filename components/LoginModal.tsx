@@ -51,7 +51,7 @@ export default function LoginModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-5">
-          <img src="/w-olive-gold-on-black.png" alt="Whispered Events" style={{ height: 36 }} />
+          <img src="/lockup-horizontal-gold.svg" alt="Whispered Events" style={{ height: 36 }} />
           <button
             onClick={onClose}
             aria-label="Close"

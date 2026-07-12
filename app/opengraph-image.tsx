@@ -30,7 +30,7 @@ const C = {
 export default async function OpenGraphImage() {
   // Fetch the lockup PNG so Satori can embed it as an image element.
   const lockupData = await fetch(
-    'https://www.whisperedevents.com/lockup-horizontal-gold-on-black.png',
+    'https://www.whisperedevents.com/lockup-horizontal-gold.svg',
   ).then((r) => r.arrayBuffer())
   const lockupSrc = `data:image/png;base64,${Buffer.from(lockupData).toString('base64')}`
 

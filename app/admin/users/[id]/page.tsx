@@ -395,7 +395,7 @@ export default function AdminUserDetailPage() {
       <header className="border-b border-[#E8DDD0] bg-[#F5EFE6]/90 backdrop-blur-sm">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <a href="/admin" className="flex items-center gap-3">
-            <img src="/w-olive-gold-on-black.png" alt="Whispered Events" className="h-10 w-auto" />
+            <img src="/lockup-horizontal-gold.svg" alt="Whispered Events" className="h-10 w-auto" />
             <span className="text-xs uppercase tracking-widest text-gray-500">← Admin</span>
           </a>
           <div className="flex items-center gap-2">

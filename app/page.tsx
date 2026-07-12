@@ -466,7 +466,7 @@ function AfterHoursHeader({
           className="justify-self-start"
         >
           <img
-            src="/w-olive-gold-on-black.png"
+            src="/lockup-horizontal-gold.svg"
             alt="Whispered Events"
             className="w-auto h-[72px] sm:h-[100px]"
           />
