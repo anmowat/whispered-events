@@ -464,20 +464,9 @@ function AfterHoursHeader({
         <button
           onClick={onLogoClick}
           aria-label="Whispered Events home"
-          className="hidden sm:flex items-center gap-2.5 sm:justify-self-start"
+          className="hidden sm:block sm:justify-self-start"
         >
-          <DiamondMark />
-          <span
-            style={{
-              fontFamily: SERIF,
-              fontSize: 22,
-              fontWeight: 600,
-              letterSpacing: '.01em',
-              color: '#ece6da',
-            }}
-          >
-            Whispered <span style={{ fontStyle: 'italic', color: '#c9a86a' }}>Events</span>
-          </span>
+          <img src="/lockup-horizontal-gold-on-black.png" alt="Whispered Events" className="h-8 w-auto" />
         </button>
 
         <SegmentedToggle activeTab={activeTab} onChange={onTabChange} />
