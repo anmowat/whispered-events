@@ -227,7 +227,7 @@ export default function AdminEventsPage() {
       <header className="border-b border-[#E8DDD0] bg-[#F5EFE6]/90 backdrop-blur-sm">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <a href="/" className="flex items-center">
-            <img src="/lockup-horizontal-gold.svg" alt="Whispered Events" className="h-10 w-auto" />
+            <img src="/w-olive-gold.svg" alt="Whispered Events" className="h-10 w-auto" />
           </a>
           <div className="text-xs uppercase tracking-widest text-gray-500">Admin</div>
         </div>
