@@ -466,7 +466,7 @@ function AfterHoursHeader({
           aria-label="Whispered Events home"
           className="hidden sm:block sm:justify-self-start"
         >
-          <img src="/w-olive-gold-on-black.png" alt="Whispered Events" className="h-10 w-auto" />
+          <img src="/w-olive-gold-on-black.png" alt="Whispered Events" className="h-20 w-auto" />
         </button>
 
         <SegmentedToggle activeTab={activeTab} onChange={onTabChange} />
