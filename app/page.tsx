@@ -1686,19 +1686,29 @@ function PartnerSlide({ partner }: { partner: Partner }) {
 
 function Footer() {
   return (
-    <div
-      className="flex items-center justify-center px-4 sm:px-11 py-5 sm:py-[26px]"
-      style={{ borderTop: '1px solid rgba(236,230,218,.13)' }}
-    >
-      <a
-        href="/faq"
-        className="transition-colors"
-        style={{ fontSize: 18, color: '#c9a86a', letterSpacing: '.08em', textDecoration: 'none' }}
-        onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.75')}
-        onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
-      >
-        FAQ
-      </a>
+    <div className="px-4 sm:px-11 py-8 sm:py-10">
+      {/* Olive divider: rule — olive icon — rule */}
+      <div className="flex items-center gap-4 mb-6">
+        <div className="flex-1" style={{ height: 1, background: 'rgba(236,230,218,.13)' }} />
+        {/* Olive pick — inline SVG so it renders on any background */}
+        <svg width="28" height="28" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+          <line x1="18" y1="82" x2="82" y2="18" stroke="#C9A86A" strokeWidth="5" strokeLinecap="round"/>
+          <ellipse cx="42" cy="58" rx="17" ry="12" transform="rotate(-45 42 58)" fill="#C9A86A"/>
+          <ellipse cx="42" cy="58" rx="5" ry="3.5" transform="rotate(-45 42 58)" fill="#1b1814"/>
+        </svg>
+        <div className="flex-1" style={{ height: 1, background: 'rgba(236,230,218,.13)' }} />
+      </div>
+      <div className="flex items-center justify-center">
+        <a
+          href="/faq"
+          className="transition-colors"
+          style={{ fontSize: 18, color: '#c9a86a', letterSpacing: '.08em', textDecoration: 'none' }}
+          onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.75')}
+          onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
+        >
+          FAQ
+        </a>
+      </div>
     </div>
   )
 }
