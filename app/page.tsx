@@ -466,7 +466,7 @@ function AfterHoursHeader({
           aria-label="Whispered Events home"
           className="hidden sm:block sm:justify-self-start"
         >
-          <img src="/lockup-horizontal-gold-on-black.png" alt="Whispered Events" className="h-14 w-auto" />
+          <img src="/w-olive-gold-on-black.png" alt="Whispered Events" className="h-10 w-auto" />
         </button>
 
         <SegmentedToggle activeTab={activeTab} onChange={onTabChange} />
@@ -1675,11 +1675,10 @@ function PartnerSlide({ partner }: { partner: Partner }) {
 
 function Footer() {
   return (
-    <div className="px-4 sm:px-11 py-8 sm:py-10">
-      {/* Olive divider: rule — olive icon — rule */}
-      <div className="flex items-center gap-4 mb-6">
+    <div className="py-8 sm:py-10">
+      {/* Olive divider: full-width rule with olive centered */}
+      <div className="flex items-center gap-4 mb-8">
         <div className="flex-1" style={{ height: 1, background: 'rgba(236,230,218,.13)' }} />
-        {/* Olive pick — inline SVG so it renders on any background */}
         <svg width="64" height="64" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
           <line x1="18" y1="82" x2="82" y2="18" stroke="#C9A86A" strokeWidth="5" strokeLinecap="round"/>
           <ellipse cx="42" cy="58" rx="17" ry="12" transform="rotate(-45 42 58)" fill="#C9A86A"/>
@@ -1687,14 +1686,15 @@ function Footer() {
         </svg>
         <div className="flex-1" style={{ height: 1, background: 'rgba(236,230,218,.13)' }} />
       </div>
-      <div className="flex items-center justify-between">
-        <span style={{ fontSize: 13, color: 'rgba(236,230,218,.4)', letterSpacing: '.04em' }}>
+      {/* Content constrained to match site width */}
+      <div className="max-w-[1200px] mx-auto px-4 sm:px-11 flex items-center justify-between">
+        <span style={{ fontSize: 15, color: 'rgba(236,230,218,.5)', letterSpacing: '.03em' }}>
           Whispered © 2026
         </span>
         <a
           href="/faq"
           className="transition-opacity"
-          style={{ fontSize: 13, color: 'rgba(236,230,218,.4)', letterSpacing: '.08em', textDecoration: 'none' }}
+          style={{ fontSize: 15, color: 'rgba(236,230,218,.5)', letterSpacing: '.06em', textDecoration: 'none' }}
           onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.75')}
           onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
         >
