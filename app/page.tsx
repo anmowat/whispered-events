@@ -327,7 +327,7 @@ export default function Home() {
 
   return (
     <div
-      className="min-h-screen flex flex-col overflow-x-hidden"
+      className="min-h-screen flex flex-col"
       style={{ background: '#1b1814', color: '#ece6da' }}
     >
       {showLogin && <LoginModal onClose={() => setShowLogin(false)} />}
@@ -468,7 +468,7 @@ function AfterHoursHeader({
           <img
             src="/w-olive-gold-on-black.png"
             alt="Whispered Events"
-            className="w-auto h-12 sm:h-[100px]"
+            className="w-auto h-[72px] sm:h-[100px]"
           />
         </button>
 
@@ -505,8 +505,8 @@ function SegmentedToggle({
   onChange: (t: HeaderTab) => void
 }) {
   const tabs: { id: HeaderTab; label: string; short: string }[] = [
-    { id: 'view', label: 'Find Events', short: 'Find' },
-    { id: 'contribute', label: 'Contribute', short: 'Share' },
+    { id: 'view', label: 'Find', short: 'Find' },
+    { id: 'contribute', label: 'Share', short: 'Share' },
     { id: 'partner', label: 'Partner', short: 'Partner' },
   ]
   return (
@@ -536,8 +536,7 @@ function SegmentedToggle({
               if (!active) e.currentTarget.style.color = 'rgba(236,230,218,.58)'
             }}
           >
-            <span className="sm:hidden">{t.short}</span>
-            <span className="hidden sm:inline">{t.label}</span>
+            {t.label}
           </button>
         )
       })}
