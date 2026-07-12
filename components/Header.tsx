@@ -44,7 +44,7 @@ export default function Header({
           aria-label="Whispered Events home"
           className={`${activeTab !== null ? 'hidden sm:block' : 'block'} sm:justify-self-start`}
         >
-          <img src="/lockup-horizontal-gold.png" alt="Whispered Events" className="h-7 w-auto" />
+          <img src="/lockup-horizontal-gold-on-black.png" alt="Whispered Events" className="h-7 w-auto" />
         </button>
 
         {activeTab !== null ? (
