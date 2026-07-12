@@ -215,8 +215,8 @@ export default function AdminUserDetailPage() {
         setErrorMsg(data.error || `HTTP ${res.status}`)
         return
       }
-      const data = (await res.json()) as { user: UserDetail; events: EventRow[]; hostedEvents: { id: string; name: string; date: string }[] }
-      setUser(data.user)
+      const data = (await res.json()) as { user: Omit<UserDetail, 'hostedEvents'>; events: EventRow[]; hostedEvents: { id: string; name: string; date: string }[] }
+      setUser({ ...data.user, hostedEvents: data.hostedEvents ?? [] })
       setEvents(data.events)
       setAuthState('authorized')
     } catch (e) {
