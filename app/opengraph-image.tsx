@@ -28,6 +28,12 @@ const C = {
 }
 
 export default async function OpenGraphImage() {
+  // Fetch the lockup PNG so Satori can embed it as an image element.
+  const lockupData = await fetch(
+    'https://www.whisperedevents.com/lockup-horizontal-gold-on-black.png',
+  ).then((r) => r.arrayBuffer())
+  const lockupSrc = `data:image/png;base64,${Buffer.from(lockupData).toString('base64')}`
+
   return new ImageResponse(
     (
       <div
@@ -41,22 +47,9 @@ export default async function OpenGraphImage() {
           color: C.ink,
         }}
       >
-        {/* Wordmark — diamond mark + ink Whispered + italic-champagne Events */}
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <div
-            style={{
-              width: 28,
-              height: 28,
-              background: C.accent,
-              transform: 'rotate(45deg)',
-              marginRight: 36,
-            }}
-          />
-          <div style={{ display: 'flex', fontSize: 80, lineHeight: 1, letterSpacing: '0.01em' }}>
-            <span style={{ color: C.ink, marginRight: 20 }}>Whispered</span>
-            <span style={{ color: C.accent, fontStyle: 'italic' }}>Events</span>
-          </div>
-        </div>
+        {/* Lockup PNG wordmark */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={lockupSrc} alt="Whispered Events" style={{ height: 96, objectFit: 'contain', objectPosition: 'left' }} />
 
         {/* Headline */}
         <div

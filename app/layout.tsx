@@ -85,7 +85,8 @@ export const metadata: Metadata = {
     canonical: '/',
   },
   icons: {
-    icon: '/favicon.svg',
+    icon: '/w-olive-gold-on-black.png',
+    apple: '/w-olive-gold-on-black.png',
   },
   openGraph: {
     type: 'website',
