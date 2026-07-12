@@ -466,7 +466,7 @@ function AfterHoursHeader({
           aria-label="Whispered Events home"
           className="hidden sm:block sm:justify-self-start"
         >
-          <img src="/lockup-horizontal-gold-on-black.png" alt="Whispered Events" className="h-8 w-auto" />
+          <img src="/lockup-horizontal-gold-on-black.png" alt="Whispered Events" className="h-14 w-auto" />
         </button>
 
         <SegmentedToggle activeTab={activeTab} onChange={onTabChange} />
@@ -1687,11 +1687,14 @@ function Footer() {
         </svg>
         <div className="flex-1" style={{ height: 1, background: 'rgba(236,230,218,.13)' }} />
       </div>
-      <div className="flex items-center justify-center">
+      <div className="flex items-center justify-between">
+        <span style={{ fontSize: 13, color: 'rgba(236,230,218,.4)', letterSpacing: '.04em' }}>
+          Whispered © 2026
+        </span>
         <a
           href="/faq"
-          className="transition-colors"
-          style={{ fontSize: 18, color: '#c9a86a', letterSpacing: '.08em', textDecoration: 'none' }}
+          className="transition-opacity"
+          style={{ fontSize: 13, color: 'rgba(236,230,218,.4)', letterSpacing: '.08em', textDecoration: 'none' }}
           onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.75')}
           onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
         >
