@@ -4,7 +4,7 @@
 
 export type UserStatus = 'Pending' | 'Live' | 'Passed' | 'Deactivated' | 'Partner'
 
-export const STATUS_OPTIONS: UserStatus[] = ['Pending', 'Live', 'Passed', 'Deactivated', 'Partner']
+export const STATUS_OPTIONS: UserStatus[] = ['Partner', 'Live', 'Pending', 'Passed', 'Deactivated']
 
 const VALID = new Set<string>(STATUS_OPTIONS)
 
