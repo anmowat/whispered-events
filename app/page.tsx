@@ -459,18 +459,22 @@ function AfterHoursHeader({
       className="sticky top-0 z-10"
       style={{ background: '#1b1814' }}
     >
-      <div className="max-w-[1200px] mx-auto px-4 sm:px-11 py-4 sm:py-5 flex sm:grid sm:grid-cols-[1fr_auto_1fr] items-center justify-between gap-3">
+      <div className="max-w-[1200px] mx-auto px-4 sm:px-11 py-4 sm:py-5 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
         <button
           onClick={onLogoClick}
           aria-label="Whispered Events home"
-          className="hidden sm:block sm:justify-self-start"
+          className="justify-self-start"
         >
-          <img src="/w-olive-gold-on-black.png" alt="Whispered Events" style={{ height: '100px' }} className="w-auto" />
+          <img
+            src="/w-olive-gold-on-black.png"
+            alt="Whispered Events"
+            className="w-auto h-12 sm:h-[100px]"
+          />
         </button>
 
         <SegmentedToggle activeTab={activeTab} onChange={onTabChange} />
 
-        <div className="sm:justify-self-end flex items-center gap-3 sm:gap-4">
+        <div className="justify-self-end flex items-center gap-3 sm:gap-4">
           {rightSlot}
         </div>
       </div>
