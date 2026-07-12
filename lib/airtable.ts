@@ -600,6 +600,10 @@ export async function updateEvent(
     supabaseRow.seniority = fields.seniority
     ;(airtableFields as Record<string, unknown>)['Seniority'] = fields.seniority
   }
+  if (fields.organizer !== undefined) {
+    airtableFields['Organizer'] = fields.organizer
+    supabaseRow.organizer = fields.organizer
+  }
 
   // Supabase first as the canonical write. Failures bubble up — caller
   // (admin save) needs to know if the change didn't land.
@@ -798,6 +802,8 @@ export interface AirtableEvent {
   companySize?: string[]
   /** Seniority levels filter — empty = no filter (all invited). */
   seniority?: string[]
+  /** Company or person(s) organizing this event, extracted by AI at parse time. */
+  organizer?: string
 }
 
 export async function getActiveUsers(): Promise<AirtableUser[]> {

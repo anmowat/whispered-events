@@ -29,9 +29,10 @@ Extract and return a JSON object with these fields (omit fields you cannot deter
 - description: A 2-sentence description of the event and the intended audience that would be shared with potential attendees
 - link: The canonical URL for the event (use the source URL if appropriate)
 - audience: Array of professional role/title strings who this event targets (e.g. ["CROs", "CMOs", "Revenue Leaders"])
+- organizer: The company or companies organizing this event, as a short readable string (e.g. "Acme Corp" or "Acme Corp & Beta Inc"). If no company is clear, use the primary organizer's name. Pull from the event host/organizer section, footer, or "hosted by" text. Omit if genuinely unknown.
 
 Return ONLY valid JSON, no markdown, no explanation. Example:
-{"name":"GTM Summit 2025","type":"Conference","date":"2025-09-15","location":"New York, NY","description":"...","link":"https://...","audience":["CROs","CMOs"]}`
+{"name":"GTM Summit 2025","type":"Conference","date":"2025-09-15","location":"New York, NY","description":"...","link":"https://...","audience":["CROs","CMOs"],"organizer":"Acme Corp"}`
 
   const message = await anthropic.messages.create({
     model: 'claude-haiku-4-5-20251001',

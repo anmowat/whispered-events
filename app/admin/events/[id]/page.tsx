@@ -40,6 +40,7 @@ interface EventDetail {
   employment: string[]
   companySize: string[]
   seniority: string[]
+  organizer: string
 }
 
 // Draft mirrors EventDetail's editable fields. audience is a comma-joined
@@ -60,6 +61,7 @@ interface EventDraft {
   employment: string[]
   companySize: string[]
   seniority: string[]
+  organizer: string
 }
 
 function hostDisplayName(h: Host): string {
@@ -84,6 +86,7 @@ function draftFromEvent(e: EventDetail): EventDraft {
     employment: e.employment ?? [],
     companySize: e.companySize ?? [],
     seniority: e.seniority ?? [],
+    organizer: e.organizer ?? '',
   }
 }
 
@@ -718,6 +721,7 @@ export default function AdminEventDetailPage() {
                   <Field label="Submitter" value={event.submitterEmail} />
                   <Field label="Audience" value={event.audience.join(', ')} />
                   <Field label="Description" value={event.description} multiline />
+                  <Field label="Organizer" value={event.organizer} />
                   <Field label="Employment" value={event.employment.join(', ')} />
                   <Field label="Company Size" value={event.companySize.join(', ')} />
                   <Field label="Seniority" value={event.seniority.join(', ')} />
@@ -1093,6 +1097,16 @@ function EventEditForm({
             onChange={(e) => update('description', e.target.value)}
             rows={5}
             className={`${input} font-normal leading-relaxed`}
+          />
+        </FormField>
+        <FormField label="Organizer">
+          <input
+            type="text"
+            value={draft.organizer}
+            disabled={disabled}
+            onChange={(e) => update('organizer', e.target.value)}
+            placeholder="Acme Corp"
+            className={input}
           />
         </FormField>
         {/* Row 6: Employment | Company Size | Seniority */}

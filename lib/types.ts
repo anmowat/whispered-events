@@ -30,6 +30,7 @@ export interface EventRecord {
   employment?: string[]
   companySize?: string[]
   seniority?: string[]
+  organizer?: string
 }
 
 export const EMPLOYMENT_OPTIONS = ['Employed', 'Searching', 'Fractional', 'Other'] as const
@@ -44,6 +45,7 @@ export interface ParsedEvent {
   link?: string
   audience?: string[]
   image?: string
+  organizer?: string
 }
 
 export interface UserProfile {

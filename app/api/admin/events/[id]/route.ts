@@ -135,6 +135,7 @@ export async function GET(
         employment: event.employment ?? [],
         companySize: event.companySize ?? [],
         seniority: event.seniority ?? [],
+        organizer: event.organizer ?? '',
       },
       users,
       generatedAt: new Date().toISOString(),
@@ -180,6 +181,7 @@ export async function PATCH(
       employment?: unknown
       companySize?: unknown
       seniority?: unknown
+      organizer?: unknown
     }
 
     const update: Parameters<typeof updateEvent>[1] = {}
@@ -210,6 +212,7 @@ export async function PATCH(
     if (Array.isArray(body.seniority)) {
       update.seniority = body.seniority.filter((s): s is string => typeof s === 'string')
     }
+    if (typeof body.organizer === 'string') update.organizer = body.organizer.trim()
 
     // hostEmails is the canonical edit surface for the host list. Resolve
     // each email to a user id; any unresolved email blocks the save with
