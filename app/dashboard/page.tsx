@@ -1419,7 +1419,11 @@ function EventCard({
       })
       if (!res.ok) {
         onRated(prevRating, prevReason)
-        alert("Couldn't save your rating. Please try again.")
+        if (res.status === 401) {
+          alert("Your session has expired. Please refresh the page to sign in again.")
+        } else {
+          alert("Couldn't save your rating. Please try again.")
+        }
         return
       }
       const data = (await res.json().catch(() => ({}))) as { showGrowModal?: boolean }

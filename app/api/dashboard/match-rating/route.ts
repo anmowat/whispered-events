@@ -70,9 +70,7 @@ export async function POST(req: NextRequest) {
       reason,
     })
     if (!ok) {
-      // No row for this (event, user) — either a stale dashboard render
-      // or someone hand-crafting requests. 404 keeps the client honest
-      // and avoids firing a noisy notification.
+      console.error('match-rating: no row found', { userId: session.userId, eventId, rating })
       return NextResponse.json({ error: 'match not found' }, { status: 404 })
     }
 
