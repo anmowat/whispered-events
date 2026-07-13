@@ -45,7 +45,10 @@ const QUALITY_MULTIPLIER: Record<'A' | 'Polish' | 'B' | 'C', number> = {
 // endpoint then picks them up and refreshes under the new model.
 // v14: adds seniority/employment/company-size gates; refocuses audience
 // LLM on function only; includes event filter fields in hash.
-const MATCHING_VERSION = 14
+// v15: adds audienceCeiling() — hard cap on LLM audience score when the
+// user's function doesn't map to the event's stated audience, preventing
+// description bleed from inflating scores for wrong-audience users.
+const MATCHING_VERSION = 15
 
 // The radius constant lives in lib/geocode.ts (client-safe — no
 // Anthropic SDK or other server-only deps in that module). Re-export
@@ -450,6 +453,75 @@ function audienceFloor(event: AirtableEvent, user: AirtableUser): number {
   return floor
 }
 
+// Strict C-suite alias table — mirrors what the LLM prompt already
+// says, but as deterministic code. When the event audience names one
+// of these C-titles AND the user's function+seniority maps via the
+// alias, we treat it as a literal match (no ceiling applied).
+const STRICT_ALIAS_MAP: Array<{ audienceRe: RegExp; functionRe: RegExp }> = [
+  { audienceRe: /\b(founder|co.?founder|ceo)\b/i,       functionRe: /\b(founder|co.?founder|ceo)\b/i },
+  { audienceRe: /\bcro\b|\bc.?level\s+sales\b|\bc.?level\s+revenue\b/i, functionRe: /\b(sales|revenue)\b/i },
+  { audienceRe: /\bcmo\b|\bc.?level\s+marketing\b/i,    functionRe: /\bmarketing\b/i },
+  { audienceRe: /\bcto\b|\bc.?level\s+(engineering|technology)\b/i, functionRe: /\b(engineering|technology)\b/i },
+  { audienceRe: /\bcfo\b|\bc.?level\s+finance\b/i,      functionRe: /\bfinance\b/i },
+  { audienceRe: /\bcoo\b|\bc.?level\s+operations\b/i,   functionRe: /\boperations\b/i },
+  { audienceRe: /\bcpo\b|\bc.?level\s+product\b/i,      functionRe: /\bproduct\b/i },
+  { audienceRe: /\b(gc|general\s+counsel)\b|\bc.?level\s+(legal|counsel)\b/i, functionRe: /\b(legal|counsel)\b/i },
+  { audienceRe: /\bchro\b|\bc.?level\s+(people|hr)\b/i, functionRe: /\b(people|hr|human\s+resources)\b/i },
+]
+
+function matchesStrictAlias(event: AirtableEvent, user: AirtableUser): boolean {
+  const audienceText = (event.audience ?? []).join(' | ')
+  const userFn = user.function ?? ''
+  return STRICT_ALIAS_MAP.some(
+    (a) => a.audienceRe.test(audienceText) && a.functionRe.test(userFn),
+  )
+}
+
+function isFounderOrCeo(user: AirtableUser): boolean {
+  const fn = user.function ?? ''
+  const seniority = user.seniority ?? ''
+  return /\b(founder|co.?founder|ceo)\b/i.test(fn) || /\b(founder|co.?founder|ceo)\b/i.test(seniority)
+}
+
+// Keyword overlap: any meaningful token from the user's function
+// appears word-boundary in the audience text.
+const STOPWORDS = new Set(['and', 'the', 'for', 'with', 'from', 'that', 'this', 'are', 'was'])
+
+function matchesAudienceKeyword(event: AirtableEvent, user: AirtableUser): boolean {
+  const audienceText = (event.audience ?? []).join(' ')
+  const tokens = (user.function ?? '')
+    .split(/[\s,/]+/)
+    .map((t) => t.toLowerCase())
+    .filter((t) => t.length >= 4 && !STOPWORDS.has(t))
+  return tokens.some((t) => new RegExp(`\\b${escapeRegex(t)}\\b`, 'i').test(audienceText))
+}
+
+// Hard ceiling on the LLM's audience score. Prevents description bleed
+// from inflating audience scores when the user's function doesn't map
+// to the event's stated audience.
+function audienceCeiling(event: AirtableEvent, user: AirtableUser): number {
+  // No audience specified → no constraint
+  if (!event.audience?.length) return 1.5
+
+  // Exact function literal match → unconstrained
+  if (matchesFunctionLiteral(event, user)) return 1.5
+
+  // Strict C-suite alias match → unconstrained
+  if (matchesStrictAlias(event, user)) return 1.5
+
+  // Broad-role alias → allow up to 1.0 (not 1.5)
+  if (matchesBroadAlias(event, user)) return 1.0
+
+  // Founder/CEO oversight exception → they can attend any senior event
+  if (isFounderOrCeo(user)) return 0.8
+
+  // Keyword overlap → adjacency tier max
+  if (matchesAudienceKeyword(event, user)) return 0.8
+
+  // No match path → hard cap at adjacent tier
+  return 0.6
+}
+
 export async function scoreEventUser(
   event: AirtableEvent,
   user: AirtableUser,
@@ -560,11 +632,12 @@ export async function scoreEventUser(
   // when interest is missing. This keeps the code paths uniform.
   const llm = await callLLM(event, user, fixedSide)
 
-  // Deterministic floors on the audience leg — see audienceFloor() for
-  // the policy. The model's read sets the ceiling; the floor stops two
-  // recurring underscores (women opt-in, broad-role alias) from
-  // killing otherwise-good matches.
-  const audience = Math.max(llm.audience, audienceFloor(event, user))
+  // Deterministic floor + ceiling on the audience leg. The floor stops
+  // recurring under-scores (women opt-in, broad-role alias). The ceiling
+  // prevents description bleed from inflating scores for users whose
+  // function doesn't match the event's stated audience.
+  const ceiling = audienceCeiling(event, user)
+  const audience = Math.min(Math.max(llm.audience, audienceFloor(event, user)), ceiling)
   const score = location * audience * quality * llm.preferences
   return {
     score,
