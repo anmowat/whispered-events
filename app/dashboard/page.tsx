@@ -251,7 +251,7 @@ export default function DashboardPage() {
             style={{ background: 'var(--paper)', borderColor: 'var(--rule)' }}
           >
             <p className="m-0 font-medium" style={{ fontSize: 17, color: 'var(--ink)' }}>
-              Improve your matches
+              Improve your matches and how you get them
             </p>
             <div className="mt-3 space-y-1">
               <ProfileSubRow
@@ -276,13 +276,8 @@ export default function DashboardPage() {
                 title="Frequency"
                 description="How often we email"
                 icon={<svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden><path d="M2 2h12a1 1 0 0 1 1 1v2H1V3a1 1 0 0 1 1-1zm-1 4h14v8a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V6zm3 3a.5.5 0 0 0 0 1h6a.5.5 0 0 0 0-1H4zm0 2a.5.5 0 0 0 0 1h4a.5.5 0 0 0 0-1H4z"/></svg>}
-                onEdit={() => setEditingFrequency((v) => !v)}
+                onEdit={() => setEditingFrequency(true)}
               />
-              {editingFrequency && (
-                <div className="pt-1 pb-0.5">
-                  <FrequencyControl user={user} onSaved={(u) => { setUser(u); setEditingFrequency(false) }} />
-                </div>
-              )}
             </div>
           </div>
         </section>
@@ -397,6 +392,13 @@ export default function DashboardPage() {
           user={user}
           onClose={() => setEditingLocation(false)}
           onSaved={handleProfileSaved}
+        />
+      )}
+      {editingFrequency && (
+        <FrequencyModal
+          user={user}
+          onClose={() => setEditingFrequency(false)}
+          onSaved={(u) => { setUser(u); setEditingFrequency(false) }}
         />
       )}
       {showRescoreConfirm && (
@@ -1223,6 +1225,33 @@ function LocationModal({
           team@whisperedevents.com
         </a>
       </p>
+    </ProfileModalShell>
+  )
+}
+
+function FrequencyModal({
+  user,
+  onClose,
+  onSaved,
+}: {
+  user: DashboardUser
+  onClose: () => void
+  onSaved: (u: DashboardUser) => void
+}) {
+  return (
+    <ProfileModalShell
+      title="Email frequency"
+      saving={false}
+      error={null}
+      onSave={onClose}
+      onClose={onClose}
+    >
+      <div className="px-5 py-5">
+        <p className="m-0 mb-4" style={{ fontSize: 14, color: 'var(--ink-3)' }}>
+          How often should we send you matched events?
+        </p>
+        <FrequencyControl user={user} onSaved={onSaved} />
+      </div>
     </ProfileModalShell>
   )
 }
