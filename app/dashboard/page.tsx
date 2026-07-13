@@ -253,22 +253,22 @@ export default function DashboardPage() {
             <p className="m-0 font-medium" style={{ fontSize: 17, color: 'var(--ink)' }}>
               Improve your matches
             </p>
-            <div className="mt-3 pl-3 space-y-1">
+            <div className="mt-3 pl-1 space-y-1">
               <ProfileSubRow
                 title="Bio"
-                description="Who you are and what you do."
+                description="Who you are / what you do"
                 icon={<svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden><path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm-5 6a5 5 0 0 1 10 0H3z"/></svg>}
                 onEdit={() => setEditingBio(true)}
               />
               <ProfileSubRow
                 title="Topics"
-                description="What topics you are interested in."
+                description="What you are interested in"
                 icon={<svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden><path d="M8 1l1.5 4.5H14l-3.75 2.73 1.43 4.39L8 10.1l-3.68 2.52 1.43-4.39L2 5.5h4.5L8 1z"/></svg>}
                 onEdit={() => setEditingTopics(true)}
               />
               <ProfileSubRow
                 title="Location(s)"
-                description="Where you are located / traveling to"
+                description="Where you attend events"
                 icon={<svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden><path d="M8 1a5 5 0 0 0-5 5c0 3.5 5 9 5 9s5-5.5 5-9a5 5 0 0 0-5-5zm0 7a2 2 0 1 1 0-4 2 2 0 0 1 0 4z"/></svg>}
                 onEdit={() => setEditingLocation(true)}
               />
