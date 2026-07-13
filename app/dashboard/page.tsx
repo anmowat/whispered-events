@@ -1179,10 +1179,7 @@ function LocationModal({
           Please provide a single city.
         </p>
         <p style={{ fontSize: 15, lineHeight: 1.6, color: 'var(--ink-2)', margin: '6px 0 0' }}>
-          We match you to events within 150 miles of your location
-        </p>
-        <p style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--ink-3)', margin: '2px 0 0' }}>
-          (with higher match scores for closer events)
+          We match you to events in your metro area
         </p>
         <p style={{ fontSize: 15, lineHeight: 1.6, color: 'var(--ink-2)', margin: '14px 0 0' }}>
           Today we{' '}
@@ -1217,7 +1214,7 @@ function LocationModal({
 
       {/* Footer copy — below city, above buttons */}
       <p style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--ink-3)', margin: '8px 0 0', textAlign: 'center' }}>
-        We are exploring allowing multiple locations. If you are interested in getting early access to this feature email us at{' '}
+        We are exploring allowing multiple locations. If you are interested in early access, email{' '}
         <a
           href="mailto:team@whisperedevents.com"
           style={{ color: 'var(--accent)', textDecoration: 'underline', textUnderlineOffset: 2 }}
