@@ -808,9 +808,9 @@ export async function sendRecap(
     const { event, matchPercent, isDuplicate } = entry
     const date = shortDate(event.date)
     const city = cityFromLocation(event.location)
-    const datePart = date ? ` (${date}${city ? ` - ${city}` : ''})` : ''
+    const datePart = date ? ` (${date}${city ? ` ${city}` : ''} - ${Math.round(matchPercent)}% Match)` : ` (${Math.round(matchPercent)}% Match)`
     const body = isDuplicate ? ' see above' : event.description ? ` ${event.description}` : ''
-    textLines.push(`${event.name}${datePart}${body} (Match ${Math.round(matchPercent)}%)`)
+    textLines.push(`${event.name}${datePart}${body}`)
     textLines.push(event.link)
     textLines.push('')
   }
@@ -1089,10 +1089,10 @@ function renderEntry(entry: DigestEventEntry, userId: string, baseUrl: string): 
   const city = cityFromLocation(event.location)
   // Dates: bold but neutral (ink-2) — readers used to ignore them
   // when they were oxblood because the link itself wasn't tinted.
+  const matchStr = `${Math.round(matchPercent)}% Match`
   const datePart = date
-    ? `<strong style="color:${C.ink2};font-variant-numeric:tabular-nums;"> (${date}${city ? ` - ${escapeHtml(city)}` : ''})</strong> `
-    : ' '
-  const match = `<strong style="color:${C.ink};">(Match ${Math.round(matchPercent)}%)</strong>`
+    ? `<strong style="color:${C.ink2};font-variant-numeric:tabular-nums;"> (${date}${city ? ` ${escapeHtml(city)}` : ''} - ${matchStr})</strong> `
+    : `<strong style="color:${C.ink2};"> (${matchStr})</strong> `
   const body = isDuplicate
     ? `<em style="color:${C.ink3};">see above</em> `
     : event.description
@@ -1119,7 +1119,7 @@ function renderEntry(entry: DigestEventEntry, userId: string, baseUrl: string): 
   // link treatment.
   return `
 <p style="font-family:${SANS};margin:0;font-size:14.5px;line-height:1.55;">
-  <a href="${event.link}" style="font-family:${SERIF};font-size:17px;color:${C.accent};text-decoration:underline;text-underline-offset:3px;font-weight:400;letter-spacing:-0.01em;">${escapeHtml(event.name)}</a>${datePart}${body}<br>${match}<br><span style="display:inline-block;margin-top:4px;">${ratingHtml}</span>
+  <a href="${event.link}" style="font-family:${SERIF};font-size:17px;color:${C.accent};text-decoration:underline;text-underline-offset:3px;font-weight:400;letter-spacing:-0.01em;">${escapeHtml(event.name)}</a>${datePart}${body}<br><span style="display:inline-block;margin-top:4px;">${ratingHtml}</span>
 </p>
 <div style="margin-bottom:20px;"></div>
 `.trim()
@@ -1222,9 +1222,9 @@ export async function sendApprovedWithDigest(
       const { event, matchPercent, isDuplicate } = entry
       const date = shortDate(event.date)
       const city = cityFromLocation(event.location)
-      const datePart = date ? ` (${date}${city ? ` - ${city}` : ''})` : ''
+      const datePart = date ? ` (${date}${city ? ` ${city}` : ''} - ${Math.round(matchPercent)}% Match)` : ` (${Math.round(matchPercent)}% Match)`
       const body = isDuplicate ? ' see above' : event.description ? ` ${event.description}` : ''
-      textLines.push(`${event.name}${datePart}${body} (Match ${Math.round(matchPercent)}%)`)
+      textLines.push(`${event.name}${datePart}${body}`)
       textLines.push(event.link)
       textLines.push('')
     }
@@ -1319,9 +1319,9 @@ export async function sendLocationUpdatedDigest(
       const { event, matchPercent, isDuplicate } = entry
       const date = shortDate(event.date)
       const city = cityFromLocation(event.location)
-      const datePart = date ? ` (${date}${city ? ` - ${city}` : ''})` : ''
+      const datePart = date ? ` (${date}${city ? ` ${city}` : ''} - ${Math.round(matchPercent)}% Match)` : ` (${Math.round(matchPercent)}% Match)`
       const body = isDuplicate ? ' see above' : event.description ? ` ${event.description}` : ''
-      textLines.push(`${event.name}${datePart}${body} (Match ${Math.round(matchPercent)}%)`)
+      textLines.push(`${event.name}${datePart}${body}`)
       textLines.push(event.link)
       textLines.push('')
     }
@@ -1456,9 +1456,9 @@ export async function sendUserDigest(
       const { event, matchPercent, isDuplicate } = entry
       const date = shortDate(event.date)
       const city = cityFromLocation(event.location)
-      const datePart = date ? ` (${date}${city ? ` - ${city}` : ''})` : ''
+      const datePart = date ? ` (${date}${city ? ` ${city}` : ''} - ${Math.round(matchPercent)}% Match)` : ` (${Math.round(matchPercent)}% Match)`
       const body = isDuplicate ? ' see above' : event.description ? ` ${event.description}` : ''
-      textLines.push(`${event.name}${datePart}${body} (Match ${Math.round(matchPercent)}%)`)
+      textLines.push(`${event.name}${datePart}${body}`)
       textLines.push(event.link)
       textLines.push('')
     }
