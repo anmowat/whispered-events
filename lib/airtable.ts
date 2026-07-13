@@ -452,6 +452,7 @@ export async function createEvent(
   if (event.seniority?.length) {
     ;(fields as Record<string, unknown>)['Seniority'] = event.seniority
   }
+  if (event.organizer) fields['Organizer'] = event.organizer
 
   // Airtable .create() first so we inherit its recXXX id as the canonical
   // Supabase id. Downstream foreign keys (matches.event_id, host links)
@@ -501,6 +502,7 @@ export async function createEvent(
     status: 'Pending',
     featured: false,
     airtable_created_at: nowIso,
+    organizer: event.organizer || null,
   })
   if (error) {
     console.error('createEvent supabase insert failed', { id: record.id, error })

@@ -258,6 +258,7 @@ export default function ShareEventTab({
       host: parsed.host || false,
       submitter: submitterEmail,
       image: parsed.image,
+      organizer: parsed.organizer,
     }
     try {
       const res = await fetch('/api/submit-event', {
