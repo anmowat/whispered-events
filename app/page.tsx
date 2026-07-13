@@ -268,8 +268,8 @@ export default function Home() {
   const lockIcon = (
     <svg
       aria-hidden
-      width="11"
-      height="13"
+      width="14"
+      height="16"
       viewBox="0 0 14 16"
       fill="none"
       style={{ flexShrink: 0 }}
@@ -280,11 +280,11 @@ export default function Home() {
         width="10"
         height="7.5"
         rx="1.5"
-        fill="#1b1814"
+        fill="currentColor"
       />
       <path
         d="M4 7V4.5a3 3 0 0 1 6 0V7"
-        stroke="#1b1814"
+        stroke="currentColor"
         strokeWidth="1.6"
         strokeLinecap="round"
         fill="none"
@@ -306,12 +306,12 @@ export default function Home() {
       <a
         href={tab === 'partner' ? '/host' : '/dashboard'}
         className={pillClass}
-        style={pillStyle}
+        aria-label={tab === 'partner' ? 'Host Dashboard' : 'Dashboard'}
+        style={tab === 'partner' ? { ...pillStyle, padding: '10px 14px' } : pillStyle}
         onMouseEnter={(e) => (e.currentTarget.style.background = '#d5b87c')}
         onMouseLeave={(e) => (e.currentTarget.style.background = '#c9a86a')}
       >
-        {lockIcon}
-        {tab === 'partner' ? 'Host Dashboard' : 'Dashboard'}
+        {tab === 'partner' ? lockIcon : <>{lockIcon} Dashboard</>}
       </a>
     ) : (
       <button
