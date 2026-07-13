@@ -1238,19 +1238,61 @@ function FrequencyModal({
   onClose: () => void
   onSaved: (u: DashboardUser) => void
 }) {
+  const [selected, setSelected] = useState(user.frequency || 'As they arrive')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handleSave() {
+    if (selected === user.frequency) { onClose(); return }
+    setSaving(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/dashboard/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ frequency: selected }),
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      onSaved({ ...user, frequency: selected })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save')
+      setSaving(false)
+    }
+  }
+
   return (
     <ProfileModalShell
       title="Email frequency"
-      saving={false}
-      error={null}
-      onSave={onClose}
+      saving={saving}
+      error={error}
+      onSave={handleSave}
       onClose={onClose}
     >
-      <div className="px-5 py-5">
-        <p className="m-0 mb-4" style={{ fontSize: 14, color: 'var(--ink-3)' }}>
-          How often should we send you matched events?
-        </p>
-        <FrequencyControl user={user} onSaved={onSaved} />
+      <div className="px-5 py-4 space-y-2">
+        {FREQUENCY_OPTIONS.map((opt) => {
+          const active = selected === opt
+          return (
+            <button
+              key={opt}
+              onClick={() => setSelected(opt)}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-[10px] border text-left transition-colors"
+              style={{
+                background: active ? 'rgba(201,168,106,0.10)' : 'var(--paper-2)',
+                borderColor: active ? 'var(--accent)' : 'var(--rule)',
+              }}
+            >
+              <span
+                className="shrink-0 w-4 h-4 rounded-full border-2 flex items-center justify-center"
+                style={{ borderColor: active ? 'var(--accent)' : 'var(--ink-3)' }}
+              >
+                {active && <span className="w-2 h-2 rounded-full" style={{ background: 'var(--accent)' }} />}
+              </span>
+              <span style={{ fontSize: 14, color: 'var(--ink)', fontWeight: active ? 500 : 400 }}>
+                {displayFrequency(opt)}
+              </span>
+            </button>
+          )
+        })}
       </div>
     </ProfileModalShell>
   )
