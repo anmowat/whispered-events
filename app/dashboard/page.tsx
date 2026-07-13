@@ -291,7 +291,7 @@ export default function DashboardPage() {
                 className="font-medium"
                 style={{ fontSize: 15, color: 'var(--accent)' }}
               >
-                Rate events to see more/better matches
+                Rate to see more/better matches
               </span>
             </div>
             <button
