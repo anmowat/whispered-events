@@ -268,7 +268,7 @@ export default function DashboardPage() {
               />
               <ProfileSubRow
                 title="Location"
-                description="Where you attend events"
+                description="Where you attend"
                 icon={<svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden><path d="M8 1a5 5 0 0 0-5 5c0 3.5 5 9 5 9s5-5.5 5-9a5 5 0 0 0-5-5zm0 7a2 2 0 1 1 0-4 2 2 0 0 1 0 4z"/></svg>}
                 onEdit={() => setEditingLocation(true)}
               />
