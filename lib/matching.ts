@@ -55,7 +55,9 @@ const QUALITY_MULTIPLIER: Record<'A' | 'Polish' | 'B' | 'C', number> = {
 // audience matches "Revenue Operations" function (and similar GTM/CS/etc.)
 // and lift keyword-match ceiling to 1.5 (was 0.8) — direct function match
 // IS the target audience, not merely adjacent.
-const MATCHING_VERSION = 17
+// v18: also add 1.2 floor for keyword matches (not just ceiling) so LLM
+// under-scoring doesn't suppress audience scores when function = audience.
+const MATCHING_VERSION = 18
 
 // The radius constant lives in lib/geocode.ts (client-safe — no
 // Anthropic SDK or other server-only deps in that module). Re-export
@@ -454,6 +456,9 @@ function audienceFloor(event: AirtableEvent, user: AirtableUser): number {
     floor = Math.max(floor, 1.2)
   }
   if (matchesFunctionLiteral(event, user)) {
+    floor = Math.max(floor, 1.2)
+  }
+  if (matchesAudienceKeyword(event, user)) {
     floor = Math.max(floor, 1.2)
   }
   if (matchesBroadAlias(event, user)) {
