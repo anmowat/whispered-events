@@ -150,7 +150,7 @@ function RateThanksContent() {
               Please note
             </div>
             <p style={{ color: muted, fontSize: 14, lineHeight: 1.65, margin: 0 }}>
-              We collaborate with many hosts to make matches but each host decides who attends; we just point you to the right rooms and make the best matches we can. Your feedback helps us constantly improve.
+              We collaborate with many hosts to make matches but each host decides who attends; we just point you to the right rooms and make the best matches we can.
             </p>
           </div>
 
