@@ -48,7 +48,10 @@ const QUALITY_MULTIPLIER: Record<'A' | 'Polish' | 'B' | 'C', number> = {
 // v15: adds audienceCeiling() — hard cap on LLM audience score when the
 // user's function doesn't map to the event's stated audience, preventing
 // description bleed from inflating scores for wrong-audience users.
-const MATCHING_VERSION = 15
+// v16: FUNCTION_LITERAL_FLOORS now matches both "[Function] [Rank]" and
+// "[Rank] of [Function]" orderings (e.g. "Sales VP" AND "VPs of Sales").
+// STRICT_ALIAS_MAP handles plurals (CROs, CMOs, etc.).
+const MATCHING_VERSION = 16
 
 // The radius constant lives in lib/geocode.ts (client-safe — no
 // Anthropic SDK or other server-only deps in that module). Re-export
@@ -363,17 +366,19 @@ function matchesBroadAlias(event: AirtableEvent, user: AirtableUser): boolean {
 // function match (1.2 tier — function literal, seniority not). Floor
 // fires only at Director+ seniority so an IC at a "Marketing Leaders"
 // event still legitimately scores low.
+// Rank tokens that appear in "[Rank] of [Function]" patterns.
+const RANK = '(vps?|directors?|heads?|chief|executive|officer|leader)'
 const FUNCTION_LITERAL_FLOORS: Array<{ audience: RegExp; functions: RegExp }> = [
-  { audience: /\bmarketing\s+(leader|executive|officer|vp|director|head)/i,                       functions: /\bmarketing\b/i },
-  { audience: /\bsales\s+(leader|executive|officer|vp|director|head)/i,                           functions: /\bsales\b/i },
-  { audience: /\bengineering\s+(leader|executive|officer|vp|director|head)/i,                     functions: /\b(engineering|platform|infrastructure)\b/i },
-  { audience: /\bproduct\s+(leader|executive|officer|vp|director|head)/i,                         functions: /\bproduct\b/i },
-  { audience: /\b(operations|ops)\s+(leader|executive|officer|vp|director|head)/i,                functions: /\b(operations|ops)\b/i },
-  { audience: /\b(finance|financial)\s+(leader|executive|officer|vp|director|head)/i,             functions: /\b(finance|financial)\b/i },
-  { audience: /\b(legal|counsel)\s+(leader|executive|officer|vp|director|head)/i,                 functions: /\b(legal|counsel)\b/i },
-  { audience: /\b(people|hr|human\s+resources)\s+(leader|executive|officer|vp|director|head)/i,   functions: /\b(people|hr|human\s+resources)\b/i },
-  { audience: /\b(revops|rev\s+ops|revenue\s+operations)\s+(leader|executive|officer|vp|director|head)/i, functions: /\b(revops|rev\s+ops|revenue\s+operations)\b/i },
-  { audience: /\b(customer\s+success|cs)\s+(leader|executive|officer|vp|director|head)/i,         functions: /\b(customer\s+success|cs)\b/i },
+  { audience: new RegExp(`\\bmarketing\\s+(leader|executive|officer|vp|director|head)|\\b${RANK}\\s+of\\s+marketing`, 'i'),                       functions: /\bmarketing\b/i },
+  { audience: new RegExp(`\\bsales\\s+(leader|executive|officer|vp|director|head)|\\b${RANK}\\s+of\\s+sales`, 'i'),                               functions: /\bsales\b/i },
+  { audience: new RegExp(`\\bengineering\\s+(leader|executive|officer|vp|director|head)|\\b${RANK}\\s+of\\s+engineering`, 'i'),                   functions: /\b(engineering|platform|infrastructure)\b/i },
+  { audience: new RegExp(`\\bproduct\\s+(leader|executive|officer|vp|director|head)|\\b${RANK}\\s+of\\s+product`, 'i'),                           functions: /\bproduct\b/i },
+  { audience: new RegExp(`\\b(operations|ops)\\s+(leader|executive|officer|vp|director|head)|\\b${RANK}\\s+of\\s+(operations|ops)`, 'i'),         functions: /\b(operations|ops)\b/i },
+  { audience: new RegExp(`\\b(finance|financial)\\s+(leader|executive|officer|vp|director|head)|\\b${RANK}\\s+of\\s+(finance|financial)`, 'i'),   functions: /\b(finance|financial)\b/i },
+  { audience: new RegExp(`\\b(legal|counsel)\\s+(leader|executive|officer|vp|director|head)|\\b${RANK}\\s+of\\s+(legal|counsel)`, 'i'),           functions: /\b(legal|counsel)\b/i },
+  { audience: new RegExp(`\\b(people|hr|human\\s+resources)\\s+(leader|executive|officer|vp|director|head)|\\b${RANK}\\s+of\\s+(people|hr)`, 'i'), functions: /\b(people|hr|human\s+resources)\b/i },
+  { audience: new RegExp(`\\b(revops|rev\\s+ops|revenue\\s+operations)\\s+(leader|executive|officer|vp|director|head)|\\b${RANK}\\s+of\\s+(revenue\\s+operations|revops)`, 'i'), functions: /\b(revops|rev\s+ops|revenue\s+operations)\b/i },
+  { audience: new RegExp(`\\b(customer\\s+success|cs)\\s+(leader|executive|officer|vp|director|head)|\\b${RANK}\\s+of\\s+(customer\\s+success)`, 'i'), functions: /\b(customer\s+success|cs)\b/i },
 ]
 
 function matchesFunctionLiteral(event: AirtableEvent, user: AirtableUser): boolean {
@@ -458,15 +463,15 @@ function audienceFloor(event: AirtableEvent, user: AirtableUser): number {
 // of these C-titles AND the user's function+seniority maps via the
 // alias, we treat it as a literal match (no ceiling applied).
 const STRICT_ALIAS_MAP: Array<{ audienceRe: RegExp; functionRe: RegExp }> = [
-  { audienceRe: /\b(founder|co.?founder|ceo)\b/i,       functionRe: /\b(founder|co.?founder|ceo)\b/i },
-  { audienceRe: /\bcro\b|\bc.?level\s+sales\b|\bc.?level\s+revenue\b/i, functionRe: /\b(sales|revenue)\b/i },
-  { audienceRe: /\bcmo\b|\bc.?level\s+marketing\b/i,    functionRe: /\bmarketing\b/i },
-  { audienceRe: /\bcto\b|\bc.?level\s+(engineering|technology)\b/i, functionRe: /\b(engineering|technology)\b/i },
-  { audienceRe: /\bcfo\b|\bc.?level\s+finance\b/i,      functionRe: /\bfinance\b/i },
-  { audienceRe: /\bcoo\b|\bc.?level\s+operations\b/i,   functionRe: /\boperations\b/i },
-  { audienceRe: /\bcpo\b|\bc.?level\s+product\b/i,      functionRe: /\bproduct\b/i },
-  { audienceRe: /\b(gc|general\s+counsel)\b|\bc.?level\s+(legal|counsel)\b/i, functionRe: /\b(legal|counsel)\b/i },
-  { audienceRe: /\bchro\b|\bc.?level\s+(people|hr)\b/i, functionRe: /\b(people|hr|human\s+resources)\b/i },
+  { audienceRe: /\b(founders?|co.?founders?|ceos?)\b/i,       functionRe: /\b(founder|co.?founder|ceo)\b/i },
+  { audienceRe: /\bcros?\b|chief\s+revenue\s+officers?|\bc.?level\s+sales\b|\bc.?level\s+revenue\b/i, functionRe: /\b(sales|revenue)\b/i },
+  { audienceRe: /\bcmos?\b|chief\s+marketing\s+officers?|\bc.?level\s+marketing\b/i,    functionRe: /\bmarketing\b/i },
+  { audienceRe: /\bctos?\b|chief\s+(technology|technical)\s+officers?|\bc.?level\s+(engineering|technology)\b/i, functionRe: /\b(engineering|technology)\b/i },
+  { audienceRe: /\bcfos?\b|chief\s+financial\s+officers?|\bc.?level\s+finance\b/i,      functionRe: /\bfinance\b/i },
+  { audienceRe: /\bcoos?\b|chief\s+operating\s+officers?|\bc.?level\s+operations\b/i,   functionRe: /\boperations\b/i },
+  { audienceRe: /\bcpos?\b|chief\s+product\s+officers?|\bc.?level\s+product\b/i,        functionRe: /\bproduct\b/i },
+  { audienceRe: /\b(gcs?|general\s+counsel)\b|\bc.?level\s+(legal|counsel)\b/i,         functionRe: /\b(legal|counsel)\b/i },
+  { audienceRe: /\bchros?\b|chief\s+(people|hr|human\s+resources)\s+officers?|\bc.?level\s+(people|hr)\b/i, functionRe: /\b(people|hr|human\s+resources)\b/i },
 ]
 
 function matchesStrictAlias(event: AirtableEvent, user: AirtableUser): boolean {
