@@ -173,12 +173,12 @@ function RateThanksContent() {
     return (
       <div style={page}>
         <div style={card}>
-          <div style={{ fontSize: 40, marginBottom: 14 }}>✕</div>
+          <div style={{ fontSize: 40, marginBottom: 14, color: '#e05252' }}>✕</div>
           <div style={{ fontFamily: SERIF, fontSize: 32, color: ink, marginBottom: 12, lineHeight: 1.1 }}>
-            Thanks — noted!
+            Thanks for the feedback!
           </div>
           <p style={{ color: muted, fontSize: 15, lineHeight: 1.65, margin: '0 0 28px' }}>
-            We&apos;ll hide this event and use your feedback to improve your matches.
+            We&apos;ll hide this event and use your feedback (below) to improve your matches.
           </p>
 
           {authState === 'loading' && (
