@@ -190,6 +190,8 @@ export default function AdminEventDetailPage() {
   // Tracks the per-event rescore the Refresh button kicks off, so the
   // label can show "Rescoring…" while the work is in flight.
   const [rescoring, setRescoring] = useState(false)
+  const [rescoreElapsed, setRescoreElapsed] = useState(0)
+  const rescoreTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const [syncing, setSyncing] = useState(false)
   const [syncMsg, setSyncMsg] = useState<string | null>(null)
   const isEditing = draft !== null
@@ -249,6 +251,8 @@ export default function AdminEventDetailPage() {
   async function rescoreAndFetch() {
     if (!eventId) return
     setRescoring(true)
+    setRescoreElapsed(0)
+    rescoreTimerRef.current = setInterval(() => setRescoreElapsed((s) => s + 1), 1000)
     try {
       await fetch(`/api/process-matches?trigger=event&id=${eventId}`, {
         cache: 'no-store',
@@ -256,6 +260,7 @@ export default function AdminEventDetailPage() {
     } catch (e) {
       console.error('rescoreAndFetch failed', e)
     } finally {
+      if (rescoreTimerRef.current) clearInterval(rescoreTimerRef.current)
       setRescoring(false)
     }
     await fetchDetail()
@@ -533,7 +538,7 @@ export default function AdminEventDetailPage() {
               disabled={rescoring}
               className="px-3 py-1.5 rounded-lg border border-[#E8DDD0] bg-white text-xs text-gray-700 hover:bg-[#F5EFE6] transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {rescoring ? 'Rescoring…' : 'Refresh'}
+              {rescoring ? `Rescoring… ${rescoreElapsed}s` : 'Refresh'}
             </button>
           </div>
         </div>
