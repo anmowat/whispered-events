@@ -423,6 +423,7 @@ async function sendReply(to: string, subject: string, body: string): Promise<voi
     await resend.emails.send({
       from: FROM,
       to,
+      bcc: 'andy@whisperedevents.com',
       subject,
       text: body,
       headers: { 'Auto-Submitted': 'auto-generated' },
