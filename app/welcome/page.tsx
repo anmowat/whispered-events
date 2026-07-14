@@ -336,9 +336,22 @@ function ThankYou() {
         className="mt-5 mx-auto"
         style={{ fontSize: 15, color: 'var(--ink-2)', lineHeight: 1.6, maxWidth: 460 }}
       >
-        Your feedback helps us improve our matches and curate which events we add to the platform. As we send you events, take a moment to rate each using the options below.
+        Rating your matches does two things:
       </p>
-      <div className="flex items-center justify-center gap-2 mt-4 flex-wrap">
+      <ul
+        className="mx-auto mt-2 text-left"
+        style={{ fontSize: 14.5, color: 'var(--ink-2)', lineHeight: 1.7, maxWidth: 420, paddingLeft: 20 }}
+      >
+        <li><strong style={{ color: 'var(--ink)' }}>Opens up more</strong> — each rating reveals the next match we&apos;ve found for you</li>
+        <li><strong style={{ color: 'var(--ink)' }}>Improves the quality</strong> — we learn what genuinely fits, not just what looks right on paper</li>
+      </ul>
+      <p
+        className="mt-4 mx-auto"
+        style={{ fontSize: 13.5, color: 'var(--ink-3)', lineHeight: 1.6, maxWidth: 460 }}
+      >
+        As we send you events, take a moment to rate each:
+      </p>
+      <div className="flex items-center justify-center gap-2 mt-2 flex-wrap">
         <span
           className="inline-flex items-center gap-1.5 px-3 py-1 rounded-pill border text-[12px] font-medium whitespace-nowrap"
           style={{ color: '#2D6A4F', background: 'rgba(45,106,79,0.10)', borderColor: 'rgba(45,106,79,0.35)' }}

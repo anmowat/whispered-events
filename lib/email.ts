@@ -236,7 +236,14 @@ export async function sendUserAppliedEmail(email: string): Promise<void> {
     ${h1('Application <span style="font-style:italic;">received</span>.')}
     ${p("Thanks for applying to Whispered Events. We'll quickly verify your LinkedIn profile and activate your account — typically within 24 hours.", { mt: 14 })}
     ${p("Once approved, you'll start seeing event matches personalized for you.", { mt: 12 })}
-    ${p("We built Whispered Events for one reason: helping great people find the best events — the ones that aren't posted, they're whispered.", { mt: 12 })}
+    ${p("Rating your matches does two things:", { mt: 14 })}
+    <p style="font-family:${SANS};font-size:14.5px;line-height:1.6;color:${C.ink2};margin:8px 0 0;">
+      • <strong style="color:${C.ink};">Opens up more</strong> — each rating reveals the next match we've found for you
+    </p>
+    <p style="font-family:${SANS};font-size:14.5px;line-height:1.6;color:${C.ink2};margin:6px 0 0;">
+      • <strong style="color:${C.ink};">Improves the quality</strong> — we learn what genuinely fits, not just what looks right on paper
+    </p>
+    ${p("We built Whispered Events for one reason: helping great people find the best events — the ones that aren't posted, they're whispered.", { mt: 14 })}
     ${p(`Whispered Events will always be <strong style="color:${C.ink};">completely free for users</strong>. Help us grow and match you to even more events by:`, { mt: 14 })}
     <p style="font-family:${SANS};font-size:14.5px;line-height:1.6;color:${C.ink2};margin:10px 0 0;">
       1. Sharing events to <a href="${NEW_EVENT_MAILTO}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">event@whispered.com</a>
@@ -251,6 +258,10 @@ export async function sendUserAppliedEmail(email: string): Promise<void> {
 Thanks for applying to Whispered Events. We'll quickly verify your LinkedIn profile and activate your account — typically within 24 hours.
 
 Once approved, you'll start seeing event matches personalized for you.
+
+Rating your matches does two things:
+• Opens up more — each rating reveals the next match we've found for you
+• Improves the quality — we learn what genuinely fits, not just what looks right on paper
 
 We built Whispered Events for one reason: helping great people find the best events — the ones that aren't posted, they're whispered.
 
@@ -1194,11 +1205,15 @@ export async function sendApprovedWithDigest(
   const moreText = moreOnDashboardTextLine(moreCount)
 
   const eb = todayEyebrow()
-  const ratingNudgeHtml = hasMatches
-    ? `<div style="margin-top:16px;padding:12px 16px;background:rgba(93,64,37,0.06);border-left:3px solid #8B5E3C;border-radius:4px;font-family:${SANS};font-size:13.5px;line-height:1.55;color:#4A3728;">
-        <strong style="color:#3d2b1a;">Feedback &rarr; Better Matches:</strong> Rate your matches with 1-click! It helps us improve the events we send you.
-      </div>`
-    : ''
+  const ratingNudgeHtml = `
+    ${p('Rating your matches does two things:', { mt: 14 })}
+    <p style="font-family:${SANS};font-size:14px;line-height:1.6;color:${C.ink2};margin:8px 0 0;">
+      • <strong style="color:${C.ink};">Opens up more</strong> — each rating reveals the next match we've found for you
+    </p>
+    <p style="font-family:${SANS};font-size:14px;line-height:1.6;color:${C.ink2};margin:6px 0 0;">
+      • <strong style="color:${C.ink};">Improves the quality</strong> — we learn what genuinely fits, not just what looks right on paper
+    </p>
+  `
 
   const html = shell(`
 
@@ -1218,7 +1233,10 @@ export async function sendApprovedWithDigest(
     '',
     introCopyText,
     '',
-    ...(hasMatches ? ['Feedback → Better Matches: Rate your matches with 1-click! It helps us improve the events we send you.', ''] : []),
+    'Rating your matches does two things:',
+    '• Opens up more — each rating reveals the next match we\'ve found for you',
+    '• Improves the quality — we learn what genuinely fits, not just what looks right on paper',
+    '',
   ]
   const appendEntries = (entries: DigestEventEntry[]) => {
     if (!entries.length) return
