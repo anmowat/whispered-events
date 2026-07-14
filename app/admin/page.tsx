@@ -317,6 +317,7 @@ export default function AdminPage() {
     let totalFailed = 0
     let pass = 0
     let pairsTotal = 0
+    setRescoreProgress({ scored: 0, total: 0, pass: 1 })
     try {
       while (pass < MAX_PASSES) {
         if (rescoreCancelled.current) {
@@ -325,6 +326,7 @@ export default function AdminPage() {
           return
         }
         pass++
+        setRescoreProgress((prev) => prev ? { ...prev, pass } : { scored: 0, total: 0, pass })
         const res = await fetch('/api/admin/rescore-missing', { method: 'POST' })
         const data = (await res.json().catch(() => ({}))) as {
           done?: boolean
