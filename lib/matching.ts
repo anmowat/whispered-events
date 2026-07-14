@@ -51,7 +51,11 @@ const QUALITY_MULTIPLIER: Record<'A' | 'Polish' | 'B' | 'C', number> = {
 // v16: FUNCTION_LITERAL_FLOORS now matches both "[Function] [Rank]" and
 // "[Rank] of [Function]" orderings (e.g. "Sales VP" AND "VPs of Sales").
 // STRICT_ALIAS_MAP handles plurals (CROs, CMOs, etc.).
-const MATCHING_VERSION = 16
+// v17: expand matchesAudienceKeyword with abbreviation aliases so "RevOps"
+// audience matches "Revenue Operations" function (and similar GTM/CS/etc.)
+// and lift keyword-match ceiling to 1.5 (was 0.8) — direct function match
+// IS the target audience, not merely adjacent.
+const MATCHING_VERSION = 17
 
 // The radius constant lives in lib/geocode.ts (client-safe — no
 // Anthropic SDK or other server-only deps in that module). Re-export
@@ -492,13 +496,42 @@ function isFounderOrCeo(user: AirtableUser): boolean {
 // appears word-boundary in the audience text.
 const STOPWORDS = new Set(['and', 'the', 'for', 'with', 'from', 'that', 'this', 'are', 'was'])
 
+// Bidirectional abbreviation aliases. When a user's function contains any
+// of these patterns, also check the corresponding audience terms (and vice
+// versa). Covers the common case where audience fields use shorthand
+// ("RevOps", "CS", "GTM") but user profiles use the expanded form.
+const FUNCTION_ABBREV_ALIASES: Array<{ pattern: RegExp; aliases: string[] }> = [
+  { pattern: /\b(revops|rev\s+ops|revenue\s+operations)\b/i,         aliases: ['revops', 'revenue operations', 'rev ops'] },
+  { pattern: /\b(gtm|go.?to.?market)\b/i,                            aliases: ['gtm', 'go-to-market'] },
+  { pattern: /\b(customer\s+success|cs)\b/i,                         aliases: ['customer success', 'cs'] },
+  { pattern: /\b(customer\s+experience|cx)\b/i,                      aliases: ['customer experience', 'cx'] },
+  { pattern: /\b(business\s+development|biz\s*dev)\b/i,              aliases: ['business development', 'bizdev'] },
+  { pattern: /\b(demand\s+gen|demand\s+generation)\b/i,              aliases: ['demand gen', 'demand generation'] },
+  { pattern: /\b(account\s+management|am)\b/i,                       aliases: ['account management'] },
+  { pattern: /\b(human\s+resources|hr|people\s+ops|people\s+operations)\b/i, aliases: ['hr', 'human resources', 'people ops'] },
+  { pattern: /\b(supply\s+chain|scm)\b/i,                            aliases: ['supply chain'] },
+]
+
 function matchesAudienceKeyword(event: AirtableEvent, user: AirtableUser): boolean {
   const audienceText = (event.audience ?? []).join(' ')
-  const tokens = (user.function ?? '')
+  const fn = user.function ?? ''
+
+  // Direct token check
+  const tokens = fn
     .split(/[\s,/]+/)
     .map((t) => t.toLowerCase())
     .filter((t) => t.length >= 4 && !STOPWORDS.has(t))
-  return tokens.some((t) => new RegExp(`\\b${escapeRegex(t)}\\b`, 'i').test(audienceText))
+  if (tokens.some((t) => new RegExp(`\\b${escapeRegex(t)}\\b`, 'i').test(audienceText))) return true
+
+  // Abbreviation alias check: if the user's function matches a known alias
+  // group, also test the audience against all aliases in that group.
+  for (const { pattern, aliases } of FUNCTION_ABBREV_ALIASES) {
+    if (pattern.test(fn)) {
+      if (aliases.some((a) => new RegExp(`\\b${escapeRegex(a)}\\b`, 'i').test(audienceText))) return true
+    }
+  }
+
+  return false
 }
 
 // Hard ceiling on the LLM's audience score. Prevents description bleed
@@ -520,8 +553,8 @@ function audienceCeiling(event: AirtableEvent, user: AirtableUser): number {
   // Founder/CEO oversight exception → they can attend any senior event
   if (isFounderOrCeo(user)) return 0.8
 
-  // Keyword overlap → adjacency tier max
-  if (matchesAudienceKeyword(event, user)) return 0.8
+  // Keyword overlap → person's function IS in the audience, unconstrained
+  if (matchesAudienceKeyword(event, user)) return 1.5
 
   // No match path → hard cap at adjacent tier
   return 0.6
