@@ -29,6 +29,18 @@ function RateThanksContent() {
   const [magicEmail, setMagicEmail] = useState('')
   const [magicState, setMagicState] = useState<'idle' | 'sending' | 'sent'>('idle')
 
+  // Event details for interested / not_a_fit pages
+  const [event, setEvent] = useState<{ name: string; link: string | null } | null>(null)
+
+  useEffect(() => {
+    if (!eventId) return
+    if (rating !== 'interested' && rating !== 'not_a_fit') return
+    fetch(`/api/events/${encodeURIComponent(eventId)}`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => { if (d?.event) setEvent(d.event) })
+      .catch(() => {})
+  }, [rating, eventId])
+
   useEffect(() => {
     if (rating !== 'not_a_fit') return
     fetch('/api/auth/me')
@@ -112,29 +124,44 @@ function RateThanksContent() {
     return (
       <div style={page}>
         <div style={card}>
-          <div style={{ fontSize: 40, marginBottom: 14 }}>📅</div>
-          <div style={{ fontFamily: SERIF, fontSize: 32, color: ink, marginBottom: 12, lineHeight: 1.1 }}>
-            You&apos;re interested!
+          <div style={{ fontFamily: SERIF, fontSize: 32, color: ink, marginBottom: 14, lineHeight: 1.1 }}>
+            Thanks for the feedback
           </div>
-          <p style={{ color: muted, fontSize: 15, lineHeight: 1.65, margin: '0 0 28px' }}>
-            Great — we&apos;ll use this to surface more events like it for you.
+          <p style={{ color: muted, fontSize: 15, lineHeight: 1.65, margin: '0 0 24px' }}>
+            Your feedback helps us improve the matches we send.
           </p>
-          <div style={{ background: 'rgba(201,168,106,0.08)', border: '1px solid rgba(201,168,106,0.2)', borderRadius: 12, padding: '18px 20px', marginBottom: 28, textAlign: 'left' }}>
+
+          {event && (
+            <p style={{ color: muted, fontSize: 15, lineHeight: 1.65, margin: '0 0 24px' }}>
+              If you haven&apos;t yet registered for{' '}
+              {event.link ? (
+                <a href={event.link} target="_blank" rel="noopener noreferrer" style={{ color: gold, textDecoration: 'none' }}>
+                  {event.name}
+                </a>
+              ) : (
+                <span style={{ color: ink }}>{event.name}</span>
+              )}{' '}
+              click to visit the host&apos;s site and register.
+            </p>
+          )}
+
+          <div style={{ background: 'rgba(201,168,106,0.06)', border: '1px solid rgba(201,168,106,0.15)', borderRadius: 12, padding: '18px 20px', marginBottom: 24, textAlign: 'left' }}>
             <div style={{ color: gold, fontSize: 12, letterSpacing: '.07em', textTransform: 'uppercase', marginBottom: 8 }}>
-              Know an event we should feature?
+              Please note
             </div>
-            <p style={{ color: ink, fontSize: 14, lineHeight: 1.6, margin: 0 }}>
-              Email any event link to{' '}
-              <a href="mailto:event@whispered.com" style={{ color: gold, textDecoration: 'none' }}>
-                event@whispered.com
-              </a>{' '}
-              and we&apos;ll add it to the platform.
+            <p style={{ color: muted, fontSize: 14, lineHeight: 1.65, margin: 0 }}>
+              We collaborate with many hosts to make matches but each host decides who attends; we just point you to the right rooms and make the best matches we can. Your feedback helps us constantly improve.
             </p>
           </div>
-          <a
-            href="/dashboard"
-            style={{ color: muted, fontSize: 13, textDecoration: 'none' }}
-          >
+
+          <p style={{ color: muted, fontSize: 14, lineHeight: 1.6, margin: '0 0 24px' }}>
+            Questions? Email our team at{' '}
+            <a href="mailto:team@whisperedevents.com" style={{ color: gold, textDecoration: 'none' }}>
+              team@whisperedevents.com
+            </a>
+          </p>
+
+          <a href="/dashboard" style={{ color: muted, fontSize: 13, textDecoration: 'none' }}>
             ← Back to dashboard
           </a>
         </div>

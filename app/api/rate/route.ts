@@ -53,9 +53,9 @@ export async function GET(req: NextRequest) {
     console.error('email rate error:', err instanceof Error ? err.message : String(err))
   }
 
-  const dest = rating === 'not_a_fit'
-    ? `${BASE_URL}/rate/thanks?rating=not_a_fit&eventId=${encodeURIComponent(eventId)}`
-    : `${BASE_URL}/rate/thanks?rating=${rating}`
+  const dest = rating === 'hide'
+    ? `${BASE_URL}/rate/thanks?rating=hide`
+    : `${BASE_URL}/rate/thanks?rating=${rating}&eventId=${encodeURIComponent(eventId)}`
 
   return NextResponse.redirect(dest)
 }
