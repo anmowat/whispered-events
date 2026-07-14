@@ -690,10 +690,10 @@ function Landing({
               <div
                 className="mb-[18px]"
                 style={{
-                  fontSize: 11,
+                  fontSize: 13,
                   letterSpacing: '.3em',
                   textTransform: 'uppercase',
-                  color: 'rgba(236,230,218,.4)',
+                  color: 'rgba(236,230,218,1)',
                 }}
               >
                 {featuredLabel}
@@ -1068,7 +1068,7 @@ function SideEventBanners({
     <section className="max-w-[1200px] mx-auto pb-10">
       <div
         className="px-5 sm:px-11"
-        style={{ fontSize: 11, letterSpacing: '.3em', textTransform: 'uppercase', color: 'rgba(236,230,218,.4)', marginBottom: 18 }}
+        style={{ fontSize: 13, letterSpacing: '.3em', textTransform: 'uppercase', color: 'rgba(236,230,218,1)', marginBottom: 18 }}
       >
         Whispered Side Events
       </div>
