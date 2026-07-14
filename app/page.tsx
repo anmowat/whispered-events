@@ -735,14 +735,8 @@ function Landing({
           style={{ background: '#251e19', border: '1px solid rgba(201,168,106,0.2)', borderRadius: 18, padding: '36px 32px', maxWidth: 440, width: '100%', textAlign: 'center' }}
           onClick={(e) => e.stopPropagation()}
         >
-          <p style={{ fontFamily: `'Cormorant Garamond', Georgia, serif`, fontSize: 26, color: '#ece6da', lineHeight: 1.15, margin: '0 0 18px' }}>
-            This event has passed.
-          </p>
-          <p style={{ fontSize: 15, color: '#9c8b7e', lineHeight: 1.65, margin: '0 0 10px' }}>
-            You&apos;ve clicked on an event that has happened in the past. We feature these to help people understand the types of events we curate.
-          </p>
           <p style={{ fontSize: 15, color: '#9c8b7e', lineHeight: 1.65, margin: '0 0 28px' }}>
-            We only show upcoming events to current members who match those events. Create your free profile and get matched to events.
+            This event already happened — we show past events as examples of what we curate. Upcoming events go only to members they match. Create a free profile to get matched.
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {pastEventLink && (
