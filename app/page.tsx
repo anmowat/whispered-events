@@ -752,7 +752,7 @@ function Landing({
                 rel="noopener noreferrer"
                 style={{ display: 'block', background: 'rgba(201,168,106,0.12)', color: '#c9a86a', border: '1px solid rgba(201,168,106,0.3)', borderRadius: 99, padding: '12px 28px', fontSize: 14, fontWeight: 600, textDecoration: 'none' }}
               >
-                View event registration →
+                View event page →
               </a>
             )}
             <button
