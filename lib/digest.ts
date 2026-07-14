@@ -5,7 +5,7 @@ import {
 import { getActiveUsers } from './users'
 import { getFutureEvents } from './events'
 import { isMatchEligible, NEARBY_RADIUS_MILES } from './matching'
-import { sendUserDigest, sendCoaching, sendRecap } from './email'
+import { sendUserDigest, sendCoaching, sendRecap, sendStalemateNudge } from './email'
 import type { DigestEventEntry } from './email'
 import { withinMiles } from './geocode'
 import {
@@ -17,6 +17,8 @@ import {
   markMatchesNotified,
   getDigestState,
   upsertDigestState,
+  getTopUnratedFutureMatchIds,
+  getNeverRatedFutureMatchCount,
 } from './supabase'
 
 export const DIGEST_CAP_PER_SECTION = 3
@@ -81,39 +83,75 @@ function toEntries(
   return entries
 }
 
+const ENGAGEMENT_CAP = 7
+const STALEMATE_FLOOR_DAYS = 28
+
 async function processUser(
   user: AirtableUser,
   futureById: Map<string, AirtableEvent>,
 ): Promise<{ sent: boolean }> {
   const futureIds = Array.from(futureById.keys())
-  const newMatches = await getUnnotifiedMatchesForUser(
-    user.id,
-    futureIds,
-  )
-  const eligibleNew = newMatches.filter((m) => m.host_rating !== 'down')
-  if (eligibleNew.length === 0) return { sent: false }
 
-  const topNew = eligibleNew.slice(0, DIGEST_CAP_PER_SECTION)
+  // Engagement gate: only send digests for events in the user's top-7 never-rated slots.
+  const topUnratedIds = new Set(await getTopUnratedFutureMatchIds(user.id, futureIds, ENGAGEMENT_CAP))
 
-  // Top Matches = absolute top 3 upcoming above threshold; overlap with
-  // New is allowed (the email template renders dupes compactly).
-  const allUpcoming = await getUpcomingMatchesForUser(
-    user.id,
-    futureIds,
-  )
-  const top = allUpcoming.filter((m) => m.host_rating !== 'down').slice(0, DIGEST_CAP_PER_SECTION)
-
-  await sendUserDigest(user, {
-    newEvents: toEntries(topNew, futureById),
-    topMatches: toEntries(top, futureById),
-    totalUpcomingMatches: allUpcoming.length,
-  })
-
-  await markMatchesNotified(
-    topNew.map((m) => ({ eventId: m.event_id, userId: user.id })),
+  const newMatches = await getUnnotifiedMatchesForUser(user.id, futureIds)
+  const eligibleNew = newMatches.filter(
+    (m) => m.host_rating !== 'down' && topUnratedIds.has(m.event_id),
   )
 
-  return { sent: true }
+  if (eligibleNew.length > 0) {
+    const topNew = eligibleNew.slice(0, DIGEST_CAP_PER_SECTION)
+
+    // Top Matches = absolute top 3 upcoming above threshold; overlap with
+    // New is allowed (the email template renders dupes compactly).
+    const allUpcoming = await getUpcomingMatchesForUser(user.id, futureIds)
+    const top = allUpcoming.filter((m) => m.host_rating !== 'down').slice(0, DIGEST_CAP_PER_SECTION)
+
+    // Compute lockedCount so the email can show a nudge line.
+    const totalNeverRated = await getNeverRatedFutureMatchCount(user.id, futureIds)
+    const lockedCount = Math.max(0, totalNeverRated - ENGAGEMENT_CAP)
+
+    await sendUserDigest(user, {
+      newEvents: toEntries(topNew, futureById),
+      topMatches: toEntries(top, futureById),
+      totalUpcomingMatches: allUpcoming.length,
+      lockedCount,
+    })
+
+    await markMatchesNotified(
+      topNew.map((m) => ({ eventId: m.event_id, userId: user.id })),
+    )
+
+    return { sent: true }
+  }
+
+  // Stalemate nudge: user has locked matches, nothing new to send, never rated anything.
+  // Only fires when all top-7 were already notified and none have been rated.
+  const totalNeverRated = await getNeverRatedFutureMatchCount(user.id, futureIds)
+  const lockedCount = Math.max(0, totalNeverRated - ENGAGEMENT_CAP)
+  if (lockedCount > 0) {
+    const state = await getDigestState(user.id)
+    const lastSent = state?.last_monthly_digest_sent_at
+      ? new Date(state.last_monthly_digest_sent_at)
+      : null
+    const daysSince = lastSent
+      ? (Date.now() - lastSent.getTime()) / 86_400_000
+      : Infinity
+    if (daysSince >= STALEMATE_FLOOR_DAYS) {
+      await sendStalemateNudge(user, lockedCount)
+      // We store stalemate sends in user_digest_state.last_monthly_digest_sent_at
+      // so the 28-day floor applies. next_monthly_digest_at is left unchanged.
+      const nowIso = new Date().toISOString()
+      await upsertDigestState(user.id, {
+        nextMonthly: state?.next_monthly_digest_at ?? nowIso.slice(0, 10),
+        lastSent: nowIso,
+      })
+      return { sent: true }
+    }
+  }
+
+  return { sent: false }
 }
 
 // Coaching = nudge for users with nothing to send. Gated by grade

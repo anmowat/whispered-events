@@ -205,6 +205,7 @@ export interface UserMatchScore {
   rating: MatchRating | null
   ratingReason: string | null
   hostRating: 'up' | 'down' | null
+  firstRatedAt: string | null
 }
 
 export async function getMatchScoresForUser(
@@ -213,7 +214,7 @@ export async function getMatchScoresForUser(
   const supabase = getClient()
   const { data } = await supabase
     .from('matches')
-    .select('event_id, score, match_percent, rating, rating_reason, host_rating')
+    .select('event_id, score, match_percent, rating, rating_reason, host_rating, first_rated_at')
     .eq('user_id', userId)
   const scores = new Map<string, UserMatchScore>()
   for (const row of data ?? []) {
@@ -224,6 +225,7 @@ export async function getMatchScoresForUser(
       rating: MatchRating | null
       rating_reason: string | null
       host_rating: 'up' | 'down' | null
+      first_rated_at: string | null
     }
     const prev = scores.get(r.event_id)?.score ?? -1
     if (r.score > prev) {
@@ -233,6 +235,7 @@ export async function getMatchScoresForUser(
         rating: r.rating,
         ratingReason: r.rating_reason,
         hostRating: r.host_rating,
+        firstRatedAt: r.first_rated_at,
       })
     }
   }
@@ -258,12 +261,54 @@ export async function setMatchRating(params: {
       // explanation on a row the user later changed.
       rating_reason: params.rating === 'not_a_fit' ? params.reason : null,
       rated_at: params.rating ? new Date().toISOString() : null,
+      // first_rated_at is set on first rating and never cleared — used by
+      // the engagement gate (slot permanence). Re-stamping on subsequent
+      // ratings is harmless since we only test IS NULL / IS NOT NULL.
+      ...(params.rating ? { first_rated_at: new Date().toISOString() } : {}),
     })
     .eq('event_id', params.eventId)
     .eq('user_id', params.userId)
     .select('event_id')
   if (error) throw new Error(`setMatchRating failed: ${error.message}`)
   return (data?.length ?? 0) > 0
+}
+
+// Top-N never-rated future matches by match_percent, for the engagement gate.
+// "Never rated" = first_rated_at IS NULL (permanent; un-rating doesn't free the slot).
+export async function getTopUnratedFutureMatchIds(
+  userId: string,
+  futureEventIds: string[],
+  limit = 7,
+): Promise<string[]> {
+  if (futureEventIds.length === 0) return []
+  const supabase = getClient()
+  const { data } = await supabase
+    .from('matches')
+    .select('event_id')
+    .eq('user_id', userId)
+    .in('event_id', futureEventIds)
+    .is('first_rated_at', null)
+    .gte('match_percent', MATCH_PERCENT_THRESHOLD)
+    .order('match_percent', { ascending: false })
+    .limit(limit)
+  return (data ?? []).map((r: { event_id: string }) => r.event_id)
+}
+
+// Total never-rated future match count — used to compute lockedCount.
+export async function getNeverRatedFutureMatchCount(
+  userId: string,
+  futureEventIds: string[],
+): Promise<number> {
+  if (futureEventIds.length === 0) return 0
+  const supabase = getClient()
+  const { count } = await supabase
+    .from('matches')
+    .select('event_id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .in('event_id', futureEventIds)
+    .is('first_rated_at', null)
+    .gte('match_percent', MATCH_PERCENT_THRESHOLD)
+  return count ?? 0
 }
 
 // Aggregates lifetime up/down counts per user. Drives the "Rating"

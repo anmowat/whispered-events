@@ -3,9 +3,10 @@ import { verifySession, getMatchScoresForUser } from '@/lib/supabase'
 import { getFutureEvents } from '@/lib/events'
 
 const MATCH_PERCENT_THRESHOLD = 40
+const ENGAGEMENT_CAP = 7
 
 // Returns upcoming events where match_percent >= 40 for the logged-in user.
-// Pass ?all=1 to bypass the filter (admin/debug).
+// Pass ?all=1 to bypass the engagement cap and rating filter (admin/debug).
 export async function GET(req: NextRequest) {
   const sessionToken = req.cookies.get('session')?.value
 
@@ -35,6 +36,7 @@ export async function GET(req: NextRequest) {
       rating: entry?.rating ?? null,
       ratingReason: entry?.ratingReason ?? null,
       hostRating: entry?.hostRating ?? null,
+      firstRatedAt: entry?.firstRatedAt ?? null,
     }
   })
 
@@ -50,6 +52,17 @@ export async function GET(req: NextRequest) {
           e.hostRating !== 'down',
       )
 
-  const events = filtered.sort((a, b) => a.date.localeCompare(b.date))
-  return NextResponse.json({ events })
+  // Engagement gate: cap never-rated matches at ENGAGEMENT_CAP.
+  // Ever-rated matches (first_rated_at IS NOT NULL) always stay visible.
+  // Un-rating a match doesn't free its slot — first_rated_at is permanent.
+  const everRated = filtered.filter((e) => e.firstRatedAt != null)
+  const neverRated = filtered
+    .filter((e) => e.firstRatedAt == null)
+    .sort((a, b) => (b.matchPercent ?? 0) - (a.matchPercent ?? 0))
+
+  const cappedUnrated = showAll ? neverRated : neverRated.slice(0, ENGAGEMENT_CAP)
+  const lockedCount = showAll ? 0 : Math.max(0, neverRated.length - ENGAGEMENT_CAP)
+
+  const events = [...everRated, ...cappedUnrated].sort((a, b) => a.date.localeCompare(b.date))
+  return NextResponse.json({ events, lockedCount })
 }

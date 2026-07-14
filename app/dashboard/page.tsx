@@ -70,6 +70,7 @@ const DEFAULT_RATINGS: Rating[] = ['interested', 'unrated']
 export default function DashboardPage() {
   const [user, setUser] = useState<DashboardUser | null>(null)
   const [events, setEvents] = useState<DashboardEvent[]>([])
+  const [lockedCount, setLockedCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [editingBio, setEditingBio] = useState(false)
   const [editingTopics, setEditingTopics] = useState(false)
@@ -120,8 +121,9 @@ export default function DashboardPage() {
 
       const eventsRes = await fetch('/api/dashboard/events')
       if (eventsRes.ok) {
-        const eventsData = (await eventsRes.json()) as { events: DashboardEvent[] }
+        const eventsData = (await eventsRes.json()) as { events: DashboardEvent[]; lockedCount?: number }
         setEvents(eventsData.events)
+        setLockedCount(eventsData.lockedCount ?? 0)
       }
       setLoading(false)
     }
@@ -351,6 +353,24 @@ export default function DashboardPage() {
             >
               No events match these filters.
             </p>
+          )}
+
+          {lockedCount > 0 && (
+            <div
+              className="rounded-card border px-4 py-3 mt-5"
+              style={{
+                border: '1px solid rgba(201,168,106,0.2)',
+                background: 'rgba(201,168,106,0.06)',
+              }}
+            >
+              <span style={{ marginRight: 8 }}>🔒</span>
+              <strong style={{ color: 'var(--accent)' }}>
+                You have {lockedCount} more match{lockedCount === 1 ? '' : 'es'} waiting.
+              </strong>{' '}
+              <span style={{ color: 'var(--ink-3)', fontSize: 14 }}>
+                Rate the events above to unlock new matches.
+              </span>
+            </div>
           )}
 
         </section>

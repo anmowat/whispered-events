@@ -1059,6 +1059,9 @@ export interface DigestPayload {
   // users with backlogs at least know the truncation exists. When
   // omitted or equal to newEvents.length the line is hidden.
   totalUpcomingMatches?: number
+  // Number of never-rated matches beyond the 7-slot cap. When > 0,
+  // a nudge line is appended after the match list.
+  lockedCount?: number
 }
 
 export function firstNameOrThere(user: AirtableUser): string {
@@ -1431,12 +1434,20 @@ export async function sendUserDigest(
   const moreHtml = moreOnDashboardHtml(moreCount)
   const moreText = moreOnDashboardTextLine(moreCount)
 
+  const lockedNudgeHtml = (payload.lockedCount ?? 0) > 0
+    ? `<p style="font-family:${SANS};font-size:14px;line-height:1.6;color:${C.ink2};margin:20px 0 0;"><strong style="color:${C.ink};">You have ${payload.lockedCount} more match${(payload.lockedCount ?? 0) === 1 ? '' : 'es'} waiting.</strong> Rate your current matches to unlock them — <a href="${DASHBOARD_LINK}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">view your dashboard →</a></p>`
+    : ''
+  const lockedNudgeText = (payload.lockedCount ?? 0) > 0
+    ? `You have ${payload.lockedCount} more match${(payload.lockedCount ?? 0) === 1 ? '' : 'es'} waiting. Rate your current matches to unlock them — ${DASHBOARD_LINK}`
+    : ''
+
   const html = shell(`
     ${eyebrowMarkup}
     ${h1(`New <span style="font-style:italic;">whispers</span> for ${escapeHtml(firstName)}.`)}
     ${p(introCopy, { mt: 12 })}
     ${renderEntries(annotated.newEvents, user.id)}
     ${moreHtml}
+    ${lockedNudgeHtml}
     ${digestFooterHtml(firstName)}
   `)
 
@@ -1465,6 +1476,7 @@ export async function sendUserDigest(
   }
   appendEntries(annotated.newEvents)
   if (moreText) textLines.push(moreText, '')
+  if (lockedNudgeText) textLines.push(lockedNudgeText, '')
   textLines.push(...digestFooterTextLines(firstName))
   const text = textLines.join('\n')
 
@@ -1487,5 +1499,58 @@ export async function sendUserDigest(
     userEmail: user.email,
     kind,
     eventIds: Array.from(new Set(eventIds)),
+  })
+}
+
+// Stalemate nudge: sent when a user has locked matches but all top-7
+// have already been notified and they've never rated anything.
+// Standalone email (no match list). Gated to 28 days via digest_state.
+export async function sendStalemateNudge(
+  user: AirtableUser,
+  lockedCount: number,
+): Promise<void> {
+  const resend = getResend()
+  const firstName = firstNameOrThere(user)
+  const safeName = escapeHtml(firstName)
+  const noun = lockedCount === 1 ? 'match' : 'matches'
+
+  const html = shell(`
+    ${h1(`Hi <span style="font-style:italic;">${safeName}</span> — you have matches waiting.`)}
+    ${p(`You have <strong style="color:${C.ink};">${lockedCount} more ${noun} waiting</strong> on Whispered Events.`, { mt: 14 })}
+    ${p(`We only unlock new matches for members who've rated their current events — it helps us improve your recommendations. Just a quick ✓ Interested or ✕ Not a fit on any match opens a new slot.`, { mt: 12 })}
+    ${accentButton(DASHBOARD_LINK, 'Rate your matches on the dashboard')}
+    ${digestFooterHtml(firstName)}
+  `)
+
+  const text = [
+    `Hi ${firstName} — you have matches waiting.`,
+    '',
+    `You have ${lockedCount} more ${noun} waiting on Whispered Events.`,
+    '',
+    `We only unlock new matches for members who've rated their current events — it helps us improve your recommendations. Just a quick Interested or Not a fit on any match opens a new slot.`,
+    '',
+    `Rate your matches on the dashboard: ${DASHBOARD_LINK}`,
+    '',
+    ...digestFooterTextLines(firstName),
+  ].join('\n')
+
+  const { error } = await resend.emails.send({
+    from: TEAM_FROM,
+    to: user.email,
+    bcc: MONITOR_BCC,
+    subject: 'You have matches waiting — here\'s how to unlock them',
+    html: personalizeDashboardLinks(html, user.email),
+    text: personalizeDashboardLinks(text, user.email),
+    headers: AUTO_HEADERS,
+  })
+  if (error) {
+    console.error('sendStalemateNudge: Resend error', { email: user.email, error })
+    throw new Error(`Resend send failed: ${error.message ?? JSON.stringify(error)}`)
+  }
+  await logDigestSend({
+    userId: user.id,
+    userEmail: user.email,
+    kind: 'coaching',
+    eventIds: [],
   })
 }
