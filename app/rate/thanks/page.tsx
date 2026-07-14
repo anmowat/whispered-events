@@ -161,8 +161,8 @@ function RateThanksContent() {
             </a>
           </p>
 
-          <a href="/dashboard" style={{ color: muted, fontSize: 13, textDecoration: 'none' }}>
-            ← Back to dashboard
+          <a href="/dashboard" style={{ color: gold, fontSize: 14, textDecoration: 'none' }}>
+            Visit your dashboard to see all your matches
           </a>
         </div>
       </div>
@@ -251,8 +251,8 @@ function RateThanksContent() {
           )}
 
           <div style={{ marginTop: 28 }}>
-            <a href="/dashboard" style={{ color: muted, fontSize: 13, textDecoration: 'none' }}>
-              ← Back to dashboard
+            <a href="/dashboard" style={{ color: gold, fontSize: 14, textDecoration: 'none' }}>
+              Visit your dashboard to see all your matches
             </a>
           </div>
         </div>
@@ -264,15 +264,21 @@ function RateThanksContent() {
     return (
       <div style={page}>
         <div style={card}>
-          <div style={{ fontSize: 40, marginBottom: 14 }}>♡</div>
+          <div style={{ fontSize: 40, marginBottom: 14 }}>💙</div>
           <div style={{ fontFamily: SERIF, fontSize: 32, color: ink, marginBottom: 12, lineHeight: 1.1 }}>
             Noted!
           </div>
-          <p style={{ color: muted, fontSize: 15, lineHeight: 1.65, margin: '0 0 28px' }}>
-            Thanks for letting us know — we&apos;ll keep showing you events like this in case your schedule changes.
+          <p style={{ color: muted, fontSize: 15, lineHeight: 1.65, margin: '0 0 24px' }}>
+            Thanks for letting us know — we&apos;ll hide this event on your dashboard (you can still find it by adjusting the filter) but continue to show you similar events.
           </p>
-          <a href="/dashboard" style={{ color: muted, fontSize: 13, textDecoration: 'none' }}>
-            ← Back to dashboard
+          <p style={{ color: muted, fontSize: 14, lineHeight: 1.6, margin: '0 0 24px' }}>
+            Questions? Email our team at{' '}
+            <a href="mailto:team@whisperedevents.com" style={{ color: gold, textDecoration: 'none' }}>
+              team@whisperedevents.com
+            </a>
+          </p>
+          <a href="/dashboard" style={{ color: gold, fontSize: 14, textDecoration: 'none' }}>
+            Visit your dashboard to see all your matches
           </a>
         </div>
       </div>
