@@ -210,6 +210,8 @@ export default function AdminPage() {
   const [filters, setFilters] = useState<AdminFilterState>(emptyFilterState())
   const [rescoring, setRescoring] = useState(false)
   const [rescoreResult, setRescoreResult] = useState<string | null>(null)
+  const [rescoreProgress, setRescoreProgress] = useState<{ scored: number; total: number; pass: number } | null>(null)
+  const rescoreCancelled = useRef(false)
   const [refreshingCache, setRefreshingCache] = useState(false)
   const [loadingCounts, setLoadingCounts] = useState(false)
   const [cacheResult, setCacheResult] = useState<string | null>(null)
@@ -306,23 +308,27 @@ export default function AdminPage() {
 
   async function rescoreMissing() {
     if (rescoring) return
+    rescoreCancelled.current = false
     setRescoring(true)
     setRescoreResult(null)
-    // The endpoint scores until ~280s elapsed and returns done=false when
-    // the deadline cuts the work short. We loop until done=true so a
-    // version bump that invalidates thousands of pairs actually finishes
-    // instead of getting wedged by Vercel's 5-min function ceiling.
-    // MAX_PASSES is a runaway-loop guard; in practice 1-3 passes is plenty.
-    const MAX_PASSES = 12
+    setRescoreProgress(null)
+    const MAX_PASSES = 100
     let totalScored = 0
     let totalFailed = 0
     let pass = 0
+    let pairsTotal = 0
     try {
       while (pass < MAX_PASSES) {
+        if (rescoreCancelled.current) {
+          setRescoreResult(`Cancelled after ${pass} pass${pass === 1 ? '' : 'es'} — scored ${totalScored}`)
+          fetchCounts()
+          return
+        }
         pass++
         const res = await fetch('/api/admin/rescore-missing', { method: 'POST' })
         const data = (await res.json().catch(() => ({}))) as {
           done?: boolean
+          pairsTotal?: number
           pairsMissing?: number
           pairsStale?: number
           scored?: number
@@ -335,8 +341,10 @@ export default function AdminPage() {
         }
         totalScored += data.scored ?? 0
         totalFailed += data.failed ?? 0
-        const remaining = (data.pairsMissing ?? 0) + (data.pairsStale ?? 0) - (data.scored ?? 0)
+        if (data.pairsTotal) pairsTotal = data.pairsTotal
+        setRescoreProgress({ scored: totalScored, total: pairsTotal, pass })
         if (data.done) {
+          setRescoreProgress(null)
           setRescoreResult(
             `Done in ${pass} pass${pass === 1 ? '' : 'es'} — scored ${totalScored} pair${
               totalScored === 1 ? '' : 's'
@@ -345,9 +353,6 @@ export default function AdminPage() {
           fetchCounts()
           return
         }
-        setRescoreResult(
-          `Pass ${pass}: scored ${totalScored} so far, ~${Math.max(0, remaining)} remaining…`,
-        )
       }
       setRescoreResult(
         `Stopped after ${MAX_PASSES} passes — scored ${totalScored}${
@@ -359,6 +364,7 @@ export default function AdminPage() {
       setRescoreResult(`Error: ${e instanceof Error ? e.message : String(e)}`)
     } finally {
       setRescoring(false)
+      setRescoreProgress(null)
     }
   }
 
@@ -495,7 +501,22 @@ export default function AdminPage() {
                 >
                   {refreshingCache ? 'Refreshing…' : 'Refresh homepage'}
                 </button>
-                {rescoreResult && (
+                {rescoreProgress && (
+                  <div className="flex flex-col gap-1 min-w-[180px]">
+                    <span className="text-xs text-gray-500">
+                      Pass {rescoreProgress.pass} — {rescoreProgress.scored}{rescoreProgress.total ? ` / ${rescoreProgress.total}` : ''} pairs scored…
+                    </span>
+                    {rescoreProgress.total > 0 && (
+                      <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-amber-500 rounded-full transition-all duration-300"
+                          style={{ width: `${Math.min(100, (rescoreProgress.scored / rescoreProgress.total) * 100)}%` }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+                {rescoreResult && !rescoreProgress && (
                   <span className="text-xs text-gray-500">{rescoreResult}</span>
                 )}
                 <button
@@ -505,6 +526,14 @@ export default function AdminPage() {
                 >
                   {rescoring ? 'Rescoring…' : 'Rescore missing + stale matches'}
                 </button>
+                {rescoring && (
+                  <button
+                    onClick={() => { rescoreCancelled.current = true }}
+                    className="px-3 py-1.5 rounded-lg border border-red-200 bg-white text-xs text-red-500 hover:bg-red-50 transition-colors shadow-sm"
+                  >
+                    Cancel
+                  </button>
+                )}
                 <button
                   onClick={fetchCounts}
                   disabled={loadingCounts}
