@@ -28,6 +28,8 @@ interface HostMatch {
   function: string
   seniority: string
   interest: string
+  employment: string
+  companySize: string
   matchPercent: number
   score: number | null
   locationScore: number | null
@@ -523,6 +525,7 @@ export default function HostEventDetailPage() {
                         Seniority <SortArrow col="seniority" sortBy={matchSortBy} dir={matchSortDir} />
                       </button>
                     </th>
+                    <th className="text-left px-4 py-3 eyebrow">Size / Status</th>
                     <th className="text-left px-4 py-3 eyebrow">Interest</th>
                     <th className="text-right px-4 py-3">
                       <button onClick={() => toggleMatchSort('matchPercent')} className="eyebrow" style={{ cursor: 'pointer', background: 'none', border: 'none', padding: 0, display: 'flex', alignItems: 'center', gap: 4, marginLeft: 'auto' }}>
@@ -589,6 +592,11 @@ export default function HostEventDetailPage() {
                       </td>
                       <td className="px-4 py-3" style={{ color: 'var(--ink-2)' }}>
                         {m.seniority || <span className="italic" style={{ color: 'var(--ink-3)' }}>—</span>}
+                      </td>
+                      <td className="px-4 py-3" style={{ color: 'var(--ink-2)' }}>
+                        {m.employment === 'Employed'
+                          ? (m.companySize || <span className="italic" style={{ color: 'var(--ink-3)' }}>—</span>)
+                          : (m.employment || <span className="italic" style={{ color: 'var(--ink-3)' }}>—</span>)}
                       </td>
                       <td
                         className="px-4 py-3 max-w-xs truncate"
