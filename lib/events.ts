@@ -397,7 +397,7 @@ export async function checkDuplicate(
       : 0
     const nameMatch = nameSimilarity > 0.7
     const dateMatch = !!(date && row.date === date)
-    if ((nameMatch && dateMatch) || nameSimilarity > 0.9) {
+    if ((nameMatch || nameSimilarity > 0.9) && dateMatch) {
       return buildDuplicateResult(row)
     }
   }

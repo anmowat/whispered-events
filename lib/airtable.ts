@@ -229,7 +229,7 @@ export async function checkDuplicate(
     const nameMatch = nameSimilarity > 0.7
     const dateMatch = !!(date && record.get('Date') === date)
 
-    if ((nameMatch && dateMatch) || nameSimilarity > 0.9) {
+    if ((nameMatch || nameSimilarity > 0.9) && dateMatch) {
       return buildDuplicateResult(record)
     }
   }

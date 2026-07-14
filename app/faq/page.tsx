@@ -263,9 +263,9 @@ export default function FaqPage() {
               A:
             </strong>
             At signup, we collect your LinkedIn profile, email, employment
-            status, interests, and location. We never share your email or
-            employment status. We may share your name, interests, and location
-            with partners running events you match for.
+            status, interests, and location. We never share your email but may
+            share your other information with partners running events you match
+            for.
           </p>
         </section>
 
