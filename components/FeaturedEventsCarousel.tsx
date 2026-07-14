@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { FeaturedEvent } from '@/lib/airtable'
 import { formatEventDate } from '@/lib/dates'
+import { withUtm } from '@/lib/url'
 
 interface Props {
   events: FeaturedEvent[]
@@ -65,7 +66,7 @@ export default function FeaturedEventsCarousel({
         <div className="flex items-baseline justify-between gap-3">
           {event.link ? (
             <a
-              href={event.link}
+              href={withUtm(event.link)}
               target="_blank"
               rel="noopener noreferrer"
               className="font-serif leading-tight hover:opacity-90 transition-opacity min-w-0 flex-1"

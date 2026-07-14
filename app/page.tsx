@@ -10,6 +10,7 @@ import LoginModal from '@/components/LoginModal'
 import PartnerMarquee from '@/components/PartnerMarquee'
 import { Partner, FeaturedEvent } from '@/lib/airtable'
 import { formatEventDate } from '@/lib/dates'
+import { withUtm } from '@/lib/url'
 
 type Mode = 'landing' | 'active'
 
@@ -979,7 +980,7 @@ function FeaturedRow({ event }: { event: FeaturedEvent }) {
   )
   if (!event.link) return body
   return (
-    <a href={event.link} target="_blank" rel="noopener noreferrer" className="block">
+    <a href={withUtm(event.link)} target="_blank" rel="noopener noreferrer" className="block">
       {body}
     </a>
   )

@@ -1,6 +1,7 @@
 'use client'
 
 import { Suspense, useEffect, useState } from 'react'
+import { withUtm } from '@/lib/url'
 import { useSearchParams } from 'next/navigation'
 
 const SERIF = `'Cormorant Garamond', Georgia, 'Times New Roman', serif`
@@ -135,7 +136,7 @@ function RateThanksContent() {
             <p style={{ color: muted, fontSize: 15, lineHeight: 1.65, margin: '0 0 24px' }}>
               If you haven&apos;t yet registered for{' '}
               {event.link ? (
-                <a href={event.link} target="_blank" rel="noopener noreferrer" style={{ color: gold, textDecoration: 'none' }}>
+                <a href={withUtm(event.link)} target="_blank" rel="noopener noreferrer" style={{ color: gold, textDecoration: 'none' }}>
                   {event.name}
                 </a>
               ) : (

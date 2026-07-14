@@ -6,6 +6,7 @@ import { formatEventDate } from '@/lib/dates'
 import Header from '@/components/Header'
 import MultiSelect from '@/components/MultiSelect'
 import TopicChips from '@/components/TopicChips'
+import { withUtm } from '@/lib/url'
 
 interface DashboardUser {
   email: string
@@ -1497,7 +1498,7 @@ function EventCard({
           <div className="flex items-baseline flex-wrap gap-x-3 gap-y-1">
             {event.link ? (
               <a
-                href={event.link}
+                href={withUtm(event.link)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="event-link font-serif"

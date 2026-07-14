@@ -2,6 +2,7 @@ import { Resend } from 'resend'
 import { AirtableEvent, AirtableUser } from './airtable'
 import { logDigestSend } from './supabase'
 import { ratingUrl } from './email-rating'
+import { withUtm } from './url'
 
 function getResend() {
   if (!process.env.RESEND_API_KEY) throw new Error('RESEND_API_KEY must be set')
@@ -1122,7 +1123,7 @@ function renderEntry(entry: DigestEventEntry, userId: string, baseUrl: string): 
   // link treatment.
   return `
 <p style="font-family:${SANS};margin:0;font-size:14.5px;line-height:1.55;">
-  <a href="${event.link}" style="font-family:${SERIF};font-size:17px;color:${C.accent};text-decoration:underline;text-underline-offset:3px;font-weight:400;letter-spacing:-0.01em;">${escapeHtml(event.name)}</a>${datePart}${body}<br><span style="display:inline-block;margin-top:4px;">${ratingHtml}</span>
+  <a href="${withUtm(event.link)}" style="font-family:${SERIF};font-size:17px;color:${C.accent};text-decoration:underline;text-underline-offset:3px;font-weight:400;letter-spacing:-0.01em;">${escapeHtml(event.name)}</a>${datePart}${body}<br><span style="display:inline-block;margin-top:4px;">${ratingHtml}</span>
 </p>
 <div style="margin-bottom:20px;"></div>
 `.trim()
@@ -1228,7 +1229,7 @@ export async function sendApprovedWithDigest(
       const datePart = date ? ` (${date}${city ? ` ${city}` : ''} - ${Math.round(matchPercent)}% Match)` : ` (${Math.round(matchPercent)}% Match)`
       const body = isDuplicate ? ' see above' : event.description ? ` ${event.description}` : ''
       textLines.push(`${event.name}${datePart}${body}`)
-      textLines.push(event.link)
+      textLines.push(withUtm(event.link))
       textLines.push('')
     }
   }
@@ -1325,7 +1326,7 @@ export async function sendLocationUpdatedDigest(
       const datePart = date ? ` (${date}${city ? ` ${city}` : ''} - ${Math.round(matchPercent)}% Match)` : ` (${Math.round(matchPercent)}% Match)`
       const body = isDuplicate ? ' see above' : event.description ? ` ${event.description}` : ''
       textLines.push(`${event.name}${datePart}${body}`)
-      textLines.push(event.link)
+      textLines.push(withUtm(event.link))
       textLines.push('')
     }
   }
@@ -1470,7 +1471,7 @@ export async function sendUserDigest(
       const datePart = date ? ` (${date}${city ? ` ${city}` : ''} - ${Math.round(matchPercent)}% Match)` : ` (${Math.round(matchPercent)}% Match)`
       const body = isDuplicate ? ' see above' : event.description ? ` ${event.description}` : ''
       textLines.push(`${event.name}${datePart}${body}`)
-      textLines.push(event.link)
+      textLines.push(withUtm(event.link))
       textLines.push('')
     }
   }
