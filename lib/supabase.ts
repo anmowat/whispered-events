@@ -761,7 +761,7 @@ export async function touchEmailLastSeen(userId: string): Promise<void> {
     .from('users')
     .update({ email_last_seen_at: new Date().toISOString() })
     .eq('id', userId)
-  if (error) console.error('touchEmailLastSeen error', error)
+  if (error) console.error('touchEmailLastSeen error', { userId, error: error.message })
 }
 
 // Returns user_id -> ISO last_seen_at (latest across sessions OR email clicks).

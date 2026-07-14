@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { waitUntil } from '@vercel/functions'
 import { verifyRatingToken } from '@/lib/email-rating'
 import { setMatchRating, touchEmailLastSeen } from '@/lib/supabase'
+import { getUserById } from '@/lib/users'
+import { getEventById } from '@/lib/events'
+import { sendMatchRatingNotification } from '@/lib/email'
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL ?? 'https://whisperedevents.com'
 
@@ -26,6 +30,25 @@ export async function GET(req: NextRequest) {
   try {
     await setMatchRating({ eventId, userId, rating, reason: null })
     void touchEmailLastSeen(userId)
+
+    waitUntil(
+      (async () => {
+        try {
+          const [user, event] = await Promise.all([getUserById(userId), getEventById(eventId)])
+          if (!user || !event) return
+          await sendMatchRatingNotification({
+            userId,
+            userName: user.name || '',
+            userEmail: user.email,
+            eventName: event.name,
+            rating,
+            reason: null,
+          })
+        } catch (err) {
+          console.error('email rate notification error:', err instanceof Error ? err.message : String(err))
+        }
+      })()
+    )
   } catch (err) {
     console.error('email rate error:', err instanceof Error ? err.message : String(err))
   }
