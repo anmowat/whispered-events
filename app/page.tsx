@@ -564,6 +564,7 @@ function Landing({
   onCTA: () => void
   onSideEvent: (which: 'dreamforce' | 'unbound' | 'sculpt') => void
 }) {
+  const [pastEventLink, setPastEventLink] = useState<string | null>(null)
   // Carousel uses every event we have an image for (no top-N truncation
   // since the user scrolls horizontally instead of seeing them all
   // stacked). Fall back to the top-3 vertical card list when nothing
@@ -574,6 +575,7 @@ function Landing({
   const featuredLabel = 'Example Past Events'
 
   return (
+    <>
     <div className="animate-fade-in" key={tab}>
       {/* Hero */}
       <section className="text-center px-5 sm:px-10 pt-10 sm:pt-[64px] pb-7 sm:pb-7 max-w-[1200px] mx-auto">
@@ -699,11 +701,11 @@ function Landing({
                 {featuredLabel}
               </div>
               {slides.length > 0 ? (
-                <FeaturedCarousel events={slides} />
+                <FeaturedCarousel events={slides} onPastEventClick={(link) => setPastEventLink(link)} />
               ) : (
                 <div className="flex flex-col gap-3">
                   {featuredFallback.map((e) => (
-                    <FeaturedRow key={e.id} event={e} />
+                    <FeaturedRow key={e.id} event={e} onPastEventClick={(link) => setPastEventLink(link)} />
                   ))}
                 </div>
               )}
@@ -723,6 +725,47 @@ function Landing({
             </section>
           )}
     </div>
+
+    {pastEventLink !== null && (
+      <div
+        style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}
+        onClick={() => setPastEventLink(null)}
+      >
+        <div
+          style={{ background: '#251e19', border: '1px solid rgba(201,168,106,0.2)', borderRadius: 18, padding: '36px 32px', maxWidth: 440, width: '100%', textAlign: 'center' }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <p style={{ fontFamily: `'Cormorant Garamond', Georgia, serif`, fontSize: 26, color: '#ece6da', lineHeight: 1.15, margin: '0 0 18px' }}>
+            This event has passed.
+          </p>
+          <p style={{ fontSize: 15, color: '#9c8b7e', lineHeight: 1.65, margin: '0 0 10px' }}>
+            You&apos;ve clicked on an event that has happened in the past. We feature these to help people understand the types of events we curate.
+          </p>
+          <p style={{ fontSize: 15, color: '#9c8b7e', lineHeight: 1.65, margin: '0 0 28px' }}>
+            We only show upcoming events to current members who match those events. Create your free profile and get matched to events.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {pastEventLink && (
+              <a
+                href={withUtm(pastEventLink)}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ display: 'block', background: 'rgba(201,168,106,0.12)', color: '#c9a86a', border: '1px solid rgba(201,168,106,0.3)', borderRadius: 99, padding: '12px 28px', fontSize: 14, fontWeight: 600, textDecoration: 'none' }}
+              >
+                View event registration →
+              </a>
+            )}
+            <button
+              onClick={() => { setPastEventLink(null); onCTA() }}
+              style={{ background: '#c9a86a', color: '#1b1814', border: 'none', borderRadius: 99, padding: '13px 28px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+            >
+              Create free profile
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   )
 }
 
@@ -766,7 +809,7 @@ function HeroSteps({ steps }: { steps: { icon: keyof typeof STEP_ICONS; label: s
   )
 }
 
-function FeaturedCarousel({ events }: { events: FeaturedEvent[] }) {
+function FeaturedCarousel({ events, onPastEventClick }: { events: FeaturedEvent[]; onPastEventClick?: (link: string) => void }) {
   const scrollerRef = useRef<HTMLDivElement>(null)
   const settleTimer = useRef<number | null>(null)
 
@@ -851,6 +894,7 @@ function FeaturedCarousel({ events }: { events: FeaturedEvent[] }) {
               rel="noopener noreferrer"
               title={e.name}
               className="block hover:opacity-90 transition-opacity"
+              onClick={(ev) => { ev.preventDefault(); onPastEventClick?.(e.link!) }}
             >
               {inner}
             </a>
@@ -898,7 +942,7 @@ function CarouselButton({
   )
 }
 
-function FeaturedRow({ event }: { event: FeaturedEvent }) {
+function FeaturedRow({ event, onPastEventClick }: { event: FeaturedEvent; onPastEventClick?: (link: string) => void }) {
   const dateText = formatEventDate(event.date, { month: 'short', day: 'numeric' }).toUpperCase()
   const body = (
     <div
@@ -980,7 +1024,13 @@ function FeaturedRow({ event }: { event: FeaturedEvent }) {
   )
   if (!event.link) return body
   return (
-    <a href={withUtm(event.link)} target="_blank" rel="noopener noreferrer" className="block">
+    <a
+      href={withUtm(event.link)}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="block"
+      onClick={(ev) => { ev.preventDefault(); onPastEventClick?.(event.link!) }}
+    >
       {body}
     </a>
   )
