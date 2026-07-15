@@ -231,3 +231,51 @@ export async function setAnchorEventOffers(
   const { error: insError } = await supabase.from('anchor_event_offers').insert(rows)
   if (insError) throw new Error(`setAnchorEventOffers insert: ${insError.message}`)
 }
+
+// Returns all anchor events that contain a given event_id
+export async function getAnchorEventsForEvent(eventId: string): Promise<AnchorEvent[]> {
+  const supabase = getSupabase()
+  const { data, error } = await supabase
+    .from('anchor_event_events')
+    .select('anchor_event_id')
+    .eq('event_id', eventId)
+  if (error) throw new Error(`getAnchorEventsForEvent: ${error.message}`)
+  const ids = (data as Array<{ anchor_event_id: string }>).map((r) => r.anchor_event_id)
+  if (ids.length === 0) return []
+  const results = await Promise.all(ids.map((id) => getAnchorEventById(id)))
+  return results.filter((e): e is AnchorEvent => e !== null)
+}
+
+// Appends an event to an anchor event at the end (if not already present)
+export async function addEventToAnchorEvent(anchorEventId: string, eventId: string): Promise<void> {
+  const supabase = getSupabase()
+  const { data: existing } = await supabase
+    .from('anchor_event_events')
+    .select('event_id')
+    .eq('anchor_event_id', anchorEventId)
+    .eq('event_id', eventId)
+    .maybeSingle()
+  if (existing) return
+  const { data: rows } = await supabase
+    .from('anchor_event_events')
+    .select('position')
+    .eq('anchor_event_id', anchorEventId)
+    .order('position', { ascending: false })
+    .limit(1)
+  const nextPos = rows && rows.length > 0 ? (rows[0] as { position: number }).position + 1 : 0
+  const { error } = await supabase
+    .from('anchor_event_events')
+    .insert({ anchor_event_id: anchorEventId, event_id: eventId, position: nextPos })
+  if (error) throw new Error(`addEventToAnchorEvent: ${error.message}`)
+}
+
+// Removes an event from an anchor event
+export async function removeEventFromAnchorEvent(anchorEventId: string, eventId: string): Promise<void> {
+  const supabase = getSupabase()
+  const { error } = await supabase
+    .from('anchor_event_events')
+    .delete()
+    .eq('anchor_event_id', anchorEventId)
+    .eq('event_id', eventId)
+  if (error) throw new Error(`removeEventFromAnchorEvent: ${error.message}`)
+}

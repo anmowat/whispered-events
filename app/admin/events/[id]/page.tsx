@@ -198,6 +198,14 @@ export default function AdminEventDetailPage() {
   const [deleteConfirm, setDeleteConfirm] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
+  // Anchor event membership
+  interface AnchorEventItem { id: string; slug: string; title: string; anchorName: string; status: string }
+  const [linkedAnchorEvents, setLinkedAnchorEvents] = useState<AnchorEventItem[]>([])
+  const [allAnchorEvents, setAllAnchorEvents] = useState<AnchorEventItem[]>([])
+  const [anchorSearch, setAnchorSearch] = useState('')
+  const [anchorBusy, setAnchorBusy] = useState(false)
+  const [anchorError, setAnchorError] = useState<string | null>(null)
+
   async function handleDelete() {
     if (!eventId) return
     try {
@@ -287,6 +295,66 @@ export default function AdminEventDetailPage() {
       setSyncMsg(`Sync failed: ${e instanceof Error ? e.message : String(e)}`)
     } finally {
       setSyncing(false)
+    }
+  }
+
+  async function fetchAnchorEvents() {
+    if (!eventId) return
+    try {
+      const res = await fetch(`/api/admin/events/${eventId}/anchor-events`, { cache: 'no-store' })
+      if (!res.ok) return
+      const d = (await res.json()) as { linked: AnchorEventItem[]; all: AnchorEventItem[] }
+      setLinkedAnchorEvents(d.linked)
+      setAllAnchorEvents(d.all)
+    } catch (e) {
+      console.error('fetchAnchorEvents failed', e)
+    }
+  }
+
+  async function addToAnchorEvent(anchorEventId: string) {
+    if (!eventId) return
+    setAnchorBusy(true)
+    setAnchorError(null)
+    try {
+      const res = await fetch(`/api/admin/events/${eventId}/anchor-events`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ anchorEventId }),
+      })
+      if (!res.ok) {
+        const d = (await res.json().catch(() => ({}))) as { error?: string }
+        setAnchorError(d.error || `HTTP ${res.status}`)
+        return
+      }
+      setAnchorSearch('')
+      await fetchAnchorEvents()
+    } catch (e) {
+      setAnchorError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setAnchorBusy(false)
+    }
+  }
+
+  async function removeFromAnchorEvent(anchorEventId: string) {
+    if (!eventId) return
+    setAnchorBusy(true)
+    setAnchorError(null)
+    try {
+      const res = await fetch(`/api/admin/events/${eventId}/anchor-events`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ anchorEventId }),
+      })
+      if (!res.ok) {
+        const d = (await res.json().catch(() => ({}))) as { error?: string }
+        setAnchorError(d.error || `HTTP ${res.status}`)
+        return
+      }
+      await fetchAnchorEvents()
+    } catch (e) {
+      setAnchorError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setAnchorBusy(false)
     }
   }
 
@@ -481,6 +549,7 @@ export default function AdminEventDetailPage() {
 
   useEffect(() => {
     fetchDetail()
+    fetchAnchorEvents()
   }, [eventId])
 
   const [userSortBy, setUserSortBy] = useState<'matchPercent' | 'function' | 'seniority' | 'grade' | 'location' | 'interest'>('matchPercent')
@@ -827,6 +896,92 @@ export default function AdminEventDetailPage() {
                   </div>
                 )}
               </div>
+            </div>
+
+            {/* Anchor event membership */}
+            <div className="bg-white border border-[#E8DDD0] rounded-2xl p-6 shadow-sm mb-8">
+              <h3 className="text-xs uppercase tracking-widest font-medium mb-4" style={{ color: '#6E1F2B' }}>
+                Anchor Events
+              </h3>
+              {anchorError && <p className="text-xs text-red-600 mb-3">{anchorError}</p>}
+
+              {/* Currently linked */}
+              {linkedAnchorEvents.length > 0 ? (
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {linkedAnchorEvents.map((ae) => (
+                    <span
+                      key={ae.id}
+                      className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full border border-[#E8DDD0] bg-white text-xs text-gray-700"
+                    >
+                      <a
+                        href={`/admin/anchor-events/${ae.id}`}
+                        className="font-medium hover:underline"
+                        style={{ color: '#6E1F2B' }}
+                      >
+                        {ae.title || ae.anchorName || ae.slug}
+                      </a>
+                      <span className="text-gray-400">/{ae.slug}</span>
+                      <button
+                        type="button"
+                        disabled={anchorBusy}
+                        onClick={() => removeFromAnchorEvent(ae.id)}
+                        className="ml-1 text-gray-400 hover:text-red-600 transition-colors disabled:opacity-50"
+                        aria-label="Remove"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-400 italic mb-4">Not linked to any anchor events.</p>
+              )}
+
+              {/* Search to add */}
+              {(() => {
+                const linkedIds = new Set(linkedAnchorEvents.map((ae) => ae.id))
+                const query = anchorSearch.trim().toLowerCase()
+                const suggestions = allAnchorEvents.filter(
+                  (ae) => !linkedIds.has(ae.id) && (
+                    !query ||
+                    (ae.title || ae.anchorName || ae.slug).toLowerCase().includes(query) ||
+                    ae.slug.toLowerCase().includes(query)
+                  )
+                )
+                return (
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={anchorSearch}
+                      onChange={(e) => setAnchorSearch(e.target.value)}
+                      placeholder="Search anchor events to add…"
+                      disabled={anchorBusy}
+                      className="w-full bg-white border border-[#E8DDD0] rounded-lg px-3 py-2 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#6E1F2B] disabled:opacity-50 transition-colors"
+                    />
+                    {anchorSearch.trim() && suggestions.length > 0 && (
+                      <div className="absolute z-10 left-0 right-0 mt-1 bg-white border border-[#E8DDD0] rounded-lg shadow-lg max-h-60 overflow-auto">
+                        {suggestions.map((ae) => (
+                          <button
+                            key={ae.id}
+                            type="button"
+                            disabled={anchorBusy}
+                            onClick={() => addToAnchorEvent(ae.id)}
+                            className="w-full text-left px-3 py-2 text-sm hover:bg-[#F5EFE6] transition-colors flex items-center justify-between gap-2 disabled:opacity-50"
+                          >
+                            <span className="font-medium text-gray-800">{ae.title || ae.anchorName || ae.slug}</span>
+                            <span className="text-xs text-gray-400">/{ae.slug} · {ae.status}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {anchorSearch.trim() && suggestions.length === 0 && (
+                      <div className="absolute z-10 left-0 right-0 mt-1 bg-white border border-[#E8DDD0] rounded-lg shadow-lg px-3 py-2 text-xs text-gray-400 italic">
+                        No unlinked anchor events match.
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
             </div>
 
             <div className="mb-3">
