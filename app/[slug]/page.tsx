@@ -5,6 +5,7 @@ import { formatEventDate } from '@/lib/dates'
 import type { AnchorEvent } from '@/lib/anchor-events'
 import type { Offer } from '@/lib/offers'
 import LoginModal from '@/components/LoginModal'
+import AddEventModal from '@/components/AddEventModal'
 
 const SERIF = `'Cormorant Garamond', Georgia, 'Times New Roman', serif`
 
@@ -166,6 +167,7 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
   const [userSeniority, setUserSeniority] = useState<string | null>(null)
   const [showAuthDialog, setShowAuthDialog] = useState(false)
   const [showLoginModal, setShowLoginModal] = useState(false)
+  const [showAddEvent, setShowAddEvent] = useState(false)
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
   const [filterType, setFilterType] = useState<string>('all')
   const [filterDay, setFilterDay] = useState<string>('all')
@@ -270,6 +272,10 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
         } as React.CSSProperties}>
           <LoginModal onClose={() => setShowLoginModal(false)} />
         </div>
+      )}
+
+      {showAddEvent && (
+        <AddEventModal onClose={() => setShowAddEvent(false)} />
       )}
 
       {/* Auth dialog */}
@@ -416,7 +422,14 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
         {data.events.length > 0 && (
           <div style={{ marginBottom: 64 }}>
             {/* Filters */}
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20, justifyContent: 'flex-end' }}>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20, alignItems: 'center', justifyContent: 'space-between' }}>
+              <button
+                onClick={() => setShowAddEvent(true)}
+                style={{ background: 'rgba(201,168,106,0.12)', border: '1px solid rgba(201,168,106,0.35)', borderRadius: 8, padding: '6px 14px', color: '#c9a86a', fontSize: 13, cursor: 'pointer', fontWeight: 500, whiteSpace: 'nowrap' }}
+              >
+                + Add Event
+              </button>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <select
                 value={filterDay}
                 onChange={(e) => setFilterDay(e.target.value)}
@@ -448,6 +461,7 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
                   <option key={t} value={t}>{t}</option>
                 ))}
               </select>
+              </div>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
