@@ -777,6 +777,7 @@ export default function AdminEventDetailPage() {
               )}
               {!isEditing ? (
                 <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+                  {/* Row 1 */}
                   <div>
                     <dt className="text-xs uppercase tracking-wide text-gray-400">Status</dt>
                     <dd className="mt-0.5">
@@ -793,20 +794,33 @@ export default function AdminEventDetailPage() {
                     </dd>
                   </div>
                   <Field label="Name" value={event.name} />
+                  {/* Row 2 */}
                   <Field label="Type" value={event.type} />
                   <Field label="Date" value={event.date} />
+                  {/* Row 3 */}
                   <Field label="Location" value={event.location} />
                   <Field label="LatLon" value={event.lat !== null && event.lng !== null ? `${event.lat}, ${event.lng}` : ''} />
+                  {/* Row 4 */}
                   <Field label="Link" value={event.link} />
-                  <Field label="Submitter" value={event.submitterEmail} />
-                  <Field label="Audience" value={event.audience.join(', ')} />
-                  <Field label="Description" value={event.description} multiline />
-                  <Field label="Organizer" value={event.organizer} />
                   <Field label="Start Time" value={event.startTime} />
+                  {/* Row 5 */}
+                  <Field label="Audience" value={event.audience.join(', ')} />
                   <Field label="End Time" value={event.endTime} />
-                  <Field label="Employment" value={event.employment.join(', ')} />
-                  <Field label="Company Size" value={event.companySize.join(', ')} />
+                  {/* Row 6: Description left, spacer right */}
+                  <Field label="Description" value={event.description} multiline />
+                  <div aria-hidden />
+                  {/* Row 7–9: Seniority / Employment / Company Size on left */}
                   <Field label="Seniority" value={event.seniority.join(', ')} />
+                  <div aria-hidden />
+                  <Field label="Employment" value={event.employment.join(', ')} />
+                  <div aria-hidden />
+                  <Field label="Company Size" value={event.companySize.join(', ')} />
+                  <div aria-hidden />
+                  {/* Row 10–11: Organizer + Submitter on right */}
+                  <div aria-hidden />
+                  <Field label="Organizer" value={event.organizer} />
+                  <div aria-hidden />
+                  <Field label="Submitter" value={event.submitterEmail} />
                 </dl>
               ) : (
                 <EventEditForm draft={draft!} onChange={setDraft} disabled={editBusy} />
@@ -1188,10 +1202,10 @@ function EventEditForm({
           <span className={disabled ? 'opacity-50' : ''}>Featured on homepage</span>
         </label>
       </div>
-      {/* Grid mirrors the view layout: Status occupies col A row 1 in view,
-          so a hidden spacer holds that position here (Status is above the grid
-          in edit mode), keeping Name at col B row 1, Type at col A row 2, etc. */}
+      {/* Grid mirrors view layout. Status lives above the grid in edit mode so
+          a hidden spacer holds col A row 1, keeping Name at col B row 1. */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 text-sm">
+        {/* Row 1 */}
         <div className="hidden sm:block" aria-hidden />
         <FormField label="Name">
           <input
@@ -1202,6 +1216,7 @@ function EventEditForm({
             className={input}
           />
         </FormField>
+        {/* Row 2 */}
         <FormField label="Type">
           <select
             value={draft.type}
@@ -1223,7 +1238,7 @@ function EventEditForm({
             className={input}
           />
         </FormField>
-        {/* Row 3: Location | [LatLon auto-derived] */}
+        {/* Row 3: Location | [LatLon auto-derived — read-only] */}
         <FormField label="Location">
           <input
             type="text"
@@ -1235,7 +1250,7 @@ function EventEditForm({
           />
         </FormField>
         <div className="hidden sm:block" aria-hidden />
-        {/* Row 4: Link | [Submitter read-only] */}
+        {/* Row 4: Link | Start Time */}
         <FormField label="Link">
           <input
             type="url"
@@ -1243,37 +1258,6 @@ function EventEditForm({
             disabled={disabled}
             onChange={(e) => update('link', e.target.value)}
             placeholder="https://…"
-            className={input}
-          />
-        </FormField>
-        <div className="hidden sm:block" aria-hidden />
-        {/* Row 5: Audience | Description */}
-        <FormField label="Audience (comma-separated)">
-          <input
-            type="text"
-            value={draft.audience}
-            disabled={disabled}
-            onChange={(e) => update('audience', e.target.value)}
-            placeholder="CRO, CMO, VP Sales"
-            className={input}
-          />
-        </FormField>
-        <FormField label="Description">
-          <textarea
-            value={draft.description}
-            disabled={disabled}
-            onChange={(e) => update('description', e.target.value)}
-            rows={5}
-            className={`${input} font-normal leading-relaxed`}
-          />
-        </FormField>
-        <FormField label="Organizer">
-          <input
-            type="text"
-            value={draft.organizer}
-            disabled={disabled}
-            onChange={(e) => update('organizer', e.target.value)}
-            placeholder="Acme Corp"
             className={input}
           />
         </FormField>
@@ -1287,6 +1271,17 @@ function EventEditForm({
             className={input}
           />
         </FormField>
+        {/* Row 5: Audience | End Time */}
+        <FormField label="Audience (comma-separated)">
+          <input
+            type="text"
+            value={draft.audience}
+            disabled={disabled}
+            onChange={(e) => update('audience', e.target.value)}
+            placeholder="CRO, CMO, VP Sales"
+            className={input}
+          />
+        </FormField>
         <FormField label="End Time">
           <input
             type="text"
@@ -1297,21 +1292,18 @@ function EventEditForm({
             className={input}
           />
         </FormField>
-        {/* Row 6: Employment | Company Size | Seniority */}
-        <AdminMultiCheckbox
-          label="Employment"
-          options={[...EMPLOYMENT_OPTIONS]}
-          value={draft.employment}
-          onChange={(v) => update('employment', v)}
-          disabled={disabled}
-        />
-        <AdminMultiCheckbox
-          label="Company Size"
-          options={[...COMPANY_SIZE_OPTIONS]}
-          value={draft.companySize}
-          onChange={(v) => update('companySize', v)}
-          disabled={disabled}
-        />
+        {/* Row 6: Description | [spacer] */}
+        <FormField label="Description">
+          <textarea
+            value={draft.description}
+            disabled={disabled}
+            onChange={(e) => update('description', e.target.value)}
+            rows={5}
+            className={`${input} font-normal leading-relaxed`}
+          />
+        </FormField>
+        <div className="hidden sm:block" aria-hidden />
+        {/* Rows 7–9: Seniority / Employment / Company Size on left */}
         <AdminMultiCheckbox
           label="Seniority"
           options={[...SENIORITY_OPTIONS]}
@@ -1319,6 +1311,34 @@ function EventEditForm({
           onChange={(v) => update('seniority', v)}
           disabled={disabled}
         />
+        <div className="hidden sm:block" aria-hidden />
+        <AdminMultiCheckbox
+          label="Employment"
+          options={[...EMPLOYMENT_OPTIONS]}
+          value={draft.employment}
+          onChange={(v) => update('employment', v)}
+          disabled={disabled}
+        />
+        <div className="hidden sm:block" aria-hidden />
+        <AdminMultiCheckbox
+          label="Company Size"
+          options={[...COMPANY_SIZE_OPTIONS]}
+          value={draft.companySize}
+          onChange={(v) => update('companySize', v)}
+          disabled={disabled}
+        />
+        {/* Row 10: [spacer] | Organizer */}
+        <div className="hidden sm:block" aria-hidden />
+        <FormField label="Organizer">
+          <input
+            type="text"
+            value={draft.organizer}
+            disabled={disabled}
+            onChange={(e) => update('organizer', e.target.value)}
+            placeholder="Acme Corp"
+            className={input}
+          />
+        </FormField>
       </div>
       <p className="text-[11px] text-gray-400">
         LatLon is auto-derived from Location on save. Saving fires updateEvent
