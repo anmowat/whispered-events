@@ -40,8 +40,10 @@ export async function POST(
       ? `Note: this page appears to be JavaScript-rendered (only ${scrape.text.length} chars retrieved). Extract whatever date, location, or other details are visible.\n\n${scrape.text}`
       : scrape.text
   } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    const blocked = msg.includes('403') || msg.includes('401') || msg.includes('Forbidden')
     return NextResponse.json(
-      { error: `Scrape failed: ${e instanceof Error ? e.message : String(e)}` },
+      { error: blocked ? 'Page blocks scrapers — enter the date manually' : `Scrape failed: ${msg}` },
       { status: 502 },
     )
   }
