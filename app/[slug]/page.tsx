@@ -344,8 +344,6 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
         .aep-filter-btn-mobile { display: none !important; }
         .aep-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 20px 24px; }
         .aep-btn-text { display: inline; }
-        .aep-event-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
-        .aep-event-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
         .aep-copy-btn { display: inline-flex; }
         .aep-auth-btn-header { display: inline-flex; }
         .aep-auth-btn-filter { display: none !important; }
@@ -362,8 +360,6 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
           .aep-filter-select { width: 100%; font-size: 15px; padding: 10px 12px; }
           .aep-card { padding: 14px 16px; }
           .aep-btn-text { display: none; }
-          .aep-event-row { flex-direction: column; gap: 10px; }
-          .aep-event-actions { align-self: flex-start; }
           .aep-copy-btn { display: none !important; }
           .aep-auth-btn-header { display: none !important; }
           .aep-auth-btn-filter { display: inline-flex !important; }
@@ -576,70 +572,51 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
                 let slotCount = 0
                 return filteredEvents.flatMap((ev, i) => {
                   const expanded = expandedIds.has(ev.id)
+                  const viewEventEl = ev.link ? (
+                    isLoggedIn ? (
+                      <a href={ev.link} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(201,168,106,0.12)', color: '#c9a86a', border: '1px solid rgba(201,168,106,0.3)', borderRadius: 8, padding: '8px 14px', fontSize: 13, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                        View event ↗
+                      </a>
+                    ) : (
+                      <button onClick={() => setShowAuthDialog(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.04)', color: '#6b5e53', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '8px 14px', fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                        View event →
+                      </button>
+                    )
+                  ) : null
+
                   const eventCard = (
-                    <div
-                      key={ev.id}
-                      className="aep-card"
-                    >
-                      <div className="aep-event-row">
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 5 }}>
-                            <div style={{ fontFamily: SERIF, fontSize: 21, color: '#ece6da', lineHeight: 1.2 }}>{ev.name}</div>
-                            {ev.type && (
-                              <span style={{ display: 'inline-block', background: 'rgba(255,255,255,0.06)', borderRadius: 4, padding: '2px 7px', fontSize: 11, letterSpacing: '.04em', color: '#7a6e66', flexShrink: 0 }}>{ev.type}</span>
-                            )}
-                          </div>
-                          <div style={{ fontSize: 13, color: '#9c8b7e', display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-                            {ev.date && (
-                              <span>{formatEventDate(ev.date, { weekday: 'short', month: 'short', day: 'numeric' })}</span>
-                            )}
-                            {ev.startTime && (
-                              <span style={{ color: '#c9a86a', fontWeight: 500 }}>{ev.startTime}{ev.endTime ? ` – ${ev.endTime}` : ''}</span>
-                            )}
-                            {ev.organizer && (
-                              <span>Host: {ev.organizer}</span>
-                            )}
-                            {ev.description && (
-                              <button
-                                onClick={() => toggleDescription(ev.id)}
-                                style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#c9a86a', fontSize: 13 }}
-                              >
-                                {expanded ? '▲ Description' : '▼ Description'}
-                              </button>
-                            )}
-                          </div>
-                          {expanded && ev.description && (
-                            <div style={{ fontSize: 14, color: '#7a6e66', lineHeight: 1.6, marginTop: 8 }}>{ev.description}</div>
+                    <div key={ev.id} className="aep-card">
+                      {/* Row 1: name + type tag + favicon */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
+                        <span style={{ fontFamily: SERIF, fontSize: 21, color: '#ece6da', lineHeight: 1.2 }}>{ev.name}</span>
+                        {ev.type && (
+                          <span style={{ display: 'inline-block', background: 'rgba(255,255,255,0.06)', borderRadius: 4, padding: '2px 7px', fontSize: 11, letterSpacing: '.04em', color: '#7a6e66', flexShrink: 0 }}>{ev.type}</span>
+                        )}
+                        {ev.faviconUrl && (
+                          <img src={ev.faviconUrl} alt="" style={{ height: 22, width: 22, objectFit: 'cover', borderRadius: 5, display: 'block', flexShrink: 0 }} />
+                        )}
+                      </div>
+                      {/* Row 2: date / time / organizer */}
+                      {(ev.date || ev.startTime || ev.organizer) && (
+                        <div style={{ fontSize: 13, color: '#9c8b7e', display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
+                          {ev.date && <span>{formatEventDate(ev.date, { weekday: 'short', month: 'short', day: 'numeric' })}</span>}
+                          {ev.startTime && <span style={{ color: '#c9a86a', fontWeight: 500 }}>{ev.startTime}{ev.endTime ? ` – ${ev.endTime}` : ''}</span>}
+                          {ev.organizer && <span>Host: {ev.organizer}</span>}
+                        </div>
+                      )}
+                      {expanded && ev.description && (
+                        <div style={{ fontSize: 14, color: '#7a6e66', lineHeight: 1.6, marginBottom: 10 }}>{ev.description}</div>
+                      )}
+                      {/* Row 3: description toggle (left) + view event (right) */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                        <div>
+                          {ev.description && (
+                            <button onClick={() => toggleDescription(ev.id)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#c9a86a', fontSize: 13 }}>
+                              {expanded ? '▲ Description' : '▼ Description'}
+                            </button>
                           )}
                         </div>
-                        <div className="aep-event-actions">
-                          {ev.faviconUrl && (
-                            <img
-                              src={ev.faviconUrl}
-                              alt=""
-                              style={{ height: 36, width: 36, objectFit: 'cover', borderRadius: 8, display: 'block' }}
-                            />
-                          )}
-                          {ev.link && (
-                            isLoggedIn ? (
-                              <a
-                                href={ev.link}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(201,168,106,0.12)', color: '#c9a86a', border: '1px solid rgba(201,168,106,0.3)', borderRadius: 8, padding: '8px 14px', fontSize: 13, textDecoration: 'none', whiteSpace: 'nowrap' }}
-                              >
-                                View event ↗
-                              </a>
-                            ) : (
-                              <button
-                                onClick={() => setShowAuthDialog(true)}
-                                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.04)', color: '#6b5e53', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '8px 14px', fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}
-                              >
-                                View event →
-                              </button>
-                            )
-                          )}
-                        </div>
+                        {viewEventEl}
                       </div>
                     </div>
                   )
