@@ -288,7 +288,7 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
                               onClick={() => toggleDescription(ev.id)}
                               style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#c9a86a', fontSize: 13 }}
                             >
-                              {expanded ? '▲ Hide details' : '▼ Show details'}
+                              {expanded ? '▲ Description' : '▼ Description'}
                             </button>
                           )}
                         </div>
