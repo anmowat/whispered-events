@@ -62,13 +62,33 @@ function OfferBanner({ offer }: { offer: Offer }) {
 }
 
 function OffersSection({ offers }: { offers: Offer[] }) {
-  const [carouselIdx, setCarouselIdx] = useState(0)
+  const PAGE = 3
+  const desktopPages = Math.ceil(offers.length / PAGE)
+  const [desktopPage, setDesktopPage] = useState(0)
+  const [desktopVisible, setDesktopVisible] = useState(true)
+  const [mobileIdx, setMobileIdx] = useState(0)
 
+  // Desktop: fade out → swap → fade in every 10s (only if more than one page)
+  useEffect(() => {
+    if (desktopPages <= 1) return
+    const id = setInterval(() => {
+      setDesktopVisible(false)
+      setTimeout(() => {
+        setDesktopPage((p) => (p + 1) % desktopPages)
+        setDesktopVisible(true)
+      }, 400)
+    }, 10000)
+    return () => clearInterval(id)
+  }, [desktopPages])
+
+  // Mobile: slide every 5s
   useEffect(() => {
     if (offers.length <= 1) return
-    const id = setInterval(() => setCarouselIdx((i) => (i + 1) % offers.length), 5000)
+    const id = setInterval(() => setMobileIdx((i) => (i + 1) % offers.length), 5000)
     return () => clearInterval(id)
   }, [offers.length])
+
+  const desktopSlice = offers.slice(desktopPage * PAGE, desktopPage * PAGE + PAGE)
 
   return (
     <div>
@@ -76,21 +96,27 @@ function OffersSection({ offers }: { offers: Offer[] }) {
         Brought to you by:
       </div>
 
-      {/* Desktop: up to 3 per row */}
+      {/* Desktop: 3 at a time, fade between groups */}
       <div
         className="offers-desktop"
-        style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, 1fr)',
+          gap: 14,
+          opacity: desktopVisible ? 1 : 0,
+          transition: 'opacity 0.4s ease',
+        }}
       >
-        {offers.map((offer) => <OfferBanner key={offer.id} offer={offer} />)}
+        {desktopSlice.map((offer) => <OfferBanner key={offer.id} offer={offer} />)}
       </div>
 
-      {/* Mobile: single carousel */}
+      {/* Mobile: single slide carousel */}
       <div className="offers-mobile" style={{ position: 'relative', overflow: 'hidden' }}>
         <div
           style={{
             display: 'flex',
             transition: 'transform 0.5s ease',
-            transform: `translateX(-${carouselIdx * 100}%)`,
+            transform: `translateX(-${mobileIdx * 100}%)`,
           }}
         >
           {offers.map((offer) => (
@@ -104,10 +130,10 @@ function OffersSection({ offers }: { offers: Offer[] }) {
             {offers.map((_, i) => (
               <button
                 key={i}
-                onClick={() => setCarouselIdx(i)}
+                onClick={() => setMobileIdx(i)}
                 style={{
                   width: 6, height: 6, borderRadius: '50%', border: 'none', padding: 0, cursor: 'pointer',
-                  background: i === carouselIdx ? '#c9a86a' : 'rgba(201,168,106,0.3)',
+                  background: i === mobileIdx ? '#c9a86a' : 'rgba(201,168,106,0.3)',
                   transition: 'background 0.3s',
                 }}
               />
