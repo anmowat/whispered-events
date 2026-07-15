@@ -200,6 +200,8 @@ export default function AdminEventDetailPage() {
   const rescoreTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const [syncing, setSyncing] = useState(false)
   const [syncMsg, setSyncMsg] = useState<string | null>(null)
+  const [rescraping, setRescraping] = useState(false)
+  const [rescrapeMsg, setRescrapeMsg] = useState<string | null>(null)
   const isEditing = draft !== null
   const [deleteConfirm, setDeleteConfirm] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
@@ -301,6 +303,31 @@ export default function AdminEventDetailPage() {
       setSyncMsg(`Sync failed: ${e instanceof Error ? e.message : String(e)}`)
     } finally {
       setSyncing(false)
+    }
+  }
+
+  async function handleRescrape() {
+    if (!event?.link || !eventId) return
+    setRescraping(true)
+    setRescrapeMsg(null)
+    try {
+      const res = await fetch(`/api/admin/events/${eventId}/rescrape`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      })
+      const data = (await res.json()) as { ok?: boolean; updated?: string[]; error?: string }
+      if (!res.ok || !data.ok) {
+        setRescrapeMsg(`Failed: ${data.error || res.status}`)
+      } else {
+        const updated = data.updated ?? []
+        setRescrapeMsg(updated.length ? `Updated: ${updated.join(', ')}` : 'No new data found')
+        setTimeout(() => setRescrapeMsg(null), 5000)
+        await fetchDetail()
+      }
+    } catch (e) {
+      setRescrapeMsg(`Failed: ${e instanceof Error ? e.message : String(e)}`)
+    } finally {
+      setRescraping(false)
     }
   }
 
@@ -608,6 +635,17 @@ export default function AdminEventDetailPage() {
             >
               {syncing ? 'Syncing…' : 'Sync → Airtable'}
             </button>
+            <button
+              onClick={handleRescrape}
+              disabled={rescraping || !event?.link}
+              title={event?.link ? `Re-scrape ${event.link}` : 'No link to scrape'}
+              className="px-3 py-1.5 rounded-lg border border-[#E8DDD0] bg-white text-xs text-gray-700 hover:bg-[#F5EFE6] transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {rescraping ? 'Rescraping…' : 'Rescrape'}
+            </button>
+            {rescrapeMsg && (
+              <span className="text-xs text-gray-500">{rescrapeMsg}</span>
+            )}
             <button
               onClick={rescoreAndFetch}
               disabled={rescoring}
