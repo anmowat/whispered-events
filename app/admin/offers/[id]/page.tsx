@@ -146,11 +146,26 @@ export default function AdminOfferDetailPage({ params }: { params: { id: string 
 
           <div style={card}>
             <div style={{ fontSize: 12, fontWeight: 600, color: '#888', letterSpacing: '.06em', marginBottom: 16 }}>BANNER IMAGE</div>
-            <p style={{ fontSize: 13, color: '#666', margin: '0 0 14px', lineHeight: 1.55 }}>
+            <p style={{ fontSize: 13, color: '#666', margin: '0 0 6px', lineHeight: 1.55 }}>
               Upload a <strong>1200 × 600 px</strong> image (JPG or PNG, 2:1 ratio, max 6 MB).
-              Displays full-width on mobile and half-width alongside other offers on desktop.
-              Share these specs with vendors: <em>1200 × 600 px, 2:1 ratio, JPG or PNG.</em>
+              Displays full-width on mobile and one-third width alongside other offers on desktop.
+              Create banners in{' '}
+              <a href="https://claude.ai/chat/800bc49a-ebd3-40f4-bd08-078a66b55ba5" target="_blank" rel="noopener noreferrer" style={{ color: '#6E1F2B', textDecoration: 'underline' }}>
+                this Claude project ↗
+              </a>.
             </p>
+
+            {/* Vendor instructions — copy/paste to send to companies */}
+            <div style={{ background: '#fff', border: '1px solid #E8DDD0', borderRadius: 8, padding: '12px 16px', margin: '10px 0 16px', fontSize: 13, color: '#4a3f38', lineHeight: 1.6 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: '#888', letterSpacing: '.07em', marginBottom: 8 }}>WHAT TO REQUEST FROM THE VENDOR</div>
+              <ul style={{ margin: 0, paddingLeft: 18, color: '#555' }}>
+                <li>A transparent logo, ideally in a horizontal format</li>
+                <li>Their company&apos;s primary color (hex code preferred)</li>
+                <li>The URL they want the banner to point to</li>
+              </ul>
+              <p style={{ margin: '8px 0 0', color: '#888', fontSize: 12 }}>We will create the banner for them using the Claude project above.</p>
+            </div>
+
             <input
               ref={fileInputRef}
               type="file"
