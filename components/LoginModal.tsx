@@ -50,30 +50,29 @@ export default function LoginModal({
         style={{ background: 'var(--paper)', borderColor: 'var(--rule)' }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-end mb-5">
-          <button
-            onClick={onClose}
-            aria-label="Close"
-            className="text-xl leading-none"
-            style={{ color: 'var(--ink-3)' }}
-          >
-            &times;
-          </button>
-        </div>
-
         {state === 'idle' || state === 'loading' ? (
           <div className="space-y-4">
-            <h2
-              className="font-serif m-0"
-              style={{
-                fontSize: 26,
-                lineHeight: 1.1,
-                color: 'var(--ink)',
-                letterSpacing: '-0.01em',
-              }}
-            >
-              Let's connect you to great events
-            </h2>
+            <div className="flex items-start justify-between gap-3">
+              <h2
+                className="font-serif m-0"
+                style={{
+                  fontSize: 26,
+                  lineHeight: 1.1,
+                  color: 'var(--ink)',
+                  letterSpacing: '-0.01em',
+                }}
+              >
+                Let's connect you to great events
+              </h2>
+              <button
+                onClick={onClose}
+                aria-label="Close"
+                className="text-xl leading-none shrink-0 mt-0.5"
+                style={{ color: 'var(--ink-3)' }}
+              >
+                &times;
+              </button>
+            </div>
 
             {/* --- Existing member path --- */}
             <div
@@ -141,24 +140,22 @@ export default function LoginModal({
           </div>
         ) : state === 'sent' ? (
           <div className="space-y-3 py-2">
-            <h2
-              className="font-serif m-0"
-              style={{ fontSize: 24, color: 'var(--ink)', letterSpacing: '-0.01em' }}
-            >
-              Check your email.
-            </h2>
+            <div className="flex items-start justify-between gap-3">
+              <h2 className="font-serif m-0" style={{ fontSize: 24, color: 'var(--ink)', letterSpacing: '-0.01em' }}>
+                Check your email.
+              </h2>
+              <button onClick={onClose} aria-label="Close" className="text-xl leading-none shrink-0" style={{ color: 'var(--ink-3)' }}>&times;</button>
+            </div>
             <p style={{ fontSize: 13.5, color: 'var(--ink-2)', lineHeight: 1.55 }}>
               We sent a login link to <strong>{email}</strong>. It expires in 15 minutes.
             </p>
           </div>
         ) : state === 'not_found' ? (
           <div className="space-y-3">
-            <h2
-              className="font-serif m-0"
-              style={{ fontSize: 24, color: 'var(--ink)', letterSpacing: '-0.01em' }}
-            >
-              Not in our system yet.
-            </h2>
+            <div className="flex items-start justify-between gap-3">
+              <h2 className="font-serif m-0" style={{ fontSize: 24, color: 'var(--ink)', letterSpacing: '-0.01em' }}>Not in our system yet.</h2>
+              <button onClick={onClose} aria-label="Close" className="text-xl leading-none shrink-0" style={{ color: 'var(--ink-3)' }}>&times;</button>
+            </div>
             <p style={{ fontSize: 13.5, color: 'var(--ink-2)', lineHeight: 1.55 }}>
               No account found for <strong>{email}</strong>. Create a profile to apply for access — it only takes a minute.
             </p>
@@ -179,12 +176,10 @@ export default function LoginModal({
           </div>
         ) : state === 'inactive' ? (
           <div className="space-y-3">
-            <h2
-              className="font-serif m-0"
-              style={{ fontSize: 24, color: 'var(--ink)', letterSpacing: '-0.01em' }}
-            >
-              Account inactive.
-            </h2>
+            <div className="flex items-start justify-between gap-3">
+              <h2 className="font-serif m-0" style={{ fontSize: 24, color: 'var(--ink)', letterSpacing: '-0.01em' }}>Account inactive.</h2>
+              <button onClick={onClose} aria-label="Close" className="text-xl leading-none shrink-0" style={{ color: 'var(--ink-3)' }}>&times;</button>
+            </div>
             <p style={{ fontSize: 13.5, color: 'var(--ink-2)', lineHeight: 1.55 }}>
               New profiles are reviewed manually — if you&apos;ve just applied, you&apos;ll
               hear from us soon. If your access has lapsed, contribute an event to

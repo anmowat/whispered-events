@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { formatEventDate } from '@/lib/dates'
 import type { AnchorEvent } from '@/lib/anchor-events'
 import type { Offer } from '@/lib/offers'
+import LoginModal from '@/components/LoginModal'
 
 const SERIF = `'Cormorant Garamond', Georgia, 'Times New Roman', serif`
 
@@ -47,6 +48,7 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
   const [notFound, setNotFound] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [showAuthDialog, setShowAuthDialog] = useState(false)
+  const [showLoginModal, setShowLoginModal] = useState(false)
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
   const [filterType, setFilterType] = useState<string>('all')
   const [filterDay, setFilterDay] = useState<string>('all')
@@ -132,6 +134,30 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
 
   return (
     <div style={{ minHeight: '100vh', background: '#1b1814', color: '#ece6da', fontFamily: 'system-ui, sans-serif' }}>
+      {showLoginModal && <LoginModal onClose={() => setShowLoginModal(false)} />}
+
+      {/* Top nav */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '16px 24px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        {isLoggedIn ? (
+          <button
+            onClick={async () => {
+              await fetch('/api/auth/logout', { method: 'POST' })
+              setIsLoggedIn(false)
+            }}
+            style={{ background: 'none', border: '1px solid rgba(255,255,255,0.18)', borderRadius: 99, padding: '7px 16px', color: 'rgba(236,230,218,0.6)', fontSize: 13, cursor: 'pointer' }}
+          >
+            Log out
+          </button>
+        ) : (
+          <button
+            onClick={() => setShowLoginModal(true)}
+            style={{ background: 'rgba(201,168,106,0.12)', border: '1px solid rgba(201,168,106,0.35)', borderRadius: 99, padding: '7px 16px', color: '#c9a86a', fontSize: 13, cursor: 'pointer', fontWeight: 500 }}
+          >
+            Log in
+          </button>
+        )}
+      </div>
+
       {/* Auth dialog */}
       {showAuthDialog && (
         <div
