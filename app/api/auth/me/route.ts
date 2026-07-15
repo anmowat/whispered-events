@@ -34,6 +34,7 @@ export async function GET(req: NextRequest) {
       companySize: user.companySize,
       function: user.function,
       linkedin: user.linkedin,
+      seniority: user.seniority,
       status: user.status,
       active: user.active,
       frequency: user.frequency,

@@ -35,6 +35,7 @@ interface EventSummary {
   startTime: string | null
   endTime: string | null
   featured: boolean
+  seniority: string[]
 }
 
 interface PageData {
@@ -47,6 +48,7 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
   const [data, setData] = useState<PageData | null>(null)
   const [notFound, setNotFound] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [userSeniority, setUserSeniority] = useState<string | null>(null)
   const [showAuthDialog, setShowAuthDialog] = useState(false)
   const [showLoginModal, setShowLoginModal] = useState(false)
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
@@ -68,8 +70,9 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
       }
       const pageData = await pageRes.json() as PageData
       setData(pageData)
-      const meData = await meRes.json() as { user: unknown }
+      const meData = await meRes.json() as { user: { seniority?: string | null } | null }
       setIsLoggedIn(!!meData.user)
+      setUserSeniority(meData.user?.seniority ?? null)
     }
     load()
   }, [params.slug])
@@ -88,6 +91,9 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
   const filteredEvents = useMemo(() => {
     if (!data) return []
     return data.events.filter((e) => {
+      // When logged in, hide events whose seniority list doesn't include the user's seniority.
+      // Events with an empty seniority array are open to everyone.
+      if (isLoggedIn && userSeniority && e.seniority.length > 0 && !e.seniority.includes(userSeniority)) return false
       if (filterType !== 'all' && e.type !== filterType) return false
       if (filterDay !== 'all' && e.date !== filterDay) return false
       if (filterTime !== 'all') {
@@ -100,7 +106,7 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
       }
       return true
     })
-  }, [data, filterType, filterDay, filterTime])
+  }, [data, filterType, filterDay, filterTime, isLoggedIn, userSeniority])
 
   function toggleDescription(id: string) {
     setExpandedIds((prev) => {
