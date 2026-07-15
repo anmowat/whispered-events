@@ -175,8 +175,8 @@ function escapeHtml(s: string): string {
 function digestFooterHtml(_firstName: string): string {
   return `
 <p style="font-family:${SANS};font-size:13px;line-height:1.7;color:${C.ink3};margin:24px 0 0;">
-  <strong style="color:${C.accent};">Improve matches and adjust notifications</strong> <a href="${DASHBOARD_LINK}" style="color:${C.ink2};text-decoration:underline;text-underline-offset:3px;">Visit your dashboard.</a><br>
-  <strong style="color:${C.ink2};">Know an event we should add?</strong> Email <a href="${NEW_EVENT_MAILTO}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">event@whispered.com</a>
+  <strong style="color:${C.accent};">Improve matches and adjust notifications</strong> <a href="${DASHBOARD_LINK}" style="color:${C.ink};text-decoration:none;">Visit your dashboard.</a><br>
+  <strong style="color:${C.accent};">Know an event we should add?</strong> Email <a href="${NEW_EVENT_MAILTO}" style="color:${C.ink};text-decoration:none;">event@whispered.com</a>
 </p>
 `.trim()
 }
