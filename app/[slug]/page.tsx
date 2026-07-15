@@ -59,7 +59,7 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
         <div style={{ color: '#6b5e53', textAlign: 'center' }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>404</div>
           <div style={{ color: '#9c8b7e' }}>Page not found</div>
-          {pageError && <div style={{ color: '#e05c5c', fontSize: 13, marginTop: 10, fontFamily: 'monospace' }}>{pageError}</div>}
+
           <a href="/" style={{ display: 'inline-block', marginTop: 20, color: '#c9a86a', fontSize: 14 }}>← Back to Whispered Events</a>
         </div>
       </div>
