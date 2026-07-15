@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAnchorEventBySlug, getAnchorEventEvents, getAnchorEventOffers } from '@/lib/anchor-events'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(_req: NextRequest, { params }: { params: { slug: string } }) {
   try {
     const anchorEvent = await getAnchorEventBySlug(params.slug)
@@ -8,11 +10,7 @@ export async function GET(_req: NextRequest, { params }: { params: { slug: strin
       return NextResponse.json({ error: `no row for slug "${params.slug}"` }, { status: 404 })
     }
     if (anchorEvent.status !== 'live') {
-      // Return raw DB row for debugging
-      const { createClient } = await import('@supabase/supabase-js')
-      const sb = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
-      const { data: raw } = await sb.from('anchor_events').select('id,slug,status').eq('slug', params.slug).maybeSingle()
-      return NextResponse.json({ error: `slug found but status="${anchorEvent.status}"`, raw }, { status: 404 })
+      return NextResponse.json({ error: `slug found but status="${anchorEvent.status}"` }, { status: 404 })
     }
     const [events, offers] = await Promise.all([
       getAnchorEventEvents(anchorEvent.id),
