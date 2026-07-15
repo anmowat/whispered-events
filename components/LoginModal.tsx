@@ -50,8 +50,7 @@ export default function LoginModal({
         style={{ background: 'var(--paper)', borderColor: 'var(--rule)' }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between mb-5">
-          <img src="/lockup-horizontal-gold.svg" alt="Whispered Events" style={{ height: 36 }} />
+        <div className="flex items-center justify-end mb-5">
           <button
             onClick={onClose}
             aria-label="Close"
@@ -82,7 +81,7 @@ export default function LoginModal({
               style={{ borderColor: 'var(--rule)', background: 'var(--paper-2)' }}
             >
               <p className="m-0 font-medium" style={{ fontSize: 13, color: 'var(--ink)' }}>
-                Already a member
+                Have a Whispered Events account?
               </p>
               <p className="m-0" style={{ fontSize: 12.5, color: 'var(--ink-3)', lineHeight: 1.45 }}>
                 Enter your email and we&apos;ll send a one-time login link — no password needed.
@@ -137,7 +136,7 @@ export default function LoginModal({
                 textDecoration: 'none',
               }}
             >
-              New to Whispered Events? Create profile →
+              Create Free Profile →
             </a>
           </div>
         ) : state === 'sent' ? (
