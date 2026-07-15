@@ -142,7 +142,20 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
 
   return (
     <div style={{ minHeight: '100vh', background: '#1b1814', color: '#ece6da', fontFamily: 'system-ui, sans-serif' }}>
-      {showLoginModal && <LoginModal onClose={() => setShowLoginModal(false)} />}
+      {showLoginModal && (
+        <div style={{
+          '--paper': '#252220',
+          '--paper-2': '#2c2825',
+          '--ink': '#ece6da',
+          '--ink-2': 'rgba(236,230,218,0.78)',
+          '--ink-3': 'rgba(236,230,218,0.5)',
+          '--rule': 'rgba(236,230,218,0.16)',
+          '--accent': '#c9a86a',
+          '--accent-2': '#d5b87c',
+        } as React.CSSProperties}>
+          <LoginModal onClose={() => setShowLoginModal(false)} />
+        </div>
+      )}
 
       {/* Auth dialog */}
       {showAuthDialog && (
