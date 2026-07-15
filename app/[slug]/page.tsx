@@ -136,28 +136,6 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
     <div style={{ minHeight: '100vh', background: '#1b1814', color: '#ece6da', fontFamily: 'system-ui, sans-serif' }}>
       {showLoginModal && <LoginModal onClose={() => setShowLoginModal(false)} />}
 
-      {/* Top nav */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '16px 24px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-        {isLoggedIn ? (
-          <button
-            onClick={async () => {
-              await fetch('/api/auth/logout', { method: 'POST' })
-              setIsLoggedIn(false)
-            }}
-            style={{ background: 'none', border: '1px solid rgba(255,255,255,0.18)', borderRadius: 99, padding: '7px 16px', color: 'rgba(236,230,218,0.6)', fontSize: 13, cursor: 'pointer' }}
-          >
-            Log out
-          </button>
-        ) : (
-          <button
-            onClick={() => setShowLoginModal(true)}
-            style={{ background: 'rgba(201,168,106,0.12)', border: '1px solid rgba(201,168,106,0.35)', borderRadius: 99, padding: '7px 16px', color: '#c9a86a', fontSize: 13, cursor: 'pointer', fontWeight: 500 }}
-          >
-            Log in
-          </button>
-        )}
-      </div>
-
       {/* Auth dialog */}
       {showAuthDialog && (
         <div
@@ -192,57 +170,65 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
       <div style={{ maxWidth: 860, margin: '0 auto', padding: '48px 24px 80px' }}>
 
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 20, marginBottom: 12 }}>
-          {anchorEvent.anchorIconUrl && (
-            anchorEvent.anchorUrl ? (
-              <a href={anchorEvent.anchorUrl} target="_blank" rel="noopener noreferrer" style={{ flexShrink: 0, display: 'block' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 20, marginBottom: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 20 }}>
+            {anchorEvent.anchorIconUrl && (
+              anchorEvent.anchorUrl ? (
+                <a href={anchorEvent.anchorUrl} target="_blank" rel="noopener noreferrer" style={{ flexShrink: 0, display: 'block' }}>
+                  <img
+                    src={anchorEvent.anchorIconUrl}
+                    alt={anchorEvent.anchorName}
+                    style={{ width: 88, height: 88, objectFit: 'contain', borderRadius: 14 }}
+                  />
+                </a>
+              ) : (
                 <img
                   src={anchorEvent.anchorIconUrl}
                   alt={anchorEvent.anchorName}
-                  style={{ width: 88, height: 88, objectFit: 'contain', borderRadius: 14 }}
+                  style={{ width: 88, height: 88, objectFit: 'contain', borderRadius: 14, flexShrink: 0 }}
                 />
-              </a>
-            ) : (
-              <img
-                src={anchorEvent.anchorIconUrl}
-                alt={anchorEvent.anchorName}
-                style={{ width: 88, height: 88, objectFit: 'contain', borderRadius: 14, flexShrink: 0 }}
-              />
-            )
-          )}
-          <div>
-            <h1 style={{ fontFamily: SERIF, fontSize: 42, fontWeight: 400, margin: '0 0 6px', color: '#ece6da', lineHeight: 1.15 }}>
-              {anchorEvent.title || `${anchorEvent.anchorName} Side Events`}
-            </h1>
-            {anchorEvent.anchorName && anchorEvent.anchorUrl && (
-              <a
-                href={anchorEvent.anchorUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ color: '#c9a86a', fontSize: 14, textDecoration: 'none' }}
-              >
-                {anchorEvent.anchorName} ↗
-              </a>
+              )
             )}
+            <div>
+              <h1 style={{ fontFamily: SERIF, fontSize: 42, fontWeight: 400, margin: '0 0 6px', color: '#ece6da', lineHeight: 1.15 }}>
+                {anchorEvent.title || `${anchorEvent.anchorName} Side Events`}
+              </h1>
+              {anchorEvent.anchorName && anchorEvent.anchorUrl && (
+                <a
+                  href={anchorEvent.anchorUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: '#c9a86a', fontSize: 14, textDecoration: 'none' }}
+                >
+                  {anchorEvent.anchorName} ↗
+                </a>
+              )}
+            </div>
           </div>
+          {isLoggedIn ? (
+            <button
+              onClick={async () => {
+                await fetch('/api/auth/logout', { method: 'POST' })
+                setIsLoggedIn(false)
+              }}
+              style={{ flexShrink: 0, background: 'none', border: '1px solid rgba(255,255,255,0.18)', borderRadius: 99, padding: '7px 16px', color: 'rgba(236,230,218,0.6)', fontSize: 13, cursor: 'pointer' }}
+            >
+              Log out
+            </button>
+          ) : (
+            <button
+              onClick={() => setShowLoginModal(true)}
+              style={{ flexShrink: 0, background: 'rgba(201,168,106,0.12)', border: '1px solid rgba(201,168,106,0.35)', borderRadius: 99, padding: '7px 16px', color: '#c9a86a', fontSize: 13, cursor: 'pointer', fontWeight: 500 }}
+            >
+              Log in
+            </button>
+          )}
         </div>
 
         {anchorEvent.description && (
           <p style={{ color: '#9c8b7e', fontSize: 16, lineHeight: 1.65, maxWidth: 640, margin: '0 0 32px' }}>
             {anchorEvent.description}
           </p>
-        )}
-
-        {/* CTA */}
-        {!isLoggedIn && (
-          <div style={{ marginBottom: 40 }}>
-            <button
-              onClick={() => setShowAuthDialog(true)}
-              style={{ background: '#c9a86a', color: '#1b1814', border: 'none', borderRadius: 99, padding: '10px 22px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
-            >
-              Create Free Profile →
-            </button>
-          </div>
         )}
 
         {/* Events */}
