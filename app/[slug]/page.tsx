@@ -323,27 +323,27 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
       <div style={{ maxWidth: 860, margin: '0 auto', padding: '48px 24px 80px' }}>
 
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 20, marginBottom: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 20, marginBottom: 32 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 24 }}>
             {anchorEvent.anchorIconUrl && (
               anchorEvent.anchorUrl ? (
                 <a href={anchorEvent.anchorUrl} target="_blank" rel="noopener noreferrer" style={{ flexShrink: 0, display: 'block' }}>
                   <img
                     src={anchorEvent.anchorIconUrl}
                     alt={anchorEvent.anchorName}
-                    style={{ width: 88, height: 88, objectFit: 'contain', borderRadius: 14 }}
+                    style={{ width: 120, height: 120, objectFit: 'contain', borderRadius: 18 }}
                   />
                 </a>
               ) : (
                 <img
                   src={anchorEvent.anchorIconUrl}
                   alt={anchorEvent.anchorName}
-                  style={{ width: 88, height: 88, objectFit: 'contain', borderRadius: 14, flexShrink: 0 }}
+                  style={{ width: 120, height: 120, objectFit: 'contain', borderRadius: 18, flexShrink: 0 }}
                 />
               )
             )}
             <div>
-              <h1 style={{ fontFamily: SERIF, fontSize: 42, fontWeight: 400, margin: '0 0 6px', color: '#ece6da', lineHeight: 1.15 }}>
+              <h1 style={{ fontFamily: SERIF, fontSize: 42, fontWeight: 400, margin: '0 0 4px', color: '#ece6da', lineHeight: 1.15 }}>
                 {anchorEvent.title || `${anchorEvent.anchorName} Side Events`}
               </h1>
               {anchorEvent.anchorName && anchorEvent.anchorUrl && (
@@ -351,10 +351,15 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
                   href={anchorEvent.anchorUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  style={{ color: '#c9a86a', fontSize: 14, textDecoration: 'none' }}
+                  style={{ color: '#c9a86a', fontSize: 14, textDecoration: 'none', display: 'block', marginBottom: 10 }}
                 >
                   {anchorEvent.anchorName} ↗
                 </a>
+              )}
+              {anchorEvent.description && (
+                <p style={{ fontFamily: SERIF, color: '#9c8b7e', fontSize: 18, lineHeight: 1.55, margin: 0, fontWeight: 400 }}>
+                  {anchorEvent.description}
+                </p>
               )}
             </div>
           </div>
@@ -377,12 +382,6 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
             </button>
           )}
         </div>
-
-        {anchorEvent.description && (
-          <p style={{ color: '#9c8b7e', fontSize: 16, lineHeight: 1.65, maxWidth: 640, margin: '0 0 32px' }}>
-            {anchorEvent.description}
-          </p>
-        )}
 
         {/* Events */}
         {data.events.length > 0 && (
