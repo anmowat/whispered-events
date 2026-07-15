@@ -165,13 +165,6 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
       {/* Page content */}
       <div style={{ maxWidth: 860, margin: '0 auto', padding: '48px 24px 80px' }}>
 
-        {/* Top nav: Whispered logo */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 40 }}>
-          <a href="/" style={{ display: 'inline-block' }}>
-            <img src="/lockup-horizontal-gold.svg" alt="Whispered Events" style={{ height: 42 }} />
-          </a>
-        </div>
-
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 20, marginBottom: 12 }}>
           {anchorEvent.anchorIconUrl && (
@@ -376,6 +369,13 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
             </div>
           </div>
         )}
+
+        {/* Footer: Whispered logo */}
+        <div style={{ textAlign: 'center', marginTop: 64, paddingTop: 32, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+          <a href="/" style={{ display: 'inline-block' }}>
+            <img src="/lockup-horizontal-gold.svg" alt="Whispered Events" style={{ height: 52 }} />
+          </a>
+        </div>
 
       </div>
     </div>
