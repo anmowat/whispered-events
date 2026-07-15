@@ -63,23 +63,25 @@ function OfferBanner({ offer }: { offer: Offer }) {
 
 function OffersSection({ offers }: { offers: Offer[] }) {
   const PAGE = 3
-  const desktopPages = Math.ceil(offers.length / PAGE)
-  const [desktopPage, setDesktopPage] = useState(0)
+  // Rotate by 1 each tick so there are always PAGE banners visible (wrapping)
+  const [desktopStart, setDesktopStart] = useState(0)
   const [desktopVisible, setDesktopVisible] = useState(true)
   const [mobileIdx, setMobileIdx] = useState(0)
 
-  // Desktop: fade out → swap → fade in every 10s (only if more than one page)
+  const shouldCycle = offers.length > PAGE
+
+  // Desktop: fade out → swap → fade in every 10s (only if more offers than page size)
   useEffect(() => {
-    if (desktopPages <= 1) return
+    if (!shouldCycle) return
     const id = setInterval(() => {
       setDesktopVisible(false)
       setTimeout(() => {
-        setDesktopPage((p) => (p + 1) % desktopPages)
+        setDesktopStart((s) => (s + 1) % offers.length)
         setDesktopVisible(true)
       }, 400)
     }, 10000)
     return () => clearInterval(id)
-  }, [desktopPages])
+  }, [shouldCycle, offers.length])
 
   // Mobile: slide every 5s
   useEffect(() => {
@@ -88,7 +90,8 @@ function OffersSection({ offers }: { offers: Offer[] }) {
     return () => clearInterval(id)
   }, [offers.length])
 
-  const desktopSlice = offers.slice(desktopPage * PAGE, desktopPage * PAGE + PAGE)
+  const count = Math.min(PAGE, offers.length)
+  const desktopSlice = Array.from({ length: count }, (_, i) => offers[(desktopStart + i) % offers.length])
 
   return (
     <div>
