@@ -14,7 +14,7 @@ export async function parseEventContent(
   const today = new Date().toISOString().split('T')[0]
   const prompt = `You are an event information extractor. Extract structured event data from the following content.
 
-Today's date is ${today} (YYYY-MM-DD). When the content shows a date without a year (e.g. "Jun 2", "Tuesday, Jun 2", "next Tuesday"), interpret it as the next occurrence on or after today and fill in the year yourself. Do not skip the date field just because the year is implicit.
+Today's date is ${today} (YYYY-MM-DD). When the content shows a date without a year (e.g. "Jun 2", "Tuesday, Jun 2", "next Tuesday"), interpret it as the next occurrence on or after today and fill in the year yourself. Do not skip the date field just because the year is implicit. Dates often appear embedded in prose (e.g. "join us at Selby's on August 6 at 6:30 PM" → 2025-08-06, "happening this Thursday, March 12" → next March 12). Always scan the full text for date mentions before leaving the date field empty.
 
 ${sourceUrl ? `Source URL: ${sourceUrl}` : ''}
 

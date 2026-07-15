@@ -136,8 +136,15 @@ function extractTextFromHtml(html: string): string {
           }
           parts.push(`Event Data:\n${Object.entries(extracted).map(([k, v]) => `${k}: ${v}`).join('\n')}`)
         } else {
-          // Generic Next.js page — pass first 3000 chars of pageProps
-          parts.push(`Page Data: ${JSON.stringify(pageProps).substring(0, 3000)}`)
+          // Generic Next.js SPA (not lu.ma) — stringify pageProps and look
+          // for date-like strings before truncating so the LLM sees them.
+          const raw = JSON.stringify(pageProps)
+          // Pull out any ISO dates or month-day phrases embedded in the data.
+          const dateHints = Array.from(
+            raw.matchAll(/\b(\d{4}-\d{2}-\d{2}|\w+ \d{1,2}(?:st|nd|rd|th)?(?:,? \d{4})?(?:\s+at\s+\d{1,2}(?::\d{2})?\s*[AP]M)?)\b/g)
+          ).map(m => m[0]).slice(0, 20)
+          if (dateHints.length) parts.push(`Extracted date hints: ${dateHints.join('; ')}`)
+          parts.push(`Page Data: ${raw.substring(0, 3000)}`)
         }
       }
     } catch {

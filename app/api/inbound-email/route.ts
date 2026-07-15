@@ -184,8 +184,17 @@ export async function POST(req: NextRequest) {
   if (url) {
     try {
       const scrape = await scrapeUrl(url)
-      content = scrape.text
       imageUrl = scrape.imageUrl
+      // JS-rendered SPAs often return a near-empty shell via plain fetch.
+      // If we got less than 300 chars of meaningful text, keep the email
+      // body in the context too so Claude can extract whatever the sender
+      // included (dates mentioned in forwarded copy, subject lines, etc.).
+      if (scrape.text.length < 300) {
+        console.log('inbound-email: scraped content thin (%d chars), merging with email body', scrape.text.length)
+        content = `${combined}\n\nScraped page content:\n${scrape.text}`
+      } else {
+        content = scrape.text
+      }
     } catch (e) {
       console.error('inbound-email: scrape failed, falling back to email body', e)
       content = `${combined}\n\nEvent URL: ${url}`
