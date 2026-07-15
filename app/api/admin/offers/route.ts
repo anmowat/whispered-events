@@ -8,7 +8,20 @@ export async function GET(req: NextRequest) {
   }
   try {
     const items = await listOffers()
-    return NextResponse.json({ items })
+    // Count how many anchor events each offer is attached to
+    const supabase = (await import('@supabase/supabase-js')).createClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    )
+    const { data: counts } = await supabase
+      .from('anchor_event_offers')
+      .select('offer_id')
+    const countMap: Record<string, number> = {}
+    for (const row of (counts ?? []) as Array<{ offer_id: string }>) {
+      countMap[row.offer_id] = (countMap[row.offer_id] ?? 0) + 1
+    }
+    const itemsWithCount = items.map((item) => ({ ...item, anchorEventCount: countMap[item.id] ?? 0 }))
+    return NextResponse.json({ items: itemsWithCount })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     return NextResponse.json({ error: message }, { status: 500 })
