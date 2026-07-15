@@ -206,7 +206,7 @@ export async function getEventsForAdmin(opts: {
   else if (statusBucket === 'toApprove') q = q.eq('status', 'Pending')
   else if (statusBucket === 'deactivated') q = q.eq('status', 'Deactivated')
   const today = todayIso()
-  if (scope === 'future') q = q.gte('date', today)
+  if (scope === 'future') q = q.or(`date.gte.${today},date.is.null`)
   else if (scope === 'past') q = q.lt('date', today)
   if (featured === 'yes') q = q.eq('featured', true)
   else if (featured === 'no') q = q.eq('featured', false)
