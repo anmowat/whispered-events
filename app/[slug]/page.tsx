@@ -26,6 +26,7 @@ interface PageData {
 export default function AnchorEventPage({ params }: { params: { slug: string } }) {
   const [data, setData] = useState<PageData | null>(null)
   const [notFound, setNotFound] = useState(false)
+  const [pageError, setPageError] = useState<string | null>(null)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [showAuthDialog, setShowAuthDialog] = useState(false)
   const [showShareDialog, setShowShareDialog] = useState(false)
@@ -38,7 +39,12 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
         fetch(`/api/anchor-events/${params.slug}`, { cache: 'no-store' }),
         fetch('/api/auth/me'),
       ])
-      if (!pageRes.ok) { setNotFound(true); return }
+      if (!pageRes.ok) {
+        const errBody = await pageRes.json().catch(() => ({})) as { error?: string }
+        setPageError(`${pageRes.status}: ${errBody.error ?? 'unknown error'}`)
+        setNotFound(true)
+        return
+      }
       const pageData = await pageRes.json() as PageData
       setData(pageData)
       const meData = await meRes.json() as { user: unknown }
@@ -53,6 +59,7 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
         <div style={{ color: '#6b5e53', textAlign: 'center' }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>404</div>
           <div style={{ color: '#9c8b7e' }}>Page not found</div>
+          {pageError && <div style={{ color: '#e05c5c', fontSize: 13, marginTop: 10, fontFamily: 'monospace' }}>{pageError}</div>}
           <a href="/" style={{ display: 'inline-block', marginTop: 20, color: '#c9a86a', fontSize: 14 }}>← Back to Whispered Events</a>
         </div>
       </div>
