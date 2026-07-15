@@ -233,7 +233,20 @@ Return three values via the submit_score tool:
 
    Treat as neutral (ignore for this leg, do not penalize, and do not count against the scorable-topic denominator): topics that are actually role/seniority (e.g. "CMO events", "VP+", "senior sales leaders"), event formats (e.g. "dinners", "networking", "roundtables"), or exclusion criteria. Role/seniority is already scored in the audience leg above; format isn't on the event-side rubric.
 
-   • 1.5 — Multiple stated topics literally match the event (≥2 of the attendee's scorable topics map to the event's name/audience/description). OR a single literal match when the attendee's scorable topic list is very short (≤2 topics) and the match is dominant.
+   Function-title synonyms — treat these as LITERAL matches in both directions (attendee topic on left = event term on right):
+     • Marketing ≡ CMO, Chief Marketing Officer, Marketing Leaders, Marketing Executive
+     • Sales ≡ CRO, CSO, Chief Revenue Officer, Chief Sales Officer, Sales Leaders, Sales Executive
+     • Revenue ≡ CRO, RevOps, Revenue Leaders, Chief Revenue Officer
+     • Engineering / Technology ≡ CTO, Chief Technology Officer, Engineering Leaders, Tech Leaders
+     • Finance ≡ CFO, Chief Financial Officer, Finance Leaders
+     • Operations ≡ COO, Chief Operating Officer, Operations Leaders
+     • Product ≡ CPO, Chief Product Officer, Product Leaders
+     • HR / People ≡ CHRO, Chief People Officer, People Leaders
+     • Founders / Entrepreneurship ≡ CEO, Founder, Co-Founder, Startup, Entrepreneurs
+     • AI / Machine Learning ≡ GenAI, LLM, Artificial Intelligence, AI Leaders
+     • GTM / Go-to-Market ≡ Sales, Marketing, Revenue, GTM Leaders
+
+   • 1.5 — Multiple stated topics literally match the event (≥2 of the attendee's scorable topics map to the event's name/audience/description, counting synonym matches as literal). OR a single literal match when the attendee's scorable topic list is very short (≤2 topics) and the match is dominant.
    • 1.2 — Single literal topic match against a medium topic list (3 scorable topics) — strong but not overwhelming.
    • 1.0 — No topics stated, OR only role/format/exclusion text given and no scorable topic remains. ALSO: single literal topic match in a longer list (4+ scorable topics) — needle in haystack. ALSO: strong semantic match (topic "GTM" + event for "Sales + Marketing leaders"; topic "AI" + an event explicitly about Agentic AI) regardless of list length.
    • 0.7 — Genuine tangential overlap (one weak keyword that maps loosely — e.g. topic "GTM" against an event about "Marketing Operations"; same neighborhood, not the same thing).
@@ -408,6 +421,27 @@ function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
+// Synonym map for topic→event text matching. Keeps parity with the LLM prompt's
+// function-title synonym table so deterministic floors agree with LLM scores.
+const TOPIC_SYNONYMS: Record<string, string[]> = {
+  marketing: ['cmo', 'chief marketing officer', 'marketing leaders', 'marketing executive'],
+  sales: ['cro', 'cso', 'chief revenue officer', 'chief sales officer', 'sales leaders', 'sales executive'],
+  revenue: ['cro', 'revops', 'revenue leaders', 'chief revenue officer'],
+  engineering: ['cto', 'chief technology officer', 'engineering leaders', 'tech leaders'],
+  technology: ['cto', 'chief technology officer', 'engineering leaders', 'tech leaders'],
+  finance: ['cfo', 'chief financial officer', 'finance leaders'],
+  operations: ['coo', 'chief operating officer', 'operations leaders'],
+  product: ['cpo', 'chief product officer', 'product leaders'],
+  hr: ['chro', 'chief people officer', 'people leaders'],
+  people: ['chro', 'chief people officer', 'people leaders'],
+  founders: ['ceo', 'founder', 'co-founder', 'startup', 'entrepreneurs'],
+  entrepreneurship: ['ceo', 'founder', 'co-founder', 'startup', 'entrepreneurs'],
+  ai: ['genai', 'llm', 'artificial intelligence', 'ai leaders', 'machine learning'],
+  'machine learning': ['ai', 'genai', 'llm', 'artificial intelligence'],
+  gtm: ['go-to-market', 'sales', 'marketing', 'revenue', 'gtm leaders'],
+  'go-to-market': ['gtm', 'sales', 'marketing', 'revenue', 'gtm leaders'],
+}
+
 function hasNonWomenTopicMatchingEvent(
   event: AirtableEvent,
   user: AirtableUser,
@@ -416,15 +450,19 @@ function hasNonWomenTopicMatchingEvent(
     event.name ?? '',
     (event.audience ?? []).join(' '),
     event.description ?? '',
-  ].join(' ')
+  ].join(' ').toLowerCase()
   const topics = (user.interest ?? '')
     .split(',')
     .map((t) => t.trim())
     .filter(Boolean)
   for (const topic of topics) {
     if (/\bwomen\b|\bwomxn\b|\bfemale\b/i.test(topic)) continue
-    if (new RegExp(`\\b${escapeRegex(topic)}\\b`, 'i').test(eventText)) {
-      return true
+    // Direct match
+    if (new RegExp(`\\b${escapeRegex(topic)}\\b`, 'i').test(eventText)) return true
+    // Synonym match
+    const synonyms = TOPIC_SYNONYMS[topic.toLowerCase()] ?? []
+    for (const syn of synonyms) {
+      if (new RegExp(`\\b${escapeRegex(syn)}\\b`, 'i').test(eventText)) return true
     }
   }
   return false
