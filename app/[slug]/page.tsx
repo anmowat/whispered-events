@@ -572,9 +572,18 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {(() => {
-                // Inject offers after rows 3, 8, 13, 18… (every 5 rows, 0-indexed: 2, 7, 12, 17…)
+                // Inject offers after rows 3, 8, 13, 18… (0-indexed: 2, 7, 12, 17…).
+                // If we fall 1–2 events short of a threshold, show after the last event instead.
                 const slotAfter = new Set<number>()
-                for (let i = 2; i < filteredEvents.length; i += 5) slotAfter.add(i)
+                const last = filteredEvents.length - 1
+                for (let t = 2; ; t += 5) {
+                  if (t < filteredEvents.length) {
+                    slotAfter.add(t)
+                  } else {
+                    if (last >= 0 && t - last <= 2) slotAfter.add(last)
+                    break
+                  }
+                }
 
                 let slotCount = 0
                 return filteredEvents.flatMap((ev, i) => {
