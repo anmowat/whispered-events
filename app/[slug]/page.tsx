@@ -134,6 +134,7 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
   const [filterType, setFilterType] = useState<string>('all')
   const [filterDay, setFilterDay] = useState<string>('all')
   const [filterTime, setFilterTime] = useState<string>('all')
+  const [showFilterSheet, setShowFilterSheet] = useState(false)
   const [offerTick, setOfferTick] = useState(0)
   const [offersVisible, setOffersVisible] = useState(true)
   const [urlCopied, setUrlCopied] = useState(false)
@@ -347,6 +348,7 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
         .aep-header-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
         .aep-filters { display: flex; gap: 8px; flex-wrap: wrap; }
         .aep-filter-select { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; padding: 6px 10px; font-size: 13px; cursor: pointer; outline: none; }
+        .aep-filter-btn-mobile { display: none !important; }
         .aep-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 20px 24px; }
         @media (max-width: 600px) {
           .aep-outer { padding: 24px 16px 60px; }
@@ -356,8 +358,9 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
           .aep-title { font-size: 26px !important; }
           .aep-desc { font-size: 15px !important; }
           .aep-header-actions { align-self: flex-start; }
-          .aep-filters { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-          .aep-filter-select { width: 100%; font-size: 14px; padding: 8px 10px; }
+          .aep-filters-desktop { display: none !important; }
+          .aep-filter-btn-mobile { display: inline-flex !important; }
+          .aep-filter-select { width: 100%; font-size: 15px; padding: 10px 12px; }
           .aep-card { padding: 14px 16px; }
         }
       `}</style>
@@ -445,52 +448,79 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
         {data.events.length > 0 && (
           <div style={{ marginBottom: 64 }}>
             {/* Filters */}
-            <div style={{ marginBottom: 20 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 10 }}>
-                <button
-                  onClick={() => setShowAddEvent(true)}
-                  style={{ background: 'rgba(201,168,106,0.12)', border: '1px solid rgba(201,168,106,0.35)', borderRadius: 8, padding: '6px 14px', color: '#c9a86a', fontSize: 13, cursor: 'pointer', fontWeight: 500, whiteSpace: 'nowrap' }}
-                >
-                  + Add Event
-                </button>
-              </div>
-              <div className="aep-filters">
-                <select
-                  value={filterDay}
-                  onChange={(e) => setFilterDay(e.target.value)}
-                  className="aep-filter-select"
-                  style={{ color: filterDay === 'all' ? '#6b5e53' : '#ece6da' }}
-                >
-                  <option value="all">All days</option>
-                  {uniqueDays.map((d) => (
-                    <option key={d} value={d}>{formatEventDate(d, { weekday: 'short', month: 'short', day: 'numeric' })}</option>
-                  ))}
-                </select>
-                <select
-                  value={filterTime}
-                  onChange={(e) => setFilterTime(e.target.value)}
-                  className="aep-filter-select"
-                  style={{ color: filterTime === 'all' ? '#6b5e53' : '#ece6da' }}
-                >
-                  <option value="all">All times</option>
-                  <option value="morning">Morning</option>
-                  <option value="midday">Midday</option>
-                  <option value="afternoon">Afternoon</option>
-                  <option value="evening">Evening</option>
-                </select>
-                <select
-                  value={filterType}
-                  onChange={(e) => setFilterType(e.target.value)}
-                  className="aep-filter-select"
-                  style={{ color: filterType === 'all' ? '#6b5e53' : '#ece6da' }}
-                >
-                  <option value="all">All types</option>
-                  {uniqueTypes.map((t) => (
-                    <option key={t} value={t}>{t}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
+            {/* Filter bar */}
+            {(() => {
+              const activeCount = [filterDay, filterTime, filterType].filter(v => v !== 'all').length
+              const filterSelects = (
+                <>
+                  <select value={filterDay} onChange={(e) => setFilterDay(e.target.value)} className="aep-filter-select" style={{ color: filterDay === 'all' ? '#6b5e53' : '#ece6da' }}>
+                    <option value="all">All days</option>
+                    {uniqueDays.map((d) => <option key={d} value={d}>{formatEventDate(d, { weekday: 'short', month: 'short', day: 'numeric' })}</option>)}
+                  </select>
+                  <select value={filterTime} onChange={(e) => setFilterTime(e.target.value)} className="aep-filter-select" style={{ color: filterTime === 'all' ? '#6b5e53' : '#ece6da' }}>
+                    <option value="all">All times</option>
+                    <option value="morning">Morning</option>
+                    <option value="midday">Midday</option>
+                    <option value="afternoon">Afternoon</option>
+                    <option value="evening">Evening</option>
+                  </select>
+                  <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className="aep-filter-select" style={{ color: filterType === 'all' ? '#6b5e53' : '#ece6da' }}>
+                    <option value="all">All types</option>
+                    {uniqueTypes.map((t) => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </>
+              )
+              return (
+                <div style={{ marginBottom: 20 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 10 }}>
+                    <button onClick={() => setShowAddEvent(true)} style={{ background: 'rgba(201,168,106,0.12)', border: '1px solid rgba(201,168,106,0.35)', borderRadius: 8, padding: '6px 14px', color: '#c9a86a', fontSize: 13, cursor: 'pointer', fontWeight: 500, whiteSpace: 'nowrap' }}>
+                      + Add Event
+                    </button>
+                    {/* Mobile: single filter button */}
+                    <button
+                      className="aep-filter-btn-mobile"
+                      onClick={() => setShowFilterSheet(true)}
+                      style={{ display: 'none', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, padding: '7px 14px', color: '#ece6da', fontSize: 13, cursor: 'pointer' }}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden><line x1="1" y1="4" x2="13" y2="4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><line x1="1" y1="10" x2="13" y2="10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="4" cy="4" r="1.5" fill="currentColor"/><circle cx="10" cy="10" r="1.5" fill="currentColor"/></svg>
+                      Filter
+                      {activeCount > 0 && (
+                        <span style={{ background: '#c9a86a', color: '#1a1410', borderRadius: 99, fontSize: 10, fontWeight: 700, padding: '1px 5px', lineHeight: 1.4 }}>{activeCount}</span>
+                      )}
+                    </button>
+                  </div>
+                  {/* Desktop filters inline */}
+                  <div className="aep-filters aep-filters-desktop">{filterSelects}</div>
+
+                  {/* Mobile filter bottom sheet */}
+                  {showFilterSheet && (
+                    <div
+                      style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}
+                      onClick={(e) => { if (e.target === e.currentTarget) setShowFilterSheet(false) }}
+                    >
+                      <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)' }} />
+                      <div style={{ position: 'relative', background: '#1e1a16', borderRadius: '16px 16px 0 0', padding: '20px 20px 40px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                          <span style={{ fontSize: 15, fontWeight: 600, color: '#ece6da' }}>Filter events</span>
+                          <button onClick={() => setShowFilterSheet(false)} style={{ background: 'none', border: 'none', color: '#6b5e53', fontSize: 20, cursor: 'pointer', lineHeight: 1 }}>×</button>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                          {filterSelects}
+                        </div>
+                        {activeCount > 0 && (
+                          <button onClick={() => { setFilterDay('all'); setFilterTime('all'); setFilterType('all') }} style={{ marginTop: 4, background: 'none', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, padding: '8px', color: '#6b5e53', fontSize: 13, cursor: 'pointer' }}>
+                            Clear filters
+                          </button>
+                        )}
+                        <button onClick={() => setShowFilterSheet(false)} style={{ background: 'rgba(201,168,106,0.15)', border: '1px solid rgba(201,168,106,0.35)', borderRadius: 8, padding: '10px', color: '#c9a86a', fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
+                          Done
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {(() => {
