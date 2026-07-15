@@ -74,20 +74,38 @@ export async function enrichUserFromLinkedIn(
   }
 
   const handle = toHandle(linkedinUrl)
-  let resp: Response
-  try {
-    resp = await fetch(ANYSITE_USER_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        // AnySite uses access-token, NOT Authorization: Bearer.
-        'access-token': apiKey,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ user: handle, with_experience: true }),
-    })
-  } catch (err) {
-    return { ok: false, reason: `AnySite fetch failed: ${err instanceof Error ? err.message : String(err)}` }
+
+  // Retry on transient overload/rate-limit (529, 503, 502) with backoff.
+  // Non-retryable errors (401, 404, 400) fail immediately.
+  const RETRYABLE = new Set([429, 502, 503, 529])
+  const MAX_ATTEMPTS = 3
+  let resp: Response | null = null
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    if (attempt > 0) {
+      await new Promise((r) => setTimeout(r, 1500 * attempt))
+    }
+    try {
+      resp = await fetch(ANYSITE_USER_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          // AnySite uses access-token, NOT Authorization: Bearer.
+          'access-token': apiKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ user: handle, with_experience: true }),
+      })
+    } catch (err) {
+      if (attempt === MAX_ATTEMPTS - 1) {
+        return { ok: false, reason: `AnySite fetch failed: ${err instanceof Error ? err.message : String(err)}` }
+      }
+      continue
+    }
+    if (!RETRYABLE.has(resp.status)) break
+    if (attempt < MAX_ATTEMPTS - 1) {
+      console.warn(`enrichUserFromLinkedIn: AnySite ${resp.status}, retrying (attempt ${attempt + 1})`)
+    }
   }
+  if (!resp) return { ok: false, reason: 'AnySite fetch failed after retries' }
 
   // 401 means the access-token header didn't authenticate. Log a fingerprint
   // of the key so admin can compare against the AnySite dashboard value
