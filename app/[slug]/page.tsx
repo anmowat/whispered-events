@@ -273,7 +273,7 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
                             <span style={{ display: 'inline-block', background: 'rgba(255,255,255,0.06)', borderRadius: 4, padding: '2px 7px', fontSize: 11, letterSpacing: '.04em', color: '#7a6e66', flexShrink: 0 }}>{ev.type}</span>
                           )}
                         </div>
-                        <div style={{ fontSize: 13, color: '#9c8b7e', display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginBottom: ev.description ? 6 : 0 }}>
+                        <div style={{ fontSize: 13, color: '#9c8b7e', display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
                           {ev.date && (
                             <span>{formatEventDate(ev.date, { weekday: 'short', month: 'short', day: 'numeric' })}</span>
                           )}
@@ -283,15 +283,15 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
                           {ev.organizer && (
                             <span>Host: {ev.organizer}</span>
                           )}
+                          {ev.description && (
+                            <button
+                              onClick={() => toggleDescription(ev.id)}
+                              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#c9a86a', fontSize: 13 }}
+                            >
+                              {expanded ? '▲ Hide details' : '▼ Show details'}
+                            </button>
+                          )}
                         </div>
-                        {ev.description && (
-                          <button
-                            onClick={() => toggleDescription(ev.id)}
-                            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#c9a86a', fontSize: 13, display: 'flex', alignItems: 'center', gap: 5 }}
-                          >
-                            {expanded ? '▲ Hide details' : '▼ Show details'}
-                          </button>
-                        )}
                         {expanded && ev.description && (
                           <div style={{ fontSize: 14, color: '#7a6e66', lineHeight: 1.6, marginTop: 8 }}>{ev.description}</div>
                         )}
@@ -370,11 +370,21 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
           </div>
         )}
 
-        {/* Footer: Whispered logo */}
-        <div style={{ textAlign: 'center', marginTop: 64, paddingTop: 32, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-          <a href="/" style={{ display: 'inline-block' }}>
-            <img src="/lockup-horizontal-gold.svg" alt="Whispered Events" style={{ height: 52 }} />
-          </a>
+        {/* Footer */}
+        <div style={{ marginTop: 64, paddingBottom: 32 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 32 }}>
+            <div style={{ flex: 1, height: 1, background: 'rgba(236,230,218,.13)' }} />
+            <svg width="48" height="48" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <line x1="18" y1="82" x2="82" y2="18" stroke="#C9A86A" strokeWidth="5" strokeLinecap="round"/>
+              <ellipse cx="42" cy="58" rx="17" ry="12" transform="rotate(-45 42 58)" fill="#C9A86A"/>
+              <ellipse cx="42" cy="58" rx="5" ry="3.5" transform="rotate(-45 42 58)" fill="#1b1814"/>
+            </svg>
+            <div style={{ flex: 1, height: 1, background: 'rgba(236,230,218,.13)' }} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: 15, color: 'rgba(236,230,218,.5)', letterSpacing: '.03em' }}>Whispered © 2026</span>
+            <a href="/faq" style={{ fontSize: 15, color: 'rgba(236,230,218,.5)', letterSpacing: '.06em', textDecoration: 'none' }}>FAQ</a>
+          </div>
         </div>
 
       </div>
