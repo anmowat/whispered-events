@@ -21,6 +21,8 @@ interface EventItem {
   date: string
   location: string
   type: string
+  startTime?: string | null
+  featured?: boolean
 }
 
 interface OfferItem {
@@ -173,20 +175,17 @@ export default function AdminAnchorEventDetailPage({ params }: { params: { id: s
     if (res.ok) setData({ ...data, events: newEvents })
   }
 
-  async function moveEvent(eventId: string, dir: 'up' | 'down') {
-    if (!data) return
-    const idx = data.events.findIndex((e) => e.id === eventId)
-    if (idx < 0) return
-    const newEvents = [...data.events]
-    const swap = dir === 'up' ? idx - 1 : idx + 1
-    if (swap < 0 || swap >= newEvents.length) return
-    ;[newEvents[idx], newEvents[swap]] = [newEvents[swap], newEvents[idx]]
-    await fetch(`/api/admin/anchor-events/${params.id}`, {
+  async function patchEventMeta(eventId: string, fields: { startTime?: string | null; featured?: boolean }) {
+    await fetch(`/api/admin/anchor-events/${params.id}/event-meta`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ eventIds: newEvents.map((e) => e.id) }),
+      body: JSON.stringify({ eventId, ...fields }),
     })
-    setData({ ...data, events: newEvents })
+    if (!data) return
+    setData({
+      ...data,
+      events: data.events.map((e) => e.id === eventId ? { ...e, ...fields } : e),
+    })
   }
 
   async function addOffer(offer: OfferItem) {
@@ -352,17 +351,27 @@ export default function AdminAnchorEventDetailPage({ params }: { params: { id: s
 
             {data.events.length > 0 && (
               <div style={{ marginBottom: 14 }}>
-                {data.events.map((ev, i) => (
+                {data.events.map((ev) => (
                   <div key={ev.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid #F0EAE3' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                      <button onClick={() => moveEvent(ev.id, 'up')} disabled={i === 0} style={{ background: 'none', border: 'none', cursor: i === 0 ? 'default' : 'pointer', color: i === 0 ? '#ddd' : '#888', fontSize: 12, padding: 0, lineHeight: 1 }}>▲</button>
-                      <button onClick={() => moveEvent(ev.id, 'down')} disabled={i === data.events.length - 1} style={{ background: 'none', border: 'none', cursor: i === data.events.length - 1 ? 'default' : 'pointer', color: i === data.events.length - 1 ? '#ddd' : '#888', fontSize: 12, padding: 0, lineHeight: 1 }}>▼</button>
-                    </div>
+                    <button
+                      title={ev.featured ? 'Unfeature (pinned to top)' : 'Feature (pin to top)'}
+                      onClick={() => patchEventMeta(ev.id, { featured: !ev.featured })}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, padding: 0, color: ev.featured ? '#c9a86a' : '#ccc', flexShrink: 0 }}
+                    >
+                      ★
+                    </button>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 500, fontSize: 14 }}>{ev.name}</div>
                       <div style={{ fontSize: 12, color: '#888' }}>{ev.date} · {ev.location} · {ev.type}</div>
                     </div>
-                    <button onClick={() => removeEvent(ev.id)} style={{ background: 'none', border: 'none', color: '#c0392b', cursor: 'pointer', fontSize: 13 }}>Remove</button>
+                    <input
+                      type="text"
+                      defaultValue={ev.startTime ?? ''}
+                      placeholder="10:00 AM"
+                      onBlur={(e) => patchEventMeta(ev.id, { startTime: e.target.value.trim() || null })}
+                      style={{ width: 90, padding: '4px 7px', border: '1px solid #d5cbc3', borderRadius: 5, fontSize: 12, background: '#fff' }}
+                    />
+                    <button onClick={() => removeEvent(ev.id)} style={{ background: 'none', border: 'none', color: '#c0392b', cursor: 'pointer', fontSize: 13, flexShrink: 0 }}>Remove</button>
                   </div>
                 ))}
               </div>

@@ -7,6 +7,22 @@ import type { Offer } from '@/lib/offers'
 
 const SERIF = `'Cormorant Garamond', Georgia, 'Times New Roman', serif`
 
+function timeToMinutes(t: string | null): number | null {
+  if (!t) return null
+  const m12 = t.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i)
+  if (m12) {
+    let h = parseInt(m12[1])
+    const min = parseInt(m12[2])
+    const ampm = m12[3].toUpperCase()
+    if (ampm === 'AM' && h === 12) h = 0
+    if (ampm === 'PM' && h !== 12) h += 12
+    return h * 60 + min
+  }
+  const m24 = t.match(/^(\d{1,2}):(\d{2})$/)
+  if (m24) return parseInt(m24[1]) * 60 + parseInt(m24[2])
+  return null
+}
+
 interface EventSummary {
   id: string
   name: string
@@ -15,6 +31,9 @@ interface EventSummary {
   link: string
   type: string
   organizer: string | null
+  startTime: string | null
+  endTime: string | null
+  featured: boolean
 }
 
 interface PageData {
@@ -31,6 +50,7 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
   const [filterType, setFilterType] = useState<string>('all')
   const [filterDay, setFilterDay] = useState<string>('all')
+  const [filterTime, setFilterTime] = useState<string>('all')
 
   useEffect(() => {
     async function load() {
@@ -66,9 +86,17 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
     return data.events.filter((e) => {
       if (filterType !== 'all' && e.type !== filterType) return false
       if (filterDay !== 'all' && e.date !== filterDay) return false
+      if (filterTime !== 'all') {
+        const mins = timeToMinutes(e.startTime)
+        if (mins === null) return false
+        if (filterTime === 'morning' && !(mins >= 7 * 60 && mins < 12 * 60)) return false
+        if (filterTime === 'midday' && !(mins >= 10 * 60 + 30 && mins <= 14 * 60)) return false
+        if (filterTime === 'afternoon' && !(mins >= 13 * 60 && mins <= 17 * 60)) return false
+        if (filterTime === 'evening' && !(mins >= 16 * 60)) return false
+      }
       return true
     })
-  }, [data, filterType, filterDay])
+  }, [data, filterType, filterDay, filterTime])
 
   function toggleDescription(id: string) {
     setExpandedIds((prev) => {
@@ -140,18 +168,28 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
         {/* Top nav: Whispered logo */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 40 }}>
           <a href="/" style={{ display: 'inline-block' }}>
-            <img src="/lockup-horizontal-gold.svg" alt="Whispered Events" style={{ height: 28 }} />
+            <img src="/lockup-horizontal-gold.svg" alt="Whispered Events" style={{ height: 42 }} />
           </a>
         </div>
 
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 20, marginBottom: 12 }}>
           {anchorEvent.anchorIconUrl && (
-            <img
-              src={anchorEvent.anchorIconUrl}
-              alt={anchorEvent.anchorName}
-              style={{ width: 88, height: 88, objectFit: 'contain', borderRadius: 14, flexShrink: 0 }}
-            />
+            anchorEvent.anchorUrl ? (
+              <a href={anchorEvent.anchorUrl} target="_blank" rel="noopener noreferrer" style={{ flexShrink: 0, display: 'block' }}>
+                <img
+                  src={anchorEvent.anchorIconUrl}
+                  alt={anchorEvent.anchorName}
+                  style={{ width: 88, height: 88, objectFit: 'contain', borderRadius: 14 }}
+                />
+              </a>
+            ) : (
+              <img
+                src={anchorEvent.anchorIconUrl}
+                alt={anchorEvent.anchorName}
+                style={{ width: 88, height: 88, objectFit: 'contain', borderRadius: 14, flexShrink: 0 }}
+              />
+            )
           )}
           <div>
             <h1 style={{ fontFamily: SERIF, fontSize: 42, fontWeight: 400, margin: '0 0 6px', color: '#ece6da', lineHeight: 1.15 }}>
@@ -204,6 +242,17 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
                 ))}
               </select>
               <select
+                value={filterTime}
+                onChange={(e) => setFilterTime(e.target.value)}
+                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, padding: '6px 10px', color: filterTime === 'all' ? '#6b5e53' : '#ece6da', fontSize: 13, cursor: 'pointer', outline: 'none' }}
+              >
+                <option value="all">All times</option>
+                <option value="morning">Morning (7 AM – noon)</option>
+                <option value="midday">Midday (10:30 AM – 2 PM)</option>
+                <option value="afternoon">Afternoon (1 – 5 PM)</option>
+                <option value="evening">Evening (4 PM+)</option>
+              </select>
+              <select
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value)}
                 style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, padding: '6px 10px', color: filterType === 'all' ? '#6b5e53' : '#ece6da', fontSize: 13, cursor: 'pointer', outline: 'none' }}
@@ -227,6 +276,9 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
                       <div style={{ flex: 1, minWidth: 200 }}>
                         <div style={{ fontFamily: SERIF, fontSize: 21, color: '#ece6da', marginBottom: 6, lineHeight: 1.2 }}>{ev.name}</div>
                         <div style={{ fontSize: 13, color: '#9c8b7e', display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+                          {ev.startTime && (
+                            <span style={{ color: '#c9a86a', fontWeight: 500 }}>{ev.startTime}{ev.endTime ? ` – ${ev.endTime}` : ''}</span>
+                          )}
                           {ev.organizer && (
                             <span>Host: {ev.organizer}</span>
                           )}
