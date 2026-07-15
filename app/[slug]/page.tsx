@@ -374,8 +374,6 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
           .aep-favicon-mobile { display: inline-block !important; }
           .aep-desc-desktop { display: none !important; }
           .aep-card-bottom-mobile { display: flex !important; justify-content: space-between; align-items: center; margin-top: 10px; }
-          .aep-event-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-          .aep-card-title-row { flex-wrap: nowrap !important; }
         }
       `}</style>
 
@@ -604,14 +602,14 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
                       <div className="aep-card-inner">
                         {/* Left / main content */}
                         <div className="aep-card-left">
-                          {/* Title row: name + type + favicon (favicon mobile-only) */}
-                          <div className="aep-card-title-row" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 5 }}>
-                            <span className="aep-event-name" style={{ fontFamily: SERIF, fontSize: 21, color: '#ece6da', lineHeight: 1.2 }}>{ev.name}</span>
+                          {/* Title row: inline flow so type+favicon follow name without forced line break */}
+                          <div style={{ marginBottom: 5, lineHeight: 1.3 }}>
+                            <span style={{ fontFamily: SERIF, fontSize: 21, color: '#ece6da' }}>{ev.name}</span>
                             {ev.type && (
-                              <span style={{ display: 'inline-block', background: 'rgba(255,255,255,0.06)', borderRadius: 4, padding: '2px 7px', fontSize: 11, letterSpacing: '.04em', color: '#7a6e66', flexShrink: 0 }}>{ev.type}</span>
+                              <span style={{ display: 'inline-block', background: 'rgba(255,255,255,0.06)', borderRadius: 4, padding: '2px 7px', fontSize: 11, letterSpacing: '.04em', color: '#7a6e66', marginLeft: 8, verticalAlign: 'middle' }}>{ev.type}</span>
                             )}
                             {ev.faviconUrl && (
-                              <img className="aep-favicon-mobile" src={ev.faviconUrl} alt="" style={{ height: 20, width: 20, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }} />
+                              <img className="aep-favicon-mobile" src={ev.faviconUrl} alt="" style={{ display: 'inline-block', height: 20, width: 20, objectFit: 'cover', borderRadius: 4, marginLeft: 6, verticalAlign: 'middle' }} />
                             )}
                           </div>
                           {/* Meta row */}
