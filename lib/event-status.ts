@@ -5,7 +5,7 @@
 
 export type EventStatus = 'Pending' | 'Live' | 'Deactivated'
 
-export const EVENT_STATUS_OPTIONS: EventStatus[] = ['Pending', 'Live', 'Deactivated']
+export const EVENT_STATUS_OPTIONS: EventStatus[] = ['Live', 'Pending', 'Deactivated']
 
 const VALID = new Set<string>(EVENT_STATUS_OPTIONS)
 
