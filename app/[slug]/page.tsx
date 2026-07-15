@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { formatEventDate } from '@/lib/dates'
 import type { AnchorEvent } from '@/lib/anchor-events'
 import type { Offer } from '@/lib/offers'
@@ -11,10 +11,10 @@ interface EventSummary {
   id: string
   name: string
   date: string
-  location: string
   description: string
   link: string
   type: string
+  organizer: string | null
 }
 
 interface PageData {
@@ -26,12 +26,12 @@ interface PageData {
 export default function AnchorEventPage({ params }: { params: { slug: string } }) {
   const [data, setData] = useState<PageData | null>(null)
   const [notFound, setNotFound] = useState(false)
-  const [pageError, setPageError] = useState<string | null>(null)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [showAuthDialog, setShowAuthDialog] = useState(false)
   const [showShareDialog, setShowShareDialog] = useState(false)
-  const [shareEmail, setShareEmail] = useState('')
-  const [shareSubmitted, setShareSubmitted] = useState(false)
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
+  const [filterType, setFilterType] = useState<string>('all')
+  const [filterDay, setFilterDay] = useState<string>('all')
 
   useEffect(() => {
     async function load() {
@@ -40,8 +40,6 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
         fetch('/api/auth/me'),
       ])
       if (!pageRes.ok) {
-        const errBody = await pageRes.json().catch(() => ({})) as { error?: string }
-        setPageError(`${pageRes.status}: ${errBody.error ?? 'unknown error'}`)
         setNotFound(true)
         return
       }
@@ -52,6 +50,35 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
     }
     load()
   }, [params.slug])
+
+  const uniqueTypes = useMemo(() => {
+    if (!data) return []
+    return Array.from(new Set(data.events.map((e) => e.type).filter(Boolean))).sort()
+  }, [data])
+
+  const uniqueDays = useMemo(() => {
+    if (!data) return []
+    const days = Array.from(new Set(data.events.map((e) => e.date).filter(Boolean))).sort()
+    return days
+  }, [data])
+
+  const filteredEvents = useMemo(() => {
+    if (!data) return []
+    return data.events.filter((e) => {
+      if (filterType !== 'all' && e.type !== filterType) return false
+      if (filterDay !== 'all' && e.date !== filterDay) return false
+      return true
+    })
+  }, [data, filterType, filterDay])
+
+  function toggleDescription(id: string) {
+    setExpandedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
 
   if (notFound) {
     return (
@@ -74,7 +101,7 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
     )
   }
 
-  const { anchorEvent, events, offers } = data
+  const { anchorEvent, offers } = data
 
   const pageUrl = typeof window !== 'undefined' ? window.location.href : ''
 
@@ -211,56 +238,104 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
         </div>
 
         {/* Events */}
-        {events.length > 0 && (
+        {filteredEvents.length > 0 || uniqueTypes.length > 0 ? (
           <div style={{ marginBottom: 64 }}>
-            <div style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: '#6b5e53', marginBottom: 20 }}>
-              Side Events ({events.length})
+            {/* Header + filters */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 20 }}>
+              <div style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: '#6b5e53' }}>
+                Side Events ({filteredEvents.length}{filteredEvents.length !== data.events.length ? ` of ${data.events.length}` : ''})
+              </div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginLeft: 'auto' }}>
+                {uniqueDays.length > 1 && (
+                  <select
+                    value={filterDay}
+                    onChange={(e) => setFilterDay(e.target.value)}
+                    style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, padding: '6px 10px', color: filterDay === 'all' ? '#6b5e53' : '#ece6da', fontSize: 13, cursor: 'pointer', outline: 'none' }}
+                  >
+                    <option value="all">All days</option>
+                    {uniqueDays.map((d) => (
+                      <option key={d} value={d}>{formatEventDate(d, { weekday: 'short', month: 'short', day: 'numeric' })}</option>
+                    ))}
+                  </select>
+                )}
+                {uniqueTypes.length > 1 && (
+                  <select
+                    value={filterType}
+                    onChange={(e) => setFilterType(e.target.value)}
+                    style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, padding: '6px 10px', color: filterType === 'all' ? '#6b5e53' : '#ece6da', fontSize: 13, cursor: 'pointer', outline: 'none' }}
+                  >
+                    <option value="all">All types</option>
+                    {uniqueTypes.map((t) => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                )}
+              </div>
             </div>
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {events.map((ev) => (
-                <div
-                  key={ev.id}
-                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '20px 24px' }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
-                    <div style={{ flex: 1, minWidth: 200 }}>
-                      <div style={{ fontFamily: SERIF, fontSize: 21, color: '#ece6da', marginBottom: 6, lineHeight: 1.2 }}>{ev.name}</div>
-                      <div style={{ fontSize: 13, color: '#9c8b7e', marginBottom: ev.description ? 10 : 0 }}>
-                        {ev.date && (
-                          <span>{formatEventDate(ev.date, { month: 'long', day: 'numeric', year: 'numeric' })}</span>
+              {filteredEvents.map((ev) => {
+                const expanded = expandedIds.has(ev.id)
+                return (
+                  <div
+                    key={ev.id}
+                    style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '20px 24px' }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+                      <div style={{ flex: 1, minWidth: 200 }}>
+                        <div style={{ fontFamily: SERIF, fontSize: 21, color: '#ece6da', marginBottom: 6, lineHeight: 1.2 }}>{ev.name}</div>
+                        <div style={{ fontSize: 13, color: '#9c8b7e', display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+                          {ev.date && (
+                            <span>{formatEventDate(ev.date, { month: 'long', day: 'numeric', year: 'numeric' })}</span>
+                          )}
+                          {ev.organizer && (
+                            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                              <span style={{ opacity: 0.35 }}>·</span>
+                              <span>Host: {ev.organizer}</span>
+                            </span>
+                          )}
+                          {ev.type && (
+                            <span style={{ display: 'inline-block', background: 'rgba(255,255,255,0.06)', borderRadius: 4, padding: '2px 7px', fontSize: 11, letterSpacing: '.04em', color: '#7a6e66' }}>{ev.type}</span>
+                          )}
+                        </div>
+                        {ev.description && (
+                          <button
+                            onClick={() => toggleDescription(ev.id)}
+                            style={{ background: 'none', border: 'none', padding: 0, marginTop: 10, cursor: 'pointer', color: '#c9a86a', fontSize: 13, display: 'flex', alignItems: 'center', gap: 5 }}
+                          >
+                            {expanded ? '▲ Hide details' : '▼ Show details'}
+                          </button>
                         )}
-                        {ev.date && ev.location && <span style={{ margin: '0 8px', opacity: 0.4 }}>·</span>}
-                        {ev.location && <span>{ev.location}</span>}
+                        {expanded && ev.description && (
+                          <div style={{ fontSize: 14, color: '#7a6e66', lineHeight: 1.6, marginTop: 8 }}>{ev.description}</div>
+                        )}
                       </div>
-                      {ev.description && (
-                        <div style={{ fontSize: 14, color: '#7a6e66', lineHeight: 1.6 }}>{ev.description}</div>
+                      {ev.link && (
+                        isLoggedIn ? (
+                          <a
+                            href={ev.link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(201,168,106,0.12)', color: '#c9a86a', border: '1px solid rgba(201,168,106,0.3)', borderRadius: 8, padding: '8px 14px', fontSize: 13, textDecoration: 'none', whiteSpace: 'nowrap', flexShrink: 0 }}
+                          >
+                            View event ↗
+                          </a>
+                        ) : (
+                          <button
+                            onClick={() => setShowAuthDialog(true)}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.04)', color: '#6b5e53', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '8px 14px', fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
+                          >
+                            View event →
+                          </button>
+                        )
                       )}
                     </div>
-                    {ev.link && (
-                      isLoggedIn ? (
-                        <a
-                          href={ev.link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(201,168,106,0.12)', color: '#c9a86a', border: '1px solid rgba(201,168,106,0.3)', borderRadius: 8, padding: '8px 14px', fontSize: 13, textDecoration: 'none', whiteSpace: 'nowrap', flexShrink: 0 }}
-                        >
-                          View event ↗
-                        </a>
-                      ) : (
-                        <button
-                          onClick={() => setShowAuthDialog(true)}
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.04)', color: '#6b5e53', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '8px 14px', fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
-                        >
-                          View event →
-                        </button>
-                      )
-                    )}
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
-        )}
+        ) : null}
 
         {/* Offers */}
         {offers.length > 0 && (

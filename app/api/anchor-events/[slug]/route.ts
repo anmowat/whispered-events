@@ -22,10 +22,10 @@ export async function GET(_req: NextRequest, { params }: { params: { slug: strin
         id: e.id,
         name: e.name,
         date: e.date,
-        location: e.location,
         description: e.description,
         link: e.link,
         type: e.type,
+        organizer: e.organizer ?? null,
       })),
       offers,
     })
