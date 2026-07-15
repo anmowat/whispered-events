@@ -373,7 +373,7 @@ function Wysiwyg({
         suppressContentEditableWarning
         onInput={(e) => onChange((e.target as HTMLDivElement).innerHTML)}
         onBlur={(e) => onChange((e.target as HTMLDivElement).innerHTML)}
-        className="px-3 py-3 text-sm text-gray-800 min-h-[220px] focus:outline-none"
+        className="px-3 py-3 text-sm text-gray-800 min-h-[220px] focus:outline-none [&_a]:text-[#8B6B35] [&_a]:underline [&_a]:underline-offset-2"
         style={{ lineHeight: 1.6 }}
       />
     </div>
