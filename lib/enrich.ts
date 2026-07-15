@@ -84,6 +84,8 @@ export async function enrichUserFromLinkedIn(
     if (attempt > 0) {
       await new Promise((r) => setTimeout(r, 1500 * attempt))
     }
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 18_000)
     try {
       resp = await fetch(ANYSITE_USER_ENDPOINT, {
         method: 'POST',
@@ -93,12 +95,17 @@ export async function enrichUserFromLinkedIn(
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ user: handle, with_experience: true }),
+        signal: controller.signal,
       })
     } catch (err) {
+      const isTimeout = err instanceof Error && err.name === 'AbortError'
       if (attempt === MAX_ATTEMPTS - 1) {
-        return { ok: false, reason: `AnySite fetch failed: ${err instanceof Error ? err.message : String(err)}` }
+        return { ok: false, reason: isTimeout ? 'AnySite timed out after 3 attempts' : `AnySite fetch failed: ${err instanceof Error ? err.message : String(err)}` }
       }
+      console.warn(`enrichUserFromLinkedIn: ${isTimeout ? 'timeout' : 'error'} on attempt ${attempt + 1}, retrying`)
       continue
+    } finally {
+      clearTimeout(timer)
     }
     if (!RETRYABLE.has(resp.status)) break
     if (attempt < MAX_ATTEMPTS - 1) {
