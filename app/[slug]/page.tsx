@@ -98,20 +98,13 @@ function InlineOfferSlot({ chunk, visible }: { chunk: Offer[]; visible: boolean 
         {chunk.map((offer) => <OfferBanner key={offer.id} offer={offer} />)}
       </div>
 
-      {/* Mobile: single slide carousel */}
-      <div className="offers-mobile" style={{ position: 'relative', overflow: 'hidden' }}>
-        <div style={{ display: 'flex', transition: 'transform 0.5s ease', transform: `translateX(-${mobileIdx * 100}%)` }}>
-          {chunk.map((offer) => (
-            <div key={offer.id} style={{ minWidth: '100%' }}><OfferBanner offer={offer} /></div>
-          ))}
-        </div>
-        {chunk.length > 1 && (
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginTop: 10 }}>
-            {chunk.map((_, i) => (
-              <button key={i} onClick={() => setMobileIdx(i)} style={{ width: 6, height: 6, borderRadius: '50%', border: 'none', padding: 0, cursor: 'pointer', background: i === mobileIdx ? '#c9a86a' : 'rgba(201,168,106,0.3)', transition: 'background 0.3s' }} />
-            ))}
+      {/* Mobile: fade carousel (no dots) */}
+      <div className="offers-mobile" style={{ position: 'relative', paddingBottom: '50%' }}>
+        {chunk.map((offer, i) => (
+          <div key={offer.id} style={{ position: 'absolute', inset: 0, opacity: i === mobileIdx ? 1 : 0, transition: 'opacity 0.6s ease', pointerEvents: i === mobileIdx ? 'auto' : 'none' }}>
+            <OfferBanner offer={offer} />
           </div>
-        )}
+        ))}
       </div>
 
       <style>{`
@@ -350,6 +343,9 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
         .aep-filter-select { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; padding: 6px 10px; font-size: 13px; cursor: pointer; outline: none; }
         .aep-filter-btn-mobile { display: none !important; }
         .aep-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 20px 24px; }
+        .aep-btn-text { display: inline; }
+        .aep-event-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+        .aep-event-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
         @media (max-width: 600px) {
           .aep-outer { padding: 24px 16px 60px; }
           .aep-header { flex-direction: column; gap: 12px; margin-bottom: 20px; }
@@ -362,6 +358,9 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
           .aep-filter-btn-mobile { display: inline-flex !important; }
           .aep-filter-select { width: 100%; font-size: 15px; padding: 10px 12px; }
           .aep-card { padding: 14px 16px; }
+          .aep-btn-text { display: none; }
+          .aep-event-row { flex-direction: column; gap: 10px; }
+          .aep-event-actions { align-self: flex-start; }
         }
       `}</style>
 
@@ -429,16 +428,22 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
                   await fetch('/api/auth/logout', { method: 'POST' })
                   setIsLoggedIn(false)
                 }}
-                style={{ background: 'none', border: '1px solid rgba(255,255,255,0.18)', borderRadius: 99, padding: '7px 16px', color: 'rgba(236,230,218,0.6)', fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                aria-label="Log out"
+                title="Log out"
+                style={{ background: 'none', border: '1px solid rgba(255,255,255,0.18)', borderRadius: 99, padding: '7px 10px', color: 'rgba(236,230,218,0.6)', fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
               >
-                Log out
+                <svg width="15" height="15" viewBox="0 0 14 14" fill="none" aria-hidden><path d="M5 2H3a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><path d="M9 10l3-3-3-3M12 7H5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                <span className="aep-btn-text">Log out</span>
               </button>
             ) : (
               <button
                 onClick={() => setShowLoginModal(true)}
-                style={{ background: 'rgba(201,168,106,0.12)', border: '1px solid rgba(201,168,106,0.35)', borderRadius: 99, padding: '7px 16px', color: '#c9a86a', fontSize: 13, cursor: 'pointer', fontWeight: 500, whiteSpace: 'nowrap' }}
+                aria-label="Log in"
+                title="Log in"
+                style={{ background: 'rgba(201,168,106,0.12)', border: '1px solid rgba(201,168,106,0.35)', borderRadius: 99, padding: '7px 10px', color: '#c9a86a', fontSize: 13, cursor: 'pointer', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6 }}
               >
-                Log in
+                <svg width="15" height="15" viewBox="0 0 14 14" fill="none" aria-hidden><path d="M9 2h2a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><path d="M5 10l-3-3 3-3M2 7h7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                <span className="aep-btn-text">Log in</span>
               </button>
             )}
           </div>
@@ -540,8 +545,8 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
                       key={ev.id}
                       className="aep-card"
                     >
-                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
-                        <div style={{ flex: 1, minWidth: 200 }}>
+                      <div className="aep-event-row">
+                        <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 5 }}>
                             <div style={{ fontFamily: SERIF, fontSize: 21, color: '#ece6da', lineHeight: 1.2 }}>{ev.name}</div>
                             {ev.type && (
@@ -571,7 +576,7 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
                             <div style={{ fontSize: 14, color: '#7a6e66', lineHeight: 1.6, marginTop: 8 }}>{ev.description}</div>
                           )}
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                        <div className="aep-event-actions">
                           {ev.faviconUrl && (
                             <img
                               src={ev.faviconUrl}
