@@ -178,7 +178,7 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
               <>
                 <div style={{ fontFamily: SERIF, fontSize: 28, color: '#ece6da', marginBottom: 10, lineHeight: 1.2 }}>See whispered events</div>
                 <div style={{ color: '#9c8b7e', fontSize: 15, lineHeight: 1.65, marginBottom: 24 }}>
-                  Create a free profile to see all {data?.anchorEvent.anchorName} events that match your level and get a personalized feed of intimate events throughout the year.
+                  Create a free profile to see all {data?.anchorEvent.shortName || data?.anchorEvent.anchorName} events that match your level and get a personalized feed of intimate events.
                 </div>
 
                 {/* Primary CTA */}

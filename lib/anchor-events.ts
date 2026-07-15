@@ -19,6 +19,7 @@ export interface AnchorEvent {
   id: string
   slug: string
   title: string
+  shortName: string
   anchorName: string
   anchorUrl: string
   anchorIconUrl: string
@@ -32,6 +33,7 @@ interface AnchorEventRow {
   id: string
   slug: string
   title: string
+  short_name: string
   anchor_name: string
   anchor_url: string
   anchor_icon_url: string
@@ -46,6 +48,7 @@ function toAnchorEvent(row: AnchorEventRow): AnchorEvent {
     id: row.id,
     slug: row.slug,
     title: row.title,
+    shortName: row.short_name ?? '',
     anchorName: row.anchor_name,
     anchorUrl: row.anchor_url,
     anchorIconUrl: row.anchor_icon_url,
@@ -182,6 +185,7 @@ export async function getAnchorEventOfferIds(anchorEventId: string): Promise<str
 export interface AnchorEventInput {
   slug?: string
   title?: string
+  shortName?: string
   anchorName?: string
   anchorUrl?: string
   anchorIconUrl?: string
@@ -196,6 +200,7 @@ export async function createAnchorEvent(input: AnchorEventInput): Promise<Anchor
     .insert({
       slug: input.slug ?? '',
       title: input.title ?? '',
+      short_name: input.shortName ?? '',
       anchor_name: input.anchorName ?? '',
       anchor_url: input.anchorUrl ?? '',
       anchor_icon_url: input.anchorIconUrl ?? '',
@@ -216,6 +221,7 @@ export async function updateAnchorEvent(
   const fields: Record<string, unknown> = { updated_at: new Date().toISOString() }
   if (input.slug !== undefined) fields.slug = input.slug
   if (input.title !== undefined) fields.title = input.title
+  if (input.shortName !== undefined) fields.short_name = input.shortName
   if (input.anchorName !== undefined) fields.anchor_name = input.anchorName
   if (input.anchorUrl !== undefined) fields.anchor_url = input.anchorUrl
   if (input.anchorIconUrl !== undefined) fields.anchor_icon_url = input.anchorIconUrl

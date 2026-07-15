@@ -50,6 +50,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     const body = (await req.json().catch(() => ({}))) as {
       slug?: unknown
       title?: unknown
+      shortName?: unknown
       anchorName?: unknown
       anchorUrl?: unknown
       anchorIconUrl?: unknown
@@ -62,6 +63,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     const update: Parameters<typeof updateAnchorEvent>[1] = {}
     if (typeof body.slug === 'string') update.slug = body.slug.trim().toLowerCase().replace(/\s+/g, '-')
     if (typeof body.title === 'string') update.title = body.title
+    if (typeof body.shortName === 'string') update.shortName = body.shortName
     if (typeof body.anchorName === 'string') update.anchorName = body.anchorName
     if (typeof body.anchorUrl === 'string') update.anchorUrl = body.anchorUrl
     if (typeof body.anchorIconUrl === 'string') update.anchorIconUrl = body.anchorIconUrl

@@ -8,6 +8,7 @@ interface AnchorEvent {
   id: string
   slug: string
   title: string
+  shortName: string
   anchorName: string
   anchorUrl: string
   anchorIconUrl: string
@@ -49,6 +50,7 @@ export default function AdminAnchorEventDetailPage({ params }: { params: { id: s
   // Draft fields
   const [slug, setSlug] = useState('')
   const [title, setTitle] = useState('')
+  const [shortName, setShortName] = useState('')
   const [anchorName, setAnchorName] = useState('')
   const [anchorUrl, setAnchorUrl] = useState('')
   const [anchorIconUrl, setAnchorIconUrl] = useState('')
@@ -76,6 +78,7 @@ export default function AdminAnchorEventDetailPage({ params }: { params: { id: s
     setData(d)
     setSlug(d.item.slug)
     setTitle(d.item.title)
+    setShortName(d.item.shortName)
     setAnchorName(d.item.anchorName)
     setAnchorUrl(d.item.anchorUrl)
     setAnchorIconUrl(d.item.anchorIconUrl)
@@ -99,7 +102,7 @@ export default function AdminAnchorEventDetailPage({ params }: { params: { id: s
     const res = await fetch(`/api/admin/anchor-events/${params.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ slug, title, anchorName, anchorUrl, description, status }),
+      body: JSON.stringify({ slug, title, shortName, anchorName, anchorUrl, description, status }),
     })
     setSaving(false)
     if (!res.ok) {
@@ -285,8 +288,13 @@ export default function AdminAnchorEventDetailPage({ params }: { params: { id: s
                   <input style={input} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Dreamforce '26 Side Events" />
                 </div>
                 <div>
+                  <label style={label}>Short Name</label>
+                  <input style={input} value={shortName} onChange={(e) => setShortName(e.target.value)} placeholder="Dreamforce" />
+                  <div style={{ fontSize: 11, color: '#aaa', marginTop: 3 }}>Used in the "See whispered events" popup</div>
+                </div>
+                <div>
                   <label style={label}>Anchor Name</label>
-                  <input style={input} value={anchorName} onChange={(e) => setAnchorName(e.target.value)} placeholder="Dreamforce" />
+                  <input style={input} value={anchorName} onChange={(e) => setAnchorName(e.target.value)} placeholder="Dreamforce Sept 15–17 · San Francisco" />
                 </div>
                 <div>
                   <label style={label}>Anchor URL (main event site)</label>
