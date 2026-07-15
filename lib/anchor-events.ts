@@ -99,7 +99,7 @@ export interface AnchorEventEventMeta {
 
 export async function getAnchorEventEvents(
   anchorEventId: string,
-): Promise<Array<AirtableEvent & AnchorEventEventMeta>> {
+): Promise<Array<AirtableEvent & AnchorEventEventMeta & { faviconUrl: string }>> {
   const supabase = getSupabase()
   const { data, error } = await supabase
     .from('anchor_event_events')
@@ -107,16 +107,26 @@ export async function getAnchorEventEvents(
     .eq('anchor_event_id', anchorEventId)
   if (error) throw new Error(`getAnchorEventEvents: ${error.message}`)
   const rows = data as Array<{ event_id: string; start_time: string | null; featured: boolean }>
+  // Fetch favicon_url for all events in one query
+  const eventIds = rows.map((r) => r.event_id)
+  const { data: faviconRows } = await supabase
+    .from('events')
+    .select('id, favicon_url')
+    .in('id', eventIds.length > 0 ? eventIds : ['__none__'])
+  const faviconMap = new Map(
+    ((faviconRows ?? []) as Array<{ id: string; favicon_url: string | null }>).map((r) => [r.id, r.favicon_url ?? ''])
+  )
+
   const events = await Promise.all(
     rows.map(async (r) => {
       const ev = await getEventById(r.event_id)
       if (!ev) return null
       // Use junction table start_time override if set, otherwise fall back to event's own startTime
       const startTime = r.start_time ?? (ev as { startTime?: string }).startTime ?? null
-      return { ...ev, startTime, featured: r.featured ?? false }
+      return { ...ev, startTime, featured: r.featured ?? false, faviconUrl: faviconMap.get(r.event_id) ?? '' }
     }),
   )
-  const valid = events.filter((e): e is AirtableEvent & AnchorEventEventMeta => e !== null)
+  const valid = events.filter((e): e is AirtableEvent & AnchorEventEventMeta & { faviconUrl: string } => e !== null)
   // Sort: featured first, then by start_time ascending (nulls last), then by name
   return valid.sort((a, b) => {
     if (a.featured !== b.featured) return a.featured ? -1 : 1

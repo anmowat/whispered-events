@@ -36,6 +36,7 @@ interface EventSummary {
   startTime: string | null
   endTime: string | null
   featured: boolean
+  faviconUrl: string
   seniority: string[]
 }
 
@@ -515,25 +516,34 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
                             <div style={{ fontSize: 14, color: '#7a6e66', lineHeight: 1.6, marginTop: 8 }}>{ev.description}</div>
                           )}
                         </div>
-                        {ev.link && (
-                          isLoggedIn ? (
-                            <a
-                              href={ev.link}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(201,168,106,0.12)', color: '#c9a86a', border: '1px solid rgba(201,168,106,0.3)', borderRadius: 8, padding: '8px 14px', fontSize: 13, textDecoration: 'none', whiteSpace: 'nowrap', flexShrink: 0 }}
-                            >
-                              View event ↗
-                            </a>
-                          ) : (
-                            <button
-                              onClick={() => setShowAuthDialog(true)}
-                              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.04)', color: '#6b5e53', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '8px 14px', fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
-                            >
-                              View event →
-                            </button>
-                          )
-                        )}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                          {ev.faviconUrl && (
+                            <img
+                              src={ev.faviconUrl}
+                              alt=""
+                              style={{ width: 32, height: 32, objectFit: 'contain', borderRadius: 6, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', padding: 3 }}
+                            />
+                          )}
+                          {ev.link && (
+                            isLoggedIn ? (
+                              <a
+                                href={ev.link}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(201,168,106,0.12)', color: '#c9a86a', border: '1px solid rgba(201,168,106,0.3)', borderRadius: 8, padding: '8px 14px', fontSize: 13, textDecoration: 'none', whiteSpace: 'nowrap' }}
+                              >
+                                View event ↗
+                              </a>
+                            ) : (
+                              <button
+                                onClick={() => setShowAuthDialog(true)}
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.04)', color: '#6b5e53', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '8px 14px', fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                              >
+                                View event →
+                              </button>
+                            )
+                          )}
+                        </div>
                       </div>
                     </div>
                   )

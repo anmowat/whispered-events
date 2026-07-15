@@ -29,6 +29,7 @@ export async function GET(_req: NextRequest, { params }: { params: { slug: strin
         startTime: e.startTime ?? null,
         endTime: (e as { endTime?: string }).endTime ?? null,
         featured: e.featured,
+        faviconUrl: (e as { faviconUrl?: string }).faviconUrl ?? '',
         seniority: (e as { seniority?: string[] }).seniority ?? [],
       })),
       offers,
