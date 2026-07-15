@@ -336,31 +336,49 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
         </div>
       )}
 
+      {/* Mobile-responsive styles */}
+      <style>{`
+        .aep-outer { max-width: 860px; margin: 0 auto; padding: 48px 24px 80px; }
+        .aep-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; margin-bottom: 32px; }
+        .aep-header-left { display: flex; align-items: flex-start; gap: 24px; }
+        .aep-icon { width: 120px; height: 120px; border-radius: 18px; object-fit: contain; flex-shrink: 0; }
+        .aep-title { font-size: 42px; }
+        .aep-desc { font-size: 18px; }
+        .aep-header-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+        .aep-filters { display: flex; gap: 8px; flex-wrap: wrap; }
+        .aep-filter-select { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; padding: 6px 10px; font-size: 13px; cursor: pointer; outline: none; }
+        .aep-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 20px 24px; }
+        @media (max-width: 600px) {
+          .aep-outer { padding: 24px 16px 60px; }
+          .aep-header { flex-direction: column; gap: 12px; margin-bottom: 20px; }
+          .aep-header-left { gap: 14px; }
+          .aep-icon { width: 64px; height: 64px; border-radius: 12px; }
+          .aep-title { font-size: 26px !important; }
+          .aep-desc { font-size: 15px !important; }
+          .aep-header-actions { align-self: flex-start; }
+          .aep-filters { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+          .aep-filter-select { width: 100%; font-size: 14px; padding: 8px 10px; }
+          .aep-card { padding: 14px 16px; }
+        }
+      `}</style>
+
       {/* Page content */}
-      <div style={{ maxWidth: 860, margin: '0 auto', padding: '48px 24px 80px' }}>
+      <div className="aep-outer">
 
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 20, marginBottom: 32 }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 24 }}>
+        <div className="aep-header">
+          <div className="aep-header-left">
             {anchorEvent.anchorIconUrl && (
               anchorEvent.anchorUrl ? (
                 <a href={anchorEvent.anchorUrl} target="_blank" rel="noopener noreferrer" style={{ flexShrink: 0, display: 'block' }}>
-                  <img
-                    src={anchorEvent.anchorIconUrl}
-                    alt={anchorEvent.anchorName}
-                    style={{ width: 120, height: 120, objectFit: 'contain', borderRadius: 18 }}
-                  />
+                  <img src={anchorEvent.anchorIconUrl} alt={anchorEvent.anchorName} className="aep-icon" />
                 </a>
               ) : (
-                <img
-                  src={anchorEvent.anchorIconUrl}
-                  alt={anchorEvent.anchorName}
-                  style={{ width: 120, height: 120, objectFit: 'contain', borderRadius: 18, flexShrink: 0 }}
-                />
+                <img src={anchorEvent.anchorIconUrl} alt={anchorEvent.anchorName} className="aep-icon" />
               )
             )}
             <div>
-              <h1 style={{ fontFamily: SERIF, fontSize: 42, fontWeight: 400, margin: '0 0 4px', color: '#ece6da', lineHeight: 1.15 }}>
+              <h1 className="aep-title" style={{ fontFamily: SERIF, fontWeight: 400, margin: '0 0 4px', color: '#ece6da', lineHeight: 1.15 }}>
                 {anchorEvent.title || `${anchorEvent.anchorName} Side Events`}
               </h1>
               {anchorEvent.anchorName && anchorEvent.anchorUrl && (
@@ -374,96 +392,103 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
                 </a>
               )}
               {anchorEvent.description && (
-                <p style={{ fontFamily: SERIF, color: '#9c8b7e', fontSize: 18, lineHeight: 1.55, margin: 0, fontWeight: 400 }}>
+                <p className="aep-desc" style={{ fontFamily: SERIF, color: '#9c8b7e', lineHeight: 1.55, margin: 0, fontWeight: 400 }}>
                   {anchorEvent.description}
                 </p>
               )}
             </div>
           </div>
-          <button
-            onClick={async () => {
-              try {
-                await navigator.clipboard.writeText(window.location.href)
-                setUrlCopied(true)
-                setTimeout(() => setUrlCopied(false), 1800)
-              } catch { /* blocked in insecure contexts */ }
-            }}
-            aria-label="Copy page link"
-            title={urlCopied ? 'Copied!' : 'Copy link'}
-            style={{ flexShrink: 0, background: 'none', border: '1px solid rgba(255,255,255,0.18)', borderRadius: 99, padding: '7px 10px', color: urlCopied ? '#c9a86a' : 'rgba(236,230,218,0.6)', fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', transition: 'color 0.2s' }}
-          >
-            {urlCopied ? (
-              <svg width="15" height="15" viewBox="0 0 14 14" fill="none" aria-hidden><polyline points="2,7 5.5,10.5 12,4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
-            ) : (
-              <svg width="15" height="15" viewBox="0 0 14 14" fill="none" aria-hidden>
-                <rect x="4" y="4" width="8" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.4"/>
-                <path d="M2 9V3a1 1 0 0 1 1-1h6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" fill="none"/>
-              </svg>
-            )}
-          </button>
-          {isLoggedIn ? (
+          <div className="aep-header-actions">
             <button
               onClick={async () => {
-                await fetch('/api/auth/logout', { method: 'POST' })
-                setIsLoggedIn(false)
+                try {
+                  await navigator.clipboard.writeText(window.location.href)
+                  setUrlCopied(true)
+                  setTimeout(() => setUrlCopied(false), 1800)
+                } catch { /* blocked in insecure contexts */ }
               }}
-              style={{ flexShrink: 0, background: 'none', border: '1px solid rgba(255,255,255,0.18)', borderRadius: 99, padding: '7px 16px', color: 'rgba(236,230,218,0.6)', fontSize: 13, cursor: 'pointer' }}
+              aria-label="Copy page link"
+              title={urlCopied ? 'Copied!' : 'Copy link'}
+              style={{ background: 'none', border: '1px solid rgba(255,255,255,0.18)', borderRadius: 99, padding: '7px 10px', color: urlCopied ? '#c9a86a' : 'rgba(236,230,218,0.6)', fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', transition: 'color 0.2s' }}
             >
-              Log out
+              {urlCopied ? (
+                <svg width="15" height="15" viewBox="0 0 14 14" fill="none" aria-hidden><polyline points="2,7 5.5,10.5 12,4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              ) : (
+                <svg width="15" height="15" viewBox="0 0 14 14" fill="none" aria-hidden>
+                  <rect x="4" y="4" width="8" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.4"/>
+                  <path d="M2 9V3a1 1 0 0 1 1-1h6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" fill="none"/>
+                </svg>
+              )}
             </button>
-          ) : (
-            <button
-              onClick={() => setShowLoginModal(true)}
-              style={{ flexShrink: 0, background: 'rgba(201,168,106,0.12)', border: '1px solid rgba(201,168,106,0.35)', borderRadius: 99, padding: '7px 16px', color: '#c9a86a', fontSize: 13, cursor: 'pointer', fontWeight: 500 }}
-            >
-              Log in
-            </button>
-          )}
+            {isLoggedIn ? (
+              <button
+                onClick={async () => {
+                  await fetch('/api/auth/logout', { method: 'POST' })
+                  setIsLoggedIn(false)
+                }}
+                style={{ background: 'none', border: '1px solid rgba(255,255,255,0.18)', borderRadius: 99, padding: '7px 16px', color: 'rgba(236,230,218,0.6)', fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}
+              >
+                Log out
+              </button>
+            ) : (
+              <button
+                onClick={() => setShowLoginModal(true)}
+                style={{ background: 'rgba(201,168,106,0.12)', border: '1px solid rgba(201,168,106,0.35)', borderRadius: 99, padding: '7px 16px', color: '#c9a86a', fontSize: 13, cursor: 'pointer', fontWeight: 500, whiteSpace: 'nowrap' }}
+              >
+                Log in
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Events */}
         {data.events.length > 0 && (
           <div style={{ marginBottom: 64 }}>
             {/* Filters */}
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20, alignItems: 'center', justifyContent: 'space-between' }}>
-              <button
-                onClick={() => setShowAddEvent(true)}
-                style={{ background: 'rgba(201,168,106,0.12)', border: '1px solid rgba(201,168,106,0.35)', borderRadius: 8, padding: '6px 14px', color: '#c9a86a', fontSize: 13, cursor: 'pointer', fontWeight: 500, whiteSpace: 'nowrap' }}
-              >
-                + Add Event
-              </button>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <select
-                value={filterDay}
-                onChange={(e) => setFilterDay(e.target.value)}
-                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, padding: '6px 10px', color: filterDay === 'all' ? '#6b5e53' : '#ece6da', fontSize: 13, cursor: 'pointer', outline: 'none' }}
-              >
-                <option value="all">All days</option>
-                {uniqueDays.map((d) => (
-                  <option key={d} value={d}>{formatEventDate(d, { weekday: 'short', month: 'short', day: 'numeric' })}</option>
-                ))}
-              </select>
-              <select
-                value={filterTime}
-                onChange={(e) => setFilterTime(e.target.value)}
-                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, padding: '6px 10px', color: filterTime === 'all' ? '#6b5e53' : '#ece6da', fontSize: 13, cursor: 'pointer', outline: 'none' }}
-              >
-                <option value="all">All times</option>
-                <option value="morning">Morning</option>
-                <option value="midday">Midday</option>
-                <option value="afternoon">Afternoon</option>
-                <option value="evening">Evening</option>
-              </select>
-              <select
-                value={filterType}
-                onChange={(e) => setFilterType(e.target.value)}
-                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, padding: '6px 10px', color: filterType === 'all' ? '#6b5e53' : '#ece6da', fontSize: 13, cursor: 'pointer', outline: 'none' }}
-              >
-                <option value="all">All types</option>
-                {uniqueTypes.map((t) => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
-              </select>
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 10 }}>
+                <button
+                  onClick={() => setShowAddEvent(true)}
+                  style={{ background: 'rgba(201,168,106,0.12)', border: '1px solid rgba(201,168,106,0.35)', borderRadius: 8, padding: '6px 14px', color: '#c9a86a', fontSize: 13, cursor: 'pointer', fontWeight: 500, whiteSpace: 'nowrap' }}
+                >
+                  + Add Event
+                </button>
+              </div>
+              <div className="aep-filters">
+                <select
+                  value={filterDay}
+                  onChange={(e) => setFilterDay(e.target.value)}
+                  className="aep-filter-select"
+                  style={{ color: filterDay === 'all' ? '#6b5e53' : '#ece6da' }}
+                >
+                  <option value="all">All days</option>
+                  {uniqueDays.map((d) => (
+                    <option key={d} value={d}>{formatEventDate(d, { weekday: 'short', month: 'short', day: 'numeric' })}</option>
+                  ))}
+                </select>
+                <select
+                  value={filterTime}
+                  onChange={(e) => setFilterTime(e.target.value)}
+                  className="aep-filter-select"
+                  style={{ color: filterTime === 'all' ? '#6b5e53' : '#ece6da' }}
+                >
+                  <option value="all">All times</option>
+                  <option value="morning">Morning</option>
+                  <option value="midday">Midday</option>
+                  <option value="afternoon">Afternoon</option>
+                  <option value="evening">Evening</option>
+                </select>
+                <select
+                  value={filterType}
+                  onChange={(e) => setFilterType(e.target.value)}
+                  className="aep-filter-select"
+                  style={{ color: filterType === 'all' ? '#6b5e53' : '#ece6da' }}
+                >
+                  <option value="all">All types</option>
+                  {uniqueTypes.map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
               </div>
             </div>
 
@@ -483,7 +508,7 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
                   const eventCard = (
                     <div
                       key={ev.id}
-                      style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '20px 24px' }}
+                      className="aep-card"
                     >
                       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
                         <div style={{ flex: 1, minWidth: 200 }}>
