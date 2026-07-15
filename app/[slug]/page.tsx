@@ -129,6 +129,7 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
   const [filterTime, setFilterTime] = useState<string>('all')
   const [offerTick, setOfferTick] = useState(0)
   const [offersVisible, setOffersVisible] = useState(true)
+  const [urlCopied, setUrlCopied] = useState(false)
   const [authEmail, setAuthEmail] = useState('')
   const [authState, setAuthState] = useState<'idle' | 'loading' | 'sent'>('idle')
 
@@ -372,6 +373,27 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
               )}
             </div>
           </div>
+          <button
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(window.location.href)
+                setUrlCopied(true)
+                setTimeout(() => setUrlCopied(false), 1800)
+              } catch { /* blocked in insecure contexts */ }
+            }}
+            aria-label="Copy page link"
+            title={urlCopied ? 'Copied!' : 'Copy link'}
+            style={{ flexShrink: 0, background: 'none', border: '1px solid rgba(255,255,255,0.18)', borderRadius: 99, padding: '7px 10px', color: urlCopied ? '#c9a86a' : 'rgba(236,230,218,0.6)', fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', transition: 'color 0.2s' }}
+          >
+            {urlCopied ? (
+              <svg width="15" height="15" viewBox="0 0 14 14" fill="none" aria-hidden><polyline points="2,7 5.5,10.5 12,4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            ) : (
+              <svg width="15" height="15" viewBox="0 0 14 14" fill="none" aria-hidden>
+                <rect x="4" y="4" width="8" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.4"/>
+                <path d="M2 9V3a1 1 0 0 1 1-1h6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" fill="none"/>
+              </svg>
+            )}
+          </button>
           {isLoggedIn ? (
             <button
               onClick={async () => {
