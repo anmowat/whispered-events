@@ -457,13 +457,7 @@ function hasNonWomenTopicMatchingEvent(
     .filter(Boolean)
   for (const topic of topics) {
     if (/\bwomen\b|\bwomxn\b|\bfemale\b/i.test(topic)) continue
-    // Direct match
     if (new RegExp(`\\b${escapeRegex(topic)}\\b`, 'i').test(eventText)) return true
-    // Synonym match
-    const synonyms = TOPIC_SYNONYMS[topic.toLowerCase()] ?? []
-    for (const syn of synonyms) {
-      if (new RegExp(`\\b${escapeRegex(syn)}\\b`, 'i').test(eventText)) return true
-    }
   }
   return false
 }
