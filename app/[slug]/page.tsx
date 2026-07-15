@@ -150,14 +150,14 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
               href="/dashboard"
               style={{ display: 'block', background: '#c9a86a', color: '#1b1814', textDecoration: 'none', borderRadius: 10, padding: '13px 24px', fontSize: 15, fontWeight: 600, marginBottom: 10 }}
             >
-              Create free profile →
+              Create Free Profile →
             </a>
-            <button
-              onClick={() => setShowAuthDialog(false)}
-              style={{ background: 'none', border: 'none', color: '#6b5e53', fontSize: 14, cursor: 'pointer', marginTop: 4 }}
+            <a
+              href="/?login=1"
+              style={{ display: 'block', color: '#9c8b7e', fontSize: 14, textDecoration: 'none', marginTop: 4 }}
             >
-              Maybe later
-            </button>
+              Have a Whispered Events account? Log in →
+            </a>
           </div>
         </div>
       )}
@@ -214,7 +214,7 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
               onClick={() => setShowAuthDialog(true)}
               style={{ background: '#c9a86a', color: '#1b1814', border: 'none', borderRadius: 99, padding: '10px 22px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
             >
-              Create free profile →
+              Create Free Profile →
             </button>
           </div>
         )}
