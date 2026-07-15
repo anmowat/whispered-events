@@ -53,6 +53,8 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
   const [filterType, setFilterType] = useState<string>('all')
   const [filterDay, setFilterDay] = useState<string>('all')
   const [filterTime, setFilterTime] = useState<string>('all')
+  const [authEmail, setAuthEmail] = useState('')
+  const [authState, setAuthState] = useState<'idle' | 'loading' | 'sent'>('idle')
 
   useEffect(() => {
     async function load() {
@@ -140,28 +142,74 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
       {showAuthDialog && (
         <div
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
-          onClick={() => setShowAuthDialog(false)}
+          onClick={() => { setShowAuthDialog(false); setAuthState('idle'); setAuthEmail('') }}
         >
           <div
-            style={{ background: '#251e19', border: '1px solid rgba(201,168,106,0.25)', borderRadius: 16, padding: 36, maxWidth: 400, width: '100%', textAlign: 'center' }}
+            style={{ background: '#251e19', border: '1px solid rgba(201,168,106,0.25)', borderRadius: 18, padding: '36px 32px', maxWidth: 420, width: '100%' }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ fontFamily: SERIF, fontSize: 26, color: '#ece6da', marginBottom: 10 }}>See all side events</div>
-            <div style={{ color: '#9c8b7e', fontSize: 15, lineHeight: 1.6, marginBottom: 24 }}>
-              Create your free profile to see event details and get a personalized feed of side event matches.
-            </div>
-            <a
-              href="/dashboard"
-              style={{ display: 'block', background: '#c9a86a', color: '#1b1814', textDecoration: 'none', borderRadius: 10, padding: '13px 24px', fontSize: 15, fontWeight: 600, marginBottom: 10 }}
-            >
-              Create Free Profile →
-            </a>
-            <a
-              href="/?login=1"
-              style={{ display: 'block', color: '#9c8b7e', fontSize: 14, textDecoration: 'none', marginTop: 4 }}
-            >
-              Have a Whispered Events account? Log in →
-            </a>
+            {authState === 'sent' ? (
+              <>
+                <div style={{ fontFamily: SERIF, fontSize: 26, color: '#ece6da', marginBottom: 10 }}>Check your email.</div>
+                <div style={{ color: '#9c8b7e', fontSize: 15, lineHeight: 1.6 }}>
+                  We sent a login link to <strong style={{ color: '#ece6da' }}>{authEmail}</strong>. It expires in 15 minutes.
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ fontFamily: SERIF, fontSize: 28, color: '#ece6da', marginBottom: 10, lineHeight: 1.2 }}>See whispered events</div>
+                <div style={{ color: '#9c8b7e', fontSize: 15, lineHeight: 1.65, marginBottom: 24 }}>
+                  Create a free profile to see all {data?.anchorEvent.anchorName} events that match your level and get a personalized feed of intimate events throughout the year.
+                </div>
+
+                {/* Primary CTA */}
+                <a
+                  href="/dashboard"
+                  style={{ display: 'block', background: '#c9a86a', color: '#1b1814', textDecoration: 'none', borderRadius: 10, padding: '13px 24px', fontSize: 15, fontWeight: 600, textAlign: 'center' }}
+                >
+                  Create Free Profile
+                </a>
+
+                {/* Divider */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '20px 0' }}>
+                  <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.1)' }} />
+                  <span style={{ color: '#5a4f47', fontSize: 12 }}>or</span>
+                  <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.1)' }} />
+                </div>
+
+                {/* Login path */}
+                <div style={{ marginBottom: 10, color: '#c9b99a', fontSize: 14, fontWeight: 500 }}>Have a Whispered Events account?</div>
+                <div style={{ color: '#6b5e53', fontSize: 13, lineHeight: 1.5, marginBottom: 12 }}>
+                  Enter your email and we&apos;ll send a one-time login link — no password needed.
+                </div>
+                <input
+                  type="email"
+                  value={authEmail}
+                  onChange={(e) => setAuthEmail(e.target.value)}
+                  onKeyDown={async (e) => {
+                    if (e.key === 'Enter' && authEmail.trim() && authState === 'idle') {
+                      setAuthState('loading')
+                      await fetch('/api/auth/magic-link', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: authEmail.trim() }) })
+                      setAuthState('sent')
+                    }
+                  }}
+                  placeholder="you@company.com"
+                  style={{ width: '100%', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, padding: '10px 14px', fontSize: 14, color: '#ece6da', outline: 'none', boxSizing: 'border-box' }}
+                />
+                <button
+                  disabled={authState === 'loading' || !authEmail.trim()}
+                  onClick={async () => {
+                    if (!authEmail.trim()) return
+                    setAuthState('loading')
+                    await fetch('/api/auth/magic-link', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: authEmail.trim() }) })
+                    setAuthState('sent')
+                  }}
+                  style={{ marginTop: 10, width: '100%', background: 'rgba(201,168,106,0.15)', border: '1px solid rgba(201,168,106,0.35)', borderRadius: 8, padding: '10px 14px', fontSize: 14, color: '#c9a86a', cursor: authState === 'loading' || !authEmail.trim() ? 'default' : 'pointer', opacity: authEmail.trim() ? 1 : 0.45 }}
+                >
+                  {authState === 'loading' ? 'Sending…' : 'Send login link →'}
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}
