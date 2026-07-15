@@ -10,7 +10,7 @@ export async function GET(_req: NextRequest, { params }: { params: { slug: strin
       return NextResponse.json({ error: `no row for slug "${params.slug}"` }, { status: 404 })
     }
     if (anchorEvent.status !== 'live') {
-      return NextResponse.json({ error: `slug found but status="${anchorEvent.status}"` }, { status: 404 })
+      return NextResponse.json({ error: `slug found but mapped status="${anchorEvent.status}"` }, { status: 404 })
     }
     const [events, offers] = await Promise.all([
       getAnchorEventEvents(anchorEvent.id),

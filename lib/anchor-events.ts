@@ -45,7 +45,7 @@ function toAnchorEvent(row: AnchorEventRow): AnchorEvent {
     anchorUrl: row.anchor_url,
     anchorIconUrl: row.anchor_icon_url,
     description: row.description,
-    status: row.status === 'live' ? 'live' : 'draft',
+    status: (row.status ?? '').trim().toLowerCase() === 'live' ? 'live' : 'draft',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
