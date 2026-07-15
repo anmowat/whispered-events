@@ -107,6 +107,8 @@ export default function AdminAnchorEventDetailPage({ params }: { params: { id: s
     }
     setSaved(true)
     window.setTimeout(() => setSaved(false), 2000)
+    // Reload from DB to confirm what was actually persisted
+    await fetchData()
   }
 
   async function handleIconUpload(file: File) {

@@ -79,8 +79,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     if (tasks.length === 0) {
       return NextResponse.json({ error: 'no fields to update' }, { status: 400 })
     }
-    await Promise.all(tasks)
-    return NextResponse.json({ ok: true })
+    const results = await Promise.all(tasks)
+    return NextResponse.json({ ok: true, updated: results[0] })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     return NextResponse.json({ error: message }, { status: 500 })
