@@ -1569,7 +1569,9 @@ export async function sendStalemateNudge(
   const html = shell(`
     ${h1(`Hi <span style="font-style:italic;">${safeName}</span> — you have matches waiting.`)}
     ${p(`You have <strong style="color:${C.ink};">${lockedCount} more ${noun} waiting</strong> on Whispered Events.`, { mt: 14 })}
-    ${p(`We only unlock new matches for members who've rated their current events — it helps us improve your recommendations. Just a quick ✓ Interested or ✕ Not a fit on any match opens a new slot.`, { mt: 12 })}
+    ${p(`Your feedback on matches helps us constantly improve.`, { mt: 12 })}
+    ${p(`To ensure we are only sending you the best events, we send you the top 7 unrated matches. You have more than 7 unrated matches so you can either wait until one of your top matched events happens (when we'll send you another) OR unlock more matches right away by rating events on your dashboard.`, { mt: 8 })}
+    ${p(`Just a quick ✓ Interested or ✕ Not a fit on any match opens a new slot.`, { mt: 8 })}
     ${accentButton(DASHBOARD_LINK, 'Rate your matches on the dashboard')}
     ${digestFooterHtml(firstName)}
   `)
@@ -1579,7 +1581,11 @@ export async function sendStalemateNudge(
     '',
     `You have ${lockedCount} more ${noun} waiting on Whispered Events.`,
     '',
-    `We only unlock new matches for members who've rated their current events — it helps us improve your recommendations. Just a quick Interested or Not a fit on any match opens a new slot.`,
+    `Your feedback on matches helps us constantly improve.`,
+    '',
+    `To ensure we are only sending you the best events, we send you the top 7 unrated matches. You have more than 7 unrated matches so you can either wait until one of your top matched events happens (when we'll send you another) OR unlock more matches right away by rating events on your dashboard.`,
+    '',
+    `Just a quick Interested or Not a fit on any match opens a new slot.`,
     '',
     `Rate your matches on the dashboard: ${DASHBOARD_LINK}`,
     '',
