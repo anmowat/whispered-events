@@ -574,13 +574,9 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {(() => {
-                // Determine which event indices get an offer slot injected after them.
-                // Insert after every 3rd event (indices 2, 5, 8…) and after the last
-                // event if its index isn't already covered.
+                // Inject offers after rows 3, 8, 13, 18… (every 5 rows, 0-indexed: 2, 7, 12, 17…)
                 const slotAfter = new Set<number>()
-                for (let i = 2; i < filteredEvents.length; i += 3) slotAfter.add(i)
-                const last = filteredEvents.length - 1
-                if (last >= 0 && !slotAfter.has(last)) slotAfter.add(last)
+                for (let i = 2; i < filteredEvents.length; i += 5) slotAfter.add(i)
 
                 let slotCount = 0
                 return filteredEvents.flatMap((ev, i) => {
