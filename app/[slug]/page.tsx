@@ -62,99 +62,54 @@ function OfferBanner({ offer }: { offer: Offer }) {
   )
 }
 
-function OffersSection({ offers }: { offers: Offer[] }) {
-  const PAGE = 3
-  // Rotate by 1 each tick so there are always PAGE banners visible (wrapping)
-  const [desktopStart, setDesktopStart] = useState(0)
-  const [desktopVisible, setDesktopVisible] = useState(true)
+function chunkArray<T>(arr: T[], size: number): T[][] {
+  const out: T[][] = []
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size))
+  return out
+}
+
+function InlineOfferSlot({ chunk, visible }: { chunk: Offer[]; visible: boolean }) {
   const [mobileIdx, setMobileIdx] = useState(0)
 
-  const shouldCycle = offers.length > PAGE
+  // Reset mobile index when chunk changes (on global tick)
+  useEffect(() => { setMobileIdx(0) }, [chunk])
 
-  // Desktop: fade out → swap → fade in every 10s (only if more offers than page size)
+  // Mobile: slide every 5s within this chunk
   useEffect(() => {
-    if (!shouldCycle) return
-    const id = setInterval(() => {
-      setDesktopVisible(false)
-      setTimeout(() => {
-        setDesktopStart((s) => (s + 1) % offers.length)
-        setDesktopVisible(true)
-      }, 400)
-    }, 10000)
+    if (chunk.length <= 1) return
+    const id = setInterval(() => setMobileIdx((i) => (i + 1) % chunk.length), 5000)
     return () => clearInterval(id)
-  }, [shouldCycle, offers.length])
-
-  // Mobile: slide every 5s
-  useEffect(() => {
-    if (offers.length <= 1) return
-    const id = setInterval(() => setMobileIdx((i) => (i + 1) % offers.length), 5000)
-    return () => clearInterval(id)
-  }, [offers.length])
-
-  const count = Math.min(PAGE, offers.length)
-  const desktopSlice = Array.from({ length: count }, (_, i) => offers[(desktopStart + i) % offers.length])
+  }, [chunk.length])
 
   return (
-    <div>
-      <div style={{ fontSize: 13, letterSpacing: '.04em', color: '#6b5e53', marginBottom: 16, fontStyle: 'italic' }}>
-        Brought to you by:
-      </div>
-
-      {/* Desktop: 3 at a time, fade between groups */}
+    <div style={{ opacity: visible ? 1 : 0, transition: 'opacity 0.4s ease', margin: '8px 0 4px' }}>
+      {/* Desktop: up to 3 in a row */}
       <div
         className="offers-desktop"
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: 14,
-          opacity: desktopVisible ? 1 : 0,
-          transition: 'opacity 0.4s ease',
-        }}
+        style={{ display: 'grid', gridTemplateColumns: `repeat(${chunk.length}, 1fr)`, gap: 14 }}
       >
-        {desktopSlice.map((offer) => <OfferBanner key={offer.id} offer={offer} />)}
+        {chunk.map((offer) => <OfferBanner key={offer.id} offer={offer} />)}
       </div>
 
       {/* Mobile: single slide carousel */}
       <div className="offers-mobile" style={{ position: 'relative', overflow: 'hidden' }}>
-        <div
-          style={{
-            display: 'flex',
-            transition: 'transform 0.5s ease',
-            transform: `translateX(-${mobileIdx * 100}%)`,
-          }}
-        >
-          {offers.map((offer) => (
-            <div key={offer.id} style={{ minWidth: '100%' }}>
-              <OfferBanner offer={offer} />
-            </div>
+        <div style={{ display: 'flex', transition: 'transform 0.5s ease', transform: `translateX(-${mobileIdx * 100}%)` }}>
+          {chunk.map((offer) => (
+            <div key={offer.id} style={{ minWidth: '100%' }}><OfferBanner offer={offer} /></div>
           ))}
         </div>
-        {offers.length > 1 && (
+        {chunk.length > 1 && (
           <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginTop: 10 }}>
-            {offers.map((_, i) => (
-              <button
-                key={i}
-                onClick={() => setMobileIdx(i)}
-                style={{
-                  width: 6, height: 6, borderRadius: '50%', border: 'none', padding: 0, cursor: 'pointer',
-                  background: i === mobileIdx ? '#c9a86a' : 'rgba(201,168,106,0.3)',
-                  transition: 'background 0.3s',
-                }}
-              />
+            {chunk.map((_, i) => (
+              <button key={i} onClick={() => setMobileIdx(i)} style={{ width: 6, height: 6, borderRadius: '50%', border: 'none', padding: 0, cursor: 'pointer', background: i === mobileIdx ? '#c9a86a' : 'rgba(201,168,106,0.3)', transition: 'background 0.3s' }} />
             ))}
           </div>
         )}
       </div>
 
       <style>{`
-        @media (min-width: 600px) {
-          .offers-desktop { display: grid !important; }
-          .offers-mobile { display: none !important; }
-        }
-        @media (max-width: 599px) {
-          .offers-desktop { display: none !important; }
-          .offers-mobile { display: block !important; }
-        }
+        @media (min-width: 600px) { .offers-desktop { display: grid !important; } .offers-mobile { display: none !important; } }
+        @media (max-width: 599px) { .offers-desktop { display: none !important; } .offers-mobile { display: block !important; } }
       `}</style>
     </div>
   )
@@ -172,6 +127,8 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
   const [filterType, setFilterType] = useState<string>('all')
   const [filterDay, setFilterDay] = useState<string>('all')
   const [filterTime, setFilterTime] = useState<string>('all')
+  const [offerTick, setOfferTick] = useState(0)
+  const [offersVisible, setOffersVisible] = useState(true)
   const [authEmail, setAuthEmail] = useState('')
   const [authState, setAuthState] = useState<'idle' | 'loading' | 'sent'>('idle')
 
@@ -224,6 +181,23 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
       return true
     })
   }, [data, filterType, filterDay, filterTime, isLoggedIn, userSeniority])
+
+  const bannerOffers = useMemo(() => (data?.offers ?? []).filter((o) => o.bannerUrl), [data])
+  const offerChunks = useMemo(() => chunkArray(bannerOffers, 3), [bannerOffers])
+
+  // Cycle all inline offer slots together every 10s so each slot shows
+  // a different chunk and they rotate in unison (slot0↔slot1 swap etc.)
+  useEffect(() => {
+    if (offerChunks.length <= 1) return
+    const id = setInterval(() => {
+      setOffersVisible(false)
+      setTimeout(() => {
+        setOfferTick((t) => t + 1)
+        setOffersVisible(true)
+      }, 400)
+    }, 10000)
+    return () => clearInterval(id)
+  }, [offerChunks.length])
 
   function toggleDescription(id: string) {
     setExpandedIds((prev) => {
@@ -465,74 +439,92 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {filteredEvents.map((ev) => {
-                const expanded = expandedIds.has(ev.id)
-                return (
-                  <div
-                    key={ev.id}
-                    style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '20px 24px' }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
-                      <div style={{ flex: 1, minWidth: 200 }}>
-                        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 5 }}>
-                          <div style={{ fontFamily: SERIF, fontSize: 21, color: '#ece6da', lineHeight: 1.2 }}>{ev.name}</div>
-                          {ev.type && (
-                            <span style={{ display: 'inline-block', background: 'rgba(255,255,255,0.06)', borderRadius: 4, padding: '2px 7px', fontSize: 11, letterSpacing: '.04em', color: '#7a6e66', flexShrink: 0 }}>{ev.type}</span>
+              {(() => {
+                // Determine which event indices get an offer slot injected after them.
+                // Insert after every 3rd event (indices 2, 5, 8…) and after the last
+                // event if its index isn't already covered.
+                const slotAfter = new Set<number>()
+                for (let i = 2; i < filteredEvents.length; i += 3) slotAfter.add(i)
+                const last = filteredEvents.length - 1
+                if (last >= 0 && !slotAfter.has(last)) slotAfter.add(last)
+
+                let slotCount = 0
+                return filteredEvents.flatMap((ev, i) => {
+                  const expanded = expandedIds.has(ev.id)
+                  const eventCard = (
+                    <div
+                      key={ev.id}
+                      style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '20px 24px' }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+                        <div style={{ flex: 1, minWidth: 200 }}>
+                          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 5 }}>
+                            <div style={{ fontFamily: SERIF, fontSize: 21, color: '#ece6da', lineHeight: 1.2 }}>{ev.name}</div>
+                            {ev.type && (
+                              <span style={{ display: 'inline-block', background: 'rgba(255,255,255,0.06)', borderRadius: 4, padding: '2px 7px', fontSize: 11, letterSpacing: '.04em', color: '#7a6e66', flexShrink: 0 }}>{ev.type}</span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: 13, color: '#9c8b7e', display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+                            {ev.date && (
+                              <span>{formatEventDate(ev.date, { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+                            )}
+                            {ev.startTime && (
+                              <span style={{ color: '#c9a86a', fontWeight: 500 }}>{ev.startTime}{ev.endTime ? ` – ${ev.endTime}` : ''}</span>
+                            )}
+                            {ev.organizer && (
+                              <span>Host: {ev.organizer}</span>
+                            )}
+                            {ev.description && (
+                              <button
+                                onClick={() => toggleDescription(ev.id)}
+                                style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#c9a86a', fontSize: 13 }}
+                              >
+                                {expanded ? '▲ Description' : '▼ Description'}
+                              </button>
+                            )}
+                          </div>
+                          {expanded && ev.description && (
+                            <div style={{ fontSize: 14, color: '#7a6e66', lineHeight: 1.6, marginTop: 8 }}>{ev.description}</div>
                           )}
                         </div>
-                        <div style={{ fontSize: 13, color: '#9c8b7e', display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-                          {ev.date && (
-                            <span>{formatEventDate(ev.date, { weekday: 'short', month: 'short', day: 'numeric' })}</span>
-                          )}
-                          {ev.startTime && (
-                            <span style={{ color: '#c9a86a', fontWeight: 500 }}>{ev.startTime}{ev.endTime ? ` – ${ev.endTime}` : ''}</span>
-                          )}
-                          {ev.organizer && (
-                            <span>Host: {ev.organizer}</span>
-                          )}
-                          {ev.description && (
-                            <button
-                              onClick={() => toggleDescription(ev.id)}
-                              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#c9a86a', fontSize: 13 }}
+                        {ev.link && (
+                          isLoggedIn ? (
+                            <a
+                              href={ev.link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(201,168,106,0.12)', color: '#c9a86a', border: '1px solid rgba(201,168,106,0.3)', borderRadius: 8, padding: '8px 14px', fontSize: 13, textDecoration: 'none', whiteSpace: 'nowrap', flexShrink: 0 }}
                             >
-                              {expanded ? '▲ Description' : '▼ Description'}
+                              View event ↗
+                            </a>
+                          ) : (
+                            <button
+                              onClick={() => setShowAuthDialog(true)}
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.04)', color: '#6b5e53', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '8px 14px', fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
+                            >
+                              View event →
                             </button>
-                          )}
-                        </div>
-                        {expanded && ev.description && (
-                          <div style={{ fontSize: 14, color: '#7a6e66', lineHeight: 1.6, marginTop: 8 }}>{ev.description}</div>
+                          )
                         )}
                       </div>
-                      {ev.link && (
-                        isLoggedIn ? (
-                          <a
-                            href={ev.link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(201,168,106,0.12)', color: '#c9a86a', border: '1px solid rgba(201,168,106,0.3)', borderRadius: 8, padding: '8px 14px', fontSize: 13, textDecoration: 'none', whiteSpace: 'nowrap', flexShrink: 0 }}
-                          >
-                            View event ↗
-                          </a>
-                        ) : (
-                          <button
-                            onClick={() => setShowAuthDialog(true)}
-                            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.04)', color: '#6b5e53', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '8px 14px', fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
-                          >
-                            View event →
-                          </button>
-                        )
-                      )}
                     </div>
-                  </div>
-                )
-              })}
+                  )
+
+                  const items: React.ReactNode[] = [eventCard]
+
+                  if (slotAfter.has(i) && offerChunks.length > 0) {
+                    const si = slotCount++
+                    const chunk = offerChunks[(si + offerTick) % offerChunks.length]
+                    items.push(
+                      <InlineOfferSlot key={`offers-${i}`} chunk={chunk} visible={offersVisible} />
+                    )
+                  }
+
+                  return items
+                })
+              })()}
             </div>
           </div>
-        )}
-
-        {/* Offers */}
-        {offers.filter((o) => o.bannerUrl).length > 0 && (
-          <OffersSection offers={offers.filter((o) => o.bannerUrl)} />
         )}
 
         {/* Footer */}
