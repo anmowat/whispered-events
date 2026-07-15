@@ -53,6 +53,10 @@ export default function AdminAnchorEventDetailPage({ params }: { params: { id: s
   const [description, setDescription] = useState('')
   const [status, setStatus] = useState<'draft' | 'live'>('draft')
 
+  // Icon upload state
+  const [iconUploading, setIconUploading] = useState(false)
+  const [iconError, setIconError] = useState<string | null>(null)
+
   // Event search
   const [eventSearch, setEventSearch] = useState('')
   const [eventResults, setEventResults] = useState<EventItem[]>([])
@@ -93,7 +97,7 @@ export default function AdminAnchorEventDetailPage({ params }: { params: { id: s
     const res = await fetch(`/api/admin/anchor-events/${params.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ slug, title, anchorName, anchorUrl, anchorIconUrl, description, status }),
+      body: JSON.stringify({ slug, title, anchorName, anchorUrl, description, status }),
     })
     setSaving(false)
     if (!res.ok) {
@@ -103,6 +107,30 @@ export default function AdminAnchorEventDetailPage({ params }: { params: { id: s
     }
     setSaved(true)
     window.setTimeout(() => setSaved(false), 2000)
+  }
+
+  async function handleIconUpload(file: File) {
+    setIconUploading(true)
+    setIconError(null)
+    const form = new FormData()
+    form.append('file', file)
+    const res = await fetch(`/api/admin/anchor-events/${params.id}/icon`, { method: 'POST', body: form })
+    setIconUploading(false)
+    if (!res.ok) {
+      const d = await res.json() as { error?: string }
+      setIconError(d.error ?? 'Upload failed')
+      return
+    }
+    const d = await res.json() as { anchor_icon_url: string }
+    setAnchorIconUrl(d.anchor_icon_url)
+  }
+
+  async function handleIconDelete() {
+    setIconUploading(true)
+    setIconError(null)
+    await fetch(`/api/admin/anchor-events/${params.id}/icon`, { method: 'DELETE' })
+    setIconUploading(false)
+    setAnchorIconUrl('')
   }
 
   async function searchEvents(q: string) {
@@ -264,8 +292,33 @@ export default function AdminAnchorEventDetailPage({ params }: { params: { id: s
                   <input style={input} value={anchorUrl} onChange={(e) => setAnchorUrl(e.target.value)} placeholder="https://dreamforce.com" />
                 </div>
                 <div>
-                  <label style={label}>Anchor Icon URL</label>
-                  <input style={input} value={anchorIconUrl} onChange={(e) => setAnchorIconUrl(e.target.value)} placeholder="https://..." />
+                  <label style={label}>Anchor Icon</label>
+                  {anchorIconUrl ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <img src={anchorIconUrl} alt="icon" style={{ width: 44, height: 44, objectFit: 'contain', borderRadius: 8, border: '1px solid #333' }} />
+                      <button
+                        type="button"
+                        onClick={handleIconDelete}
+                        disabled={iconUploading}
+                        style={{ fontSize: 12, color: '#e05c5c', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                      >
+                        {iconUploading ? 'Removing…' : 'Remove'}
+                      </button>
+                    </div>
+                  ) : (
+                    <label style={{ display: 'block', cursor: 'pointer' }}>
+                      <div style={{ ...input, textAlign: 'center', color: '#888', cursor: 'pointer' }}>
+                        {iconUploading ? 'Uploading…' : 'Click to upload image'}
+                      </div>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        style={{ display: 'none' }}
+                        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleIconUpload(f) }}
+                      />
+                    </label>
+                  )}
+                  {iconError && <div style={{ color: '#e05c5c', fontSize: 12, marginTop: 4 }}>{iconError}</div>}
                 </div>
               </div>
               <div style={{ marginBottom: 16 }}>
