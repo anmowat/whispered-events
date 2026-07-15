@@ -347,6 +347,12 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
         .aep-copy-btn { display: inline-flex; }
         .aep-auth-btn-header { display: inline-flex; }
         .aep-auth-btn-filter { display: none !important; }
+        .aep-card-inner { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+        .aep-card-left { flex: 1; min-width: 0; }
+        .aep-card-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+        .aep-favicon-mobile { display: none !important; }
+        .aep-desc-desktop { display: inline !important; }
+        .aep-card-bottom-mobile { display: none !important; }
         @media (max-width: 600px) {
           .aep-outer { padding: 24px 16px 60px; }
           .aep-header { flex-direction: column; gap: 12px; margin-bottom: 20px; }
@@ -363,6 +369,13 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
           .aep-copy-btn { display: none !important; }
           .aep-auth-btn-header { display: none !important; }
           .aep-auth-btn-filter { display: inline-flex !important; }
+          .aep-card-inner { flex-direction: column; gap: 0; }
+          .aep-card-right { display: none !important; }
+          .aep-favicon-mobile { display: inline-block !important; }
+          .aep-desc-desktop { display: none !important; }
+          .aep-card-bottom-mobile { display: flex !important; justify-content: space-between; align-items: center; margin-top: 10px; }
+          .aep-event-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+          .aep-card-title-row { flex-wrap: nowrap !important; }
         }
       `}</style>
 
@@ -584,39 +597,51 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
                     )
                   ) : null
 
+                  const descToggleEl = ev.description ? (
+                    <button onClick={() => toggleDescription(ev.id)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#c9a86a', fontSize: 13 }}>
+                      {expanded ? '▲ Description' : '▼ Description'}
+                    </button>
+                  ) : null
+
                   const eventCard = (
                     <div key={ev.id} className="aep-card">
-                      {/* Row 1: name + type tag + favicon */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
-                        <span style={{ fontFamily: SERIF, fontSize: 21, color: '#ece6da', lineHeight: 1.2 }}>{ev.name}</span>
-                        {ev.type && (
-                          <span style={{ display: 'inline-block', background: 'rgba(255,255,255,0.06)', borderRadius: 4, padding: '2px 7px', fontSize: 11, letterSpacing: '.04em', color: '#7a6e66', flexShrink: 0 }}>{ev.type}</span>
-                        )}
-                        {ev.faviconUrl && (
-                          <img src={ev.faviconUrl} alt="" style={{ height: 22, width: 22, objectFit: 'cover', borderRadius: 5, display: 'block', flexShrink: 0 }} />
-                        )}
-                      </div>
-                      {/* Row 2: date / time / organizer */}
-                      {(ev.date || ev.startTime || ev.organizer) && (
-                        <div style={{ fontSize: 13, color: '#9c8b7e', display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
-                          {ev.date && <span>{formatEventDate(ev.date, { weekday: 'short', month: 'short', day: 'numeric' })}</span>}
-                          {ev.startTime && <span style={{ color: '#c9a86a', fontWeight: 500 }}>{ev.startTime}{ev.endTime ? ` – ${ev.endTime}` : ''}</span>}
-                          {ev.organizer && <span>Host: {ev.organizer}</span>}
-                        </div>
-                      )}
-                      {expanded && ev.description && (
-                        <div style={{ fontSize: 14, color: '#7a6e66', lineHeight: 1.6, marginBottom: 10 }}>{ev.description}</div>
-                      )}
-                      {/* Row 3: description toggle (left) + view event (right) */}
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                        <div>
-                          {ev.description && (
-                            <button onClick={() => toggleDescription(ev.id)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#c9a86a', fontSize: 13 }}>
-                              {expanded ? '▲ Description' : '▼ Description'}
-                            </button>
+                      <div className="aep-card-inner">
+                        {/* Left / main content */}
+                        <div className="aep-card-left">
+                          {/* Title row: name + type + favicon (favicon mobile-only) */}
+                          <div className="aep-card-title-row" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 5 }}>
+                            <span className="aep-event-name" style={{ fontFamily: SERIF, fontSize: 21, color: '#ece6da', lineHeight: 1.2 }}>{ev.name}</span>
+                            {ev.type && (
+                              <span style={{ display: 'inline-block', background: 'rgba(255,255,255,0.06)', borderRadius: 4, padding: '2px 7px', fontSize: 11, letterSpacing: '.04em', color: '#7a6e66', flexShrink: 0 }}>{ev.type}</span>
+                            )}
+                            {ev.faviconUrl && (
+                              <img className="aep-favicon-mobile" src={ev.faviconUrl} alt="" style={{ height: 20, width: 20, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }} />
+                            )}
+                          </div>
+                          {/* Meta row */}
+                          <div style={{ fontSize: 13, color: '#9c8b7e', display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+                            {ev.date && <span>{formatEventDate(ev.date, { weekday: 'short', month: 'short', day: 'numeric' })}</span>}
+                            {ev.startTime && <span style={{ color: '#c9a86a', fontWeight: 500 }}>{ev.startTime}{ev.endTime ? ` – ${ev.endTime}` : ''}</span>}
+                            {ev.organizer && <span>Host: {ev.organizer}</span>}
+                            {/* Description toggle — desktop only */}
+                            <span className="aep-desc-desktop">{descToggleEl}</span>
+                          </div>
+                          {expanded && ev.description && (
+                            <div style={{ fontSize: 14, color: '#7a6e66', lineHeight: 1.6, marginTop: 8 }}>{ev.description}</div>
                           )}
+                          {/* Bottom row — mobile only: desc toggle left, view event right */}
+                          <div className="aep-card-bottom-mobile">
+                            <span>{descToggleEl}</span>
+                            {viewEventEl}
+                          </div>
                         </div>
-                        {viewEventEl}
+                        {/* Right column — desktop only: favicon + view event */}
+                        <div className="aep-card-right">
+                          {ev.faviconUrl && (
+                            <img src={ev.faviconUrl} alt="" style={{ height: 36, width: 36, objectFit: 'cover', borderRadius: 8, display: 'block' }} />
+                          )}
+                          {viewEventEl}
+                        </div>
                       </div>
                     </div>
                   )
