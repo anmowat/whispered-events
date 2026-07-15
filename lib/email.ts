@@ -1206,21 +1206,13 @@ export async function sendApprovedWithDigest(
 
   const eb = todayEyebrow()
   const ratingNudgeHtml = `
-    <div style="margin-top:16px;padding:14px 18px;background:${C.accentSoft};border:1px solid ${C.rule};border-radius:6px;">
-      <p style="font-family:${SANS};font-size:14px;line-height:1.6;color:${C.ink2};margin:0 0 10px;">
-        Rating your matches (
-        <span style="display:inline-block;margin:0 3px;padding:2px 8px;border-radius:99px;background:rgba(45,106,79,0.10);color:#2D6A4F;border:1px solid rgba(45,106,79,0.35);font-size:12px;">&#10003;</span>
-        <span style="display:inline-block;margin:0 3px;padding:2px 8px;border-radius:99px;background:rgba(58,95,138,0.10);color:#3A5F8A;border:1px solid rgba(58,95,138,0.35);font-size:12px;">&#9825;</span>
-        <span style="display:inline-block;margin:0 3px;padding:2px 8px;border-radius:99px;background:rgba(138,42,56,0.10);color:#8A2A38;border:1px solid rgba(201,129,140,0.35);font-size:12px;">&#10005;</span>
-        ) helps us:
-      </p>
-      <p style="font-family:${SANS};font-size:14px;line-height:1.6;color:${C.ink2};margin:0 0 6px;">
-        • <strong style="color:${C.ink};">Improve your matches:</strong> we train our model from your feedback
-      </p>
-      <p style="font-family:${SANS};font-size:14px;line-height:1.6;color:${C.ink2};margin:0;">
-        • <strong style="color:${C.ink};">Send you more matches:</strong> each rating brings the next into view
-      </p>
-    </div>
+    ${p("Rating your matches does two things:", { mt: 14 })}
+    <p style="font-family:${SANS};font-size:14px;line-height:1.6;color:${C.ink2};margin:8px 0 0;">
+      • <strong style="color:${C.ink};">Opens up more</strong> — each rating reveals the next match we've found for you
+    </p>
+    <p style="font-family:${SANS};font-size:14px;line-height:1.6;color:${C.ink2};margin:6px 0 0;">
+      • <strong style="color:${C.ink};">Improves the quality</strong> — we learn what genuinely fits, not just what looks right on paper
+    </p>
   `
 
   const html = shell(`
@@ -1241,9 +1233,9 @@ export async function sendApprovedWithDigest(
     '',
     introCopyText,
     '',
-    'Rating your matches (✓ / ♡ / ✕) helps us:',
-    '• Improve your matches: we train our model from your feedback',
-    '• Send you more matches: each rating brings the next into view',
+    'Rating your matches does two things:',
+    "• Opens up more — each rating reveals the next match we've found for you",
+    '• Improves the quality — we learn what genuinely fits, not just what looks right on paper',
     '',
   ]
   const appendEntries = (entries: DigestEventEntry[]) => {
@@ -1469,21 +1461,13 @@ export async function sendUserDigest(
     : ''
 
   const digestRatingNudgeHtml = `
-    <div style="margin-top:20px;padding:14px 18px;background:${C.accentSoft};border:1px solid ${C.rule};border-radius:6px;">
-      <p style="font-family:${SANS};font-size:14px;line-height:1.6;color:${C.ink2};margin:0 0 10px;">
-        Rating your matches (
-        <span style="display:inline-block;margin:0 3px;padding:2px 8px;border-radius:99px;background:rgba(45,106,79,0.10);color:#2D6A4F;border:1px solid rgba(45,106,79,0.35);font-size:12px;">&#10003;</span>
-        <span style="display:inline-block;margin:0 3px;padding:2px 8px;border-radius:99px;background:rgba(58,95,138,0.10);color:#3A5F8A;border:1px solid rgba(58,95,138,0.35);font-size:12px;">&#9825;</span>
-        <span style="display:inline-block;margin:0 3px;padding:2px 8px;border-radius:99px;background:rgba(138,42,56,0.10);color:#8A2A38;border:1px solid rgba(201,129,140,0.35);font-size:12px;">&#10005;</span>
-        ) helps us:
-      </p>
-      <p style="font-family:${SANS};font-size:14px;line-height:1.6;color:${C.ink2};margin:0 0 6px;">
-        • <strong style="color:${C.ink};">Improve your matches:</strong> we train our model from your feedback
-      </p>
-      <p style="font-family:${SANS};font-size:14px;line-height:1.6;color:${C.ink2};margin:0;">
-        • <strong style="color:${C.ink};">Send you more matches:</strong> each rating brings the next into view
-      </p>
-    </div>
+    ${p("Rating your matches does two things:", { mt: 14 })}
+    <p style="font-family:${SANS};font-size:14px;line-height:1.6;color:${C.ink2};margin:8px 0 0;">
+      • <strong style="color:${C.ink};">Opens up more</strong> — each rating reveals the next match we've found for you
+    </p>
+    <p style="font-family:${SANS};font-size:14px;line-height:1.6;color:${C.ink2};margin:6px 0 0;">
+      • <strong style="color:${C.ink};">Improves the quality</strong> — we learn what genuinely fits, not just what looks right on paper
+    </p>
   `
 
   const html = shell(`
@@ -1524,9 +1508,9 @@ export async function sendUserDigest(
   if (moreText) textLines.push(moreText, '')
   if (lockedNudgeText) textLines.push(lockedNudgeText, '')
   textLines.push(
-    'Rating your matches (✓ / ♡ / ✕) helps us:',
-    '• Improve your matches: we train our model from your feedback',
-    '• Send you more matches: each rating brings the next into view',
+    'Rating your matches does two things:',
+    "• Opens up more — each rating reveals the next match we've found for you",
+    '• Improves the quality — we learn what genuinely fits, not just what looks right on paper',
     '',
   )
   textLines.push(...digestFooterTextLines(firstName))
