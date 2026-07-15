@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import LoginModal from '@/components/LoginModal'
 import { AdminTabs } from '@/components/AdminTabs'
 
@@ -23,11 +23,13 @@ export default function AdminOfferDetailPage({ params }: { params: { id: string 
   const [saved, setSaved] = useState(false)
 
   const [name, setName] = useState('')
-  const [logoUrl, setLogoUrl] = useState('')
   const [bannerUrl, setBannerUrl] = useState('')
-  const [ctaText, setCtaText] = useState('')
   const [url, setUrl] = useState('')
   const [status, setStatus] = useState<'active' | 'inactive'>('active')
+
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   async function fetchOffer() {
     const res = await fetch(`/api/admin/offers/${params.id}`, { cache: 'no-store' })
@@ -37,9 +39,7 @@ export default function AdminOfferDetailPage({ params }: { params: { id: string 
     setAuthState('authorized')
     setOffer(d.item)
     setName(d.item.name)
-    setLogoUrl(d.item.logoUrl)
     setBannerUrl(d.item.bannerUrl)
-    setCtaText(d.item.ctaText)
     setUrl(d.item.url)
     setStatus(d.item.status)
   }
@@ -53,7 +53,7 @@ export default function AdminOfferDetailPage({ params }: { params: { id: string 
     const res = await fetch(`/api/admin/offers/${params.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, logoUrl, bannerUrl, ctaText, url, status }),
+      body: JSON.stringify({ name, bannerUrl, url, status }),
     })
     setSaving(false)
     if (!res.ok) {
@@ -63,6 +63,22 @@ export default function AdminOfferDetailPage({ params }: { params: { id: string 
     }
     setSaved(true)
     window.setTimeout(() => setSaved(false), 2000)
+  }
+
+  async function handleBannerUpload(file: File) {
+    setUploading(true)
+    setUploadError(null)
+    const form = new FormData()
+    form.append('file', file)
+    const res = await fetch(`/api/admin/offers/${params.id}/banner`, { method: 'POST', body: form })
+    setUploading(false)
+    if (!res.ok) {
+      const d = await res.json() as { error?: string }
+      setUploadError(d.error ?? 'Upload failed')
+      return
+    }
+    const d = await res.json() as { bannerUrl: string }
+    setBannerUrl(d.bannerUrl)
   }
 
   if (authState === 'unauthorized') return <LoginModal onClose={() => setShowLogin(false)} next={`/admin/offers/${params.id}`} />
@@ -112,27 +128,9 @@ export default function AdminOfferDetailPage({ params }: { params: { id: string 
                     <option value="inactive">Inactive</option>
                   </select>
                 </div>
-                <div>
-                  <label style={label}>CTA Button Text</label>
-                  <input style={inp} value={ctaText} onChange={(e) => setCtaText(e.target.value)} placeholder="Claim your discount →" />
-                </div>
-                <div>
-                  <label style={label}>Destination URL</label>
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <label style={label}>Click-through URL</label>
                   <input style={inp} value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://..." />
-                </div>
-                <div>
-                  <label style={label}>Logo URL</label>
-                  <input style={inp} value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} placeholder="https://..." />
-                  {logoUrl && (
-                    <img src={logoUrl} alt="Logo preview" style={{ height: 40, marginTop: 6, objectFit: 'contain' }} />
-                  )}
-                </div>
-                <div>
-                  <label style={label}>Banner URL</label>
-                  <input style={inp} value={bannerUrl} onChange={(e) => setBannerUrl(e.target.value)} placeholder="https://..." />
-                  {bannerUrl && (
-                    <img src={bannerUrl} alt="Banner preview" style={{ width: '100%', marginTop: 6, objectFit: 'cover', borderRadius: 6 }} />
-                  )}
                 </div>
               </div>
               {saveError && <div style={{ color: '#c0392b', fontSize: 13, marginBottom: 10 }}>{saveError}</div>}
@@ -144,6 +142,42 @@ export default function AdminOfferDetailPage({ params }: { params: { id: string 
                 {saving ? 'Saving…' : saved ? 'Saved ✓' : 'Save changes'}
               </button>
             </form>
+          </div>
+
+          <div style={card}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: '#888', letterSpacing: '.06em', marginBottom: 16 }}>BANNER IMAGE</div>
+            <p style={{ fontSize: 13, color: '#666', margin: '0 0 14px', lineHeight: 1.55 }}>
+              Upload a <strong>1200 × 600 px</strong> image (JPG or PNG, 2:1 ratio, max 6 MB).
+              Displays full-width on mobile and half-width alongside other offers on desktop.
+              Share these specs with vendors: <em>1200 × 600 px, 2:1 ratio, JPG or PNG.</em>
+            </p>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png"
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (file) handleBannerUpload(file)
+                e.target.value = ''
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              style={{ background: '#6E1F2B', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 20px', fontSize: 13, cursor: 'pointer', marginBottom: 14, opacity: uploading ? 0.6 : 1 }}
+            >
+              {uploading ? 'Uploading…' : bannerUrl ? 'Replace banner' : 'Upload banner'}
+            </button>
+            {uploadError && <div style={{ color: '#c0392b', fontSize: 13, marginBottom: 10 }}>{uploadError}</div>}
+            {bannerUrl && (
+              <img
+                src={bannerUrl}
+                alt="Banner preview"
+                style={{ width: '100%', maxWidth: 600, display: 'block', borderRadius: 8, border: '1px solid #E8DDD0' }}
+              />
+            )}
           </div>
         </>
       )}

@@ -403,47 +403,36 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
         )}
 
         {/* Offers */}
-        {offers.length > 0 && (
+        {offers.filter((o) => o.bannerUrl).length > 0 && (
           <div>
             <div style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: '#6b5e53', marginBottom: 20 }}>
               Partners & Offers
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {offers.map((offer) => (
-                <div
-                  key={offer.id}
-                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, overflow: 'hidden' }}
-                >
-                  {offer.bannerUrl && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 360px), 1fr))', gap: 16 }}>
+              {offers.filter((o) => o.bannerUrl).map((offer) => (
+                offer.url ? (
+                  <a
+                    key={offer.id}
+                    href={offer.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ display: 'block', borderRadius: 10, overflow: 'hidden', textDecoration: 'none' }}
+                  >
                     <img
                       src={offer.bannerUrl}
                       alt={offer.name}
-                      style={{ width: '100%', display: 'block', maxHeight: 200, objectFit: 'cover' }}
+                      style={{ width: '100%', display: 'block', aspectRatio: '2 / 1', objectFit: 'cover' }}
                     />
-                  )}
-                  <div style={{ padding: '20px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                      {offer.logoUrl && (
-                        <img
-                          src={offer.logoUrl}
-                          alt={offer.name}
-                          style={{ height: 36, objectFit: 'contain', flexShrink: 0 }}
-                        />
-                      )}
-                      <div style={{ fontFamily: SERIF, fontSize: 19, color: '#ece6da' }}>{offer.name}</div>
-                    </div>
-                    {offer.ctaText && offer.url && (
-                      <a
-                        href={offer.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{ display: 'inline-block', background: '#c9a86a', color: '#1b1814', textDecoration: 'none', borderRadius: 8, padding: '10px 20px', fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0 }}
-                      >
-                        {offer.ctaText}
-                      </a>
-                    )}
+                  </a>
+                ) : (
+                  <div key={offer.id} style={{ borderRadius: 10, overflow: 'hidden' }}>
+                    <img
+                      src={offer.bannerUrl}
+                      alt={offer.name}
+                      style={{ width: '100%', display: 'block', aspectRatio: '2 / 1', objectFit: 'cover' }}
+                    />
                   </div>
-                </div>
+                )
               ))}
             </div>
           </div>
