@@ -757,12 +757,12 @@ export default function AdminEventDetailPage() {
                 <p className="text-sm text-gray-500">
                   {[event.type, event.location, event.date].filter(Boolean).join(' · ')}
                 </p>
-                {imageError && (
-                  <p className="text-xs text-red-600 mt-1">{imageError}</p>
-                )}
+                {imageError && <p className="text-xs text-red-600 mt-1">{imageError}</p>}
+                {faviconError && <p className="text-xs text-red-600 mt-1">{faviconError}</p>}
               </div>
 
-              <div className="relative flex-shrink-0">
+              <div className="flex items-end gap-2 flex-shrink-0">
+                {/* Main event image */}
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -773,89 +773,82 @@ export default function AdminEventDetailPage() {
                     if (f) handleImageUpload(f)
                   }}
                 />
-                {event.imageUrl ? (
-                  <>
-                    <img
-                      src={`/api/event-image/${event.id}?v=${imageVersion}`}
-                      alt=""
-                      onClick={() => !imageBusy && fileInputRef.current?.click()}
-                      title="Click to replace"
-                      className={`w-20 h-20 rounded-lg border border-[#E8DDD0] object-cover cursor-pointer transition-opacity ${imageBusy ? 'opacity-50' : ''}`}
-                    />
+                <div className="relative">
+                  {event.imageUrl ? (
+                    <>
+                      <img
+                        src={`/api/event-image/${event.id}?v=${imageVersion}`}
+                        alt=""
+                        onClick={() => !imageBusy && fileInputRef.current?.click()}
+                        title="Click to replace"
+                        className={`w-20 h-20 rounded-lg border border-[#E8DDD0] object-cover cursor-pointer transition-opacity ${imageBusy ? 'opacity-50' : ''}`}
+                      />
+                      <button
+                        type="button"
+                        disabled={imageBusy}
+                        onClick={handleImageDelete}
+                        title="Remove image"
+                        className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-white border border-[#E8DDD0] text-gray-500 text-xs leading-none flex items-center justify-center shadow-sm hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors disabled:opacity-50"
+                      >
+                        ×
+                      </button>
+                    </>
+                  ) : (
                     <button
                       type="button"
                       disabled={imageBusy}
-                      onClick={handleImageDelete}
-                      title="Remove image"
-                      className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-white border border-[#E8DDD0] text-gray-500 text-xs leading-none flex items-center justify-center shadow-sm hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors disabled:opacity-50"
+                      onClick={() => fileInputRef.current?.click()}
+                      title="Upload image"
+                      className={`w-20 h-20 rounded-lg border border-dashed border-[#E8DDD0] bg-[#FDFAF6] text-3xl text-gray-300 hover:text-gray-500 hover:border-gray-300 transition-colors ${imageBusy ? 'opacity-50' : ''}`}
                     >
-                      ×
+                      +
                     </button>
-                  </>
-                ) : (
-                  <button
-                    type="button"
-                    disabled={imageBusy}
-                    onClick={() => fileInputRef.current?.click()}
-                    title="Upload image"
-                    className={`w-20 h-20 rounded-lg border border-dashed border-[#E8DDD0] bg-[#FDFAF6] text-3xl text-gray-300 hover:text-gray-500 hover:border-gray-300 transition-colors ${imageBusy ? 'opacity-50' : ''}`}
-                  >
-                    +
-                  </button>
-                )}
-              </div>
-            </div>
+                  )}
+                </div>
 
-            {/* Favicon upload */}
-            <div className="flex items-center gap-4 px-1 mb-6">
-              <input
-                ref={faviconInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => {
-                  const f = e.target.files?.[0]
-                  if (f) handleFaviconUpload(f)
-                }}
-              />
-              <div className="relative flex-shrink-0">
-                {event.faviconUrl ? (
-                  <>
-                    <img
-                      src={event.faviconUrl}
-                      alt="Favicon"
-                      onClick={() => !faviconBusy && faviconInputRef.current?.click()}
-                      title="Click to replace"
-                      className={`w-8 h-8 rounded border border-[#E8DDD0] object-contain cursor-pointer transition-opacity ${faviconBusy ? 'opacity-50' : ''}`}
-                    />
+                {/* Favicon — smaller, sits bottom-aligned next to the main image */}
+                <input
+                  ref={faviconInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0]
+                    if (f) handleFaviconUpload(f)
+                  }}
+                />
+                <div className="relative">
+                  {event.faviconUrl ? (
+                    <>
+                      <img
+                        src={event.faviconUrl}
+                        alt="Favicon"
+                        onClick={() => !faviconBusy && faviconInputRef.current?.click()}
+                        title="Click to replace favicon"
+                        className={`w-10 h-10 rounded border border-[#E8DDD0] object-contain cursor-pointer transition-opacity ${faviconBusy ? 'opacity-50' : ''}`}
+                      />
+                      <button
+                        type="button"
+                        disabled={faviconBusy}
+                        onClick={handleFaviconDelete}
+                        title="Remove favicon"
+                        className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-white border border-[#E8DDD0] text-gray-500 text-[10px] leading-none flex items-center justify-center shadow-sm hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors disabled:opacity-50"
+                      >
+                        ×
+                      </button>
+                    </>
+                  ) : (
                     <button
                       type="button"
                       disabled={faviconBusy}
-                      onClick={handleFaviconDelete}
-                      title="Remove favicon"
-                      className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-white border border-[#E8DDD0] text-gray-500 text-[10px] leading-none flex items-center justify-center shadow-sm hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors disabled:opacity-50"
+                      onClick={() => faviconInputRef.current?.click()}
+                      title="Upload favicon"
+                      className={`w-10 h-10 rounded border border-dashed border-[#E8DDD0] bg-[#FDFAF6] text-lg text-gray-300 hover:text-gray-500 hover:border-gray-300 transition-colors ${faviconBusy ? 'opacity-50' : ''}`}
                     >
-                      ×
+                      +
                     </button>
-                  </>
-                ) : (
-                  <button
-                    type="button"
-                    disabled={faviconBusy}
-                    onClick={() => faviconInputRef.current?.click()}
-                    title="Upload favicon"
-                    className={`w-8 h-8 rounded border border-dashed border-[#E8DDD0] bg-[#FDFAF6] text-sm text-gray-300 hover:text-gray-500 hover:border-gray-300 transition-colors ${faviconBusy ? 'opacity-50' : ''}`}
-                  >
-                    +
-                  </button>
-                )}
-              </div>
-              <div>
-                <p className="text-xs uppercase tracking-widest font-medium text-gray-400">Favicon</p>
-                {faviconError && <p className="text-xs text-red-600 mt-0.5">{faviconError}</p>}
-                {!faviconError && (
-                  <p className="text-xs text-gray-400 mt-0.5">{event.faviconUrl ? 'Click to replace' : 'Upload organizer favicon'}</p>
-                )}
+                  )}
+                </div>
               </div>
             </div>
 
