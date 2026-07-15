@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import LoginModal from '@/components/LoginModal'
 import { AdminTabs } from '@/components/AdminTabs'
 
@@ -29,7 +29,24 @@ export default function AdminOfferDetailPage({ params }: { params: { id: string 
 
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
+  const [vendorCopied, setVendorCopied] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const VENDOR_COPY = `Hi! To create your banner for Whispered Events, could you please send us:
+
+• A transparent logo, ideally in a horizontal format
+• Your company's primary color (hex code preferred)
+• The URL you'd like the banner to point to
+
+We'll take it from there and create the banner for you.`
+
+  const handleVendorCopy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(VENDOR_COPY)
+      setVendorCopied(true)
+      setTimeout(() => setVendorCopied(false), 2000)
+    } catch { /* insecure context */ }
+  }, [VENDOR_COPY])
 
   async function fetchOffer() {
     const res = await fetch(`/api/admin/offers/${params.id}`, { cache: 'no-store' })
@@ -155,16 +172,29 @@ export default function AdminOfferDetailPage({ params }: { params: { id: string 
               </a>.
             </p>
 
-            {/* Vendor instructions — copy/paste to send to companies */}
-            <div style={{ background: '#fff', border: '1px solid #E8DDD0', borderRadius: 8, padding: '12px 16px', margin: '10px 0 16px', fontSize: 13, color: '#4a3f38', lineHeight: 1.6 }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: '#888', letterSpacing: '.07em', marginBottom: 8 }}>WHAT TO REQUEST FROM THE VENDOR</div>
-              <ul style={{ margin: 0, paddingLeft: 18, color: '#555' }}>
+            {/* Vendor instructions — click to copy */}
+            <button
+              type="button"
+              onClick={handleVendorCopy}
+              title="Click to copy vendor request"
+              style={{ display: 'block', width: '100%', textAlign: 'left', background: vendorCopied ? '#f0faf3' : '#fff', border: `1px solid ${vendorCopied ? '#5a9e6f' : '#E8DDD0'}`, borderRadius: 8, padding: '12px 16px', margin: '10px 0 16px', fontSize: 13, color: '#4a3f38', lineHeight: 1.6, cursor: 'pointer', transition: 'background 0.2s, border-color 0.2s' }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <span style={{ fontSize: 11, fontWeight: 600, color: vendorCopied ? '#1a6630' : '#888', letterSpacing: '.07em' }}>
+                  {vendorCopied ? '✓ COPIED' : 'VENDOR REQUEST — CLICK TO COPY'}
+                </span>
+                <span style={{ fontSize: 11, color: vendorCopied ? '#1a6630' : '#aaa' }}>
+                  {vendorCopied ? '✓' : '⎘'}
+                </span>
+              </div>
+              <p style={{ margin: '0 0 6px', color: '#555' }}>Hi! To create your banner for Whispered Events, could you please send us:</p>
+              <ul style={{ margin: '0 0 6px', paddingLeft: 18, color: '#555' }}>
                 <li>A transparent logo, ideally in a horizontal format</li>
-                <li>Their company&apos;s primary color (hex code preferred)</li>
-                <li>The URL they want the banner to point to</li>
+                <li>Your company&apos;s primary color (hex code preferred)</li>
+                <li>The URL you&apos;d like the banner to point to</li>
               </ul>
-              <p style={{ margin: '8px 0 0', color: '#888', fontSize: 12 }}>We will create the banner for them using the Claude project above.</p>
-            </div>
+              <p style={{ margin: 0, color: '#555' }}>We&apos;ll take it from there and create the banner for you.</p>
+            </button>
 
             <input
               ref={fileInputRef}
