@@ -98,7 +98,7 @@ const TAB_CONTENT: Record<HeaderTab, TabContent> = {
     subhead: (
       <>
         Share and get matched<br />
-        with exclusive <span style={{ color: '#c9a86a', fontWeight: 700 }}>in-person</span> events and conferences — for free.
+        with exclusive <span style={{ color: '#c9a86a', fontWeight: 700 }}>in-person</span> events and conferences.
       </>
     ),
     cta: 'Create Profile',
