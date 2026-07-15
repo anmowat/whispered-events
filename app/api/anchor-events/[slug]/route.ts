@@ -4,8 +4,11 @@ import { getAnchorEventBySlug, getAnchorEventEvents, getAnchorEventOffers } from
 export async function GET(_req: NextRequest, { params }: { params: { slug: string } }) {
   try {
     const anchorEvent = await getAnchorEventBySlug(params.slug)
-    if (!anchorEvent || anchorEvent.status !== 'live') {
-      return NextResponse.json({ error: 'not found' }, { status: 404 })
+    if (!anchorEvent) {
+      return NextResponse.json({ error: `no row for slug "${params.slug}"` }, { status: 404 })
+    }
+    if (anchorEvent.status !== 'live') {
+      return NextResponse.json({ error: `slug found but status="${anchorEvent.status}"` }, { status: 404 })
     }
     const [events, offers] = await Promise.all([
       getAnchorEventEvents(anchorEvent.id),
