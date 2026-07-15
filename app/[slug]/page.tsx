@@ -346,6 +346,9 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
         .aep-btn-text { display: inline; }
         .aep-event-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
         .aep-event-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+        .aep-copy-btn { display: inline-flex; }
+        .aep-auth-btn-header { display: inline-flex; }
+        .aep-auth-btn-filter { display: none !important; }
         @media (max-width: 600px) {
           .aep-outer { padding: 24px 16px 60px; }
           .aep-header { flex-direction: column; gap: 12px; margin-bottom: 20px; }
@@ -361,6 +364,9 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
           .aep-btn-text { display: none; }
           .aep-event-row { flex-direction: column; gap: 10px; }
           .aep-event-actions { align-self: flex-start; }
+          .aep-copy-btn { display: none !important; }
+          .aep-auth-btn-header { display: none !important; }
+          .aep-auth-btn-filter { display: inline-flex !important; }
         }
       `}</style>
 
@@ -402,6 +408,7 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
           </div>
           <div className="aep-header-actions">
             <button
+              className="aep-copy-btn"
               onClick={async () => {
                 try {
                   await navigator.clipboard.writeText(window.location.href)
@@ -422,30 +429,32 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
                 </svg>
               )}
             </button>
-            {isLoggedIn ? (
-              <button
-                onClick={async () => {
-                  await fetch('/api/auth/logout', { method: 'POST' })
-                  setIsLoggedIn(false)
-                }}
-                aria-label="Log out"
-                title="Log out"
-                style={{ background: 'none', border: '1px solid rgba(255,255,255,0.18)', borderRadius: 99, padding: '7px 10px', color: 'rgba(236,230,218,0.6)', fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
-              >
-                <svg width="15" height="15" viewBox="0 0 14 14" fill="none" aria-hidden><path d="M5 2H3a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><path d="M9 10l3-3-3-3M12 7H5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                <span className="aep-btn-text">Log out</span>
-              </button>
-            ) : (
-              <button
-                onClick={() => setShowLoginModal(true)}
-                aria-label="Log in"
-                title="Log in"
-                style={{ background: 'rgba(201,168,106,0.12)', border: '1px solid rgba(201,168,106,0.35)', borderRadius: 99, padding: '7px 10px', color: '#c9a86a', fontSize: 13, cursor: 'pointer', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6 }}
-              >
-                <svg width="15" height="15" viewBox="0 0 14 14" fill="none" aria-hidden><path d="M9 2h2a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><path d="M5 10l-3-3 3-3M2 7h7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                <span className="aep-btn-text">Log in</span>
-              </button>
-            )}
+            <span className="aep-auth-btn-header">
+              {isLoggedIn ? (
+                <button
+                  onClick={async () => {
+                    await fetch('/api/auth/logout', { method: 'POST' })
+                    setIsLoggedIn(false)
+                  }}
+                  aria-label="Log out"
+                  title="Log out"
+                  style={{ background: 'none', border: '1px solid rgba(255,255,255,0.18)', borderRadius: 99, padding: '7px 10px', color: 'rgba(236,230,218,0.6)', fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+                >
+                  <svg width="15" height="15" viewBox="0 0 14 14" fill="none" aria-hidden><path d="M5 2H3a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><path d="M9 10l3-3-3-3M12 7H5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  <span className="aep-btn-text">Log out</span>
+                </button>
+              ) : (
+                <button
+                  onClick={() => setShowLoginModal(true)}
+                  aria-label="Log in"
+                  title="Log in"
+                  style={{ background: 'rgba(201,168,106,0.12)', border: '1px solid rgba(201,168,106,0.35)', borderRadius: 99, padding: '7px 10px', color: '#c9a86a', fontSize: 13, cursor: 'pointer', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6 }}
+                >
+                  <svg width="15" height="15" viewBox="0 0 14 14" fill="none" aria-hidden><path d="M9 2h2a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><path d="M5 10l-3-3 3-3M2 7h7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  <span className="aep-btn-text">Log in</span>
+                </button>
+              )}
+            </span>
           </div>
         </div>
 
@@ -481,18 +490,45 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
                     <button onClick={() => setShowAddEvent(true)} style={{ background: 'rgba(201,168,106,0.12)', border: '1px solid rgba(201,168,106,0.35)', borderRadius: 8, padding: '6px 14px', color: '#c9a86a', fontSize: 13, cursor: 'pointer', fontWeight: 500, whiteSpace: 'nowrap' }}>
                       + Add Event
                     </button>
-                    {/* Mobile: single filter button */}
-                    <button
-                      className="aep-filter-btn-mobile"
-                      onClick={() => setShowFilterSheet(true)}
-                      style={{ display: 'none', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, padding: '7px 14px', color: '#ece6da', fontSize: 13, cursor: 'pointer' }}
-                    >
-                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden><line x1="1" y1="4" x2="13" y2="4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><line x1="1" y1="10" x2="13" y2="10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="4" cy="4" r="1.5" fill="currentColor"/><circle cx="10" cy="10" r="1.5" fill="currentColor"/></svg>
-                      Filter
-                      {activeCount > 0 && (
-                        <span style={{ background: '#c9a86a', color: '#1a1410', borderRadius: 99, fontSize: 10, fontWeight: 700, padding: '1px 5px', lineHeight: 1.4 }}>{activeCount}</span>
-                      )}
-                    </button>
+                    {/* Mobile: filter + auth on same row */}
+                    <div className="aep-filter-btn-mobile" style={{ display: 'none', alignItems: 'center', gap: 8 }}>
+                      <button
+                        onClick={() => setShowFilterSheet(true)}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, padding: '7px 14px', color: '#ece6da', fontSize: 13, cursor: 'pointer' }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden><line x1="1" y1="4" x2="13" y2="4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><line x1="1" y1="10" x2="13" y2="10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="4" cy="4" r="1.5" fill="currentColor"/><circle cx="10" cy="10" r="1.5" fill="currentColor"/></svg>
+                        Filter
+                        {activeCount > 0 && (
+                          <span style={{ background: '#c9a86a', color: '#1a1410', borderRadius: 99, fontSize: 10, fontWeight: 700, padding: '1px 5px', lineHeight: 1.4 }}>{activeCount}</span>
+                        )}
+                      </button>
+                      <span className="aep-auth-btn-filter">
+                        {isLoggedIn ? (
+                          <button
+                            onClick={async () => {
+                              await fetch('/api/auth/logout', { method: 'POST' })
+                              setIsLoggedIn(false)
+                            }}
+                            aria-label="Log out"
+                            title="Log out"
+                            style={{ background: 'none', border: '1px solid rgba(255,255,255,0.18)', borderRadius: 99, padding: '7px 10px', color: 'rgba(236,230,218,0.6)', fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+                          >
+                            <svg width="15" height="15" viewBox="0 0 14 14" fill="none" aria-hidden><path d="M5 2H3a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><path d="M9 10l3-3-3-3M12 7H5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                            Log out
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => setShowLoginModal(true)}
+                            aria-label="Log in"
+                            title="Log in"
+                            style={{ background: 'rgba(201,168,106,0.12)', border: '1px solid rgba(201,168,106,0.35)', borderRadius: 99, padding: '7px 14px', color: '#c9a86a', fontSize: 13, cursor: 'pointer', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6 }}
+                          >
+                            <svg width="15" height="15" viewBox="0 0 14 14" fill="none" aria-hidden><path d="M9 2h2a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><path d="M5 10l-3-3 3-3M2 7h7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                            Log in
+                          </button>
+                        )}
+                      </span>
+                    </div>
                   </div>
                   {/* Desktop filters inline */}
                   <div className="aep-filters aep-filters-desktop">{filterSelects}</div>
