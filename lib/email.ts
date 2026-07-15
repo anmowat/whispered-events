@@ -1468,6 +1468,24 @@ export async function sendUserDigest(
     ? `You have ${payload.lockedCount} more match${(payload.lockedCount ?? 0) === 1 ? '' : 'es'} waiting. Rate your current matches to unlock them — ${DASHBOARD_LINK}`
     : ''
 
+  const digestRatingNudgeHtml = `
+    <div style="margin-top:20px;padding:14px 18px;background:${C.accentSoft};border:1px solid ${C.rule};border-radius:6px;">
+      <p style="font-family:${SANS};font-size:14px;line-height:1.6;color:${C.ink2};margin:0 0 10px;">
+        Rating your matches (
+        <span style="display:inline-block;margin:0 3px;padding:2px 8px;border-radius:99px;background:rgba(45,106,79,0.10);color:#2D6A4F;border:1px solid rgba(45,106,79,0.35);font-size:12px;">&#10003;</span>
+        <span style="display:inline-block;margin:0 3px;padding:2px 8px;border-radius:99px;background:rgba(58,95,138,0.10);color:#3A5F8A;border:1px solid rgba(58,95,138,0.35);font-size:12px;">&#9825;</span>
+        <span style="display:inline-block;margin:0 3px;padding:2px 8px;border-radius:99px;background:rgba(138,42,56,0.10);color:#8A2A38;border:1px solid rgba(201,129,140,0.35);font-size:12px;">&#10005;</span>
+        ) helps us:
+      </p>
+      <p style="font-family:${SANS};font-size:14px;line-height:1.6;color:${C.ink2};margin:0 0 6px;">
+        • <strong style="color:${C.ink};">Improve your matches:</strong> we train our model from your feedback
+      </p>
+      <p style="font-family:${SANS};font-size:14px;line-height:1.6;color:${C.ink2};margin:0;">
+        • <strong style="color:${C.ink};">Send you more matches:</strong> each rating brings the next into view
+      </p>
+    </div>
+  `
+
   const html = shell(`
     ${eyebrowMarkup}
     ${h1(`New <span style="font-style:italic;">whispers</span> for ${escapeHtml(firstName)}.`)}
@@ -1475,6 +1493,7 @@ export async function sendUserDigest(
     ${renderEntries(annotated.newEvents, user.id)}
     ${moreHtml}
     ${lockedNudgeHtml}
+    ${digestRatingNudgeHtml}
     ${digestFooterHtml(firstName)}
   `)
 
@@ -1504,6 +1523,12 @@ export async function sendUserDigest(
   appendEntries(annotated.newEvents)
   if (moreText) textLines.push(moreText, '')
   if (lockedNudgeText) textLines.push(lockedNudgeText, '')
+  textLines.push(
+    'Rating your matches (✓ / ♡ / ✕) helps us:',
+    '• Improve your matches: we train our model from your feedback',
+    '• Send you more matches: each rating brings the next into view',
+    '',
+  )
   textLines.push(...digestFooterTextLines(firstName))
   const text = textLines.join('\n')
 
