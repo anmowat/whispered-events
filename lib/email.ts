@@ -1218,7 +1218,7 @@ export async function sendApprovedWithDigest(
         • <strong style="color:${C.ink};">Improve your matches:</strong> we train our model from your feedback
       </p>
       <p style="font-family:${SANS};font-size:14px;line-height:1.6;color:${C.ink2};margin:0;">
-        • <strong style="color:${C.ink};">Send more matches:</strong> each rating brings the next into view
+        • <strong style="color:${C.ink};">Send you more matches:</strong> each rating brings the next into view
       </p>
     </div>
   `
@@ -1243,7 +1243,7 @@ export async function sendApprovedWithDigest(
     '',
     'Rating your matches (✓ / ♡ / ✕) helps us:',
     '• Improve your matches: we train our model from your feedback',
-    '• Send more matches: each rating brings the next into view',
+    '• Send you more matches: each rating brings the next into view',
     '',
   ]
   const appendEntries = (entries: DigestEventEntry[]) => {
