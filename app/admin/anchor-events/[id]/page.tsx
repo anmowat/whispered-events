@@ -372,13 +372,6 @@ export default function AdminAnchorEventDetailPage({ params }: { params: { id: s
                       <div style={{ fontWeight: 500, fontSize: 14 }}>{ev.name}</div>
                       <div style={{ fontSize: 12, color: '#888' }}>{ev.date} · {ev.location} · {ev.type}</div>
                     </div>
-                    <input
-                      type="text"
-                      defaultValue={ev.startTime ?? ''}
-                      placeholder="10:00 AM"
-                      onBlur={(e) => patchEventMeta(ev.id, { startTime: e.target.value.trim() || null })}
-                      style={{ width: 90, padding: '4px 7px', border: '1px solid #d5cbc3', borderRadius: 5, fontSize: 12, background: '#fff' }}
-                    />
                     <button onClick={() => removeEvent(ev.id)} style={{ background: 'none', border: 'none', color: '#c0392b', cursor: 'pointer', fontSize: 13, flexShrink: 0 }}>Remove</button>
                   </div>
                 ))}
