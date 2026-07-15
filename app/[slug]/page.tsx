@@ -164,7 +164,7 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
           onClick={() => { setShowAuthDialog(false); setAuthState('idle'); setAuthEmail('') }}
         >
           <div
-            style={{ background: '#251e19', border: '1px solid rgba(201,168,106,0.25)', borderRadius: 18, padding: '36px 32px', maxWidth: 420, width: '100%' }}
+            style={{ background: '#251e19', border: '1px solid rgba(201,168,106,0.25)', borderRadius: 18, padding: '36px 32px', maxWidth: 420, width: '100%', textAlign: 'center' }}
             onClick={(e) => e.stopPropagation()}
           >
             {authState === 'sent' ? (
@@ -178,7 +178,7 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
               <>
                 <div style={{ fontFamily: SERIF, fontSize: 28, color: '#ece6da', marginBottom: 10, lineHeight: 1.2 }}>See whispered events</div>
                 <div style={{ color: '#9c8b7e', fontSize: 15, lineHeight: 1.65, marginBottom: 24 }}>
-                  Create a free profile to see all {data?.anchorEvent.shortName || data?.anchorEvent.anchorName} events that match your level and get a personalized feed of intimate events.
+                  Create a free profile to see all {data?.anchorEvent.shortName || data?.anchorEvent.anchorName} events that match your level and get a personalized feed of exclusive in-person events.
                 </div>
 
                 {/* Primary CTA */}
