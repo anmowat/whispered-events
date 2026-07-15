@@ -521,7 +521,7 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
                             <img
                               src={ev.faviconUrl}
                               alt=""
-                              style={{ width: 32, height: 32, objectFit: 'contain', borderRadius: 6, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', padding: 3 }}
+                              style={{ height: 36, width: 36, objectFit: 'contain', borderRadius: 8, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', padding: 4 }}
                             />
                           )}
                           {ev.link && (
