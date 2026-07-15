@@ -62,10 +62,16 @@ function OfferBanner({ offer }: { offer: Offer }) {
   )
 }
 
-function chunkArray<T>(arr: T[], size: number): T[][] {
-  const out: T[][] = []
-  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size))
-  return out
+// Build rotating windows of exactly `size` items (wrapping around) so
+// desktop always shows a full row. With 4 offers and size=3:
+//   window 0 → [0,1,2], window 1 → [3,0,1]
+function offerWindows<T>(arr: T[], size: number): T[][] {
+  if (arr.length === 0) return []
+  const perWindow = Math.min(size, arr.length)
+  const numWindows = arr.length <= perWindow ? 1 : Math.ceil(arr.length / perWindow)
+  return Array.from({ length: numWindows }, (_, w) =>
+    Array.from({ length: perWindow }, (__, j) => arr[(w * perWindow + j) % arr.length])
+  )
 }
 
 function InlineOfferSlot({ chunk, visible }: { chunk: Offer[]; visible: boolean }) {
@@ -86,7 +92,7 @@ function InlineOfferSlot({ chunk, visible }: { chunk: Offer[]; visible: boolean 
       {/* Desktop: up to 3 in a row */}
       <div
         className="offers-desktop"
-        style={{ display: 'grid', gridTemplateColumns: `repeat(${chunk.length}, 1fr)`, gap: 14 }}
+        style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(chunk.length, 3)}, 1fr)`, gap: 14, justifyContent: 'start' }}
       >
         {chunk.map((offer) => <OfferBanner key={offer.id} offer={offer} />)}
       </div>
@@ -184,7 +190,7 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
   }, [data, filterType, filterDay, filterTime, isLoggedIn, userSeniority])
 
   const bannerOffers = useMemo(() => (data?.offers ?? []).filter((o) => o.bannerUrl), [data])
-  const offerChunks = useMemo(() => chunkArray(bannerOffers, 3), [bannerOffers])
+  const offerChunks = useMemo(() => offerWindows(bannerOffers, 3), [bannerOffers])
 
   // Cycle all inline offer slots together every 10s so each slot shows
   // a different chunk and they rotate in unison (slot0↔slot1 swap etc.)
