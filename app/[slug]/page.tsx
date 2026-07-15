@@ -247,10 +247,10 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
                 style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, padding: '6px 10px', color: filterTime === 'all' ? '#6b5e53' : '#ece6da', fontSize: 13, cursor: 'pointer', outline: 'none' }}
               >
                 <option value="all">All times</option>
-                <option value="morning">Morning (7 AM – noon)</option>
-                <option value="midday">Midday (10:30 AM – 2 PM)</option>
-                <option value="afternoon">Afternoon (1 – 5 PM)</option>
-                <option value="evening">Evening (4 PM+)</option>
+                <option value="morning">Morning</option>
+                <option value="midday">Midday</option>
+                <option value="afternoon">Afternoon</option>
+                <option value="evening">Evening</option>
               </select>
               <select
                 value={filterType}
@@ -274,22 +274,27 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
                   >
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
                       <div style={{ flex: 1, minWidth: 200 }}>
-                        <div style={{ fontFamily: SERIF, fontSize: 21, color: '#ece6da', marginBottom: 6, lineHeight: 1.2 }}>{ev.name}</div>
-                        <div style={{ fontSize: 13, color: '#9c8b7e', display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 5 }}>
+                          <div style={{ fontFamily: SERIF, fontSize: 21, color: '#ece6da', lineHeight: 1.2 }}>{ev.name}</div>
+                          {ev.type && (
+                            <span style={{ display: 'inline-block', background: 'rgba(255,255,255,0.06)', borderRadius: 4, padding: '2px 7px', fontSize: 11, letterSpacing: '.04em', color: '#7a6e66', flexShrink: 0 }}>{ev.type}</span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: 13, color: '#9c8b7e', display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginBottom: ev.description ? 6 : 0 }}>
+                          {ev.date && (
+                            <span>{formatEventDate(ev.date, { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+                          )}
                           {ev.startTime && (
                             <span style={{ color: '#c9a86a', fontWeight: 500 }}>{ev.startTime}{ev.endTime ? ` – ${ev.endTime}` : ''}</span>
                           )}
                           {ev.organizer && (
                             <span>Host: {ev.organizer}</span>
                           )}
-                          {ev.type && (
-                            <span style={{ display: 'inline-block', background: 'rgba(255,255,255,0.06)', borderRadius: 4, padding: '2px 7px', fontSize: 11, letterSpacing: '.04em', color: '#7a6e66' }}>{ev.type}</span>
-                          )}
                         </div>
                         {ev.description && (
                           <button
                             onClick={() => toggleDescription(ev.id)}
-                            style={{ background: 'none', border: 'none', padding: 0, marginTop: 10, cursor: 'pointer', color: '#c9a86a', fontSize: 13, display: 'flex', alignItems: 'center', gap: 5 }}
+                            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#c9a86a', fontSize: 13, display: 'flex', alignItems: 'center', gap: 5 }}
                           >
                             {expanded ? '▲ Hide details' : '▼ Show details'}
                           </button>
