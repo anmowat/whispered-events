@@ -44,6 +44,92 @@ interface PageData {
   offers: Offer[]
 }
 
+function OfferBanner({ offer }: { offer: Offer }) {
+  const inner = (
+    <img
+      src={offer.bannerUrl}
+      alt={offer.name}
+      style={{ width: '100%', display: 'block', aspectRatio: '2 / 1', objectFit: 'cover' }}
+    />
+  )
+  return offer.url ? (
+    <a href={offer.url} target="_blank" rel="noopener noreferrer" style={{ display: 'block', borderRadius: 10, overflow: 'hidden', textDecoration: 'none' }}>
+      {inner}
+    </a>
+  ) : (
+    <div style={{ borderRadius: 10, overflow: 'hidden' }}>{inner}</div>
+  )
+}
+
+function OffersSection({ offers }: { offers: Offer[] }) {
+  const [carouselIdx, setCarouselIdx] = useState(0)
+
+  useEffect(() => {
+    if (offers.length <= 1) return
+    const id = setInterval(() => setCarouselIdx((i) => (i + 1) % offers.length), 5000)
+    return () => clearInterval(id)
+  }, [offers.length])
+
+  return (
+    <div>
+      <div style={{ fontSize: 13, letterSpacing: '.04em', color: '#6b5e53', marginBottom: 16, fontStyle: 'italic' }}>
+        Brought to you by:
+      </div>
+
+      {/* Desktop: up to 3 per row */}
+      <div
+        className="offers-desktop"
+        style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}
+      >
+        {offers.map((offer) => <OfferBanner key={offer.id} offer={offer} />)}
+      </div>
+
+      {/* Mobile: single carousel */}
+      <div className="offers-mobile" style={{ position: 'relative', overflow: 'hidden' }}>
+        <div
+          style={{
+            display: 'flex',
+            transition: 'transform 0.5s ease',
+            transform: `translateX(-${carouselIdx * 100}%)`,
+          }}
+        >
+          {offers.map((offer) => (
+            <div key={offer.id} style={{ minWidth: '100%' }}>
+              <OfferBanner offer={offer} />
+            </div>
+          ))}
+        </div>
+        {offers.length > 1 && (
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginTop: 10 }}>
+            {offers.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setCarouselIdx(i)}
+                style={{
+                  width: 6, height: 6, borderRadius: '50%', border: 'none', padding: 0, cursor: 'pointer',
+                  background: i === carouselIdx ? '#c9a86a' : 'rgba(201,168,106,0.3)',
+                  transition: 'background 0.3s',
+                }}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      <style>{`
+        @media (min-width: 600px) {
+          .offers-desktop { display: grid !important; }
+          .offers-mobile { display: none !important; }
+        }
+        @media (max-width: 599px) {
+          .offers-desktop { display: none !important; }
+          .offers-mobile { display: block !important; }
+        }
+      `}</style>
+    </div>
+  )
+}
+
 export default function AnchorEventPage({ params }: { params: { slug: string } }) {
   const [data, setData] = useState<PageData | null>(null)
   const [notFound, setNotFound] = useState(false)
@@ -404,38 +490,7 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
 
         {/* Offers */}
         {offers.filter((o) => o.bannerUrl).length > 0 && (
-          <div>
-            <div style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: '#6b5e53', marginBottom: 20 }}>
-              Partners & Offers
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 360px), 1fr))', gap: 16 }}>
-              {offers.filter((o) => o.bannerUrl).map((offer) => (
-                offer.url ? (
-                  <a
-                    key={offer.id}
-                    href={offer.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ display: 'block', borderRadius: 10, overflow: 'hidden', textDecoration: 'none' }}
-                  >
-                    <img
-                      src={offer.bannerUrl}
-                      alt={offer.name}
-                      style={{ width: '100%', display: 'block', aspectRatio: '2 / 1', objectFit: 'cover' }}
-                    />
-                  </a>
-                ) : (
-                  <div key={offer.id} style={{ borderRadius: 10, overflow: 'hidden' }}>
-                    <img
-                      src={offer.bannerUrl}
-                      alt={offer.name}
-                      style={{ width: '100%', display: 'block', aspectRatio: '2 / 1', objectFit: 'cover' }}
-                    />
-                  </div>
-                )
-              ))}
-            </div>
-          </div>
+          <OffersSection offers={offers.filter((o) => o.bannerUrl)} />
         )}
 
         {/* Footer */}
