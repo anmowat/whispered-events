@@ -37,6 +37,7 @@ export default function AdminOfferDetailPage({ params }: { params: { id: string 
 • A transparent logo, ideally in a horizontal format
 • Your company's primary color (hex code preferred)
 • The URL you'd like the banner to point to
+• Your favicon (so we can highlight events you're hosting)
 
 We'll take it from there and create the banner for you.`
 
@@ -192,6 +193,7 @@ We'll take it from there and create the banner for you.`
                 <li>A transparent logo, ideally in a horizontal format</li>
                 <li>Your company&apos;s primary color (hex code preferred)</li>
                 <li>The URL you&apos;d like the banner to point to</li>
+                <li>Your favicon (so we can highlight events you&apos;re hosting)</li>
               </ul>
               <p style={{ margin: 0, color: '#555' }}>We&apos;ll take it from there and create the banner for you.</p>
             </button>
