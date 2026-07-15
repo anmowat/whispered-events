@@ -247,6 +247,7 @@ export async function getFutureEventHostIds(): Promise<Set<string>> {
 
 export async function getEventFlags(eventId: string): Promise<{
   image_url: string
+  favicon_url: string
   featured: boolean
   host_ids: string[]
   status: string
@@ -256,7 +257,7 @@ export async function getEventFlags(eventId: string): Promise<{
   const supabase = getSupabase()
   const { data, error } = await supabase
     .from('events')
-    .select('image_url, featured, host_ids, status, submitter_email')
+    .select('image_url, favicon_url, featured, host_ids, status, submitter_email')
     .eq('id', eventId)
     .maybeSingle()
   if (error) {
@@ -266,6 +267,7 @@ export async function getEventFlags(eventId: string): Promise<{
   if (!data) return null
   const row = data as {
     image_url: string | null
+    favicon_url: string | null
     featured: boolean | null
     host_ids: string[] | null
     status: string | null
@@ -273,6 +275,7 @@ export async function getEventFlags(eventId: string): Promise<{
   }
   return {
     image_url: row.image_url ?? '',
+    favicon_url: row.favicon_url ?? '',
     featured: row.featured === true,
     host_ids: row.host_ids ?? [],
     status: row.status ?? 'Pending',

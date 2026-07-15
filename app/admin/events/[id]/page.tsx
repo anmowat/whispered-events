@@ -33,6 +33,7 @@ interface EventDetail {
   lat: number | null
   lng: number | null
   imageUrl: string
+  faviconUrl: string
   featured: boolean
   hosts: Host[]
   status: string
@@ -176,6 +177,9 @@ export default function AdminEventDetailPage() {
   const [imageBusy, setImageBusy] = useState(false)
   const [imageError, setImageError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const [faviconBusy, setFaviconBusy] = useState(false)
+  const [faviconError, setFaviconError] = useState<string | null>(null)
+  const faviconInputRef = useRef<HTMLInputElement | null>(null)
   const [featuredBusy, setFeaturedBusy] = useState(false)
   const [featuredError, setFeaturedError] = useState<string | null>(null)
   // Edit mode batches every field change into a single PATCH on Save, so
@@ -472,6 +476,52 @@ export default function AdminEventDetailPage() {
     }
   }
 
+  async function handleFaviconUpload(file: File) {
+    if (!eventId) return
+    if (file.size > 1 * 1024 * 1024) {
+      setFaviconError('File too large (max 1 MB).')
+      return
+    }
+    setFaviconError(null)
+    setFaviconBusy(true)
+    try {
+      const form = new FormData()
+      form.append('file', file)
+      const res = await fetch(`/api/admin/events/${eventId}/favicon`, { method: 'POST', body: form })
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string }
+        setFaviconError(data.error || `HTTP ${res.status}`)
+        return
+      }
+      await fetchDetail()
+    } catch (e) {
+      setFaviconError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setFaviconBusy(false)
+      if (faviconInputRef.current) faviconInputRef.current.value = ''
+    }
+  }
+
+  async function handleFaviconDelete() {
+    if (!eventId) return
+    if (!window.confirm('Remove the favicon for this event?')) return
+    setFaviconError(null)
+    setFaviconBusy(true)
+    try {
+      const res = await fetch(`/api/admin/events/${eventId}/favicon`, { method: 'DELETE' })
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string }
+        setFaviconError(data.error || `HTTP ${res.status}`)
+        return
+      }
+      await fetchDetail()
+    } catch (e) {
+      setFaviconError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setFaviconBusy(false)
+    }
+  }
+
   async function handleFeaturedToggle(next: boolean) {
     if (!eventId) return
     setFeaturedError(null)
@@ -752,6 +802,59 @@ export default function AdminEventDetailPage() {
                   >
                     +
                   </button>
+                )}
+              </div>
+            </div>
+
+            {/* Favicon upload */}
+            <div className="flex items-center gap-4 px-1 mb-6">
+              <input
+                ref={faviconInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0]
+                  if (f) handleFaviconUpload(f)
+                }}
+              />
+              <div className="relative flex-shrink-0">
+                {event.faviconUrl ? (
+                  <>
+                    <img
+                      src={event.faviconUrl}
+                      alt="Favicon"
+                      onClick={() => !faviconBusy && faviconInputRef.current?.click()}
+                      title="Click to replace"
+                      className={`w-8 h-8 rounded border border-[#E8DDD0] object-contain cursor-pointer transition-opacity ${faviconBusy ? 'opacity-50' : ''}`}
+                    />
+                    <button
+                      type="button"
+                      disabled={faviconBusy}
+                      onClick={handleFaviconDelete}
+                      title="Remove favicon"
+                      className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-white border border-[#E8DDD0] text-gray-500 text-[10px] leading-none flex items-center justify-center shadow-sm hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors disabled:opacity-50"
+                    >
+                      ×
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={faviconBusy}
+                    onClick={() => faviconInputRef.current?.click()}
+                    title="Upload favicon"
+                    className={`w-8 h-8 rounded border border-dashed border-[#E8DDD0] bg-[#FDFAF6] text-sm text-gray-300 hover:text-gray-500 hover:border-gray-300 transition-colors ${faviconBusy ? 'opacity-50' : ''}`}
+                  >
+                    +
+                  </button>
+                )}
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-widest font-medium text-gray-400">Favicon</p>
+                {faviconError && <p className="text-xs text-red-600 mt-0.5">{faviconError}</p>}
+                {!faviconError && (
+                  <p className="text-xs text-gray-400 mt-0.5">{event.faviconUrl ? 'Click to replace' : 'Upload organizer favicon'}</p>
                 )}
               </div>
             </div>

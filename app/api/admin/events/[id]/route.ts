@@ -47,6 +47,7 @@ export async function GET(
       getEventFlags(eventId),
     ])
     const imageUrl = flags?.image_url ?? ''
+    const faviconUrl = flags?.favicon_url ?? ''
     const featured = flags?.featured ?? false
     const hostIds = flags?.host_ids ?? []
     const status = flags?.status ?? 'Pending'
@@ -128,6 +129,7 @@ export async function GET(
         lat: event.lat ?? null,
         lng: event.lng ?? null,
         imageUrl,
+        faviconUrl,
         featured,
         hosts,
         status,
