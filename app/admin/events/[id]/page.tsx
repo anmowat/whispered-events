@@ -41,6 +41,8 @@ interface EventDetail {
   companySize: string[]
   seniority: string[]
   organizer: string
+  startTime: string
+  endTime: string
 }
 
 // Draft mirrors EventDetail's editable fields. audience is a comma-joined
@@ -62,6 +64,8 @@ interface EventDraft {
   companySize: string[]
   seniority: string[]
   organizer: string
+  startTime: string
+  endTime: string
 }
 
 function hostDisplayName(h: Host): string {
@@ -87,6 +91,8 @@ function draftFromEvent(e: EventDetail): EventDraft {
     companySize: e.companySize ?? [],
     seniority: e.seniority ?? [],
     organizer: e.organizer ?? '',
+    startTime: e.startTime ?? '',
+    endTime: e.endTime ?? '',
   }
 }
 
@@ -796,6 +802,8 @@ export default function AdminEventDetailPage() {
                   <Field label="Audience" value={event.audience.join(', ')} />
                   <Field label="Description" value={event.description} multiline />
                   <Field label="Organizer" value={event.organizer} />
+                  <Field label="Start Time" value={event.startTime} />
+                  <Field label="End Time" value={event.endTime} />
                   <Field label="Employment" value={event.employment.join(', ')} />
                   <Field label="Company Size" value={event.companySize.join(', ')} />
                   <Field label="Seniority" value={event.seniority.join(', ')} />
@@ -1266,6 +1274,26 @@ function EventEditForm({
             disabled={disabled}
             onChange={(e) => update('organizer', e.target.value)}
             placeholder="Acme Corp"
+            className={input}
+          />
+        </FormField>
+        <FormField label="Start Time">
+          <input
+            type="text"
+            value={draft.startTime}
+            disabled={disabled}
+            onChange={(e) => update('startTime', e.target.value)}
+            placeholder="10:00 AM"
+            className={input}
+          />
+        </FormField>
+        <FormField label="End Time">
+          <input
+            type="text"
+            value={draft.endTime}
+            disabled={disabled}
+            onChange={(e) => update('endTime', e.target.value)}
+            placeholder="12:00 PM"
             className={input}
           />
         </FormField>

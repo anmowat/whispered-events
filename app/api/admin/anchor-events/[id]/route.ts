@@ -2,13 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { isAdmin } from '@/lib/admin-auth'
 import {
   getAnchorEventById,
+  getAnchorEventEvents,
   updateAnchorEvent,
   setAnchorEventEvents,
   setAnchorEventOffers,
-  getAnchorEventEventIds,
   getAnchorEventOfferIds,
 } from '@/lib/anchor-events'
-import { getEventById } from '@/lib/events'
 import { getOfferById } from '@/lib/offers'
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
@@ -18,18 +17,23 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   try {
     const item = await getAnchorEventById(params.id)
     if (!item) return NextResponse.json({ error: 'not found' }, { status: 404 })
-    const [eventIds, offerIds] = await Promise.all([
-      getAnchorEventEventIds(item.id),
+    const [events, offerIds] = await Promise.all([
+      getAnchorEventEvents(item.id),
       getAnchorEventOfferIds(item.id),
     ])
-    // Fetch event + offer details for the admin UI
-    const [events, offers] = await Promise.all([
-      Promise.all(eventIds.map((id) => getEventById(id))),
-      Promise.all(offerIds.map((id) => getOfferById(id))),
-    ])
+    const offers = await Promise.all(offerIds.map((id) => getOfferById(id)))
     return NextResponse.json({
       item,
-      events: events.filter(Boolean),
+      events: events.map((e) => ({
+        id: e.id,
+        name: e.name,
+        date: e.date,
+        location: e.location,
+        type: e.type,
+        startTime: e.startTime,
+        endTime: (e as { endTime?: string }).endTime ?? null,
+        featured: e.featured,
+      })),
       offers: offers.filter(Boolean),
     })
   } catch (err) {

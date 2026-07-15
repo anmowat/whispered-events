@@ -49,6 +49,8 @@ interface EventRow {
   company_size: string[] | null
   seniority: string[] | null
   organizer: string | null
+  start_time: string | null
+  end_time: string | null
 }
 
 function toAirtableEvent(row: EventRow): AirtableEvent {
@@ -75,6 +77,8 @@ function toAirtableEvent(row: EventRow): AirtableEvent {
     companySize: row.company_size ?? [],
     seniority: row.seniority ?? [],
     organizer: row.organizer ?? '',
+    startTime: row.start_time ?? undefined,
+    endTime: row.end_time ?? undefined,
   }
 }
 

@@ -503,6 +503,8 @@ export async function createEvent(
     featured: false,
     airtable_created_at: nowIso,
     organizer: event.organizer || null,
+    start_time: event.startTime || null,
+    end_time: event.endTime || null,
   })
   if (error) {
     console.error('createEvent supabase insert failed', { id: record.id, error })
@@ -605,6 +607,12 @@ export async function updateEvent(
   if (fields.organizer !== undefined) {
     airtableFields['Organizer'] = fields.organizer
     supabaseRow.organizer = fields.organizer
+  }
+  if (fields.startTime !== undefined) {
+    supabaseRow.start_time = fields.startTime || null
+  }
+  if (fields.endTime !== undefined) {
+    supabaseRow.end_time = fields.endTime || null
   }
 
   // Supabase first as the canonical write. Failures bubble up — caller
@@ -806,6 +814,10 @@ export interface AirtableEvent {
   seniority?: string[]
   /** Company or person(s) organizing this event, extracted by AI at parse time. */
   organizer?: string
+  /** Start time of the event, e.g. "10:00 AM". */
+  startTime?: string
+  /** End time of the event, e.g. "12:00 PM". */
+  endTime?: string
 }
 
 export async function getActiveUsers(): Promise<AirtableUser[]> {

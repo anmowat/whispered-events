@@ -26,6 +26,9 @@ export async function GET(_req: NextRequest, { params }: { params: { slug: strin
         link: e.link,
         type: e.type,
         organizer: e.organizer ?? null,
+        startTime: e.startTime ?? null,
+        endTime: (e as { endTime?: string }).endTime ?? null,
+        featured: e.featured,
       })),
       offers,
     })

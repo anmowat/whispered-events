@@ -31,6 +31,8 @@ export interface EventRecord {
   companySize?: string[]
   seniority?: string[]
   organizer?: string
+  startTime?: string
+  endTime?: string
 }
 
 export const EMPLOYMENT_OPTIONS = ['Employed', 'Searching', 'Fractional', 'Other'] as const
@@ -46,6 +48,8 @@ export interface ParsedEvent {
   audience?: string[]
   image?: string
   organizer?: string
+  startTime?: string
+  endTime?: string
 }
 
 export interface UserProfile {

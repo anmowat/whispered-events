@@ -88,17 +88,59 @@ export async function getAnchorEventBySlug(slug: string): Promise<AnchorEvent | 
   return data ? toAnchorEvent(data as AnchorEventRow) : null
 }
 
-export async function getAnchorEventEvents(anchorEventId: string): Promise<AirtableEvent[]> {
+export interface AnchorEventEventMeta {
+  /** startTime from the junction table (admin override), falls back to event.startTime */
+  startTime: string | null
+  featured: boolean
+}
+
+export async function getAnchorEventEvents(
+  anchorEventId: string,
+): Promise<Array<AirtableEvent & AnchorEventEventMeta>> {
   const supabase = getSupabase()
   const { data, error } = await supabase
     .from('anchor_event_events')
-    .select('event_id')
+    .select('event_id, start_time, featured')
     .eq('anchor_event_id', anchorEventId)
-    .order('position', { ascending: true })
   if (error) throw new Error(`getAnchorEventEvents: ${error.message}`)
-  const rows = data as Array<{ event_id: string }>
-  const events = await Promise.all(rows.map((r) => getEventById(r.event_id)))
-  return events.filter((e): e is AirtableEvent => e !== null)
+  const rows = data as Array<{ event_id: string; start_time: string | null; featured: boolean }>
+  const events = await Promise.all(
+    rows.map(async (r) => {
+      const ev = await getEventById(r.event_id)
+      if (!ev) return null
+      // Use junction table start_time override if set, otherwise fall back to event's own startTime
+      const startTime = r.start_time ?? (ev as { startTime?: string }).startTime ?? null
+      return { ...ev, startTime, featured: r.featured ?? false }
+    }),
+  )
+  const valid = events.filter((e): e is AirtableEvent & AnchorEventEventMeta => e !== null)
+  // Sort: featured first, then by start_time ascending (nulls last), then by name
+  return valid.sort((a, b) => {
+    if (a.featured !== b.featured) return a.featured ? -1 : 1
+    if (a.startTime && b.startTime) return a.startTime.localeCompare(b.startTime)
+    if (a.startTime) return -1
+    if (b.startTime) return 1
+    return a.name.localeCompare(b.name)
+  })
+}
+
+// Update start_time and/or featured on a single junction row
+export async function updateAnchorEventEventMeta(
+  anchorEventId: string,
+  eventId: string,
+  fields: Partial<{ startTime: string | null; featured: boolean }>,
+): Promise<void> {
+  const supabase = getSupabase()
+  const update: Record<string, unknown> = {}
+  if ('startTime' in fields) update.start_time = fields.startTime ?? null
+  if ('featured' in fields) update.featured = fields.featured
+  if (Object.keys(update).length === 0) return
+  const { error } = await supabase
+    .from('anchor_event_events')
+    .update(update)
+    .eq('anchor_event_id', anchorEventId)
+    .eq('event_id', eventId)
+  if (error) throw new Error(`updateAnchorEventEventMeta: ${error.message}`)
 }
 
 export async function getAnchorEventOffers(anchorEventId: string): Promise<Offer[]> {
@@ -114,14 +156,13 @@ export async function getAnchorEventOffers(anchorEventId: string): Promise<Offer
   return offers.filter((o): o is Offer => o !== null)
 }
 
-// Returns event ids in position order for the admin UI
+// Returns event ids for the admin UI
 export async function getAnchorEventEventIds(anchorEventId: string): Promise<string[]> {
   const supabase = getSupabase()
   const { data, error } = await supabase
     .from('anchor_event_events')
     .select('event_id')
     .eq('anchor_event_id', anchorEventId)
-    .order('position', { ascending: true })
   if (error) throw new Error(`getAnchorEventEventIds: ${error.message}`)
   return (data as Array<{ event_id: string }>).map((r) => r.event_id)
 }
@@ -190,23 +231,39 @@ export async function updateAnchorEvent(
   return data ? toAnchorEvent(data as AnchorEventRow) : null
 }
 
-// Replaces the full event list for an anchor event (delete + re-insert)
+// Replaces the full event list for an anchor event, preserving start_time/featured on existing rows
 export async function setAnchorEventEvents(
   anchorEventId: string,
-  orderedEventIds: string[],
+  eventIds: string[],
 ): Promise<void> {
   const supabase = getSupabase()
+  // Read existing metadata before deleting so we can restore it
+  const { data: existing } = await supabase
+    .from('anchor_event_events')
+    .select('event_id, start_time, featured')
+    .eq('anchor_event_id', anchorEventId)
+  const metaMap = new Map<string, { start_time: string | null; featured: boolean }>()
+  if (existing) {
+    for (const r of existing as Array<{ event_id: string; start_time: string | null; featured: boolean }>) {
+      metaMap.set(r.event_id, { start_time: r.start_time, featured: r.featured })
+    }
+  }
   const { error: delError } = await supabase
     .from('anchor_event_events')
     .delete()
     .eq('anchor_event_id', anchorEventId)
   if (delError) throw new Error(`setAnchorEventEvents delete: ${delError.message}`)
-  if (orderedEventIds.length === 0) return
-  const rows = orderedEventIds.map((event_id, i) => ({
-    anchor_event_id: anchorEventId,
-    event_id,
-    position: i,
-  }))
+  if (eventIds.length === 0) return
+  const rows = eventIds.map((event_id, i) => {
+    const meta = metaMap.get(event_id)
+    return {
+      anchor_event_id: anchorEventId,
+      event_id,
+      position: i,
+      start_time: meta?.start_time ?? null,
+      featured: meta?.featured ?? false,
+    }
+  })
   const { error: insError } = await supabase.from('anchor_event_events').insert(rows)
   if (insError) throw new Error(`setAnchorEventEvents insert: ${insError.message}`)
 }
