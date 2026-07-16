@@ -497,6 +497,8 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
                     <button onClick={() => setShowAddEvent(true)} style={{ background: 'rgba(201,168,106,0.12)', border: '1px solid rgba(201,168,106,0.35)', borderRadius: 8, padding: '6px 14px', color: '#c9a86a', fontSize: 13, cursor: 'pointer', fontWeight: 500, whiteSpace: 'nowrap' }}>
                       + Add Event
                     </button>
+                    {/* Desktop: filter selects on same row, right-aligned */}
+                    <div className="aep-filters aep-filters-desktop" style={{ marginLeft: 'auto' }}>{filterSelects}</div>
                     {/* Mobile: filter + auth on same row */}
                     <div className="aep-filter-btn-mobile" style={{ display: 'none', alignItems: 'center', gap: 8 }}>
                       <button
@@ -537,9 +539,6 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
                       </span>
                     </div>
                   </div>
-                  {/* Desktop filters inline */}
-                  <div className="aep-filters aep-filters-desktop">{filterSelects}</div>
-
                   {/* Mobile filter bottom sheet */}
                   {showFilterSheet && (
                     <div
