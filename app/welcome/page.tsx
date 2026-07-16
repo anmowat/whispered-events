@@ -342,8 +342,8 @@ function ThankYou() {
         className="mx-auto mt-2 text-left"
         style={{ fontSize: 14.5, color: 'var(--ink-2)', lineHeight: 1.7, maxWidth: 420, paddingLeft: 20 }}
       >
-        <li><strong style={{ color: 'var(--ink)' }}>Send you more matches</strong> — when you rate more we unlock the next match</li>
-        <li><strong style={{ color: 'var(--ink)' }}>Improve your matches</strong> — our algorithm learns from your feedback</li>
+        <li><strong style={{ color: 'var(--ink)' }}>Send you more matches:</strong> when you rate more we unlock the next match</li>
+        <li><strong style={{ color: 'var(--ink)' }}>Improve your matches:</strong> our algorithm learns from your feedback</li>
       </ul>
       <p
         className="mt-4 mx-auto"
