@@ -121,6 +121,38 @@ export const metadata: Metadata = {
   },
 }
 
+const organizationSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  name: 'Whispered Events',
+  url: 'https://www.whisperedevents.com',
+  logo: 'https://www.whisperedevents.com/opengraph-image',
+  description:
+    "Whispered Events curates exclusive in-person dinners, conferences, and gatherings for senior operators and executives — the ones that aren't widely posted.",
+  contactPoint: {
+    '@type': 'ContactPoint',
+    email: 'hello@whisperedevents.com',
+    contactType: 'customer support',
+  },
+}
+
+const websiteSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: 'Whispered Events',
+  url: 'https://www.whisperedevents.com',
+  description:
+    "The best events aren't posted — they're whispered. A private platform for executives to discover exclusive, invitation-only events.",
+  potentialAction: {
+    '@type': 'SearchAction',
+    target: {
+      '@type': 'EntryPoint',
+      urlTemplate: 'https://www.whisperedevents.com/?q={search_term_string}',
+    },
+    'query-input': 'required name=search_term_string',
+  },
+}
+
 export default function RootLayout({
   children,
 }: {
@@ -131,6 +163,16 @@ export default function RootLayout({
       lang="en"
       className={`${geist.variable} ${instrumentSerif.variable} ${newsreader.variable} ${cormorantGaramond.variable} ${hankenGrotesk.variable} ${poppins.variable} ${playfairDisplay.variable}`}
     >
+      <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }}
+        />
+      </head>
       <body className="min-h-screen bg-bg text-ink antialiased font-sans">
         {children}
         <Analytics />

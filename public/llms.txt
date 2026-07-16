@@ -1,0 +1,29 @@
+# Whispered Events
+
+> Whispered Events curates exclusive in-person dinners, conferences, and gatherings for senior operators and executives — the ones that aren't widely posted.
+
+## What we do
+
+Whispered Events is a private platform where senior operators and executives discover high-signal, invitation-only events matched to their role, location, and interests. Members receive curated event digests by email. Events are sourced by the community and vetted by our team.
+
+## Who it's for
+
+Senior operators, executives, and investors — VPs, Directors, C-suite, and Founders — primarily in the US tech ecosystem.
+
+## Anchor event pages
+
+Each major conference has a dedicated page listing all associated side events, dinners, and gatherings. These pages are publicly accessible and indexed.
+
+Example: https://www.whisperedevents.com/dreamforce
+
+## Event types
+
+Conference, Dinner, Happy Hour, Panel, Workshop, Activity
+
+## How to sign up
+
+Visit https://www.whisperedevents.com and submit your profile. Membership is free.
+
+## Contact
+
+hello@whisperedevents.com

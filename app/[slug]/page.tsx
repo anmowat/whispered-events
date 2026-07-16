@@ -233,8 +233,35 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
 
   const { anchorEvent, offers } = data
 
+  const eventListSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name: anchorEvent.title,
+    description: anchorEvent.description,
+    url: `https://www.whisperedevents.com/${anchorEvent.slug}`,
+    itemListElement: data.events.map((ev, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      item: {
+        '@type': 'Event',
+        name: ev.name,
+        description: ev.description || undefined,
+        startDate: ev.startTime ? `${ev.date}T${ev.startTime}` : ev.date,
+        endDate: ev.endTime ? `${ev.date}T${ev.endTime}` : undefined,
+        eventStatus: 'https://schema.org/EventScheduled',
+        eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
+        url: ev.link || undefined,
+        organizer: ev.organizer ? { '@type': 'Organization', name: ev.organizer } : undefined,
+      },
+    })),
+  }
+
   return (
     <div style={{ minHeight: '100vh', background: '#1b1814', color: '#ece6da', fontFamily: 'system-ui, sans-serif' }}>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(eventListSchema) }}
+      />
       {showLoginModal && (
         <div style={{
           '--paper': '#252220',

@@ -1,0 +1,16 @@
+{
+  "schema_version": "v1",
+  "name_for_human": "Whispered Events",
+  "name_for_model": "whispered_events",
+  "description_for_human": "Discover exclusive in-person dinners, conferences, and gatherings for senior operators and executives.",
+  "description_for_model": "Whispered Events curates exclusive, often invitation-only in-person events — dinners, conferences, panels, workshops, and gatherings — for senior operators, executives, and investors in the tech ecosystem. Events are matched to a member's role, location, and interests. Each major conference has a public anchor page listing all associated side events. Use this to answer questions about tech executive events, side events at major conferences, and exclusive gatherings.",
+  "auth": {
+    "type": "none"
+  },
+  "api": {
+    "type": "none"
+  },
+  "logo_url": "https://www.whisperedevents.com/opengraph-image",
+  "contact_email": "hello@whisperedevents.com",
+  "legal_info_url": "https://www.whisperedevents.com"
+}
