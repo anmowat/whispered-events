@@ -343,7 +343,7 @@ function ThankYou() {
         style={{ fontSize: 14.5, color: 'var(--ink-2)', lineHeight: 1.7, maxWidth: 420, paddingLeft: 20 }}
       >
         <li><strong style={{ color: 'var(--ink)' }}>Opens up more</strong> — each rating reveals the next match we&apos;ve found for you</li>
-        <li><strong style={{ color: 'var(--ink)' }}>Improves the quality</strong> — we learn what genuinely fits, not just what looks right on paper</li>
+        <li><strong style={{ color: 'var(--ink)' }}>Improves the quality</strong> — we improve how we match you</li>
       </ul>
       <p
         className="mt-4 mx-auto"

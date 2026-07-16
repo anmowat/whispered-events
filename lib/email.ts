@@ -241,7 +241,7 @@ export async function sendUserAppliedEmail(email: string): Promise<void> {
       • <strong style="color:${C.ink};">Opens up more</strong> — each rating reveals the next match we've found for you
     </p>
     <p style="font-family:${SANS};font-size:14.5px;line-height:1.6;color:${C.ink2};margin:6px 0 0;">
-      • <strong style="color:${C.ink};">Improves the quality</strong> — we learn what genuinely fits, not just what looks right on paper
+      • <strong style="color:${C.ink};">Improves the quality</strong> — we improve how we match you
     </p>
     ${p("We built Whispered Events for one reason: helping great people find the best events — the ones that aren't posted, they're whispered.", { mt: 14 })}
     ${p(`Whispered Events will always be <strong style="color:${C.ink};">completely free for users</strong>. Help us grow and match you to even more events by:`, { mt: 14 })}
@@ -261,7 +261,7 @@ Once approved, you'll start seeing event matches personalized for you.
 
 Rating your matches does two things:
 • Opens up more — each rating reveals the next match we've found for you
-• Improves the quality — we learn what genuinely fits, not just what looks right on paper
+• Improves the quality — we improve how we match you
 
 We built Whispered Events for one reason: helping great people find the best events — the ones that aren't posted, they're whispered.
 
@@ -1218,7 +1218,7 @@ export async function sendApprovedWithDigest(
         • <strong style="color:${C.ink};">Opens up more</strong> — each rating reveals the next match we've found for you
       </p>
       <p style="font-family:${SANS};font-size:14px;line-height:1.6;color:${C.ink2};margin:0;">
-        • <strong style="color:${C.ink};">Improves the quality</strong> — we learn what genuinely fits, not just what looks right on paper
+        • <strong style="color:${C.ink};">Improves the quality</strong> — we improve how we match you
       </p>
     </div>
   `
@@ -1243,7 +1243,7 @@ export async function sendApprovedWithDigest(
     '',
     'Rating your matches does two things:',
     "• Opens up more — each rating reveals the next match we've found for you",
-    '• Improves the quality — we learn what genuinely fits, not just what looks right on paper',
+    '• Improves the quality — we improve how we match you',
     '',
   ]
   const appendEntries = (entries: DigestEventEntry[]) => {
@@ -1481,7 +1481,7 @@ export async function sendUserDigest(
         • <strong style="color:${C.ink};">Opens up more</strong> — each rating reveals the next match we've found for you
       </p>
       <p style="font-family:${SANS};font-size:14px;line-height:1.6;color:${C.ink2};margin:0;">
-        • <strong style="color:${C.ink};">Improves the quality</strong> — we learn what genuinely fits, not just what looks right on paper
+        • <strong style="color:${C.ink};">Improves the quality</strong> — we improve how we match you
       </p>
     </div>
   `
@@ -1490,10 +1490,10 @@ export async function sendUserDigest(
     ${eyebrowMarkup}
     ${h1(`New <span style="font-style:italic;">whispers</span> for ${escapeHtml(firstName)}.`)}
     ${p(introCopy, { mt: 12 })}
+    ${digestRatingNudgeHtml}
     ${renderEntries(annotated.newEvents, user.id)}
     ${moreHtml}
     ${lockedNudgeHtml}
-    ${digestRatingNudgeHtml}
     ${digestFooterHtml(firstName)}
   `)
 
@@ -1505,6 +1505,10 @@ export async function sendUserDigest(
     `New whispers for ${firstName}.`,
     '',
     introCopy,
+    '',
+    'Rating your matches does two things:',
+    "• Opens up more — each rating reveals the next match we've found for you",
+    '• Improves the quality — we improve how we match you',
     '',
   )
   const appendEntries = (entries: DigestEventEntry[]) => {
@@ -1523,12 +1527,6 @@ export async function sendUserDigest(
   appendEntries(annotated.newEvents)
   if (moreText) textLines.push(moreText, '')
   if (lockedNudgeText) textLines.push(lockedNudgeText, '')
-  textLines.push(
-    'Rating your matches does two things:',
-    "• Opens up more — each rating reveals the next match we've found for you",
-    '• Improves the quality — we learn what genuinely fits, not just what looks right on paper',
-    '',
-  )
   textLines.push(...digestFooterTextLines(firstName))
   const text = textLines.join('\n')
 
