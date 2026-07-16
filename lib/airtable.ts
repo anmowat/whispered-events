@@ -448,10 +448,8 @@ export async function createEvent(
   if (hostUserId) fields['Host'] = [hostUserId]
   if (source) fields['Source'] = source
 
-  // Write seniority to Airtable at creation time if the parsed event has it.
-  if (event.seniority?.length) {
-    ;(fields as Record<string, unknown>)['Seniority'] = event.seniority
-  }
+  // Write seniority to Airtable — default to all options when not parsed, matching Supabase behavior.
+  ;(fields as Record<string, unknown>)['Seniority'] = event.seniority?.length ? event.seniority : [...SENIORITY_OPTIONS]
   if (event.organizer) fields['Organizer'] = event.organizer
 
   // Airtable .create() first so we inherit its recXXX id as the canonical
