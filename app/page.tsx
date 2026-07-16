@@ -309,11 +309,11 @@ export default function Home() {
         href={tab === 'partner' ? '/host' : '/dashboard'}
         className={pillClass}
         aria-label={tab === 'partner' ? 'Host Dashboard' : 'Dashboard'}
-        style={tab === 'partner' ? { ...pillStyle, padding: '10px 14px' } : pillStyle}
+        style={pillStyle}
         onMouseEnter={(e) => (e.currentTarget.style.background = '#d5b87c')}
         onMouseLeave={(e) => (e.currentTarget.style.background = '#c9a86a')}
       >
-        {tab === 'partner' ? lockIcon : <>{lockIcon} Dashboard</>}
+        {tab === 'partner' ? <>{lockIcon} Host</> : <>{lockIcon} Dashboard</>}
       </a>
     ) : (
       <button
