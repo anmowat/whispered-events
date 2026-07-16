@@ -124,11 +124,34 @@ function extractTextFromHtml(html: string): string {
           const location = geo?.city_state || geo?.city || (ev.location_type === 'online' ? 'Virtual' : '')
           const extracted: Record<string, string> = {}
           if (ev.name) extracted['Event Name'] = ev.name
-          if (ev.start_at) extracted['Start Date'] = ev.start_at
-          if (ev.end_at) extracted['End Date'] = ev.end_at
+          if (ev.start_at) {
+            extracted['Start Date/Time (ISO)'] = ev.start_at
+            // Also derive a human-readable local time in the event's timezone
+            try {
+              const tz = ev.timezone || 'UTC'
+              const startLocal = new Date(ev.start_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: tz })
+              extracted['Start Time'] = startLocal
+            } catch { /* ignore */ }
+          }
+          if (ev.end_at) {
+            extracted['End Date/Time (ISO)'] = ev.end_at
+            try {
+              const tz = ev.timezone || 'UTC'
+              const endLocal = new Date(ev.end_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: tz })
+              extracted['End Time'] = endLocal
+            } catch { /* ignore */ }
+          }
           if (ev.timezone) extracted['Timezone'] = ev.timezone
           if (location) extracted['Location'] = location
           if (ev.location_type === 'online') extracted['Location'] = 'Virtual'
+          // Extract organizer/host from hosts array
+          const hosts: Array<{ name?: string; username?: string }> = lumaData.hosts ?? ev.hosts ?? []
+          if (hosts.length > 0) {
+            const hostNames = hosts.map((h) => h.name || h.username).filter(Boolean)
+            if (hostNames.length > 0) extracted['Organizer'] = hostNames.join(', ')
+          }
+          // Fallback: check for a single "host" field
+          if (!extracted['Organizer'] && ev.host?.name) extracted['Organizer'] = ev.host.name
           // Extract plain text from description_mirror (ProseMirror/TipTap rich text)
           if (lumaData.description_mirror?.content) {
             const plainText = extractRichText(lumaData.description_mirror)
