@@ -1490,9 +1490,9 @@ export async function sendUserDigest(
     ${eyebrowMarkup}
     ${h1(`New <span style="font-style:italic;">whispers</span> for ${escapeHtml(firstName)}.`)}
     ${p(introCopy, { mt: 12 })}
-    ${digestRatingNudgeHtml}
     ${renderEntries(annotated.newEvents, user.id)}
-    ${moreHtml}
+    ${digestRatingNudgeHtml}
+    ${(payload.lockedCount ?? 0) > 0 ? '' : moreHtml}
     ${lockedNudgeHtml}
     ${digestFooterHtml(firstName)}
   `)
@@ -1505,10 +1505,6 @@ export async function sendUserDigest(
     `New whispers for ${firstName}.`,
     '',
     introCopy,
-    '',
-    'Rating your matches does two things:',
-    "• Opens up more — each rating reveals the next match we've found for you",
-    '• Improves the quality — we improve how we match you',
     '',
   )
   const appendEntries = (entries: DigestEventEntry[]) => {
@@ -1525,7 +1521,13 @@ export async function sendUserDigest(
     }
   }
   appendEntries(annotated.newEvents)
-  if (moreText) textLines.push(moreText, '')
+  textLines.push(
+    'Rating your matches does two things:',
+    "• Opens up more — each rating reveals the next match we've found for you",
+    '• Improves the quality — we improve how we match you',
+    '',
+  )
+  if (!(payload.lockedCount ?? 0) && moreText) textLines.push(moreText, '')
   if (lockedNudgeText) textLines.push(lockedNudgeText, '')
   textLines.push(...digestFooterTextLines(firstName))
   const text = textLines.join('\n')
