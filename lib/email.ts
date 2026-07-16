@@ -411,7 +411,7 @@ export async function sendMatchRatingNotification(params: {
   userEmail: string
   userLinkedin: string | null
   eventName: string
-  rating: 'interested' | 'hide' | 'not_a_fit'
+  rating: 'interested' | 'skip' | 'not_a_fit'
   reason: string | null
 }): Promise<void> {
   const { notifyMatchRating } = await import('./slack')
@@ -1010,7 +1010,7 @@ function renderEntry(entry: DigestEventEntry, userId: string, baseUrl: string): 
       : ''
 
   const interestedUrl = ratingUrl(userId, event.id, 'interested', baseUrl)
-  const hideUrl = ratingUrl(userId, event.id, 'hide', baseUrl)
+  const skipUrl = ratingUrl(userId, event.id, 'skip', baseUrl)
   const notFitUrl = ratingUrl(userId, event.id, 'not_a_fit', baseUrl)
   // SVG is stripped by Gmail/Outlook — use Unicode symbols instead.
   // U+1F4C5 (📅) and emoji are excluded; these plain-text symbols inherit
@@ -1020,7 +1020,7 @@ function renderEntry(entry: DigestEventEntry, userId: string, baseUrl: string): 
   // plain Unicode symbols that inherit the anchor color in all major clients.
   const ratingHtml = [
     `<a href="${interestedUrl}" style="${btnBase}background:rgba(45,106,79,0.10);color:#2D6A4F;border-color:rgba(45,106,79,0.35);">&#10003; Interested</a>`,
-    `<a href="${hideUrl}" style="${btnBase}background:rgba(58,95,138,0.10);color:#3A5F8A;border-color:rgba(58,95,138,0.35);">&#9825; Hide</a>`,
+    `<a href="${skipUrl}" style="${btnBase}background:rgba(58,95,138,0.10);color:#3A5F8A;border-color:rgba(58,95,138,0.35);">⏭ Skip</a>`,
     `<a href="${notFitUrl}" style="${btnBase}background:rgba(138,42,56,0.10);color:#8A2A38;border-color:rgba(201,129,140,0.35);">&#10005; Not a fit</a>`,
   ].join('')
 

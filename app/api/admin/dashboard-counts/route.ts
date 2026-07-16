@@ -92,7 +92,7 @@ export async function GET(req: NextRequest) {
         const localMatchPct = nearbyCount > 0
           ? Math.round((matchCount / nearbyCount) * 100)
           : null
-        const ratings = ratingCounts.get(u.id) ?? { interested: 0, hide: 0, notAFit: 0 }
+        const ratings = ratingCounts.get(u.id) ?? { interested: 0, skip: 0, notAFit: 0 }
         return {
           id: u.id,
           created: u.created || null,
@@ -124,7 +124,7 @@ export async function GET(req: NextRequest) {
           lastDigestSent: lastDigest.get(u.id) ?? null,
           lastBlastSent: lastBlast.get(u.id) ?? null,
           ratingsGoing: ratings.interested,
-          ratingsCantMakeIt: ratings.hide,
+          ratingsCantMakeIt: ratings.skip,
           ratingsNotAFit: ratings.notAFit,
         }
       })

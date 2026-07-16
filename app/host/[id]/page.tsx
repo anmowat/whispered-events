@@ -36,7 +36,7 @@ interface HostMatch {
   audienceScore: number | null
   qualityScore: number | null
   preferenceScore: number | null
-  rating: 'interested' | 'hide' | 'not_a_fit' | null
+  rating: 'interested' | 'skip' | 'not_a_fit' | null
   ratingReason: string | null
   hostRating: 'up' | 'down' | null
   hostFeedback: string | null
@@ -677,7 +677,7 @@ export default function HostEventDetailPage() {
 
 function InsightsTab({ matches }: { matches: HostMatch[] }) {
   const going = matches.filter((m) => m.rating === 'interested')
-  const cantMakeIt = matches.filter((m) => m.rating === 'hide')
+  const cantMakeIt = matches.filter((m) => m.rating === 'skip')
   const notAFit = matches.filter((m) => m.rating === 'not_a_fit')
   const withFeedback = notAFit.filter((m) => m.ratingReason)
 
@@ -700,7 +700,7 @@ function InsightsTab({ matches }: { matches: HostMatch[] }) {
         <p className="eyebrow mb-4">User Ratings</p>
         <div className="flex gap-4 flex-wrap">
           <RatingPill label="Interested" count={going.length} color="#2D6A4F" />
-          <RatingPill label="Hide" count={cantMakeIt.length} color="#3A5F8A" />
+          <RatingPill label="Skip" count={cantMakeIt.length} color="#3A5F8A" />
           <RatingPill label="Not a Fit" count={notAFit.length} color="#8A2A38" />
         </div>
       </div>

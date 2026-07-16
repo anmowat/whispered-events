@@ -179,7 +179,7 @@ function RateThanksContent() {
             Thanks for the feedback!
           </div>
           <p style={{ color: muted, fontSize: 15, lineHeight: 1.65, margin: '0 0 28px' }}>
-            We&apos;ll hide this event and use your feedback (below) to improve your matches.
+            We&apos;ll skip this event and use your feedback (below) to improve your matches.
           </p>
 
           {authState === 'loading' && (
@@ -261,7 +261,7 @@ function RateThanksContent() {
     )
   }
 
-  if (rating === 'hide') {
+  if (rating === 'skip') {
     return (
       <div style={page}>
         <div style={card}>
@@ -270,7 +270,7 @@ function RateThanksContent() {
             Noted!
           </div>
           <p style={{ color: muted, fontSize: 15, lineHeight: 1.65, margin: '0 0 24px' }}>
-            Thanks for letting us know — we&apos;ll hide this event on your dashboard (you can still find it by adjusting the filter) but continue to show you similar events.
+            Thanks for letting us know — we&apos;ll skip this event on your dashboard (you can still find it by adjusting the filter) but continue to show you similar events.
           </p>
           <p style={{ color: muted, fontSize: 14, lineHeight: 1.6, margin: '0 0 24px' }}>
             Questions? Email our team at{' '}

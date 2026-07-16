@@ -165,7 +165,7 @@ export default function FaqPage() {
                 <rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M5 1v4M11 1v4M2 7h12"/>
               </svg>
             </RatingPill>
-            <RatingPill color="#3A5F8A" bg="rgba(58,95,138,0.10)" border="rgba(58,95,138,0.35)" label="Hide">
+            <RatingPill color="#3A5F8A" bg="rgba(58,95,138,0.10)" border="rgba(58,95,138,0.35)" label="Skip">
               <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                 <path d="M8 14s-6-3.5-6-7.5a4 4 0 0 1 6-3.46A4 4 0 0 1 14 6.5C14 10.5 8 14 8 14z"/>
               </svg>

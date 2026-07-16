@@ -41,7 +41,7 @@ function displayFrequency(value: string): string {
 type DashboardEvent = AirtableEvent & {
   matchScore: number | null
   matchPercent: number | null
-  rating: 'interested' | 'hide' | 'not_a_fit' | null
+  rating: 'interested' | 'skip' | 'not_a_fit' | null
   ratingReason: string | null
 }
 
@@ -64,7 +64,7 @@ const SORT_OPTIONS: { id: 'match' | 'date-asc' | 'date-desc'; label: string }[] 
   { id: 'date-desc', label: 'Date (latest)' },
 ]
 
-const ALL_RATINGS = ['interested', 'hide', 'not_a_fit', 'unrated'] as const
+const ALL_RATINGS = ['interested', 'skip', 'not_a_fit', 'unrated'] as const
 type Rating = typeof ALL_RATINGS[number]
 const DEFAULT_RATINGS: Rating[] = ['interested', 'unrated']
 
@@ -434,7 +434,7 @@ export default function DashboardPage() {
 
 const RATING_OPTIONS = [
   { value: 'interested', label: 'Interested' },
-  { value: 'hide', label: 'Hide' },
+  { value: 'skip', label: 'Skip' },
   { value: 'not_a_fit', label: 'Not a fit' },
   { value: 'unrated', label: 'Not yet rated' },
 ]
@@ -1403,7 +1403,7 @@ function EventCard({
   onGrowRequested,
 }: {
   event: DashboardEvent
-  onRated: (rating: 'interested' | 'hide' | 'not_a_fit' | null, reason: string | null) => void
+  onRated: (rating: 'interested' | 'skip' | 'not_a_fit' | null, reason: string | null) => void
   // Called when the rating API response says we should pop the
   // "thanks, here's how to help us grow" modal — only fires on a
   // successful 👍 toggle-on under the current phase rule.
@@ -1427,7 +1427,7 @@ function EventCard({
   // Optimistically flip the UI, fire to the API, revert + alert on failure.
   // Net-negative UX to spin forever waiting on the network for a one-bit
   // rating that the user can re-click to fix anyway.
-  async function writeRating(rating: 'interested' | 'hide' | 'not_a_fit' | null, reason: string | null) {
+  async function writeRating(rating: 'interested' | 'skip' | 'not_a_fit' | null, reason: string | null) {
     const prevRating = event.rating
     const prevReason = event.ratingReason
     onRated(rating, reason)
@@ -1457,7 +1457,7 @@ function EventCard({
     }
   }
 
-  function handleRating(r: 'interested' | 'hide' | 'not_a_fit') {
+  function handleRating(r: 'interested' | 'skip' | 'not_a_fit') {
     if (submitting) return
     if (event.rating === r) {
       void writeRating(null, null)
@@ -1480,7 +1480,7 @@ function EventCard({
   // shouty when scanning the list.
   const ratingColors: Record<string, { bg: string; border: string }> = {
     interested: { bg: 'rgba(45,106,79,0.12)',  border: '#2D6A4F' },
-    hide:       { bg: 'rgba(58,95,138,0.12)',  border: '#3A5F8A' },
+    skip:       { bg: 'rgba(58,95,138,0.12)',  border: '#3A5F8A' },
     not_a_fit:  { bg: 'rgba(138,42,56,0.12)',  border: '#8A2A38' },
   }
   const ratingColor = event.rating ? ratingColors[event.rating] : null
@@ -1551,12 +1551,12 @@ function ThreeRatingButtons({
   disabled,
   onRate,
 }: {
-  rating: 'interested' | 'hide' | 'not_a_fit' | null
+  rating: 'interested' | 'skip' | 'not_a_fit' | null
   disabled: boolean
-  onRate: (r: 'interested' | 'hide' | 'not_a_fit') => void
+  onRate: (r: 'interested' | 'skip' | 'not_a_fit') => void
 }) {
   const BTNS: {
-    id: 'interested' | 'hide' | 'not_a_fit'
+    id: 'interested' | 'skip' | 'not_a_fit'
     label: string
     icon: React.ReactNode
     activeBg: string
@@ -1581,8 +1581,8 @@ function ThreeRatingButtons({
       inactiveText: '#52B788',
     },
     {
-      id: 'hide',
-      label: 'Hide',
+      id: 'skip',
+      label: 'Skip',
       icon: (
         <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
           <path d="M8 14s-6-3.5-6-7.5a4 4 0 0 1 6-3.46A4 4 0 0 1 14 6.5C14 10.5 8 14 8 14z"/>

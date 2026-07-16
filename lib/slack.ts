@@ -150,17 +150,17 @@ export async function notifyUserProfileUpdate(params: {
   await postSlack(lines.join('\n'))
 }
 
-// User-facing match rating (dashboard thumbs up/down/hide).
+// User-facing match rating (dashboard thumbs up/down/skip).
 export async function notifyMatchRating(params: {
   userId: string
   userName: string
   userEmail: string
   userLinkedin: string | null
   eventName: string
-  rating: 'interested' | 'hide' | 'not_a_fit'
+  rating: 'interested' | 'skip' | 'not_a_fit'
   reason: string | null
 }): Promise<void> {
-  const LABEL: Record<string, string> = { interested: '✅ Interested', hide: '🗓 Hide', not_a_fit: '❌ Not a fit' }
+  const LABEL: Record<string, string> = { interested: '✅ Interested', skip: '⏭ Skip', not_a_fit: '❌ Not a fit' }
   const emoji = LABEL[params.rating] ?? params.rating
   const adminUrl = `${APP_URL}/admin/users/${params.userId}`
   const display = params.userName || params.userEmail

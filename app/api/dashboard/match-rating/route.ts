@@ -44,11 +44,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'eventId required' }, { status: 400 })
   }
 
-  // null = clear. We accept 'interested' / 'hide' / 'not_a_fit' / null.
+  // null = clear. We accept 'interested' / 'skip' / 'not_a_fit' / null.
   let rating: MatchRating | null
   if (body.rating === null) {
     rating = null
-  } else if (body.rating === 'interested' || body.rating === 'hide' || body.rating === 'not_a_fit') {
+  } else if (body.rating === 'interested' || body.rating === 'skip' || body.rating === 'not_a_fit') {
     rating = body.rating
   } else {
     return NextResponse.json({ error: 'invalid rating' }, { status: 400 })

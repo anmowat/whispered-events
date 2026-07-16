@@ -197,7 +197,7 @@ export async function getMatchedEventIdsForUser(userId: string): Promise<Set<str
   return new Set((data ?? []).map((m: { event_id: string }) => m.event_id))
 }
 
-export type MatchRating = 'interested' | 'hide' | 'not_a_fit'
+export type MatchRating = 'interested' | 'skip' | 'not_a_fit'
 
 export interface UserMatchScore {
   score: number
@@ -326,7 +326,7 @@ export async function getNeverRatedFutureMatchCount(
 // column on the admin users list. Explicit high limit overrides PostgREST's
 // default max_rows so the table is never silently truncated.
 export async function getRatingCountsByUserId(): Promise<
-  Map<string, { interested: number; hide: number; notAFit: number }>
+  Map<string, { interested: number; skip: number; notAFit: number }>
 > {
   const supabase = getClient()
   const { data, error } = await supabase
@@ -335,13 +335,13 @@ export async function getRatingCountsByUserId(): Promise<
     .not('rating', 'is', null)
     .limit(100_000)
   if (error) throw new Error(`getRatingCountsByUserId failed: ${error.message}`)
-  const counts = new Map<string, { interested: number; hide: number; notAFit: number }>()
+  const counts = new Map<string, { interested: number; skip: number; notAFit: number }>()
   for (const row of data ?? []) {
     const r = row as { user_id: string; rating: MatchRating | null }
     if (!r.user_id || !r.rating) continue
-    const c = counts.get(r.user_id) ?? { interested: 0, hide: 0, notAFit: 0 }
+    const c = counts.get(r.user_id) ?? { interested: 0, skip: 0, notAFit: 0 }
     if (r.rating === 'interested') c.interested++
-    else if (r.rating === 'hide') c.hide++
+    else if (r.rating === 'skip') c.skip++
     else if (r.rating === 'not_a_fit') c.notAFit++
     counts.set(r.user_id, c)
   }
@@ -352,8 +352,8 @@ export async function getRatingCountsByUserId(): Promise<
 // pop the "thanks, help us grow" modal — fires on Going milestone counts.
 export async function getRatingCountByUserId(
   userId: string,
-): Promise<{ interested: number; hide: number; notAFit: number }> {
-  if (!userId) return { interested: 0, hide: 0, notAFit: 0 }
+): Promise<{ interested: number; skip: number; notAFit: number }> {
+  if (!userId) return { interested: 0, skip: 0, notAFit: 0 }
   const supabase = getClient()
   const { data, error } = await supabase
     .from('matches')
@@ -362,15 +362,15 @@ export async function getRatingCountByUserId(
     .not('rating', 'is', null)
   if (error) {
     console.error('getRatingCountByUserId error', { userId, error })
-    return { interested: 0, hide: 0, notAFit: 0 }
+    return { interested: 0, skip: 0, notAFit: 0 }
   }
-  let interested = 0; let hide = 0; let notAFit = 0
+  let interested = 0; let skip = 0; let notAFit = 0
   for (const row of (data ?? []) as Array<{ rating: MatchRating | null }>) {
     if (row.rating === 'interested') interested++
-    else if (row.rating === 'hide') hide++
+    else if (row.rating === 'skip') skip++
     else if (row.rating === 'not_a_fit') notAFit++
   }
-  return { interested, hide, notAFit }
+  return { interested, skip, notAFit }
 }
 
 export interface MatchAuditRow {
@@ -522,7 +522,7 @@ export interface EventMatchRow {
   quality_score: number | null
   preference_score: number | null
   skipped_reason: string | null
-  rating?: 'interested' | 'hide' | 'not_a_fit' | null
+  rating?: 'interested' | 'skip' | 'not_a_fit' | null
   rating_reason?: string | null
   host_rating?: 'up' | 'down' | null
   host_feedback?: string | null
