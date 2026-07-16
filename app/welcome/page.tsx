@@ -336,14 +336,14 @@ function ThankYou() {
         className="mt-5 mx-auto"
         style={{ fontSize: 15, color: 'var(--ink-2)', lineHeight: 1.6, maxWidth: 460 }}
       >
-        Rating your matches does two things:
+        Rating your matches helps us:
       </p>
       <ul
         className="mx-auto mt-2 text-left"
         style={{ fontSize: 14.5, color: 'var(--ink-2)', lineHeight: 1.7, maxWidth: 420, paddingLeft: 20 }}
       >
-        <li><strong style={{ color: 'var(--ink)' }}>Opens up more</strong> — each rating reveals the next match we&apos;ve found for you</li>
-        <li><strong style={{ color: 'var(--ink)' }}>Improves the quality</strong> — we improve how we match you</li>
+        <li><strong style={{ color: 'var(--ink)' }}>Send you more matches</strong> — when you rate more we unlock the next match</li>
+        <li><strong style={{ color: 'var(--ink)' }}>Improve your matches</strong> — our algorithm learns from your feedback</li>
       </ul>
       <p
         className="mt-4 mx-auto"

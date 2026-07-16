@@ -236,12 +236,12 @@ export async function sendUserAppliedEmail(email: string): Promise<void> {
     ${h1('Application <span style="font-style:italic;">received</span>.')}
     ${p("Thanks for applying to Whispered Events. We'll quickly verify your LinkedIn profile and activate your account — typically within 24 hours.", { mt: 14 })}
     ${p("Once approved, you'll start seeing event matches personalized for you.", { mt: 12 })}
-    ${p("Rating your matches does two things:", { mt: 14 })}
+    ${p("Rating your matches helps us:", { mt: 14 })}
     <p style="font-family:${SANS};font-size:14.5px;line-height:1.6;color:${C.ink2};margin:8px 0 0;">
-      • <strong style="color:${C.ink};">Opens up more</strong> — each rating reveals the next match we've found for you
+      • <strong style="color:${C.ink};">Send you more matches</strong> — when you rate more we unlock the next match
     </p>
     <p style="font-family:${SANS};font-size:14.5px;line-height:1.6;color:${C.ink2};margin:6px 0 0;">
-      • <strong style="color:${C.ink};">Improves the quality</strong> — we improve how we match you
+      • <strong style="color:${C.ink};">Improve your matches</strong> — our algorithm learns from your feedback
     </p>
     ${p("We built Whispered Events for one reason: helping great people find the best events — the ones that aren't posted, they're whispered.", { mt: 14 })}
     ${p(`Whispered Events will always be <strong style="color:${C.ink};">completely free for users</strong>. Help us grow and match you to even more events by:`, { mt: 14 })}
@@ -259,9 +259,9 @@ Thanks for applying to Whispered Events. We'll quickly verify your LinkedIn prof
 
 Once approved, you'll start seeing event matches personalized for you.
 
-Rating your matches does two things:
-• Opens up more — each rating reveals the next match we've found for you
-• Improves the quality — we improve how we match you
+Rating your matches helps us:
+• Send you more matches — when you rate more we unlock the next match
+• Improve your matches — our algorithm learns from your feedback
 
 We built Whispered Events for one reason: helping great people find the best events — the ones that aren't posted, they're whispered.
 
@@ -1212,13 +1212,13 @@ export async function sendApprovedWithDigest(
         <span style="display:inline-block;margin:0 3px;padding:2px 8px;border-radius:99px;background:rgba(45,106,79,0.10);color:#2D6A4F;border:1px solid rgba(45,106,79,0.35);font-size:12px;">&#10003;</span>
         <span style="display:inline-block;margin:0 3px;padding:2px 8px;border-radius:99px;background:rgba(58,95,138,0.10);color:#3A5F8A;border:1px solid rgba(58,95,138,0.35);font-size:12px;">&#9825;</span>
         <span style="display:inline-block;margin:0 3px;padding:2px 8px;border-radius:99px;background:rgba(138,42,56,0.10);color:#8A2A38;border:1px solid rgba(201,129,140,0.35);font-size:12px;">&#10005;</span>
-        ) does two things:
+        ) helps us:
       </p>
       <p style="font-family:${SANS};font-size:14px;line-height:1.6;color:${C.ink2};margin:0 0 6px;">
-        • <strong style="color:${C.ink};">Opens up more</strong> — each rating reveals the next match we've found for you
+        • <strong style="color:${C.ink};">Send you more matches</strong> — when you rate more we unlock the next match
       </p>
       <p style="font-family:${SANS};font-size:14px;line-height:1.6;color:${C.ink2};margin:0;">
-        • <strong style="color:${C.ink};">Improves the quality</strong> — we improve how we match you
+        • <strong style="color:${C.ink};">Improve your matches</strong> — our algorithm learns from your feedback
       </p>
     </div>
   `
@@ -1241,9 +1241,9 @@ export async function sendApprovedWithDigest(
     '',
     introCopyText,
     '',
-    'Rating your matches does two things:',
-    "• Opens up more — each rating reveals the next match we've found for you",
-    '• Improves the quality — we improve how we match you',
+    'Rating your matches helps us:',
+    '• Send you more matches — when you rate more we unlock the next match',
+    '• Improve your matches — our algorithm learns from your feedback',
     '',
   ]
   const appendEntries = (entries: DigestEventEntry[]) => {
@@ -1475,13 +1475,13 @@ export async function sendUserDigest(
         <span style="display:inline-block;margin:0 3px;padding:2px 8px;border-radius:99px;background:rgba(45,106,79,0.10);color:#2D6A4F;border:1px solid rgba(45,106,79,0.35);font-size:12px;">&#10003;</span>
         <span style="display:inline-block;margin:0 3px;padding:2px 8px;border-radius:99px;background:rgba(58,95,138,0.10);color:#3A5F8A;border:1px solid rgba(58,95,138,0.35);font-size:12px;">&#9825;</span>
         <span style="display:inline-block;margin:0 3px;padding:2px 8px;border-radius:99px;background:rgba(138,42,56,0.10);color:#8A2A38;border:1px solid rgba(201,129,140,0.35);font-size:12px;">&#10005;</span>
-        ) does two things:
+        ) helps us:
       </p>
       <p style="font-family:${SANS};font-size:14px;line-height:1.6;color:${C.ink2};margin:0 0 6px;">
-        • <strong style="color:${C.ink};">Opens up more</strong> — each rating reveals the next match we've found for you
+        • <strong style="color:${C.ink};">Send you more matches</strong> — when you rate more we unlock the next match
       </p>
       <p style="font-family:${SANS};font-size:14px;line-height:1.6;color:${C.ink2};margin:0;">
-        • <strong style="color:${C.ink};">Improves the quality</strong> — we improve how we match you
+        • <strong style="color:${C.ink};">Improve your matches</strong> — our algorithm learns from your feedback
       </p>
     </div>
   `
@@ -1522,9 +1522,9 @@ export async function sendUserDigest(
   }
   appendEntries(annotated.newEvents)
   textLines.push(
-    'Rating your matches does two things:',
-    "• Opens up more — each rating reveals the next match we've found for you",
-    '• Improves the quality — we improve how we match you',
+    'Rating your matches helps us:',
+    '• Send you more matches — when you rate more we unlock the next match',
+    '• Improve your matches — our algorithm learns from your feedback',
     '',
   )
   if (!(payload.lockedCount ?? 0) && moreText) textLines.push(moreText, '')
