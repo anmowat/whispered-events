@@ -89,6 +89,7 @@ export async function POST(req: NextRequest) {
               userId: user.id,
               userName: user.name || '',
               userEmail: email,
+              userLinkedin: user.linkedin || null,
               eventName: event.name,
               rating,
               reason,

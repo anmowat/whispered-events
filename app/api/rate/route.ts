@@ -40,6 +40,7 @@ export async function GET(req: NextRequest) {
             userId,
             userName: user.name || '',
             userEmail: user.email,
+            userLinkedin: user.linkedin || null,
             eventName: event.name,
             rating,
             reason: null,

@@ -409,6 +409,7 @@ export async function sendMatchRatingNotification(params: {
   userId: string
   userName: string
   userEmail: string
+  userLinkedin: string | null
   eventName: string
   rating: 'interested' | 'hide' | 'not_a_fit'
   reason: string | null
@@ -422,8 +423,11 @@ export async function sendHostMatchRatingNotification(params: {
   hostId: string
   hostName: string
   hostEmail: string
+  hostLinkedin: string | null
   guestName: string
   guestUserId: string
+  guestEmail: string | null
+  guestLinkedin: string | null
   eventName: string
   eventId: string
   rating: 'up' | 'down'

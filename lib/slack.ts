@@ -155,6 +155,7 @@ export async function notifyMatchRating(params: {
   userId: string
   userName: string
   userEmail: string
+  userLinkedin: string | null
   eventName: string
   rating: 'interested' | 'hide' | 'not_a_fit'
   reason: string | null
@@ -166,8 +167,9 @@ export async function notifyMatchRating(params: {
   const lines = [
     `*Rating · ${emoji}*`,
     `<${adminUrl}|${display}> · ${params.userEmail}`,
-    `Event: ${params.eventName}`,
   ]
+  if (params.userLinkedin) lines.push(`LinkedIn: ${params.userLinkedin}`)
+  lines.push(`Event: ${params.eventName}`)
   if (params.rating === 'not_a_fit' && params.reason) lines.push(`Reason: ${params.reason}`)
   await postSlack(lines.join('\n'))
 }
@@ -177,8 +179,11 @@ export async function notifyHostMatchRating(params: {
   hostId: string
   hostName: string
   hostEmail: string
+  hostLinkedin: string | null
   guestName: string
   guestUserId: string
+  guestEmail: string | null
+  guestLinkedin: string | null
   eventName: string
   eventId: string
   rating: 'up' | 'down'
@@ -192,9 +197,12 @@ export async function notifyHostMatchRating(params: {
   const lines = [
     `*Host Rating · ${emoji}*`,
     `Host: <${hostUrl}|${hostDisplay}> · ${params.hostEmail}`,
-    `Guest: <${guestUrl}|${params.guestName}>`,
-    `Event: <${eventUrl}|${params.eventName}>`,
   ]
+  if (params.hostLinkedin) lines.push(`Host LinkedIn: ${params.hostLinkedin}`)
+  lines.push(`Guest: <${guestUrl}|${params.guestName}>`)
+  if (params.guestEmail) lines.push(`Guest email: ${params.guestEmail}`)
+  if (params.guestLinkedin) lines.push(`Guest LinkedIn: ${params.guestLinkedin}`)
+  lines.push(`Event: <${eventUrl}|${params.eventName}>`)
   if (params.rating === 'down' && params.feedback) lines.push(`Feedback: ${params.feedback}`)
   await postSlack(lines.join('\n'))
 }
