@@ -150,6 +150,55 @@ export async function notifyUserProfileUpdate(params: {
   await postSlack(lines.join('\n'))
 }
 
+// User-facing match rating (dashboard thumbs up/down/hide).
+export async function notifyMatchRating(params: {
+  userId: string
+  userName: string
+  userEmail: string
+  eventName: string
+  rating: 'interested' | 'hide' | 'not_a_fit'
+  reason: string | null
+}): Promise<void> {
+  const LABEL: Record<string, string> = { interested: '✅ Interested', hide: '🗓 Hide', not_a_fit: '❌ Not a fit' }
+  const emoji = LABEL[params.rating] ?? params.rating
+  const adminUrl = `${APP_URL}/admin/users/${params.userId}`
+  const display = params.userName || params.userEmail
+  const lines = [
+    `*Rating · ${emoji}*`,
+    `<${adminUrl}|${display}> · ${params.userEmail}`,
+    `Event: ${params.eventName}`,
+  ]
+  if (params.rating === 'not_a_fit' && params.reason) lines.push(`Reason: ${params.reason}`)
+  await postSlack(lines.join('\n'))
+}
+
+// Host rating of a guest match on the host dashboard.
+export async function notifyHostMatchRating(params: {
+  hostId: string
+  hostName: string
+  hostEmail: string
+  guestName: string
+  guestUserId: string
+  eventName: string
+  eventId: string
+  rating: 'up' | 'down'
+  feedback: string | null
+}): Promise<void> {
+  const emoji = params.rating === 'up' ? '👍' : '👎'
+  const hostUrl = `${APP_URL}/admin/users/${params.hostId}`
+  const guestUrl = `${APP_URL}/admin/users/${params.guestUserId}`
+  const eventUrl = `${APP_URL}/admin/events/${params.eventId}`
+  const hostDisplay = params.hostName || params.hostEmail
+  const lines = [
+    `*Host Rating · ${emoji}*`,
+    `Host: <${hostUrl}|${hostDisplay}> · ${params.hostEmail}`,
+    `Guest: <${guestUrl}|${params.guestName}>`,
+    `Event: <${eventUrl}|${params.eventName}>`,
+  ]
+  if (params.rating === 'down' && params.feedback) lines.push(`Feedback: ${params.feedback}`)
+  await postSlack(lines.join('\n'))
+}
+
 // Host self-service event edit at /host/events/[id]. NOT fired by admin
 // edits at /admin/events/[id] — admin saves are silent by design.
 export async function notifyHostEventUpdate(params: {

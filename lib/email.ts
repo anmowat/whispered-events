@@ -402,9 +402,9 @@ export async function sendEventSubmittedEmail(
   }
 }
 
-// Internal-only notification when a user thumbs-up's / thumbs-down's a
-// match on their dashboard. Goes to MONITOR_BCC as the To: (not a user
-// send), no BCC, distinct subject line so it's easy to filter in Gmail.
+// Rating notifications are now sent to Slack (lib/slack.ts notifyMatchRating).
+// This stub is kept so existing call sites don't need to change imports —
+// they already import from here and pass the same params.
 export async function sendMatchRatingNotification(params: {
   userId: string
   userName: string
@@ -413,62 +413,11 @@ export async function sendMatchRatingNotification(params: {
   rating: 'interested' | 'hide' | 'not_a_fit'
   reason: string | null
 }): Promise<void> {
-  const resend = getResend()
-  const adminUrl = `https://www.whisperedevents.com/admin/users/${params.userId}`
-  const RATING_LABEL: Record<string, string> = { interested: '✅ Interested', hide: "🗓 Hide", not_a_fit: '❌ Not a fit' }
-  const emoji = RATING_LABEL[params.rating] ?? params.rating
-  const safeName = escapeHtml(params.userName || params.userEmail)
-  const safeEmail = escapeHtml(params.userEmail)
-  const safeEvent = escapeHtml(params.eventName)
-  const reasonRow =
-    params.rating === 'not_a_fit' && params.reason
-      ? `<p style="font-family:${SANS};font-size:14px;line-height:1.55;color:${C.ink};margin:14px 0 0;"><strong>Reason:</strong> ${escapeHtml(params.reason)}</p>`
-      : ''
-  const html = `
-<div style="margin:0;padding:20px;background:${C.bg};font-family:${SANS};color:${C.ink};">
-  <div style="max-width:540px;margin:0 auto;background:${C.paper};border:1px solid ${C.rule};border-radius:6px;padding:24px;">
-    <p style="font-family:${SERIF};font-size:20px;font-weight:600;margin:0;color:${C.ink};">Match rating</p>
-    <p style="font-family:${SANS};font-size:14px;line-height:1.55;color:${C.ink};margin:16px 0 0;">
-      <strong><a href="${adminUrl}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">${safeName}</a></strong> &lt;${safeEmail}&gt; rated:
-    </p>
-    <p style="font-family:${SANS};font-size:14px;line-height:1.55;color:${C.ink};margin:8px 0 0;">
-      <strong>Event:</strong> ${safeEvent}
-    </p>
-    <p style="font-family:${SANS};font-size:14px;line-height:1.55;color:${C.ink};margin:8px 0 0;">
-      <strong>Rating:</strong> ${emoji}
-    </p>
-    ${reasonRow}
-  </div>
-</div>
-`.trim()
-  const textLines = [
-    `Match rating`,
-    '',
-    `User: ${params.userName || params.userEmail} <${params.userEmail}>`,
-    `Profile: ${adminUrl}`,
-    `Event: ${params.eventName}`,
-    `Rating: ${emoji}`,
-  ]
-  if (params.rating === 'not_a_fit' && params.reason) {
-    textLines.push(`Reason: ${params.reason}`)
-  }
-  const subject = `Rating · ${emoji} ${params.userName || params.userEmail} · ${params.eventName}`
-  const { error } = await resend.emails.send({
-    from: TEAM_FROM,
-    to: MONITOR_BCC,
-    subject,
-    html,
-    text: textLines.join('\n'),
-    headers: AUTO_HEADERS,
-  })
-  if (error) {
-    console.error('sendMatchRatingNotification: Resend error', { email: params.userEmail, error })
-    throw new Error(`Resend send failed: ${error.message ?? JSON.stringify(error)}`)
-  }
+  const { notifyMatchRating } = await import('./slack')
+  await notifyMatchRating(params)
 }
 
-// Internal-only notification when a host rates a guest match. Goes to
-// MONITOR_BCC, no BCC, distinct subject for easy Gmail filtering.
+// Host rating notifications are now sent to Slack (lib/slack.ts notifyHostMatchRating).
 export async function sendHostMatchRatingNotification(params: {
   hostId: string
   hostName: string
@@ -480,66 +429,8 @@ export async function sendHostMatchRatingNotification(params: {
   rating: 'up' | 'down'
   feedback: string | null
 }): Promise<void> {
-  const resend = getResend()
-  const hostAdminUrl = `https://www.whisperedevents.com/admin/users/${params.hostId}`
-  const guestAdminUrl = `https://www.whisperedevents.com/admin/users/${params.guestUserId}`
-  const eventAdminUrl = `https://www.whisperedevents.com/admin/events/${params.eventId}`
-  const emoji = params.rating === 'up' ? '👍' : '👎'
-  const safeHost = escapeHtml(params.hostName || params.hostEmail)
-  const safeHostEmail = escapeHtml(params.hostEmail)
-  const safeGuest = escapeHtml(params.guestName)
-  const safeEvent = escapeHtml(params.eventName)
-  const feedbackRow =
-    params.rating === 'down' && params.feedback
-      ? `<p style="font-family:${SANS};font-size:14px;line-height:1.55;color:${C.ink};margin:14px 0 0;"><strong>Feedback:</strong> ${escapeHtml(params.feedback)}</p>`
-      : ''
-  const html = `
-<div style="margin:0;padding:20px;background:${C.bg};font-family:${SANS};color:${C.ink};">
-  <div style="max-width:540px;margin:0 auto;background:${C.paper};border:1px solid ${C.rule};border-radius:6px;padding:24px;">
-    <p style="font-family:${SERIF};font-size:20px;font-weight:600;margin:0;color:${C.ink};">${emoji} Host match rating</p>
-    <p style="font-family:${SANS};font-size:14px;line-height:1.55;color:${C.ink};margin:16px 0 0;">
-      <strong>Host:</strong> <a href="${hostAdminUrl}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">${safeHost}</a> &lt;${safeHostEmail}&gt;
-    </p>
-    <p style="font-family:${SANS};font-size:14px;line-height:1.55;color:${C.ink};margin:8px 0 0;">
-      <strong>Guest:</strong> <a href="${guestAdminUrl}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">${safeGuest}</a>
-    </p>
-    <p style="font-family:${SANS};font-size:14px;line-height:1.55;color:${C.ink};margin:8px 0 0;">
-      <strong>Event:</strong> <a href="${eventAdminUrl}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">${safeEvent}</a>
-    </p>
-    <p style="font-family:${SANS};font-size:14px;line-height:1.55;color:${C.ink};margin:8px 0 0;">
-      <strong>Rating:</strong> ${emoji} ${params.rating === 'up' ? 'Thumbs up' : 'Thumbs down'}
-    </p>
-    ${feedbackRow}
-  </div>
-</div>
-`.trim()
-  const textLines = [
-    `${emoji} Host match rating`,
-    '',
-    `Host: ${params.hostName || params.hostEmail} <${params.hostEmail}>`,
-    `Host profile: ${hostAdminUrl}`,
-    `Guest: ${params.guestName}`,
-    `Guest profile: ${guestAdminUrl}`,
-    `Event: ${params.eventName}`,
-    `Event admin: ${eventAdminUrl}`,
-    `Rating: ${emoji} ${params.rating === 'up' ? 'Thumbs up' : 'Thumbs down'}`,
-  ]
-  if (params.rating === 'down' && params.feedback) {
-    textLines.push(`Feedback: ${params.feedback}`)
-  }
-  const subject = `Host Rating · ${emoji} ${params.hostName || params.hostEmail} → ${params.guestName} · ${params.eventName}`
-  const { error } = await resend.emails.send({
-    from: TEAM_FROM,
-    to: MONITOR_BCC,
-    subject,
-    html,
-    text: textLines.join('\n'),
-    headers: AUTO_HEADERS,
-  })
-  if (error) {
-    console.error('sendHostMatchRatingNotification: Resend error', { hostEmail: params.hostEmail, error })
-    throw new Error(`Resend send failed: ${error.message ?? JSON.stringify(error)}`)
-  }
+  const { notifyHostMatchRating } = await import('./slack')
+  await notifyHostMatchRating(params)
 }
 
 // Injects inline color + underline + target="_blank" onto every <a>
