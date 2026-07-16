@@ -243,9 +243,8 @@ export async function getMatchScoresForUser(
 }
 
 // Writes the user's thumbs-up / thumbs-down (or clears it). Returns true
-// when the (event, user) row existed and was updated. Callers should
-// short-circuit if false so we don't fire an admin notification for a
-// rating that didn't actually land.
+// when the (event, user) row existed and was updated AND the rating value
+// actually changed (so callers only fire notifications on real changes).
 export async function setMatchRating(params: {
   eventId: string
   userId: string
@@ -253,6 +252,18 @@ export async function setMatchRating(params: {
   reason: string | null
 }): Promise<boolean> {
   const supabase = getClient()
+  // Read the current rating first so we can detect a no-op (user clicking
+  // the same rating again). Only notify when the value genuinely changes.
+  const { data: existing } = await supabase
+    .from('matches')
+    .select('event_id, rating')
+    .eq('event_id', params.eventId)
+    .eq('user_id', params.userId)
+    .maybeSingle()
+  if (!existing) return false
+  const previousRating = (existing as { rating: string | null }).rating ?? null
+  if (previousRating === params.rating) return false
+
   const { data, error } = await supabase
     .from('matches')
     .update({
