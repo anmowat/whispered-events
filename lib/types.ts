@@ -37,6 +37,7 @@ export interface EventRecord {
 
 export const EMPLOYMENT_OPTIONS = ['Employed', 'Searching', 'Fractional', 'Other'] as const
 export const COMPANY_SIZE_OPTIONS = ['<$5M', '$5-25M', '$25-100M', '$100M-1B', '$1B+', 'Other'] as const
+export const SENIORITY_OPTIONS = ['C-Level', 'VP', 'Director', 'Lead', 'Manager', 'Junior'] as const
 
 export interface ParsedEvent {
   name?: string

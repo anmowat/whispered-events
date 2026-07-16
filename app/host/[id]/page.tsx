@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation'
 import Header from '@/components/Header'
 import LoginModal from '@/components/LoginModal'
 import { formatEventDate } from '@/lib/dates'
-import { EMPLOYMENT_OPTIONS, COMPANY_SIZE_OPTIONS } from '@/lib/types'
+import { EMPLOYMENT_OPTIONS, COMPANY_SIZE_OPTIONS, SENIORITY_OPTIONS } from '@/lib/types'
 
 interface HostEvent {
   id: string
@@ -809,6 +809,7 @@ function EditForm({
   const [audience, setAudience] = useState(event.audience.join(', '))
   const [employment, setEmployment] = useState<string[]>(event.employment ?? [])
   const [companySize, setCompanySize] = useState<string[]>(event.companySize ?? [])
+  const [seniority, setSeniority] = useState<string[]>(event.seniority ?? [])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -825,6 +826,7 @@ function EditForm({
         audience: audience.split(',').map((s) => s.trim()).filter(Boolean),
         employment,
         companySize,
+        seniority,
       }
       const res = await fetch(`/api/host/events/${event.id}`, {
         method: 'PATCH',
@@ -886,6 +888,12 @@ function EditForm({
             options={[...COMPANY_SIZE_OPTIONS]}
             value={companySize}
             onChange={setCompanySize}
+          />
+          <HostMultiCheckbox
+            label="Seniority"
+            options={[...SENIORITY_OPTIONS]}
+            value={seniority}
+            onChange={setSeniority}
           />
         </div>
         {error && (
