@@ -126,7 +126,7 @@ function locationMultiplier(dist: number): number {
   if (dist <= 20) return 1.05
   if (dist <= 30) return 1.0
   if (dist <= 60) return 0.85
-  if (dist <= 150) return 0.7
+  if (dist <= 100) return 0.7
   return 0
 }
 
@@ -629,7 +629,7 @@ export async function scoreEventUser(
     return emptyResult({
       location: 0,
       quality,
-      reason: 'Skipped: user not within 150 miles of event city',
+      reason: 'Skipped: user not within 100 miles of event city',
       skippedReason: 'location_zero',
       inputsHash,
     })

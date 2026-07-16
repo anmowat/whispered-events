@@ -11,7 +11,7 @@ interface LatLng { lat: number; lng: number }
 // dashboard signup hint, anything that needs the value — can import
 // it without dragging server-only deps (Anthropic SDK, crypto) into
 // the browser bundle.
-export const NEARBY_RADIUS_MILES = 150
+export const NEARBY_RADIUS_MILES = 100
 
 const cache = new Map<string, LatLng | null>()
 let lastRequestAt = 0
