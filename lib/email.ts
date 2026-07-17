@@ -247,7 +247,7 @@ export async function sendUserAppliedEmail(email: string): Promise<void> {
       1. Sharing events to <a href="${NEW_EVENT_MAILTO}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">event@whispered.com</a>
     </p>
     <p style="font-family:${SANS};font-size:14.5px;line-height:1.6;color:${C.ink2};margin:8px 0 0;">
-      2. Posting about Whispered Events on LinkedIn (<a href="https://www.whisperedevents.com/love" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">see examples</a>)
+      2. Check out (and amplify) <a href="https://www.whisperedevents.com/love" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">others' experiences</a> with Whispered Events
     </p>
     ${signature()}
   `)
@@ -261,7 +261,7 @@ Rating your matches helps us:
 
 We built Whispered Events for one reason: helping great people find the best events — the ones that aren't posted, they're whispered. Whispered Events will always be completely free for users. Help us grow and match you to even more events by:
 1. Sharing events to event@whispered.com
-2. Posting about Whispered Events on LinkedIn (https://www.whisperedevents.com/love)
+2. Check out (and amplify) others' experiences with Whispered Events: https://www.whisperedevents.com/love
 
 Andy (${ANDY_LINK})
 Founder, Whispered`
