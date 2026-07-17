@@ -1457,7 +1457,9 @@ export async function sendStalemateNudge(
     ${h1(`Hi <span style="font-style:italic;">${safeName}</span> — you have matches waiting.`)}
     ${p(`You have <strong style="color:${C.ink};">${lockedCount} more ${noun} waiting</strong> on Whispered Events.`, { mt: 14 })}
     ${p(`Your feedback on matches helps us constantly improve.`, { mt: 12 })}
-    ${p(`To ensure we are only sending you the best events, we send you the top 7 unrated matches. You have more than 7 unrated matches so you can either wait until one of your top matched events happens (when we'll send you another) OR unlock more matches right away by rating events on your dashboard.`, { mt: 8 })}
+    ${p(`To ensure we are only sending you the best events, we send you the top 7 unrated matches. You have more than 7 unrated matches so you can either:`, { mt: 8 })}
+    <p style="font-family:${SANS};font-size:14.5px;line-height:1.6;color:${C.ink2};margin:8px 0 0;">1. Wait until one of your top matched events happens (when we'll send you another) OR</p>
+    <p style="font-family:${SANS};font-size:14.5px;line-height:1.6;color:${C.ink2};margin:6px 0 0;">2. Unlock more matches right away by rating events on your dashboard.</p>
     ${p(`Just a quick ✓ Interested or ✕ Not a fit on any match opens a new slot.`, { mt: 8 })}
     ${accentButton(DASHBOARD_LINK, 'Rate your matches on the dashboard')}
     ${digestFooterHtml(firstName)}
@@ -1470,7 +1472,9 @@ export async function sendStalemateNudge(
     '',
     `Your feedback on matches helps us constantly improve.`,
     '',
-    `To ensure we are only sending you the best events, we send you the top 7 unrated matches. You have more than 7 unrated matches so you can either wait until one of your top matched events happens (when we'll send you another) OR unlock more matches right away by rating events on your dashboard.`,
+    `To ensure we are only sending you the best events, we send you the top 7 unrated matches. You have more than 7 unrated matches so you can either:`,
+    `1. Wait until one of your top matched events happens (when we'll send you another) OR`,
+    `2. Unlock more matches right away by rating events on your dashboard.`,
     '',
     `Just a quick Interested or Not a fit on any match opens a new slot.`,
     '',
