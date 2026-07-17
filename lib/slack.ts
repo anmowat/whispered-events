@@ -189,7 +189,7 @@ export async function notifyMatchRating(params: {
       const joined = params.userCreated
         ? new Date(params.userCreated).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' })
         : 'unknown'
-      lines.push(`Joined ${joined} · ${interested}✅ / ${skip}♡ / ${notAFit}❌`)
+      lines.push(`Joined ${joined} · ${interested}✓ / ${skip}♡ / ${notAFit}✕`)
     }
   } catch { /* non-fatal */ }
 
