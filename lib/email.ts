@@ -404,6 +404,7 @@ export async function sendMatchRatingNotification(params: {
   userName: string
   userEmail: string
   userLinkedin: string | null
+  userCreated: string | null
   eventName: string
   rating: 'interested' | 'skip' | 'not_a_fit'
   reason: string | null

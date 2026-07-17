@@ -156,6 +156,7 @@ export async function notifyMatchRating(params: {
   userName: string
   userEmail: string
   userLinkedin: string | null
+  userCreated: string | null
   eventName: string
   rating: 'interested' | 'skip' | 'not_a_fit'
   reason: string | null
@@ -171,6 +172,27 @@ export async function notifyMatchRating(params: {
   if (params.userLinkedin) lines.push(`LinkedIn: ${params.userLinkedin}`)
   lines.push(`Event: ${params.eventName}`)
   if (params.rating === 'not_a_fit' && params.reason) lines.push(`Reason: ${params.reason}`)
+
+  // Join date + lifetime rating counts
+  try {
+    const { createClient } = await import('@supabase/supabase-js')
+    const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+    const { data: rows } = await supabase
+      .from('matches')
+      .select('rating')
+      .eq('user_id', params.userId)
+      .not('rating', 'is', null)
+    if (rows) {
+      const interested = rows.filter((r: { rating: string }) => r.rating === 'interested').length
+      const skip = rows.filter((r: { rating: string }) => r.rating === 'skip').length
+      const notAFit = rows.filter((r: { rating: string }) => r.rating === 'not_a_fit').length
+      const joined = params.userCreated
+        ? new Date(params.userCreated).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' })
+        : 'unknown'
+      lines.push(`Joined ${joined} · ${interested}✅ / ${skip}♡ / ${notAFit}❌`)
+    }
+  } catch { /* non-fatal */ }
+
   await postSlack(lines.join('\n'))
 }
 

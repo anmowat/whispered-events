@@ -41,6 +41,7 @@ export async function GET(req: NextRequest) {
             userName: user.name || '',
             userEmail: user.email,
             userLinkedin: user.linkedin || null,
+            userCreated: user.created || null,
             eventName: event.name,
             rating,
             reason: null,
