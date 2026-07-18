@@ -274,9 +274,9 @@ export default function AdminUserDetailPage() {
     }
   }
 
-  // Clear the enrich message after a few seconds.
+  // Auto-clear success messages; errors stay until dismissed.
   useEffect(() => {
-    if (!enrichMessage) return
+    if (!enrichMessage || enrichMessage.startsWith('Enrich failed')) return
     const id = setTimeout(() => setEnrichMessage(null), 8000)
     return () => clearTimeout(id)
   }, [enrichMessage])
@@ -401,9 +401,12 @@ export default function AdminUserDetailPage() {
           <div className="flex items-center gap-2">
             {enrichMessage && (
               <span
-                className={`text-xs ${enrichMessage.startsWith('Enrich failed') ? 'text-red-600' : 'text-gray-500'}`}
+                className={`text-xs ${enrichMessage.startsWith('Enrich failed') ? 'text-red-600 font-medium' : 'text-gray-500'}`}
               >
                 {enrichMessage}
+                {enrichMessage.startsWith('Enrich failed') && (
+                  <button onClick={() => setEnrichMessage(null)} className="ml-1 opacity-60 hover:opacity-100">✕</button>
+                )}
               </span>
             )}
             <button

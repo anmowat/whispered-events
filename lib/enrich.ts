@@ -85,7 +85,7 @@ export async function enrichUserFromLinkedIn(
       await new Promise((r) => setTimeout(r, 1500 * attempt))
     }
     const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), 18_000)
+    const timer = setTimeout(() => controller.abort(), 55_000)
     try {
       resp = await fetch(ANYSITE_USER_ENDPOINT, {
         method: 'POST',
