@@ -144,13 +144,18 @@ function extractTextFromHtml(html: string): string {
           if (ev.timezone) extracted['Timezone'] = ev.timezone
           if (location) extracted['Location'] = location
           if (ev.location_type === 'online') extracted['Location'] = 'Virtual'
-          // Extract organizer/host from hosts array
-          const hosts: Array<{ name?: string; username?: string }> = lumaData.hosts ?? ev.hosts ?? []
-          if (hosts.length > 0) {
-            const hostNames = hosts.map((h) => h.name || h.username).filter(Boolean)
-            if (hostNames.length > 0) extracted['Organizer'] = hostNames.join(', ')
+          // Primary organizer: calendar/series name (e.g. "Atlantis Capital Events")
+          const calendarName = lumaData.calendar?.name || ev.calendar?.name
+          if (calendarName) extracted['Organizer'] = calendarName
+          // Fallback: individual hosts from the hosts array
+          if (!extracted['Organizer']) {
+            const hosts: Array<{ name?: string; username?: string }> = lumaData.hosts ?? ev.hosts ?? []
+            if (hosts.length > 0) {
+              const hostNames = hosts.map((h) => h.name || h.username).filter(Boolean)
+              if (hostNames.length > 0) extracted['Organizer'] = hostNames.join(', ')
+            }
           }
-          // Fallback: check for a single "host" field
+          // Final fallback: single "host" field
           if (!extracted['Organizer'] && ev.host?.name) extracted['Organizer'] = ev.host.name
           // Extract plain text from description_mirror (ProseMirror/TipTap rich text)
           if (lumaData.description_mirror?.content) {

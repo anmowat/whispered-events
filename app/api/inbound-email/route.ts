@@ -264,6 +264,9 @@ export async function POST(req: NextRequest) {
     host: false,
     submitter: senderEmail,
     image: parsed.image,
+    organizer: parsed.organizer,
+    startTime: parsed.startTime,
+    endTime: parsed.endTime,
   }
 
   let id: string
