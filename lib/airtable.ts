@@ -452,24 +452,32 @@ export async function createEvent(
   ;(fields as Record<string, unknown>)['Seniority'] = event.seniority?.length ? event.seniority : [...SENIORITY_OPTIONS]
   // organizer is Supabase-only; Airtable events table has no Organizer column
 
-  // Airtable .create() first so we inherit its recXXX id as the canonical
-  // Supabase id. Downstream foreign keys (matches.event_id, host links)
-  // already use this format; preserving it avoids a schema migration.
+  // Airtable create to get a rec... id used as the canonical key in Supabase.
+  // Airtable is a follower — any failure is logged but never blocks the event.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let record: any
   try {
     record = await base(EVENTS_TABLE).create(fields)
   } catch (e: unknown) {
-    // Airtable rejects unknown single-select values. Fall back to 'Other'
-    // so the event still gets created — Supabase stores the real type.
-    const err = e as { error?: string }
+    const err = e as { error?: string; message?: string }
     if (err?.error === 'INVALID_MULTIPLE_CHOICE_OPTIONS' && fields['Type'] !== 'Other') {
-      console.warn(`createEvent: Airtable rejected type "${fields['Type']}", retrying with Other`)
-      fields['Type'] = 'Other'
-      record = await base(EVENTS_TABLE).create(fields)
+      // Airtable rejects unknown single-select values — retry with 'Other'.
+      try {
+        fields['Type'] = 'Other'
+        record = await base(EVENTS_TABLE).create(fields)
+      } catch (e2) {
+        console.error('createEvent: Airtable create failed after type fallback, continuing with generated id', e2)
+      }
     } else {
-      throw e
+      console.error('createEvent: Airtable create failed, continuing with generated id', err?.message ?? e)
     }
+  }
+  // If Airtable is down or rejected the record, generate a rec-style id so
+  // the Supabase insert still lands. Supabase is source of truth.
+  if (!record?.id) {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+    const rand = Array.from({ length: 14 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
+    record = { id: `rec${rand}` }
   }
 
   // Then explicit Supabase insert with the same data. No more sync mirror
