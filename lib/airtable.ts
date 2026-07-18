@@ -450,7 +450,7 @@ export async function createEvent(
 
   // Write seniority to Airtable — default to all options when not parsed, matching Supabase behavior.
   ;(fields as Record<string, unknown>)['Seniority'] = event.seniority?.length ? event.seniority : [...SENIORITY_OPTIONS]
-  if (event.organizer) fields['Organizer'] = event.organizer
+  // organizer is Supabase-only; Airtable events table has no Organizer column
 
   // Airtable .create() first so we inherit its recXXX id as the canonical
   // Supabase id. Downstream foreign keys (matches.event_id, host links)
