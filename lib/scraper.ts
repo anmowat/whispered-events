@@ -183,6 +183,8 @@ function extractTextFromHtml(html: string): string {
     { pattern: /property=["']og:title["'][^>]*content=["']([^"']+)["']/i, label: 'OG Title' },
     { pattern: /property=["']og:description["'][^>]*content=["']([^"']+)["']/i, label: 'OG Description' },
     { pattern: /name=["']description["'][^>]*content=["']([^"']+)["']/i, label: 'Description' },
+    { pattern: /name=["']twitter:description["'][^>]*content=["']([^"']+)["']/i, label: 'Twitter Description' },
+    { pattern: /name=["']twitter:title["'][^>]*content=["']([^"']+)["']/i, label: 'Twitter Title' },
   ]
   for (const { pattern, label } of metaTags) {
     const m = html.match(pattern)
@@ -203,11 +205,15 @@ function extractTextFromHtml(html: string): string {
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
+    .replace(/&#x27;/g, "'")
+    .replace(/&#x2013;/g, '–')
+    .replace(/&#x2014;/g, '—')
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
     .replace(/\s+/g, ' ')
     .trim()
 
-  if (bodyText.length > 5000) {
-    parts.push(bodyText.substring(0, 5000))
+  if (bodyText.length > 8000) {
+    parts.push(bodyText.substring(0, 8000))
   } else if (bodyText.length > 50) {
     parts.push(bodyText)
   }
