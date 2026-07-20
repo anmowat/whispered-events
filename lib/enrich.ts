@@ -74,15 +74,18 @@ export async function enrichUserFromLinkedIn(
   }
 
   const handle = toHandle(linkedinUrl)
+  console.log('enrichUserFromLinkedIn: handle=', handle, 'url=', linkedinUrl)
 
-  // Retry on transient overload/rate-limit (529, 503, 502) with backoff.
-  // Non-retryable errors (401, 404, 400) fail immediately.
-  const RETRYABLE = new Set([429, 502, 503, 529])
+  // 412 can be transient ("profile loading") or permanent ("not indexed").
+  // 429/502/503/529 are standard transient overload codes.
+  const RETRYABLE = new Set([412, 429, 502, 503, 529])
   const MAX_ATTEMPTS = 3
   let resp: Response | null = null
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     if (attempt > 0) {
-      await new Promise((r) => setTimeout(r, 1500 * attempt))
+      // Longer backoff for 412 (profile may need time to load in AnySite cache)
+      const delay = resp?.status === 412 ? 4000 * attempt : 1500 * attempt
+      await new Promise((r) => setTimeout(r, delay))
     }
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), 55_000)
@@ -127,6 +130,16 @@ export async function enrichUserFromLinkedIn(
 
   if (!resp.ok) {
     const body = await resp.text().catch(() => '')
+    // 412 with empty body/array = AnySite doesn't have this profile indexed.
+    if (resp.status === 412) {
+      const isEmpty = body.trim() === '' || body.trim() === '[]' || body.trim() === 'null'
+      return {
+        ok: false,
+        reason: isEmpty
+          ? `Profile not found in AnySite (handle: ${handle}) — check the LinkedIn URL is correct or try again later`
+          : `AnySite 412: ${body.slice(0, 200)}`,
+      }
+    }
     return { ok: false, reason: `AnySite ${resp.status}: ${body.slice(0, 200)}` }
   }
 
