@@ -77,8 +77,9 @@ export async function enrichUserFromLinkedIn(
   console.log('enrichUserFromLinkedIn: handle=', handle, 'url=', linkedinUrl)
 
   // 412 can be transient ("profile loading") or permanent ("not indexed").
-  // 429/502/503/529 are standard transient overload codes.
-  const RETRYABLE = new Set([412, 429, 502, 503, 529])
+  // 429/502/503/504/529 are standard transient overload/timeout codes.
+  // Per-attempt timeout is 25s; 3 attempts with backoff = ~87s max, fits in maxDuration=120.
+  const RETRYABLE = new Set([412, 429, 502, 503, 504, 529])
   const MAX_ATTEMPTS = 3
   let resp: Response | null = null
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
@@ -88,7 +89,7 @@ export async function enrichUserFromLinkedIn(
       await new Promise((r) => setTimeout(r, delay))
     }
     const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), 55_000)
+    const timer = setTimeout(() => controller.abort(), 25_000)
     try {
       resp = await fetch(ANYSITE_USER_ENDPOINT, {
         method: 'POST',

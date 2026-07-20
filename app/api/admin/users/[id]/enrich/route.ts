@@ -10,7 +10,7 @@ import { enrichUserFromLinkedIn } from '@/lib/enrich'
 // their LinkedIn, AnySite gets richer data, etc.) without forcing a new
 // signup flow.
 
-export const maxDuration = 60
+export const maxDuration = 120
 
 export async function POST(
   req: NextRequest,
