@@ -125,20 +125,24 @@ function extractTextFromHtml(html: string): string {
           const extracted: Record<string, string> = {}
           if (ev.name) extracted['Event Name'] = ev.name
           if (ev.start_at) {
-            extracted['Start Date/Time (ISO)'] = ev.start_at
-            // Also derive a human-readable local time in the event's timezone
+            // Derive local date and time in the event's timezone.
+            // ev.start_at is UTC; using it raw gives the wrong calendar date
+            // for events that cross midnight UTC (e.g. 6 PM PDT = next day UTC).
             try {
               const tz = ev.timezone || 'UTC'
-              const startLocal = new Date(ev.start_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: tz })
-              extracted['Start Time'] = startLocal
+              const d = new Date(ev.start_at)
+              const localDate = d.toLocaleDateString('en-CA', { timeZone: tz }) // YYYY-MM-DD
+              const localTime = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: tz })
+              extracted['Start Date (Local)'] = localDate
+              extracted['Start Time'] = localTime
             } catch { /* ignore */ }
           }
           if (ev.end_at) {
-            extracted['End Date/Time (ISO)'] = ev.end_at
             try {
               const tz = ev.timezone || 'UTC'
-              const endLocal = new Date(ev.end_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: tz })
-              extracted['End Time'] = endLocal
+              const d = new Date(ev.end_at)
+              const localTime = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: tz })
+              extracted['End Time'] = localTime
             } catch { /* ignore */ }
           }
           if (ev.timezone) extracted['Timezone'] = ev.timezone
