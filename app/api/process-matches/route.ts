@@ -9,7 +9,7 @@ import {
   NEARBY_RADIUS_MILES,
   ScoreResult,
 } from '@/lib/matching'
-import { getExistingMatch, logMatch, markMatchesNotified, resetNotifiedAtForEvent } from '@/lib/supabase'
+import { getExistingMatch, getExistingMatchesForEvent, logMatch, markMatchesNotified, resetNotifiedAtForEvent } from '@/lib/supabase'
 import {
   sendUserDigest,
   sendApprovedWithDigest,
@@ -24,12 +24,12 @@ export const maxDuration = 300
 // each-new-event email) so the first email a new user gets contains the same
 // set of matches their dashboard shows.
 const DIGEST_THRESHOLD = 1.35
-// Conservative concurrency. Anthropic Haiku is ~50 RPM on our tier;
-// fanning out 50 calls per batch invites 429s. 8-at-a-time keeps a
-// per-user rescore (~40 events) well inside the rate limit even when
-// other jobs (cron, event triggers) overlap, with callWithRetry
-// covering any leftover transient throttling.
+// Concurrency for user-trigger (scores N events for 1 user): keep at 8
+// to avoid 429s when other jobs overlap on the same Haiku tier.
+// Event-trigger (scores 1 event for N users) uses a higher batch size
+// since it's one LLM call per user and we pre-fetch DB state in bulk.
 const BATCH_SIZE = 8
+const EVENT_TRIGGER_BATCH_SIZE = 20
 
 // How many future events are within range of the user. Used to pick
 // which inline coaching variant the no-match welcome should carry
@@ -67,7 +67,10 @@ async function processEventTrigger(eventId: string) {
     }
   }
 
-  const allUsers = await getActiveUsers()
+  const [allUsers, existingMatchMap] = await Promise.all([
+    getActiveUsers(),
+    getExistingMatchesForEvent(eventId),
+  ])
   const users = allUsers.filter(isMatchEligible)
   console.log(
     `process-matches: scoring event "${event.name}" (${event.status}) against ${users.length} eligible users (skipped ${
@@ -79,10 +82,13 @@ async function processEventTrigger(eventId: string) {
   // this, a one-off Claude/Supabase blip for a single user is invisible.
   let scored = 0
   let failed = 0
-  for (let i = 0; i < users.length; i += BATCH_SIZE) {
-    const batch = users.slice(i, i + BATCH_SIZE)
+  for (let i = 0; i < users.length; i += EVENT_TRIGGER_BATCH_SIZE) {
+    const batch = users.slice(i, i + EVENT_TRIGGER_BATCH_SIZE)
     const results = await Promise.all(
-      batch.map((user) => scoreAndNotify(event, user, 'event', { preNotify: !isLive })),
+      batch.map((user) => scoreAndNotify(event, user, 'event', {
+        preNotify: !isLive,
+        existingMatch: existingMatchMap.get(user.id) ?? null,
+      })),
     )
     for (const r of results) {
       if (r === 'scored') scored++
@@ -287,10 +293,10 @@ async function scoreAndNotify(
   event: AirtableEvent,
   user: AirtableUser,
   fixedSide: 'event' | 'user',
-  opts: { preNotify?: boolean } = {},
+  opts: { preNotify?: boolean; existingMatch?: { notified_at: string | null; inputs_hash: string | null } | null } = {},
 ): Promise<ScoreOutcomeStatus> {
   try {
-    const outcome = await scoreFresh(event, user, fixedSide)
+    const outcome = await scoreFresh(event, user, fixedSide, opts.existingMatch)
 
     const result = outcome.result
     await logMatch({
@@ -347,8 +353,11 @@ async function scoreFresh(
   event: AirtableEvent,
   user: AirtableUser,
   fixedSide: 'event' | 'user',
+  prefetchedMatch?: { notified_at: string | null; inputs_hash: string | null } | null,
 ): Promise<ScoreOutcome> {
-  const existing = await getExistingMatch(event.id, user.id)
+  // Use pre-fetched match when available (event trigger pre-loads all rows
+  // in one query); fall back to per-row lookup for user-trigger path.
+  const existing = prefetchedMatch !== undefined ? prefetchedMatch : await getExistingMatch(event.id, user.id)
   const previousNotifiedAt = existing?.notified_at ?? null
   const result = await scoreEventUser(event, user, fixedSide)
   return { previousNotifiedAt, result }

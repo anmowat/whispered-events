@@ -856,6 +856,29 @@ export async function getLastSeenByUserId(): Promise<Map<string, string>> {
 // present but hash differs from the current MATCHING_VERSION hash).
 // Queries per-event in parallel with an explicit high limit to avoid
 // PostgREST max_rows silently truncating a bulk cross-product fetch.
+// Pre-fetch all match metadata for one event in a single query.
+// Used by processEventTrigger to avoid N per-user round-trips.
+export async function getExistingMatchesForEvent(
+  eventId: string,
+): Promise<Map<string, { notified_at: string | null; inputs_hash: string | null }>> {
+  const out = new Map<string, { notified_at: string | null; inputs_hash: string | null }>()
+  if (!eventId) return out
+  const supabase = getClient()
+  const { data, error } = await supabase
+    .from('matches')
+    .select('user_id, notified_at, inputs_hash')
+    .eq('event_id', eventId)
+    .limit(10_000)
+  if (error) {
+    console.error('getExistingMatchesForEvent error', { eventId, error })
+    return out
+  }
+  for (const row of (data ?? []) as Array<{ user_id: string; notified_at: string | null; inputs_hash: string | null }>) {
+    if (row.user_id) out.set(row.user_id, { notified_at: row.notified_at ?? null, inputs_hash: row.inputs_hash ?? null })
+  }
+  return out
+}
+
 export async function getExistingMatchHashes(
   eventIds: string[],
 ): Promise<Map<string, string | null>> {
