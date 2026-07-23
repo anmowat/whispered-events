@@ -186,6 +186,24 @@ export async function getUsersByIds(ids: string[]): Promise<AirtableUser[]> {
 // (via isMatchEligible), so we don't pre-filter on those here — the contract
 // stays "every active user, callers decide what to do with them" which is
 // what the Airtable version returned today.
+// Minimal shape for geo-range calculations — only id, lat, lng.
+export async function getActiveUserLocations(): Promise<Array<{ id: string; lat: number; lng: number }>> {
+  const supabase = getSupabase()
+  const { data, error } = await supabase
+    .from('users')
+    .select('id, lat, lng')
+    .eq('active', true)
+    .is('airtable_deleted_at', null)
+    .is('deleted_at', null)
+    .not('lat', 'is', null)
+    .not('lng', 'is', null)
+  if (error) {
+    console.error('getActiveUserLocations error', error)
+    return []
+  }
+  return (data ?? []) as Array<{ id: string; lat: number; lng: number }>
+}
+
 export async function getActiveUsers(): Promise<AirtableUser[]> {
   const supabase = getSupabase()
   const { data, error } = await supabase

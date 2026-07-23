@@ -537,20 +537,21 @@ export async function getMatchCountsByEventId(
   if (eventIds.length === 0) return new Map()
   const supabase = getClient()
   const counts = new Map<string, number>()
-  await Promise.all(
-    eventIds.map(async (id) => {
-      const { count, error } = await supabase
-        .from('matches')
-        .select('*', { count: 'exact', head: true })
-        .eq('event_id', id)
-        .gte('match_percent', 40)
-      if (error) {
-        console.error('getMatchCountsByEventId error', { id, error })
-        return
-      }
-      if (count !== null) counts.set(id, count)
-    }),
-  )
+  // Single query: fetch event_id for all qualifying rows across all events,
+  // then count client-side. Far faster than N individual count queries.
+  const { data, error } = await supabase
+    .from('matches')
+    .select('event_id')
+    .in('event_id', eventIds)
+    .gte('match_percent', 40)
+    .limit(500_000)
+  if (error) {
+    console.error('getMatchCountsByEventId error', error)
+    return counts
+  }
+  for (const row of (data ?? []) as Array<{ event_id: string }>) {
+    counts.set(row.event_id, (counts.get(row.event_id) ?? 0) + 1)
+  }
   return counts
 }
 

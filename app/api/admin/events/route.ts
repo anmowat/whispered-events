@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { isAdmin } from '@/lib/admin-auth'
-import { getActiveUsers } from '@/lib/users'
+import { getActiveUserLocations } from '@/lib/users'
 import { getEventsForAdmin, type EventScope, type FeaturedFilter, type EventStatusBucket } from '@/lib/events'
 import { getMatchCountsByEventId, getRatingCountsByEventId } from '@/lib/supabase'
 import { withinMiles } from '@/lib/geocode'
@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const [allUsers, scopedEvents] = await Promise.all([
-      getActiveUsers(),
+      getActiveUserLocations(),
       getEventsForAdmin({
         scope: validScope,
         featured: validFeatured,
@@ -48,10 +48,8 @@ export async function GET(req: NextRequest) {
       getRatingCountsByEventId(eventIds),
     ])
 
-    const geocodedUsers = allUsers.filter(
-      (u): u is typeof u & { lat: number; lng: number } =>
-        typeof u.lat === 'number' && typeof u.lng === 'number',
-    )
+    // getActiveUserLocations already filters to geocoded users only
+    const geocodedUsers = allUsers
 
     const events = scopedEvents.map((e) => {
       const usersInRange =
