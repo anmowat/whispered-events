@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { isAdmin } from '@/lib/admin-auth'
 import { getActiveUsers } from '@/lib/users'
 import { getEventsForAdmin, type EventScope, type FeaturedFilter, type EventStatusBucket } from '@/lib/events'
-import { getMatchCountsByEventId } from '@/lib/supabase'
+import { getMatchCountsByEventId, getRatingCountsByEventId } from '@/lib/supabase'
 import { withinMiles } from '@/lib/geocode'
 import { NEARBY_RADIUS_MILES } from '@/lib/matching'
 
@@ -43,7 +43,10 @@ export async function GET(req: NextRequest) {
       }),
     ])
     const eventIds = scopedEvents.map((e) => e.id)
-    const matchCounts = await getMatchCountsByEventId(eventIds)
+    const [matchCounts, ratingCounts] = await Promise.all([
+      getMatchCountsByEventId(eventIds),
+      getRatingCountsByEventId(eventIds),
+    ])
 
     const geocodedUsers = allUsers.filter(
       (u): u is typeof u & { lat: number; lng: number } =>
@@ -80,6 +83,7 @@ export async function GET(req: NextRequest) {
         featured: e.featured === true,
         status: e.status || 'Pending',
         hostCount: (e.hostIds ?? []).length,
+        ratings: ratingCounts.get(e.id) ?? { interested: 0, skip: 0, not_a_fit: 0, host_up: 0, host_down: 0 },
       }
     })
 

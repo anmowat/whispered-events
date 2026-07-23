@@ -22,6 +22,7 @@ interface EventRow {
   featured: boolean
   status: string
   hostCount: number
+  ratings: { interested: number; skip: number; not_a_fit: number; host_up: number; host_down: number }
 }
 
 interface Stats {
@@ -371,10 +372,11 @@ export default function AdminEventsPage() {
                     <SortHeader label="Date" sortKey="date" align="left" toggleSort={toggleSort} sortBy={sortBy} sortDir={sortDir} />
                     <SortHeader label="Created" sortKey="created" align="left" toggleSort={toggleSort} sortBy={sortBy} sortDir={sortDir} />
                     <SortHeader label="Location" sortKey="location" align="left" toggleSort={toggleSort} sortBy={sortBy} sortDir={sortDir} />
-                    <th className="text-left px-3 py-3 text-[11px] uppercase tracking-widest text-gray-500 font-medium">Audience</th>
                     <SortHeader label="In range" sortKey="usersInRange" align="right" toggleSort={toggleSort} sortBy={sortBy} sortDir={sortDir} />
                     <SortHeader label="Matches" sortKey="matches" align="right" toggleSort={toggleSort} sortBy={sortBy} sortDir={sortDir} />
                     <SortHeader label="% Match" sortKey="matchPct" align="right" toggleSort={toggleSort} sortBy={sortBy} sortDir={sortDir} />
+                    <th className="text-center px-2 py-3 text-[11px] uppercase tracking-widest text-gray-500 font-medium">RateU</th>
+                    <th className="text-center px-2 py-3 text-[11px] uppercase tracking-widest text-gray-500 font-medium">RateH</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -426,9 +428,6 @@ export default function AdminEventsPage() {
                       <td className="px-3 py-3 text-gray-600 text-xs truncate max-w-[200px]">
                         {e.location || <span className="text-gray-400 italic">—</span>}
                       </td>
-                      <td className="px-3 py-3 text-gray-600 text-xs truncate max-w-[200px]">
-                        {e.audience.length ? e.audience.join(', ') : <span className="text-gray-400 italic">—</span>}
-                      </td>
                       <td className="px-3 py-3 text-right tabular-nums text-gray-700">{e.usersInRange}</td>
                       <td className="px-3 py-3 text-right tabular-nums text-gray-700">{e.matchCount}</td>
                       <td
@@ -443,6 +442,16 @@ export default function AdminEventsPage() {
                         }`}
                       >
                         {e.matchPct === null ? '—' : `${e.matchPct}%`}
+                      </td>
+                      <td className="px-3 py-3 text-right tabular-nums text-gray-600 text-xs">
+                        {e.ratings.interested === 0 && e.ratings.skip === 0 && e.ratings.not_a_fit === 0
+                          ? <span className="text-gray-400 italic">—</span>
+                          : `${e.ratings.interested}/${e.ratings.skip}/${e.ratings.not_a_fit}`}
+                      </td>
+                      <td className="px-3 py-3 text-right tabular-nums text-gray-600 text-xs">
+                        {e.ratings.host_up === 0 && e.ratings.host_down === 0
+                          ? <span className="text-gray-400 italic">—</span>
+                          : `${e.ratings.host_up}/${e.ratings.host_down}`}
                       </td>
                     </tr>
                   ))}

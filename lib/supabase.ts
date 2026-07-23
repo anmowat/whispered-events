@@ -494,6 +494,41 @@ export async function getRegionCountsByEventId(
 // Mirrors the threshold used on the event detail page so list and detail agree.
 // Uses individual COUNT queries per event (head:true = no rows returned) to
 // avoid PostgREST max_rows limits that silently truncate bulk .in() results.
+export interface EventRatingCounts {
+  interested: number
+  skip: number
+  not_a_fit: number
+  host_up: number
+  host_down: number
+}
+
+// Fetch user + host rating counts for multiple events in one query.
+export async function getRatingCountsByEventId(
+  eventIds: string[],
+): Promise<Map<string, EventRatingCounts>> {
+  const out = new Map<string, EventRatingCounts>()
+  if (eventIds.length === 0) return out
+  const supabase = getClient()
+  const { data, error } = await supabase
+    .from('matches')
+    .select('event_id, rating, host_rating')
+    .in('event_id', eventIds)
+  if (error) {
+    console.error('getRatingCountsByEventId error', error)
+    return out
+  }
+  for (const row of (data ?? []) as Array<{ event_id: string; rating: string | null; host_rating: string | null }>) {
+    if (!out.has(row.event_id)) out.set(row.event_id, { interested: 0, skip: 0, not_a_fit: 0, host_up: 0, host_down: 0 })
+    const c = out.get(row.event_id)!
+    if (row.rating === 'interested') c.interested++
+    else if (row.rating === 'skip') c.skip++
+    else if (row.rating === 'not_a_fit') c.not_a_fit++
+    if (row.host_rating === 'up') c.host_up++
+    else if (row.host_rating === 'down') c.host_down++
+  }
+  return out
+}
+
 export async function getMatchCountsByEventId(
   eventIds: string[],
 ): Promise<Map<string, number>> {
