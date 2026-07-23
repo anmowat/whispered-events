@@ -100,6 +100,10 @@ export async function GET(
           qualityScore: m?.quality_score ?? null,
           preferenceScore: m?.preference_score ?? null,
           skippedReason: m?.skipped_reason ?? null,
+          rating: m?.rating ?? null,
+          ratingReason: m?.rating_reason ?? null,
+          hostRating: m?.host_rating ?? null,
+          hostFeedback: m?.host_feedback ?? null,
         }
       })
       .sort((a, b) => {

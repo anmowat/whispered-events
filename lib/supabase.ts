@@ -541,7 +541,7 @@ export async function getAllMatchesForEvent(eventId: string): Promise<EventMatch
   const { data, error } = await supabase
     .from('matches')
     .select(
-      'user_id, score, match_percent, location_score, audience_score, quality_score, preference_score, skipped_reason',
+      'user_id, score, match_percent, location_score, audience_score, quality_score, preference_score, skipped_reason, rating, rating_reason, host_rating, host_feedback',
     )
     .eq('event_id', eventId)
     .limit(10_000)

@@ -135,6 +135,10 @@ interface UserRow {
   qualityScore: number | null
   preferenceScore: number | null
   skippedReason: string | null
+  rating: 'interested' | 'skip' | 'not_a_fit' | null
+  ratingReason: string | null
+  hostRating: 'up' | 'down' | null
+  hostFeedback: string | null
 }
 
 function fmtNum(n: number | null): string {
@@ -1157,6 +1161,8 @@ export default function AdminEventDetailPage() {
                     <UserSortHeader label="Location" sortKey="location" align="left" sortBy={userSortBy} sortDir={userSortDir} toggle={toggleUserSort} />
                     <UserSortHeader label="Interest" sortKey="interest" align="left" sortBy={userSortBy} sortDir={userSortDir} toggle={toggleUserSort} />
                     <UserSortHeader label="% Match" sortKey="matchPercent" align="right" sortBy={userSortBy} sortDir={userSortDir} toggle={toggleUserSort} />
+                    <th className="text-center px-2 py-3 text-xs uppercase tracking-widest text-gold-700 font-medium">RateU</th>
+                    <th className="text-center px-2 py-3 text-xs uppercase tracking-widest text-gold-700 font-medium">RateH</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1194,6 +1200,21 @@ export default function AdminEventDetailPage() {
                           : u.matchPercent === null
                             ? '—'
                             : `${u.matchPercent}%`}
+                      </td>
+                      <td className="px-2 py-3 text-center text-base">
+                        {u.rating === 'interested' && <span title="Interested">✓</span>}
+                        {u.rating === 'skip' && <span title="Skip">♡</span>}
+                        {u.rating === 'not_a_fit' && (
+                          <span title={u.ratingReason ? `Not a fit: ${u.ratingReason}` : 'Not a fit'} className="cursor-help">✕</span>
+                        )}
+                        {!u.rating && <span className="text-gray-300">—</span>}
+                      </td>
+                      <td className="px-2 py-3 text-center text-base">
+                        {u.hostRating === 'up' && <span title="Host: thumbs up">👍</span>}
+                        {u.hostRating === 'down' && (
+                          <span title={u.hostFeedback ? `Host: ${u.hostFeedback}` : 'Host: thumbs down'} className="cursor-help">👎</span>
+                        )}
+                        {!u.hostRating && <span className="text-gray-300">—</span>}
                       </td>
                     </tr>
                   ))}
