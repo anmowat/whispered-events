@@ -331,7 +331,6 @@ export default function HostPage() {
                     >
                       Matches
                     </th>
-                    <th className="text-right px-4 py-3 eyebrow"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -344,19 +343,13 @@ export default function HostPage() {
                       }}
                     >
                       <td className="px-4 py-3 max-w-sm">
-                        {e.link ? (
-                          <a
-                            href={e.link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="underline"
-                            style={{ color: 'var(--accent)', textUnderlineOffset: 3 }}
-                          >
-                            {e.name}
-                          </a>
-                        ) : (
-                          <span style={{ color: 'var(--ink)' }}>{e.name}</span>
-                        )}
+                        <a
+                          href={`/host/${e.id}`}
+                          className="underline"
+                          style={{ color: 'var(--accent)', textUnderlineOffset: 3 }}
+                        >
+                          {e.name}
+                        </a>
                       </td>
                       <td className="px-4 py-3 truncate max-w-xs" style={{ color: 'var(--ink-2)' }}>
                         {e.location || <span className="italic" style={{ color: 'var(--ink-3)' }}>—</span>}
@@ -378,15 +371,6 @@ export default function HostPage() {
                             <span style={{ color: 'var(--ink-2)' }}>{e.regionCount}</span>
                           </span>
                         )}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <a
-                          href={`/host/${e.id}`}
-                          className="underline text-[12px]"
-                          style={{ color: 'var(--accent)', textUnderlineOffset: 3 }}
-                        >
-                          View
-                        </a>
                       </td>
                     </tr>
                   ))}
