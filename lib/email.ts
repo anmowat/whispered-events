@@ -1117,7 +1117,7 @@ export async function sendApprovedWithDigest(
 
     ${h1(`<span style="font-style:italic;">Welcome</span> to the club, ${escapeHtml(firstName)}.`)}
     ${p(introCopyHtml, { mt: 14 })}
-    ${ratingNudgeHtml}
+    ${hasMatches ? ratingNudgeHtml : ''}
     ${renderEntries(annotated.newEvents, user.id)}
     ${moreHtml}
     ${coachingHtml}
@@ -1131,11 +1131,15 @@ export async function sendApprovedWithDigest(
     '',
     introCopyText,
     '',
-    'Rating your matches helps us:',
-    '• Send you more matches: When you rate more we unlock the next match',
-    '• Improve your matches: Our algorithm learns from your feedback',
-    '',
   ]
+  if (hasMatches) {
+    textLines.push(
+      'Rating your matches helps us:',
+      '• Send you more matches: When you rate more we unlock the next match',
+      '• Improve your matches: Our algorithm learns from your feedback',
+      '',
+    )
+  }
   const appendEntries = (entries: DigestEventEntry[]) => {
     if (!entries.length) return
     for (const entry of entries) {
