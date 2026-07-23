@@ -513,6 +513,8 @@ export async function getRatingCountsByEventId(
     .from('matches')
     .select('event_id, rating, host_rating')
     .in('event_id', eventIds)
+    .or('rating.not.is.null,host_rating.not.is.null')
+    .limit(50_000)
   if (error) {
     console.error('getRatingCountsByEventId error', error)
     return out
