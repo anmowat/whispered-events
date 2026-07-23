@@ -39,7 +39,7 @@ const SCOPE_LABEL: Record<Scope, string> = {
   all: 'All events',
 }
 
-type SortKey = 'name' | 'type' | 'date' | 'created' | 'location' | 'matches' | 'usersInRange' | 'matchPct'
+type SortKey = 'name' | 'type' | 'date' | 'created' | 'location' | 'matches' | 'usersInRange' | 'matchPct' | 'rateU' | 'rateH'
 type SortDir = 'asc' | 'desc'
 
 const DEFAULT_DIR: Record<SortKey, SortDir> = {
@@ -51,6 +51,8 @@ const DEFAULT_DIR: Record<SortKey, SortDir> = {
   matches: 'desc',
   usersInRange: 'desc',
   matchPct: 'desc',
+  rateU: 'desc',
+  rateH: 'desc',
 }
 
 const POLL_MS = 15_000
@@ -113,6 +115,12 @@ function compareByKey(a: EventRow, b: EventRow, key: SortKey): number {
       const bp = b.matchPct ?? -1
       return ap - bp
     }
+    case 'rateU':
+      return (a.ratings.interested + a.ratings.skip + a.ratings.not_a_fit) -
+             (b.ratings.interested + b.ratings.skip + b.ratings.not_a_fit)
+    case 'rateH':
+      return (a.ratings.host_up + a.ratings.host_down) -
+             (b.ratings.host_up + b.ratings.host_down)
   }
 }
 
@@ -375,8 +383,8 @@ export default function AdminEventsPage() {
                     <SortHeader label="In range" sortKey="usersInRange" align="right" toggleSort={toggleSort} sortBy={sortBy} sortDir={sortDir} />
                     <SortHeader label="Matches" sortKey="matches" align="right" toggleSort={toggleSort} sortBy={sortBy} sortDir={sortDir} />
                     <SortHeader label="% Match" sortKey="matchPct" align="right" toggleSort={toggleSort} sortBy={sortBy} sortDir={sortDir} />
-                    <th className="text-center px-2 py-3 text-[11px] uppercase tracking-widest text-gray-500 font-medium">RateU</th>
-                    <th className="text-center px-2 py-3 text-[11px] uppercase tracking-widest text-gray-500 font-medium">RateH</th>
+                    <SortHeader label="RateU" sortKey="rateU" align="right" toggleSort={toggleSort} sortBy={sortBy} sortDir={sortDir} />
+                    <SortHeader label="RateH" sortKey="rateH" align="right" toggleSort={toggleSort} sortBy={sortBy} sortDir={sortDir} />
                   </tr>
                 </thead>
                 <tbody>
