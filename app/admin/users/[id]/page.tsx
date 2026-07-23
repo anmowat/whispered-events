@@ -113,6 +113,10 @@ interface EventRow {
   qualityScore: number | null
   preferenceScore: number | null
   skippedReason: string | null
+  rating: 'interested' | 'skip' | 'not_a_fit' | null
+  ratingReason: string | null
+  hostRating: 'up' | 'down' | null
+  hostFeedback: string | null
 }
 
 function fmtNum(n: number | null): string {
@@ -683,6 +687,8 @@ export default function AdminUserDetailPage() {
                     <th className="text-left px-4 py-3 text-xs uppercase tracking-widest text-gold-700 font-medium">Location</th>
                     <th className="text-left px-4 py-3 text-xs uppercase tracking-widest text-gold-700 font-medium">Audience</th>
                     <th className="text-right px-4 py-3 text-xs uppercase tracking-widest text-gold-700 font-medium">% Match</th>
+                    <th className="text-center px-2 py-3 text-xs uppercase tracking-widest text-gold-700 font-medium">RateU</th>
+                    <th className="text-center px-2 py-3 text-xs uppercase tracking-widest text-gold-700 font-medium">RateH</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -721,6 +727,21 @@ export default function AdminUserDetailPage() {
                           : e.matchPercent === null
                             ? '—'
                             : `${e.matchPercent}%`}
+                      </td>
+                      <td className="px-2 py-3 text-center text-base">
+                        {e.rating === 'interested' && <span title="Interested">✓</span>}
+                        {e.rating === 'skip' && <span title="Skip">♡</span>}
+                        {e.rating === 'not_a_fit' && (
+                          <span title={e.ratingReason ? `Not a fit: ${e.ratingReason}` : 'Not a fit'} className="cursor-help">✕</span>
+                        )}
+                        {!e.rating && <span className="text-gray-300">—</span>}
+                      </td>
+                      <td className="px-2 py-3 text-center text-base">
+                        {e.hostRating === 'up' && <span title="Host: thumbs up">👍</span>}
+                        {e.hostRating === 'down' && (
+                          <span title={e.hostFeedback ? `Host: ${e.hostFeedback}` : 'Host: thumbs down'} className="cursor-help">👎</span>
+                        )}
+                        {!e.hostRating && <span className="text-gray-300">—</span>}
                       </td>
                     </tr>
                   ))}

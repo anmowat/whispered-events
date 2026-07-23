@@ -382,6 +382,10 @@ export interface MatchAuditRow {
   quality_score: number | null
   preference_score: number | null
   skipped_reason: string | null
+  rating: 'interested' | 'skip' | 'not_a_fit' | null
+  rating_reason: string | null
+  host_rating: 'up' | 'down' | null
+  host_feedback: string | null
 }
 
 export interface DigestMatchRow {
@@ -688,7 +692,7 @@ export async function getAllMatchesForUser(userId: string): Promise<MatchAuditRo
   const supabase = getClient()
   const { data } = await supabase
     .from('matches')
-    .select('event_id, score, match_percent, location_score, audience_score, quality_score, preference_score, skipped_reason')
+    .select('event_id, score, match_percent, location_score, audience_score, quality_score, preference_score, skipped_reason, rating, rating_reason, host_rating, host_feedback')
     .eq('user_id', userId)
     .order('score', { ascending: false })
   return (data ?? []) as MatchAuditRow[]
