@@ -639,15 +639,16 @@ export default function AdminEventDetailPage() {
     fetchAnchorEvents()
   }, [eventId])
 
-  const [userSortBy, setUserSortBy] = useState<'matchPercent' | 'function' | 'seniority' | 'grade' | 'location' | 'interest'>('matchPercent')
+  type UserSortKey = 'matchPercent' | 'function' | 'seniority' | 'grade' | 'location' | 'interest' | 'rateU' | 'rateH'
+  const [userSortBy, setUserSortBy] = useState<UserSortKey>('matchPercent')
   const [userSortDir, setUserSortDir] = useState<'asc' | 'desc'>('desc')
 
-  function toggleUserSort(key: typeof userSortBy) {
+  function toggleUserSort(key: UserSortKey) {
     if (userSortBy === key) {
       setUserSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
     } else {
       setUserSortBy(key)
-      setUserSortDir(key === 'matchPercent' ? 'desc' : 'asc')
+      setUserSortDir(key === 'matchPercent' || key === 'rateU' || key === 'rateH' ? 'desc' : 'asc')
     }
   }
 
@@ -660,6 +661,16 @@ export default function AdminEventDetailPage() {
         const ap = a.matchPercent ?? -1
         const bp = b.matchPercent ?? -1
         return (ap - bp) * dir
+      }
+      if (userSortBy === 'rateU') {
+        const au = a.rating != null ? 1 : 0
+        const bu = b.rating != null ? 1 : 0
+        return (au - bu) * dir
+      }
+      if (userSortBy === 'rateH') {
+        const ah = a.hostRating != null ? 1 : 0
+        const bh = b.hostRating != null ? 1 : 0
+        return (ah - bh) * dir
       }
       const av = (a[userSortBy] ?? '').toLowerCase()
       const bv = (b[userSortBy] ?? '').toLowerCase()
@@ -1161,8 +1172,8 @@ export default function AdminEventDetailPage() {
                     <UserSortHeader label="Location" sortKey="location" align="left" sortBy={userSortBy} sortDir={userSortDir} toggle={toggleUserSort} />
                     <UserSortHeader label="Interest" sortKey="interest" align="left" sortBy={userSortBy} sortDir={userSortDir} toggle={toggleUserSort} />
                     <UserSortHeader label="% Match" sortKey="matchPercent" align="right" sortBy={userSortBy} sortDir={userSortDir} toggle={toggleUserSort} />
-                    <th className="text-center px-2 py-3 text-xs uppercase tracking-widest text-gold-700 font-medium">RateU</th>
-                    <th className="text-center px-2 py-3 text-xs uppercase tracking-widest text-gold-700 font-medium">RateH</th>
+                    <UserSortHeader label="RateU" sortKey="rateU" align="right" sortBy={userSortBy} sortDir={userSortDir} toggle={toggleUserSort} />
+                    <UserSortHeader label="RateH" sortKey="rateH" align="right" sortBy={userSortBy} sortDir={userSortDir} toggle={toggleUserSort} />
                   </tr>
                 </thead>
                 <tbody>
@@ -1275,7 +1286,7 @@ function UserSortHeader({
   toggle,
 }: {
   label: string
-  sortKey: 'matchPercent' | 'function' | 'seniority' | 'grade' | 'location' | 'interest'
+  sortKey: 'matchPercent' | 'function' | 'seniority' | 'grade' | 'location' | 'interest' | 'rateU' | 'rateH'
   align: 'left' | 'right'
   sortBy: typeof sortKey
   sortDir: 'asc' | 'desc'
