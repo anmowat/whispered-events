@@ -652,10 +652,8 @@ function Landing({
                 fontFamily: SERIF,
                 fontStyle: 'italic',
                 fontSize: 18,
+                fontWeight: 700,
                 color: '#c9a86a',
-                textDecoration: 'underline',
-                textUnderlineOffset: 4,
-                textDecorationColor: 'rgba(201,168,106,.4)',
                 marginRight: 6,
               }}
             >
