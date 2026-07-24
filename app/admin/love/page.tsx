@@ -13,6 +13,7 @@ interface LoveEntry {
   image_url: string
   linkedin_url: string
   sort_order: number
+  created_at: string | null
 }
 
 export default function AdminLovePage() {
@@ -301,6 +302,7 @@ export default function AdminLovePage() {
                       <th className="px-3 py-3 text-[11px] uppercase tracking-widest text-gray-500 font-medium text-left">Name</th>
                       <th className="px-3 py-3 text-[11px] uppercase tracking-widest text-gray-500 font-medium text-left">Role</th>
                       <th className="px-3 py-3 text-[11px] uppercase tracking-widest text-gray-500 font-medium text-left">LinkedIn URL</th>
+                      <th className="px-3 py-3 text-[11px] uppercase tracking-widest text-gray-500 font-medium text-left">Added</th>
                       <th className="w-8 px-3 py-3" />
                     </tr>
                   </thead>
@@ -410,6 +412,13 @@ export default function AdminLovePage() {
                               onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur() }}
                               className={`${input} text-gray-400`}
                             />
+                          </td>
+
+                          {/* Date added */}
+                          <td className="px-3 py-2 text-xs text-gray-400 whitespace-nowrap">
+                            {entry.created_at
+                              ? new Date(entry.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                              : <span className="italic">—</span>}
                           </td>
 
                           {/* Delete */}
