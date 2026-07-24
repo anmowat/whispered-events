@@ -141,6 +141,10 @@ export async function enrichUserFromLinkedIn(
           : `AnySite 412: ${body.slice(0, 200)}`,
       }
     }
+    // 429/502/503/504/529 mean transient overload — all retries exhausted.
+    if ([429, 502, 503, 504, 529].includes(resp.status)) {
+      return { ok: false, reason: `AnySite is temporarily unavailable (${resp.status}) — please try again in a minute` }
+    }
     return { ok: false, reason: `AnySite ${resp.status}: ${body.slice(0, 200)}` }
   }
 
