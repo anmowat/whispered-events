@@ -648,6 +648,20 @@ export async function markAllMatchesNotifiedForUser(userId: string): Promise<voi
   }
 }
 
+// Count of all notified matches since inception.
+export async function getAllTimeNotifiedMatchCount(): Promise<number> {
+  const supabase = getClient()
+  const { count, error } = await supabase
+    .from('matches')
+    .select('*', { count: 'exact', head: true })
+    .not('notified_at', 'is', null)
+  if (error) {
+    console.error('getAllTimeNotifiedMatchCount error', error)
+    return 0
+  }
+  return count ?? 0
+}
+
 // Count of (user, event) matches we've notified about in the last N
 // days. Powers the public "X event matches last 30 days" counter under
 // the Find Events CTA on the homepage. count='exact' + head=true means

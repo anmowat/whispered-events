@@ -661,7 +661,7 @@ function Landing({
             >
               {matches30.toLocaleString()}
             </span>
-            event matches in past 30 days
+            Matches since inception (June 2026)
           </p>
         )}
 
