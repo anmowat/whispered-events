@@ -612,26 +612,16 @@ function Landing({
 
         {tab === 'view' && matches30 !== null && matches30 > 0 && (
           <p
-            className="mt-3 text-center"
+            className="mt-3 text-center text-[15px] sm:text-[17px]"
             style={{
-              fontSize: 13,
-              lineHeight: 1.5,
-              color: 'rgba(236,230,218,.5)',
+              lineHeight: 1.65,
+              color: 'rgba(236,230,218,.6)',
             }}
           >
-            <span
-              style={{
-                fontFamily: SERIF,
-                fontStyle: 'italic',
-                fontSize: 16,
-                fontWeight: 700,
-                color: '#c9a86a',
-                marginRight: 5,
-              }}
-            >
+            <span style={{ fontWeight: 700, color: '#c9a86a', marginRight: 5 }}>
               {matches30.toLocaleString()}
             </span>
-            Matches since inception (June 2026)
+            Matches since June 2026
           </p>
         )}
 
