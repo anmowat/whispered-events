@@ -610,6 +610,31 @@ function Landing({
           {content.subhead}
         </p>
 
+        {tab === 'view' && matches30 !== null && matches30 > 0 && (
+          <p
+            className="mt-3 text-center"
+            style={{
+              fontSize: 13,
+              lineHeight: 1.5,
+              color: 'rgba(236,230,218,.5)',
+            }}
+          >
+            <span
+              style={{
+                fontFamily: SERIF,
+                fontStyle: 'italic',
+                fontSize: 16,
+                fontWeight: 700,
+                color: '#c9a86a',
+                marginRight: 5,
+              }}
+            >
+              {matches30.toLocaleString()}
+            </span>
+            Matches since inception (June 2026)
+          </p>
+        )}
+
         {/* Inline three-step rundown — replaces the standalone HOW IT
             WORKS band that used to live further down the page. */}
         <HeroSteps steps={content.heroSteps} />
@@ -633,37 +658,6 @@ function Landing({
             </button>
           </div>
         )}
-
-        {/* Find Events tab: live counter of matches notified in the
-            last 30 days. Number rendered in italic-champagne Cormorant
-            with the same underline treatment as the Contribute /
-            Partner tab links — visually a sibling, not a CTA. */}
-        {tab === 'view' && matches30 !== null && matches30 > 0 && (
-          <p
-            className="mt-5 text-center"
-            style={{
-              fontSize: 14,
-              lineHeight: 1.5,
-              color: 'rgba(236,230,218,.7)',
-            }}
-          >
-            <span
-              style={{
-                fontFamily: SERIF,
-                fontStyle: 'italic',
-                fontSize: 18,
-                fontWeight: 700,
-                color: '#c9a86a',
-                marginRight: 6,
-              }}
-            >
-              {matches30.toLocaleString()}
-            </span>
-            Matches since inception (June 2026)
-          </p>
-        )}
-
-
 
         {/* Partner tab: "see all our partners" link lives below the
             marquee at the bottom of the page (see partner section
