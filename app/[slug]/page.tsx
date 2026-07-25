@@ -191,14 +191,23 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
   // a different chunk and they rotate in unison (slot0↔slot1 swap etc.)
   useEffect(() => {
     if (offerChunks.length <= 1) return
+    const timers: ReturnType<typeof setTimeout>[] = []
     const id = setInterval(() => {
       setOffersVisible(false)
-      setTimeout(() => {
+      // Wait slightly longer than the 0.4s CSS transition so opacity
+      // fully reaches 0 before swapping content (avoids flash on swap).
+      timers.push(setTimeout(() => {
         setOfferTick((t) => t + 1)
-        setOffersVisible(true)
-      }, 400)
+        // Give the browser one frame to render new content, then fade in.
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => setOffersVisible(true))
+        })
+      }, 450))
     }, 10000)
-    return () => clearInterval(id)
+    return () => {
+      clearInterval(id)
+      timers.forEach(clearTimeout)
+    }
   }, [offerChunks.length])
 
   function toggleDescription(id: string) {
