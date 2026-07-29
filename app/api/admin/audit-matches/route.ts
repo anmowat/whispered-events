@@ -29,11 +29,20 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'email query param required' }, { status: 400 })
   }
 
-  const [matches, events, user] = await Promise.all([
-    getAllMatchesForUser(email.toLowerCase().trim()),
-    getFutureEvents(),
-    getUserByEmail(email.toLowerCase().trim()),
-  ])
+  // getFutureEvents throws on a Supabase error rather than returning [].
+  let matches
+  let events
+  let user
+  try {
+    ;[matches, events, user] = await Promise.all([
+      getAllMatchesForUser(email.toLowerCase().trim()),
+      getFutureEvents(),
+      getUserByEmail(email.toLowerCase().trim()),
+    ])
+  } catch (err) {
+    console.error('audit-matches: load failed', err)
+    return NextResponse.json({ error: 'could not load audit data' }, { status: 500 })
+  }
   const eventById = new Map(events.map((e) => [e.id, e]))
 
   const userBlock = user

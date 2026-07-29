@@ -6,10 +6,19 @@ import { withinMiles } from '@/lib/geocode'
 import {
   scoreEventUser,
   isMatchEligible,
+  computeInputsHash,
   NEARBY_RADIUS_MILES,
   ScoreResult,
 } from '@/lib/matching'
-import { getExistingMatch, getExistingMatchesForEvent, logMatch, markMatchesNotified, resetNotifiedAtForEvent } from '@/lib/supabase'
+import {
+  CachedMatchRow,
+  getExistingMatch,
+  getExistingMatchesForEvent,
+  getExistingMatchesForUser,
+  logMatch,
+  markMatchesNotified,
+  resetNotifiedAtForEvent,
+} from '@/lib/supabase'
 import {
   sendUserDigest,
   sendApprovedWithDigest,
@@ -46,7 +55,7 @@ function countNearbyEvents(user: AirtableUser, events: AirtableEvent[]): number 
   return n
 }
 
-async function processEventTrigger(eventId: string) {
+async function processEventTrigger(eventId: string, force = false) {
   // Use getEventById so Pending events (not yet Live) can be pre-scored for
   // admin preview. getFutureEvents() filters status='Live' and would miss them.
   const event = await getEventById(eventId)
@@ -81,6 +90,7 @@ async function processEventTrigger(eventId: string) {
   // Tally per-user outcomes so silent failures surface in logs. Without
   // this, a one-off Claude/Supabase blip for a single user is invisible.
   let scored = 0
+  let cached = 0
   let failed = 0
   for (let i = 0; i < users.length; i += EVENT_TRIGGER_BATCH_SIZE) {
     const batch = users.slice(i, i + EVENT_TRIGGER_BATCH_SIZE)
@@ -88,22 +98,25 @@ async function processEventTrigger(eventId: string) {
       batch.map((user) => scoreAndNotify(event, user, 'event', {
         preNotify: !isLive,
         existingMatch: existingMatchMap.get(user.id) ?? null,
+        force,
       })),
     )
     for (const r of results) {
       if (r === 'scored') scored++
+      else if (r === 'cached') cached++
       else failed++
     }
   }
   console.log(
-    `process-matches: event "${event.name}" done — scored ${scored}, failed ${failed} (of ${users.length})`,
+    `process-matches: event "${event.name}" done — scored ${scored}, cached ${cached}, failed ${failed} (of ${users.length})`,
   )
 }
 
 async function processUserTrigger(
   userId: string,
-  options: { noEmail?: boolean; welcome?: boolean; locationChanged?: boolean } = {},
+  options: { noEmail?: boolean; welcome?: boolean; locationChanged?: boolean; force?: boolean } = {},
 ) {
+  const force = options.force ?? false
   // Users are Supabase-canonical — getUserById reads the latest admin save
   // directly. No pre-fetch from Airtable needed.
   const targetUser = await getUserById(userId)
@@ -131,13 +144,20 @@ async function processUserTrigger(
     return
   }
 
-  const events = await getFutureEvents()
+  // Prefetch every prior score for this user in one query. Previously this
+  // path did a getExistingMatch round-trip per event; now the map covers all
+  // of them and also supplies the cached scores for unchanged pairs.
+  const [events, existingMatchMap] = await Promise.all([
+    getFutureEvents(),
+    getExistingMatchesForUser(targetUser.id),
+  ])
   console.log(
     `process-matches: scoring ${events.length} future events for user "${targetUser.email}"`,
   )
 
   const scored: Array<{ event: AirtableEvent; outcome: ScoreOutcome }> = []
   let failedCount = 0
+  let cachedCount = 0
 
   // Per-event try/catch isolates failures: a single 429 or timeout
   // shouldn't nuke the entire user's rescore. Failed events log + skip;
@@ -154,7 +174,20 @@ async function processUserTrigger(
     const results = await Promise.all(
       batch.map(async (event) => {
         try {
-          const outcome = await scoreFresh(event, targetUser!, 'user')
+          const outcome = await scoreFresh(
+            event,
+            targetUser!,
+            'user',
+            existingMatchMap.get(event.id) ?? null,
+            force,
+          )
+          // Cache hit: the stored row already holds these exact values, so
+          // the write would be a no-op. The pair still joins `scored` below
+          // so it participates in the digest's top-matches selection.
+          if (outcome.cached) {
+            cachedCount++
+            return { event, outcome }
+          }
           try {
             await logMatch({
               eventId: event.id,
@@ -190,7 +223,7 @@ async function processUserTrigger(
   }
 
   console.log(
-    `process-matches: user "${targetUser.email}" done — scored ${scored.length}, failed ${failedCount} (of ${events.length})`,
+    `process-matches: user "${targetUser.email}" done — scored ${scored.length - cachedCount} fresh, ${cachedCount} cached, failed ${failedCount} (of ${events.length})`,
   )
 
   if (options.noEmail) return
@@ -287,16 +320,22 @@ async function processUserTrigger(
   )
 }
 
-type ScoreOutcomeStatus = 'scored' | 'failed'
+type ScoreOutcomeStatus = 'scored' | 'cached' | 'failed'
 
 async function scoreAndNotify(
   event: AirtableEvent,
   user: AirtableUser,
   fixedSide: 'event' | 'user',
-  opts: { preNotify?: boolean; existingMatch?: { notified_at: string | null; inputs_hash: string | null } | null } = {},
+  opts: { preNotify?: boolean; existingMatch?: CachedMatchRow | null; force?: boolean } = {},
 ): Promise<ScoreOutcomeStatus> {
   try {
-    const outcome = await scoreFresh(event, user, fixedSide, opts.existingMatch)
+    const outcome = await scoreFresh(event, user, fixedSide, opts.existingMatch, opts.force)
+
+    // A cache hit means the stored row already holds exactly these values,
+    // so re-writing it would be a no-op — skip the round-trip. The one
+    // exception is preNotify, which stamps notified_at and therefore has to
+    // run even when the scores themselves didn't change.
+    if (outcome.cached && !opts.preNotify) return 'cached'
 
     const result = outcome.result
     await logMatch({
@@ -336,31 +375,63 @@ interface ScoreOutcome {
   // fresh per-event digest just because the rescore moved their score
   // around.
   previousNotifiedAt: string | null
+  // True when the stored inputs_hash matched, so the scores were reused
+  // and no LLM call was made. Callers skip the redundant logMatch write —
+  // the row already holds exactly these values.
+  cached: boolean
 }
 
-// Every trigger of process-matches re-runs the AI from scratch.
-// Triggers are rare and user-initiated (admin Refresh, a profile save,
-// event create/edit, status flip) — they're the moments where the
-// admin actively wants the latest rules applied. Skipping the AI here
-// is what caused Michelle's CMO score to stay stale: the inputs hash
-// matched her old cached row, the code thought "no work to do," and
-// her new audience-floor boost never landed.
+// Rebuild a ScoreResult from a previously-stored row. Only called when the
+// recomputed inputs hash equals the stored one, which means every field below
+// was produced under the same MATCHING_VERSION from the same inputs.
+// `reason` isn't persisted (nothing reads it back), so it gets a marker.
+function resultFromCachedRow(row: CachedMatchRow, inputsHash: string): ScoreResult {
+  return {
+    score: row.score ?? 0,
+    matchPercent: row.match_percent ?? 0,
+    location: row.location_score ?? 0,
+    audience: row.audience_score,
+    quality: row.quality_score ?? 0,
+    preferences: row.preference_score,
+    reason: 'cached — inputs unchanged since last scoring',
+    skippedReason: (row.skipped_reason as ScoreResult['skippedReason']) ?? null,
+    inputsHash,
+  }
+}
+
+// Reuse the stored scores when the inputs hash is unchanged, so a trigger
+// only pays for pairs that actually need rescoring.
 //
-// The bulk /api/admin/rescore-missing button still uses inputs_hash
-// to skip pairs that haven't changed — that's where the optimization
-// actually matters (thousands of pairs, slow LLM calls).
+// This used to re-run the AI unconditionally, because skipping once left a
+// stale score behind (Michelle's CMO case): the hash matched her old row, the
+// code thought "no work to do," and a new audience-floor boost never landed.
+// The real defect there was a rules change that didn't bump MATCHING_VERSION.
+// The version is the first field in computeInputsHash, so bumping it changes
+// every hash and invalidates every cached row automatically — which makes the
+// hash safe to trust here. See the MATCHING_VERSION comment in lib/matching.ts.
+//
+// `force` (?force=1) is the escape hatch for rescoring without a version bump.
 async function scoreFresh(
   event: AirtableEvent,
   user: AirtableUser,
   fixedSide: 'event' | 'user',
-  prefetchedMatch?: { notified_at: string | null; inputs_hash: string | null } | null,
+  prefetchedMatch?: CachedMatchRow | null,
+  force = false,
 ): Promise<ScoreOutcome> {
-  // Use pre-fetched match when available (event trigger pre-loads all rows
-  // in one query); fall back to per-row lookup for user-trigger path.
+  // Use pre-fetched match when available (both triggers pre-load all rows
+  // in one query); fall back to per-row lookup.
   const existing = prefetchedMatch !== undefined ? prefetchedMatch : await getExistingMatch(event.id, user.id)
   const previousNotifiedAt = existing?.notified_at ?? null
+
+  if (!force && existing?.inputs_hash) {
+    const hash = computeInputsHash(event, user)
+    if (hash === existing.inputs_hash) {
+      return { previousNotifiedAt, result: resultFromCachedRow(existing as CachedMatchRow, hash), cached: true }
+    }
+  }
+
   const result = await scoreEventUser(event, user, fixedSide)
-  return { previousNotifiedAt, result }
+  return { previousNotifiedAt, result, cached: false }
 }
 
 export async function GET(req: NextRequest) {
@@ -376,10 +447,14 @@ export async function GET(req: NextRequest) {
     const noEmail = searchParams.get('noEmail') === '1'
     const welcome = searchParams.get('welcome') === '1'
     const locationChanged = searchParams.get('locationChanged') === '1'
+    // ?force=1 bypasses the inputs_hash cache and rescores every pair from
+    // scratch. Needed when scoring behaviour changed without a
+    // MATCHING_VERSION bump; routine triggers should leave it off.
+    const force = searchParams.get('force') === '1'
     if (trigger === 'event') {
-      await processEventTrigger(id)
+      await processEventTrigger(id, force)
     } else if (trigger === 'user') {
-      await processUserTrigger(id, { noEmail, welcome, locationChanged })
+      await processUserTrigger(id, { noEmail, welcome, locationChanged, force })
     } else {
       return NextResponse.json({ error: 'trigger must be "event" or "user"' }, { status: 400 })
     }

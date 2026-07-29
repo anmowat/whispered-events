@@ -81,29 +81,21 @@ export async function hasBeenNotified(eventId: string, userId: string): Promise<
   return !!data
 }
 
-export interface MatchRow {
-  score: number
-  inputs_hash: string | null
-  match_percent: number | null
-  // Null when this user hasn't been told about this event yet via any
-  // digest/per-event path. process-matches uses this to decide whether
-  // a rescore (e.g. admin-triggered event re-match) should fire a fresh
-  // 'As they arrive' digest, or whether the user has already heard.
-  notified_at: string | null
-}
-
+// Selects the full cached-score column set (not just score/hash/notified_at)
+// so process-matches can rebuild a ScoreResult from it when the inputs hash
+// is unchanged, without a second query.
 export async function getExistingMatch(
   eventId: string,
   userId: string,
-): Promise<MatchRow | null> {
+): Promise<CachedMatchRow | null> {
   const supabase = getClient()
   const { data } = await supabase
     .from('matches')
-    .select('score, inputs_hash, match_percent, notified_at')
+    .select(CACHED_MATCH_COLUMNS)
     .eq('event_id', eventId)
     .eq('user_id', userId)
     .maybeSingle()
-  return (data as MatchRow | null) ?? null
+  return (data as CachedMatchRow | null) ?? null
 }
 
 export interface MatchLog {
@@ -914,23 +906,67 @@ export async function getLastSeenByUserId(): Promise<Map<string, string>> {
 // PostgREST max_rows silently truncating a bulk cross-product fetch.
 // Pre-fetch all match metadata for one event in a single query.
 // Used by processEventTrigger to avoid N per-user round-trips.
+// A previously-scored row, complete enough to rebuild a ScoreResult without
+// re-running the LLM. Callers compare `inputs_hash` against a freshly computed
+// hash; on a match every score below is still valid by construction, because
+// the hash covers MATCHING_VERSION plus every event and user field that feeds
+// scoring.
+export interface CachedMatchRow {
+  notified_at: string | null
+  inputs_hash: string | null
+  score: number | null
+  match_percent: number | null
+  location_score: number | null
+  audience_score: number | null
+  quality_score: number | null
+  preference_score: number | null
+  skipped_reason: string | null
+}
+
+const CACHED_MATCH_COLUMNS =
+  'notified_at, inputs_hash, score, match_percent, location_score, audience_score, quality_score, preference_score, skipped_reason'
+
 export async function getExistingMatchesForEvent(
   eventId: string,
-): Promise<Map<string, { notified_at: string | null; inputs_hash: string | null }>> {
-  const out = new Map<string, { notified_at: string | null; inputs_hash: string | null }>()
+): Promise<Map<string, CachedMatchRow>> {
+  const out = new Map<string, CachedMatchRow>()
   if (!eventId) return out
   const supabase = getClient()
   const { data, error } = await supabase
     .from('matches')
-    .select('user_id, notified_at, inputs_hash')
+    .select(`user_id, ${CACHED_MATCH_COLUMNS}`)
     .eq('event_id', eventId)
-    .limit(10_000)
+    .limit(50_000)
   if (error) {
     console.error('getExistingMatchesForEvent error', { eventId, error })
     return out
   }
-  for (const row of (data ?? []) as Array<{ user_id: string; notified_at: string | null; inputs_hash: string | null }>) {
-    if (row.user_id) out.set(row.user_id, { notified_at: row.notified_at ?? null, inputs_hash: row.inputs_hash ?? null })
+  for (const row of (data ?? []) as Array<CachedMatchRow & { user_id: string }>) {
+    if (row.user_id) out.set(row.user_id, row)
+  }
+  return out
+}
+
+// Per-user twin of getExistingMatchesForEvent: event_id -> cached row. Lets
+// the user-trigger path prefetch every prior score in one query instead of a
+// round-trip per event, and reuse them when inputs haven't changed.
+export async function getExistingMatchesForUser(
+  userId: string,
+): Promise<Map<string, CachedMatchRow>> {
+  const out = new Map<string, CachedMatchRow>()
+  if (!userId) return out
+  const supabase = getClient()
+  const { data, error } = await supabase
+    .from('matches')
+    .select(`event_id, ${CACHED_MATCH_COLUMNS}`)
+    .eq('user_id', userId)
+    .limit(50_000)
+  if (error) {
+    console.error('getExistingMatchesForUser error', { userId, error })
+    return out
+  }
+  for (const row of (data ?? []) as Array<CachedMatchRow & { event_id: string }>) {
+    if (row.event_id) out.set(row.event_id, row)
   }
   return out
 }

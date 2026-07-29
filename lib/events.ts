@@ -114,10 +114,13 @@ export async function getFutureEvents(): Promise<AirtableEvent[]> {
     .eq('status', 'Live')
     .is('airtable_deleted_at', null)
     .is('deleted_at', null)
-  if (error) {
-    console.error('getFutureEvents error', error)
-    return []
-  }
+    // See getActiveUsers — PostgREST silently truncates at max_rows (1000)
+    // without an explicit limit, and still reports success.
+    .limit(50_000)
+  // Throw rather than return [] — an empty array on a transient error means
+  // zero matches computed, which on the welcome path sends the one-shot
+  // "approved, no matches yet" email that can never be re-sent.
+  if (error) throw new Error(`getFutureEvents failed: ${error.message}`)
   return (data ?? []).map((row) => toAirtableEvent(row as EventRow)).filter((e) => e.name)
 }
 

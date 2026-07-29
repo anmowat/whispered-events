@@ -212,10 +212,17 @@ export async function getActiveUsers(): Promise<AirtableUser[]> {
     .eq('active', true)
     .is('airtable_deleted_at', null)
     .is('deleted_at', null)
-  if (error) {
-    console.error('getActiveUsers error', error)
-    return []
-  }
+    // Explicit high limit. Without it PostgREST silently truncates at its
+    // max_rows setting (1000 by default) and still reports success — which
+    // would mean events get scored against only the first 1000 active users
+    // with no error anywhere.
+    .limit(50_000)
+  // Throwing rather than returning [] is deliberate. This feeds the matching
+  // loop and the digest crons; an empty array on a transient Supabase error
+  // is indistinguishable from "nobody is active", which silently sends the
+  // one-shot "no matches yet" welcome email and makes crons report success
+  // with zero sends. Callers already wrap this in try/catch.
+  if (error) throw new Error(`getActiveUsers failed: ${error.message}`)
   return (data ?? []).map((row) => toAirtableUser(row as UserRow)).filter((u) => u.email)
 }
 

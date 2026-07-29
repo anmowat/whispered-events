@@ -934,10 +934,13 @@ export async function updateUserProfile(
         row.lat = geo.lat
         row.lng = geo.lng
       } else {
-        row.lat = null
-        row.lng = null
+        // Leave lat/lng untouched. Nulling them on a geocode failure drops
+        // computeLocationScore to 0, which short-circuits EVERY match to
+        // location_zero — the user silently falls out of matching entirely
+        // until someone notices. Stale coordinates beat no coordinates.
+        // geocodeFailed still surfaces the problem to the caller.
         geocodeFailed = true
-        console.warn(`updateUserProfile: could not geocode "${update.location}"`)
+        console.warn(`updateUserProfile: could not geocode "${update.location}" — keeping existing lat/lng`)
       }
     } else {
       row.lat = null
@@ -1042,9 +1045,9 @@ export async function updateUserAdmin(
         row.lat = geo.lat
         row.lng = geo.lng
       } else {
-        row.lat = null
-        row.lng = null
-        console.warn(`updateUserAdmin: could not geocode "${update.location}"`)
+        // See updateUserProfile — keep existing coordinates rather than
+        // nulling the user out of the matching loop on a transient failure.
+        console.warn(`updateUserAdmin: could not geocode "${update.location}" — keeping existing lat/lng`)
       }
     } else {
       row.lat = null

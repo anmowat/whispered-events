@@ -22,10 +22,20 @@ export async function GET(req: NextRequest) {
 
   const showAll = req.nextUrl.searchParams.get('all') === '1'
 
-  const [futureEvents, scores] = await Promise.all([
-    getFutureEvents(),
-    getMatchScoresForUser(session.userId),
-  ])
+  // getFutureEvents throws on a Supabase error rather than returning [] —
+  // returning an empty dashboard would look like "you have no matches"
+  // instead of "we couldn't load them". Surface it as a real 500.
+  let futureEvents
+  let scores
+  try {
+    ;[futureEvents, scores] = await Promise.all([
+      getFutureEvents(),
+      getMatchScoresForUser(session.userId),
+    ])
+  } catch (err) {
+    console.error('dashboard/events: load failed', err)
+    return NextResponse.json({ error: 'could not load events' }, { status: 500 })
+  }
 
   const withScores = futureEvents.map((e) => {
     const entry = scores.get(e.id)

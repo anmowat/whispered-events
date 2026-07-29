@@ -238,6 +238,7 @@ export async function runDigests(now: Date): Promise<{
   weekly: FrequencyStats
   monthly: FrequencyStats
   arrive: { recapped: number; coached: number }
+  failed: number
 }> {
   const todayPT = ymdInPT(now)
   const allUsers = (await getActiveUsers()).filter(isMatchEligible)
@@ -255,6 +256,10 @@ export async function runDigests(now: Date): Promise<{
   const monthly: FrequencyStats = { processed: 0, sent: 0, recapped: 0, coached: 0, skippedRecent: 0 }
   let arriveRecapped = 0
   let arriveCoached = 0
+  // Users whose processing threw and were skipped. Surfaced in the return so
+  // a partially-failed run is visible in the cron log rather than looking
+  // like a clean run with fewer sends.
+  let failed = 0
 
   for (const user of allUsers) {
     const lastSent = lastSentByUserId.get(user.id) ?? null
@@ -268,82 +273,95 @@ export async function runDigests(now: Date): Promise<{
 
     let didSend = false
 
-    if (user.frequency === 'Weekly') {
-      if (wasRecentlyTouched) {
-        weekly.skippedRecent += 1
-        continue
-      }
-      weekly.processed += 1
-      const result = await processUser(user, futureById)
-      if (result.sent) {
-        weekly.sent += 1
-        didSend = true
-      } else if (isCoachingEligible(user, lastSent, now)) {
-        if (matchCount > 0) {
-          await safelySendRecap(user, futureById, futureIds, nearbyCount, matchCount)
-          weekly.recapped += 1
-          didSend = true
-        } else {
-          await safelySendCoaching(user, nearbyCount)
-          weekly.coached += 1
-          didSend = true
-        }
-      }
-    } else if (user.frequency === 'Monthly') {
-      const state = await getDigestState(user.id)
-      // Missing state row: treat as due today so we don't strand
-      // pre-existing users, and seed a row going forward.
-      const dueDate = state?.next_monthly_digest_at ?? todayPT
-      if (dueDate <= todayPT) {
+    // Per-user isolation. Without this a single throw — a Resend 5xx, a
+    // Supabase error inside getUnnotifiedMatchesForUser — propagates out of
+    // the loop and aborts the ENTIRE weekly run, silently skipping every
+    // user after this one until the next Monday. Mirrors the guard
+    // runDailyArriveDigests already has.
+    try {
+      if (user.frequency === 'Weekly') {
         if (wasRecentlyTouched) {
-          // Don't bump next_monthly_digest_at — we want to re-evaluate
-          // them next Monday once the 7-day window has cleared.
-          monthly.skippedRecent += 1
+          weekly.skippedRecent += 1
           continue
         }
-        monthly.processed += 1
+        weekly.processed += 1
         const result = await processUser(user, futureById)
-        let touched = result.sent
         if (result.sent) {
-          monthly.sent += 1
+          weekly.sent += 1
           didSend = true
         } else if (isCoachingEligible(user, lastSent, now)) {
           if (matchCount > 0) {
             await safelySendRecap(user, futureById, futureIds, nearbyCount, matchCount)
-            monthly.recapped += 1
+            weekly.recapped += 1
+            didSend = true
           } else {
             await safelySendCoaching(user, nearbyCount)
-            monthly.coached += 1
+            weekly.coached += 1
+            didSend = true
           }
-          touched = true
+        }
+      } else if (user.frequency === 'Monthly') {
+        const state = await getDigestState(user.id)
+        // Missing state row: treat as due today so we don't strand
+        // pre-existing users, and seed a row going forward.
+        const dueDate = state?.next_monthly_digest_at ?? todayPT
+        if (dueDate <= todayPT) {
+          if (wasRecentlyTouched) {
+            // Don't bump next_monthly_digest_at — we want to re-evaluate
+            // them next Monday once the 7-day window has cleared.
+            monthly.skippedRecent += 1
+            continue
+          }
+          monthly.processed += 1
+          const result = await processUser(user, futureById)
+          let touched = result.sent
+          if (result.sent) {
+            monthly.sent += 1
+            didSend = true
+          } else if (isCoachingEligible(user, lastSent, now)) {
+            if (matchCount > 0) {
+              await safelySendRecap(user, futureById, futureIds, nearbyCount, matchCount)
+              monthly.recapped += 1
+            } else {
+              await safelySendCoaching(user, nearbyCount)
+              monthly.coached += 1
+            }
+            touched = true
+            didSend = true
+          }
+          await upsertDigestState(user.id, {
+            nextMonthly: addDays(todayPT, COACHING_FLOOR_DAYS),
+            // Stamp last-sent for digest / recap / coaching outcomes so
+            // the 28-day floor reflects when the user was most recently
+            // touched, not just when a digest with events went out.
+            lastSent: touched
+              ? now.toISOString()
+              : state?.last_monthly_digest_sent_at ?? null,
+          })
+        }
+      } else if (user.frequency === 'As they arrive') {
+        // Per-event scoring path already handles their digests. Cron only
+        // handles the dormancy nudge — recap if they have matches,
+        // coaching if they don't.
+        if (!isCoachingEligible(user, lastSent, now)) continue
+        if (matchCount > 0) {
+          await safelySendRecap(user, futureById, futureIds, nearbyCount, matchCount)
+          arriveRecapped += 1
+          didSend = true
+        } else {
+          await safelySendCoaching(user, nearbyCount)
+          arriveCoached += 1
           didSend = true
         }
-        await upsertDigestState(user.id, {
-          nextMonthly: addDays(todayPT, COACHING_FLOOR_DAYS),
-          // Stamp last-sent for digest / recap / coaching outcomes so
-          // the 28-day floor reflects when the user was most recently
-          // touched, not just when a digest with events went out.
-          lastSent: touched
-            ? now.toISOString()
-            : state?.last_monthly_digest_sent_at ?? null,
-        })
       }
-    } else if (user.frequency === 'As they arrive') {
-      // Per-event scoring path already handles their digests. Cron only
-      // handles the dormancy nudge — recap if they have matches,
-      // coaching if they don't.
-      if (!isCoachingEligible(user, lastSent, now)) continue
-      if (matchCount > 0) {
-        await safelySendRecap(user, futureById, futureIds, nearbyCount, matchCount)
-        arriveRecapped += 1
-        didSend = true
-      } else {
-        await safelySendCoaching(user, nearbyCount)
-        arriveCoached += 1
-        didSend = true
-      }
+      // 'Paused' is intentionally skipped.
+    } catch (err) {
+      failed += 1
+      console.error(
+        `runDigests: processing failed for ${user.email}`,
+        err instanceof Error ? err.message : String(err),
+      )
     }
-    // 'Paused' is intentionally skipped.
 
     // Stay under Resend's 5/sec rate limit. Skipped/no-op iterations
     // pay no delay; only iterations that fired a Resend call wait
@@ -355,6 +373,7 @@ export async function runDigests(now: Date): Promise<{
     weekly,
     monthly,
     arrive: { recapped: arriveRecapped, coached: arriveCoached },
+    failed,
   }
 }
 

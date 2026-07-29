@@ -42,6 +42,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<CheckResponse
     const message = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 350,
+      temperature: 0,
       tools: [
         {
           name: 'submit_evaluation',

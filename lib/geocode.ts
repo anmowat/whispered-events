@@ -62,7 +62,11 @@ export async function geocodeLocation(text: string): Promise<LatLng | null> {
     })
     if (!res.ok) {
       console.warn(`geocodeLocation: nominatim HTTP ${res.status} for "${text}"`)
-      cache.set(key, null)
+      // Deliberately NOT cached. An HTTP error is a transient Nominatim
+      // problem, not evidence the place doesn't exist — memoizing it would
+      // pin the failure for the life of the process and make every retry in
+      // that window fail too. Only a genuine zero-result response below is
+      // worth remembering.
       return null
     }
     const data = (await res.json()) as Array<{ lat: string; lon: string }>

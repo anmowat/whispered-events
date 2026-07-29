@@ -60,6 +60,14 @@ const QUALITY_MULTIPLIER: Record<'A' | 'Polish' | 'B' | 'C', number> = {
 // v19: fix matchesAudienceKeyword false-positive — token "sales" must not
 // match "[Sales] Operations Leaders"; only count occurrences not followed
 // by "operations/ops". Also added LLM prompt rule scoring ops/function at 0.6.
+//
+// !! BUMP THIS whenever anything that affects a score changes — the LLM
+// prompt/rubric, audienceFloor, audienceCeiling, the gates, the multipliers.
+// It is the first field in computeInputsHash, so bumping it changes every
+// pair's hash and invalidates every cached row. /api/process-matches now
+// TRUSTS that hash and skips the LLM when it matches, so a rules change
+// without a bump leaves stale scores in place with no signal that anything
+// is wrong. (Use ?force=1 to rescore without a bump.)
 const MATCHING_VERSION = 19
 
 // The radius constant lives in lib/geocode.ts (client-safe — no
@@ -264,16 +272,28 @@ Return three values via the submit_score tool:
 
 3. "reason" (one sentence): the dominant factor driving the score — literal overlap, adjacency, or mismatch.`
 
-  // Cache the larger fixed-side block so fanout calls hit the cache.
-  const systemBlocks = fixedSide === 'event'
-    ? [
-        { type: 'text' as const, text: eventBlock, cache_control: { type: 'ephemeral' as const } },
-        { type: 'text' as const, text: instructions },
-      ]
-    : [
-        { type: 'text' as const, text: userBlock, cache_control: { type: 'ephemeral' as const } },
-        { type: 'text' as const, text: instructions },
-      ]
+  // Prompt cache layout. Order matters: caching works on PREFIXES, so the
+  // breakpoint has to sit after the block we actually want cached, and the
+  // largest invariant content has to come first.
+  //
+  // Block 1 — `instructions` (~3k tokens) is byte-identical on every scoring
+  // call this system ever makes, so it's the highest-value thing to cache.
+  // It used to be placed *after* the fixed-side block's breakpoint, which put
+  // it outside the cached prefix entirely and re-billed the whole rubric on
+  // every call (and left the cached prefix too short to even activate).
+  //
+  // Block 2 — the fixed side (event during an event fanout, user during a user
+  // fanout) is stable for the duration of one fanout, so a second breakpoint
+  // here catches it too. The variable side goes in the user message, outside
+  // the cache.
+  const systemBlocks = [
+    { type: 'text' as const, text: instructions, cache_control: { type: 'ephemeral' as const } },
+    {
+      type: 'text' as const,
+      text: fixedSide === 'event' ? eventBlock : userBlock,
+      cache_control: { type: 'ephemeral' as const },
+    },
+  ]
 
   const userMessage = fixedSide === 'event' ? userBlock : eventBlock
 
@@ -288,6 +308,10 @@ Return three values via the submit_score tool:
     anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 200,
+      // Scoring against a fixed rubric should be reproducible. The SDK
+      // default is 1.0, which added run-to-run variance for no benefit and
+      // made scores appear to drift between rescores.
+      temperature: 0,
       system: systemBlocks,
       tools: [
         {
@@ -308,6 +332,22 @@ Return three values via the submit_score tool:
       messages: [{ role: 'user', content: userMessage }],
     }),
   )
+
+  // Cache telemetry. cache_read_input_tokens should be large on every call
+  // after the first in a fanout; if it stays 0 the cached prefix is under the
+  // model's minimum cacheable length and the block layout needs revisiting.
+  if (process.env.LOG_PROMPT_CACHE === '1') {
+    const u = message.usage as unknown as {
+      input_tokens?: number
+      cache_creation_input_tokens?: number
+      cache_read_input_tokens?: number
+    }
+    console.log('matching cache usage', {
+      input: u.input_tokens ?? 0,
+      cacheCreate: u.cache_creation_input_tokens ?? 0,
+      cacheRead: u.cache_read_input_tokens ?? 0,
+    })
+  }
 
   const toolUse = message.content.find((c) => c.type === 'tool_use')
   if (!toolUse || toolUse.type !== 'tool_use') {
