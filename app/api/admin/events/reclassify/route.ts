@@ -31,31 +31,39 @@ Rules:
 3. Classify the event ITSELF, not adjacent events it appears alongside.
 4. Morning coffee / breakfast events → Other.
 
-Event name: {NAME}
-Description: {DESC}
-
 Reply with ONLY the category name, nothing else.`
 
+// Returns null when the classification could not be obtained. Callers must
+// treat null as "no opinion" and leave the event alone — this used to return
+// 'Other' on any error, which meant a transient 429 during the dry run showed
+// up as a proposed reclassification of a correctly-typed event to 'Other'.
 async function classifyEvent(
   anthropic: Anthropic,
   name: string,
   description: string,
-): Promise<NewEventType> {
-  const prompt = CLASSIFY_PROMPT
-    .replace('{NAME}', name)
-    .replace('{DESC}', description || '(no description)')
-
+): Promise<NewEventType | null> {
   try {
     const msg = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 16,
-      messages: [{ role: 'user', content: prompt }],
+      temperature: 0,
+      // The rubric is identical on every call, so it goes in a cached system
+      // block; only the per-event text varies and lives in the user message.
+      system: [
+        { type: 'text' as const, text: CLASSIFY_PROMPT, cache_control: { type: 'ephemeral' as const } },
+      ],
+      messages: [
+        {
+          role: 'user',
+          content: `Event name: ${name}\nDescription: ${description || '(no description)'}`,
+        },
+      ],
     })
     const raw = (msg.content[0] as { type: string; text: string }).text?.trim() ?? ''
-    const found = VALID_TYPES.find((t) => raw.toLowerCase().startsWith(t.toLowerCase()))
-    return found ?? 'Other'
-  } catch {
-    return 'Other'
+    return VALID_TYPES.find((t) => raw.toLowerCase().startsWith(t.toLowerCase())) ?? null
+  } catch (err) {
+    console.error(`reclassify: classify failed for "${name}"`, err)
+    return null
   }
 }
 
@@ -71,7 +79,8 @@ export interface ReclassifyChange {
 export interface ReclassifyResult {
   changes: ReclassifyChange[]
   unchanged: { id: string; name: string; type: string }[]
-  stats: { total: number; changed: number; byNewType: Record<string, number> }
+  failed: { id: string; name: string }[]
+  stats: { total: number; changed: number; failed: number; byNewType: Record<string, number> }
 }
 
 // GET: dry-run — returns proposed changes without writing anything
@@ -80,14 +89,23 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 
+  // This makes one LLM call per row, so the scan is date-bounded by default.
+  // Reclassifying long-past events has no practical value and the unbounded
+  // version re-paid for the entire events table on every dry run.
+  // ?all=1 restores the full-history scan; ?sinceDays=N tunes the window.
+  const all = req.nextUrl.searchParams.get('all') === '1'
+  const sinceDays = Number(req.nextUrl.searchParams.get('sinceDays')) || 90
+  const cutoff = new Date(Date.now() - sinceDays * 86_400_000).toISOString().slice(0, 10)
+
   const supabase = getSupabase()
-  const { data, error } = await supabase
+  let query = supabase
     .from('events')
     .select('id, name, type, description, date, location')
     .is('airtable_deleted_at', null)
     .is('deleted_at', null)
     .not('name', 'is', null)
-    .order('date', { ascending: false })
+  if (!all) query = query.gte('date', cutoff)
+  const { data, error } = await query.order('date', { ascending: false }).limit(5_000)
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
@@ -108,6 +126,9 @@ export async function GET(req: NextRequest) {
   const BATCH = 10
   const changes: ReclassifyChange[] = []
   const unchanged: { id: string; name: string; type: string }[] = []
+  // Events whose classification call failed — surfaced so a partial scan
+  // doesn't read as a complete one.
+  const failed: { id: string; name: string }[] = []
 
   for (let i = 0; i < rows.length; i += BATCH) {
     const batch = rows.slice(i, i + BATCH)
@@ -120,7 +141,11 @@ export async function GET(req: NextRequest) {
       const row = batch[j]
       const proposed = results[j]
       const current = row.type ?? ''
-      if (proposed !== current) {
+      // null = classification failed. Leave the event alone rather than
+      // proposing a change we have no basis for.
+      if (proposed === null) {
+        failed.push({ id: row.id, name: row.name ?? '' })
+      } else if (proposed !== current) {
         changes.push({
           id: row.id,
           name: row.name ?? '',
@@ -140,10 +165,15 @@ export async function GET(req: NextRequest) {
     byNewType[c.proposedType] = (byNewType[c.proposedType] ?? 0) + 1
   }
 
+  if (failed.length) {
+    console.warn(`reclassify: ${failed.length} of ${rows.length} events could not be classified`)
+  }
+
   const result: ReclassifyResult = {
     changes,
     unchanged,
-    stats: { total: rows.length, changed: changes.length, byNewType },
+    failed,
+    stats: { total: rows.length, changed: changes.length, failed: failed.length, byNewType },
   }
 
   return NextResponse.json(result)

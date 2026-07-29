@@ -632,10 +632,12 @@ export async function updateEvent(
     }
   }
 
-  // Mirror to Airtable as the follower write. Awaited synchronously so
-  // failures are logged immediately and don't silently lose data; the
-  // ~200ms cost on admin saves is acceptable.
-  await pushEventToAirtable(id, airtableFields, 'updateEvent')
+  // Mirror to Airtable as the follower write — off the response path, per
+  // this function's own contract above. It already swallows and logs its own
+  // errors (Supabase is canonical and has been updated by this point), so
+  // awaiting it only added ~200ms to every admin save, image upload,
+  // rescrape and host add without making anything safer.
+  waitUntil(pushEventToAirtable(id, airtableFields, 'updateEvent'))
 }
 
 // One-time backfill: reads seniority for every live event from Supabase

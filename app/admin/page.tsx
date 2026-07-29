@@ -282,8 +282,19 @@ export default function AdminPage() {
 
   useEffect(() => {
     fetchCounts()
-    const id = setInterval(fetchCounts, POLL_MS)
-    return () => clearInterval(id)
+    // Only poll while the tab is actually visible. dashboard-counts is the
+    // heaviest route in the app (every user in the bucket, no pagination) and
+    // this used to re-run it every 10s forever in background tabs. Refetch
+    // once on becoming visible so the view is fresh when the admin returns.
+    const tick = () => {
+      if (document.visibilityState === 'visible') fetchCounts()
+    }
+    const id = setInterval(tick, POLL_MS)
+    document.addEventListener('visibilitychange', tick)
+    return () => {
+      clearInterval(id)
+      document.removeEventListener('visibilitychange', tick)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.matchedEventId, statusBucket])
 

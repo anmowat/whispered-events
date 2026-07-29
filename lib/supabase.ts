@@ -424,8 +424,10 @@ export async function getUpcomingMatchesForUser(
 }
 
 // Returns user_id -> count of future event matches at match_percent >= 40.
-// Uses individual COUNT queries per user (head:true = no rows returned) to
-// avoid PostgREST max_rows limits that silently truncate bulk .in() results.
+// Single GROUP BY in the database (see match_counts_by_user). This used to
+// issue one COUNT query per user — N round-trips on every 10s dashboard poll.
+// The aggregate returns one row per user, so PostgREST's max_rows can't
+// silently truncate it the way a bulk row fetch could.
 export async function getMatchCountsByUserId(
   futureEventIds: string[],
   userIds: string[],
@@ -433,21 +435,18 @@ export async function getMatchCountsByUserId(
   if (futureEventIds.length === 0 || userIds.length === 0) return new Map()
   const supabase = getClient()
   const counts = new Map<string, number>()
-  await Promise.all(
-    userIds.map(async (uid) => {
-      const { count, error } = await supabase
-        .from('matches')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', uid)
-        .gte('match_percent', MATCH_PERCENT_THRESHOLD)
-        .in('event_id', futureEventIds)
-      if (error) {
-        console.error('getMatchCountsByUserId error', { uid, error })
-        return
-      }
-      if (count !== null) counts.set(uid, count)
-    }),
-  )
+  const { data, error } = await supabase.rpc('match_counts_by_user', {
+    p_event_ids: futureEventIds,
+    p_user_ids: userIds,
+    p_min_pct: MATCH_PERCENT_THRESHOLD,
+  })
+  if (error) {
+    console.error('getMatchCountsByUserId error', error)
+    return counts
+  }
+  for (const row of (data ?? []) as Array<{ user_id: string; match_count: number }>) {
+    counts.set(row.user_id, Number(row.match_count) || 0)
+  }
   return counts
 }
 
@@ -529,20 +528,19 @@ export async function getMatchCountsByEventId(
   if (eventIds.length === 0) return new Map()
   const supabase = getClient()
   const counts = new Map<string, number>()
-  // Single query: fetch event_id for all qualifying rows across all events,
-  // then count client-side. Far faster than N individual count queries.
-  const { data, error } = await supabase
-    .from('matches')
-    .select('event_id')
-    .in('event_id', eventIds)
-    .gte('match_percent', 40)
-    .limit(500_000)
+  // GROUP BY in the database rather than transferring every qualifying row to
+  // count it here. The previous .limit(500_000) was not actually a safeguard —
+  // PostgREST's max_rows can cap a row fetch well below that, silently.
+  const { data, error } = await supabase.rpc('match_counts_by_event', {
+    p_event_ids: eventIds,
+    p_min_pct: MATCH_PERCENT_THRESHOLD,
+  })
   if (error) {
     console.error('getMatchCountsByEventId error', error)
     return counts
   }
-  for (const row of (data ?? []) as Array<{ event_id: string }>) {
-    counts.set(row.event_id, (counts.get(row.event_id) ?? 0) + 1)
+  for (const row of (data ?? []) as Array<{ event_id: string; match_count: number }>) {
+    counts.set(row.event_id, Number(row.match_count) || 0)
   }
   return counts
 }
@@ -971,28 +969,37 @@ export async function getExistingMatchesForUser(
   return out
 }
 
+// "eventId:userId" -> inputs_hash. Paged through a single .in() query rather
+// than one query per event (which was N round-trips before every bulk
+// rescore). Paging keeps us correct regardless of PostgREST's max_rows: we
+// keep asking for the next window until a short page proves we're done.
 export async function getExistingMatchHashes(
   eventIds: string[],
 ): Promise<Map<string, string | null>> {
   if (eventIds.length === 0) return new Map()
   const supabase = getClient()
   const out = new Map<string, string | null>()
-  await Promise.all(
-    eventIds.map(async (eventId) => {
-      const { data, error } = await supabase
-        .from('matches')
-        .select('user_id, inputs_hash')
-        .eq('event_id', eventId)
-        .limit(10_000)
-      if (error) {
-        console.error('getExistingMatchHashes error', { eventId, error })
-        return
+  const PAGE = 1_000
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from('matches')
+      .select('event_id, user_id, inputs_hash')
+      .in('event_id', eventIds)
+      .order('event_id', { ascending: true })
+      .order('user_id', { ascending: true })
+      .range(from, from + PAGE - 1)
+    if (error) {
+      console.error('getExistingMatchHashes error', error)
+      return out
+    }
+    const rows = (data ?? []) as Array<{ event_id: string; user_id: string; inputs_hash: string | null }>
+    for (const row of rows) {
+      if (row.event_id && row.user_id) {
+        out.set(`${row.event_id}:${row.user_id}`, row.inputs_hash ?? null)
       }
-      for (const row of (data ?? []) as Array<{ user_id: string; inputs_hash: string | null }>) {
-        if (row.user_id) out.set(`${eventId}:${row.user_id}`, row.inputs_hash ?? null)
-      }
-    }),
-  )
+    }
+    if (rows.length < PAGE) break
+  }
   return out
 }
 

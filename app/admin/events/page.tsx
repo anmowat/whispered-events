@@ -181,8 +181,17 @@ export default function AdminEventsPage() {
 
   useEffect(() => {
     fetchEvents()
-    const id = setInterval(fetchEvents, POLL_MS)
-    return () => clearInterval(id)
+    // Poll only while the tab is visible, and refetch once on return —
+    // see the same guard on the main admin dashboard.
+    const tick = () => {
+      if (document.visibilityState === 'visible') fetchEvents()
+    }
+    const id = setInterval(tick, POLL_MS)
+    document.addEventListener('visibilitychange', tick)
+    return () => {
+      clearInterval(id)
+      document.removeEventListener('visibilitychange', tick)
+    }
     // Refetch whenever the server-side filters change. Linter warns about
     // fetchEvents identity but it closes over both deps so this is correct.
     // eslint-disable-next-line react-hooks/exhaustive-deps
