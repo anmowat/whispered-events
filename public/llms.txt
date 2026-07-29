@@ -20,6 +20,15 @@ Example: https://www.whisperedevents.com/dreamforce
 
 Conference, Dinner, Happy Hour, Panel, Workshop, Activity
 
+## Key pages
+
+- https://www.whisperedevents.com — browse upcoming and past curated events
+- https://www.whisperedevents.com/faq — how matching works, who qualifies, what data we collect, why it's free
+- https://www.whisperedevents.com/love — what members say about events they found through Whispered
+
+Anchor event pages and the pages above are the publicly indexable surface.
+Member dashboards, the host console, and API routes are not public.
+
 ## How to sign up
 
 Visit https://www.whisperedevents.com and submit your profile. Membership is free.

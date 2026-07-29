@@ -5,9 +5,9 @@ import Header from '@/components/Header'
 import LoginModal from '@/components/LoginModal'
 import TopicChips from '@/components/TopicChips'
 
-// Single-question FAQ for v1. The content is small enough that a static
-// page is the right shape; if this grows past ~5 questions we can swap
-// to an accordion + sections.
+// Static Q&A sections — small enough that plain sections beat an accordion.
+// The answers are mirrored as FAQPage JSON-LD in layout.tsx; if you edit copy
+// here, update the mirror there too.
 
 export default function FaqPage() {
   const [showLogin, setShowLogin] = useState(false)

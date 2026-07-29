@@ -124,6 +124,7 @@ export const metadata: Metadata = {
 const organizationSchema = {
   '@context': 'https://schema.org',
   '@type': 'Organization',
+  '@id': 'https://www.whisperedevents.com/#organization',
   name: 'Whispered Events',
   url: 'https://www.whisperedevents.com',
   logo: 'https://www.whisperedevents.com/opengraph-image',
@@ -139,8 +140,10 @@ const organizationSchema = {
 const websiteSchema = {
   '@context': 'https://schema.org',
   '@type': 'WebSite',
+  '@id': 'https://www.whisperedevents.com/#website',
   name: 'Whispered Events',
   url: 'https://www.whisperedevents.com',
+  publisher: { '@id': 'https://www.whisperedevents.com/#organization' },
   description:
     "The best events aren't posted — they're whispered. A private platform for executives to discover exclusive, invitation-only events.",
   potentialAction: {
