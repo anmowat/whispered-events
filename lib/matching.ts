@@ -57,7 +57,10 @@ const QUALITY_MULTIPLIER: Record<'A' | 'Polish' | 'B' | 'C', number> = {
 // IS the target audience, not merely adjacent.
 // v18: also add 1.2 floor for keyword matches (not just ceiling) so LLM
 // under-scoring doesn't suppress audience scores when function = audience.
-const MATCHING_VERSION = 18
+// v19: fix matchesAudienceKeyword false-positive — token "sales" must not
+// match "[Sales] Operations Leaders"; only count occurrences not followed
+// by "operations/ops". Also added LLM prompt rule scoring ops/function at 0.6.
+const MATCHING_VERSION = 19
 
 // The radius constant lives in lib/geocode.ts (client-safe — no
 // Anthropic SDK or other server-only deps in that module). Re-export
@@ -560,12 +563,22 @@ function matchesAudienceKeyword(event: AirtableEvent, user: AirtableUser): boole
   const audienceText = (event.audience ?? []).join(' ')
   const fn = user.function ?? ''
 
-  // Direct token check
+  // Direct token check — but reject if the token only appears as "[token] Operations/Ops"
+  // (e.g. "sales" should not match "Sales Operations Leaders" — that's a different function)
   const tokens = fn
     .split(/[\s,/]+/)
     .map((t) => t.toLowerCase())
     .filter((t) => t.length >= 4 && !STOPWORDS.has(t))
-  if (tokens.some((t) => new RegExp(`\\b${escapeRegex(t)}\\b`, 'i').test(audienceText))) return true
+  if (tokens.some((t) => {
+    const re = new RegExp(`\\b${escapeRegex(t)}\\b`, 'i')
+    if (!re.test(audienceText)) return false
+    // Check every occurrence of the token. If ALL occurrences are followed by
+    // " operations" or " ops", it's an Ops-flavored audience — not a direct match.
+    const allOpsOnly = new RegExp(`\\b${escapeRegex(t)}\\s+(?:operations|ops)\\b`, 'gi')
+    const opsMatches = audienceText.match(allOpsOnly)?.length ?? 0
+    const totalMatches = audienceText.match(new RegExp(`\\b${escapeRegex(t)}\\b`, 'gi'))?.length ?? 0
+    return totalMatches > opsMatches
+  })) return true
 
   // Abbreviation alias check: if the user's function matches a known alias
   // group, also test the audience against all aliases in that group.
