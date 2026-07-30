@@ -81,7 +81,10 @@ export async function POST(req: NextRequest) {
   }
 
   const subject = fetched.data.subject ?? payload.data?.subject ?? ''
-  const text = fetched.data.text ?? stripHtml(fetched.data.html ?? '')
+  // `||`, not `??`: Resend returns an empty string (not null) for the text part
+  // of HTML-only mail, and `??` kept that empty string instead of falling back
+  // to the HTML — leaving no body to recover the forwarded sender from.
+  const text = fetched.data.text || stripHtml(fetched.data.html ?? '')
   const combined = `${subject}\n\n${text}`
   const url = extractFirstUrl(combined, fetched.data.html ?? undefined)
 
@@ -131,7 +134,12 @@ export async function POST(req: NextRequest) {
   // Without this, every forwarded event records the forwarder mailbox
   // as the submitter in Airtable.
   if (isOwnDomain(senderEmail)) {
-    const original = extractOriginalSenderFromBody(text)
+    // Try the text part first, then the HTML. Some clients only carry the
+    // forwarded header block in the HTML alternative, so checking one source
+    // isn't enough.
+    const original =
+      extractOriginalSenderFromBody(text) ??
+      extractOriginalSenderFromBody(stripHtml(fetched.data.html ?? ''))
     if (original) {
       console.log(
         'inbound-email: envelope sender',
@@ -149,9 +157,18 @@ export async function POST(req: NextRequest) {
       )
       if (url) {
         // A URL was found so this is likely a real submission whose sender
-        // couldn't be recovered. Use a placeholder and still create the event.
-        // Andy sees the Slack notification from notifyNewEvent as usual.
+        // couldn't be recovered. Use a placeholder and still create the event —
+        // losing the event would be worse than losing the attribution. Flag it
+        // so an unattributed event gets looked at rather than sitting silently
+        // in the admin as unknown@external.
         console.log('inbound-email: proceeding with unknown@external sender, url', url)
+        void sendDroppedEmailNotification({
+          reason: 'sender unrecoverable — event created as unknown@external',
+          originalFrom: senderEmail,
+          originalSubject: subject,
+          originalBody: text,
+          urlFound: url,
+        })
         senderEmail = 'unknown@external'
       } else {
         // No URL and no identifiable sender — notify Andy with the raw body
@@ -381,13 +398,21 @@ function isOwnDomain(email: string): boolean {
 //
 // We pick the first `From:` line that isn't one of our forwarder
 // domains. Returns null if nothing matches.
+const EMAIL_RE = /[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}/i
+
 function extractOriginalSenderFromBody(text: string): string | null {
   if (!text) return null
-  const lines = text.split(/\r?\n/)
-  for (const line of lines) {
-    const match = line.match(/^\s*From:\s*(?:[^<\n]*<)?([A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,})>?/i)
-    if (!match) continue
-    const candidate = match[1].toLowerCase()
+  // Match "From:" anywhere rather than only at the start of a line. HTML mail
+  // that has been flattened doesn't reliably keep the header on its own line,
+  // and the old line-anchored pattern silently returned null for all of it.
+  // Taking the first address within the following span also copes with the
+  // several shapes clients use: bare, "Name <addr>", and '"Name" <addr>'.
+  const re = /From:\s*([^\n]{0,200})/gi
+  let match: RegExpExecArray | null
+  while ((match = re.exec(text)) !== null) {
+    const found = match[1].match(EMAIL_RE)
+    if (!found) continue
+    const candidate = found[0].toLowerCase()
     if (isOwnDomain(candidate)) continue
     return candidate
   }
@@ -419,13 +444,31 @@ function extractFirstUrl(text: string, html?: string): string | undefined {
 }
 
 function stripHtml(html: string): string {
-  return html
-    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
+  return (
+    html
+      .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+      .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+      // Keep block structure as newlines. A forwarded Gmail/Outlook header block
+      // is only separable into From:/Date:/Subject: lines if the <br> and closing
+      // block tags survive as line breaks — flattening everything to spaces made
+      // the original sender unrecoverable.
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/(p|div|tr|li|h[1-6]|blockquote|table)>/gi, '\n')
+      .replace(/<[^>]+>/g, ' ')
+      // Forwarded headers render the address as &lt;someone@example.com&gt;, so
+      // the entities have to be decoded before any address parsing. &amp; is
+      // decoded last so "&amp;lt;" doesn't collapse into "<".
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#3[49];/g, "'")
+      .replace(/&amp;/g, '&')
+      .replace(/[ \t]+/g, ' ')
+      .replace(/ *\n */g, '\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim()
+  )
 }
 
 async function sendReply(to: string, subject: string, body: string): Promise<void> {
