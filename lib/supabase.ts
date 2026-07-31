@@ -423,11 +423,24 @@ export async function getUpcomingMatchesForUser(
   return (data ?? []) as DigestMatchRow[]
 }
 
+// True when the failure is "this function isn't in the database" — i.e. the
+// migration that defines it hasn't been applied. PostgREST reports an unknown
+// RPC as PGRST202; Postgres itself uses 42883 (undefined_function).
+function isMissingFunction(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false
+  if (error.code === 'PGRST202' || error.code === '42883') return true
+  return /could not find the function|does not exist/i.test(error.message ?? '')
+}
+
 // Returns user_id -> count of future event matches at match_percent >= 40.
 // Single GROUP BY in the database (see match_counts_by_user). This used to
 // issue one COUNT query per user — N round-trips on every 10s dashboard poll.
 // The aggregate returns one row per user, so PostgREST's max_rows can't
 // silently truncate it the way a bulk row fetch could.
+//
+// Falls back to per-user COUNTs when the aggregate is unavailable. Returning an
+// empty map on error was worse than it looked: the admin UI renders a missing
+// entry as a confident "0", which is indistinguishable from a real zero.
 export async function getMatchCountsByUserId(
   futureEventIds: string[],
   userIds: string[],
@@ -441,12 +454,43 @@ export async function getMatchCountsByUserId(
     p_min_pct: MATCH_PERCENT_THRESHOLD,
   })
   if (error) {
-    console.error('getMatchCountsByUserId error', error)
-    return counts
+    console.warn(
+      'getMatchCountsByUserId: match_counts_by_user RPC failed, falling back to per-user counts.',
+      isMissingFunction(error)
+        ? 'The function is missing — apply migration 20260729000000_match_count_aggregates_and_indexes.sql.'
+        : '',
+      error,
+    )
+    return countPerKey(userIds, (id) =>
+      supabase
+        .from('matches')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', id)
+        .in('event_id', futureEventIds)
+        .gte('match_percent', MATCH_PERCENT_THRESHOLD),
+    )
   }
   for (const row of (data ?? []) as Array<{ user_id: string; match_count: number }>) {
     counts.set(row.user_id, Number(row.match_count) || 0)
   }
+  return counts
+}
+
+// Shared fallback: one COUNT per key (head:true returns no rows, so PostgREST's
+// max_rows can't truncate the result). Slower than the aggregate, but correct.
+async function countPerKey(
+  keys: string[],
+  query: (key: string) => PromiseLike<{ count: number | null; error: { message: string } | null }>,
+): Promise<Map<string, number>> {
+  const counts = new Map<string, number>()
+  const results = await Promise.all(
+    keys.map(async (key) => {
+      const { count, error } = await query(key)
+      if (error) throw new Error(`countPerKey failed for ${key}: ${error.message}`)
+      return [key, count ?? 0] as const
+    }),
+  )
+  for (const [key, count] of results) counts.set(key, count)
   return counts
 }
 
@@ -536,8 +580,20 @@ export async function getMatchCountsByEventId(
     p_min_pct: MATCH_PERCENT_THRESHOLD,
   })
   if (error) {
-    console.error('getMatchCountsByEventId error', error)
-    return counts
+    console.warn(
+      'getMatchCountsByEventId: match_counts_by_event RPC failed, falling back to per-event counts.',
+      isMissingFunction(error)
+        ? 'The function is missing — apply migration 20260729000000_match_count_aggregates_and_indexes.sql.'
+        : '',
+      error,
+    )
+    return countPerKey(eventIds, (id) =>
+      supabase
+        .from('matches')
+        .select('*', { count: 'exact', head: true })
+        .eq('event_id', id)
+        .gte('match_percent', MATCH_PERCENT_THRESHOLD),
+    )
   }
   for (const row of (data ?? []) as Array<{ event_id: string; match_count: number }>) {
     counts.set(row.event_id, Number(row.match_count) || 0)
