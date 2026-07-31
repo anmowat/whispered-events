@@ -41,7 +41,12 @@ export function verifyRatingToken(token: string): { userId: string; eventId: str
 }
 
 // Full URL for a rating click in an email, e.g.
-// https://whisperedevents.com/api/rate?token=...&rating=up
+// https://whisperedevents.com/rate?token=...&rating=interested
+//
+// Points at the /rate page rather than the API. Merely fetching this URL does
+// nothing; the page submits the rating from the reader's browser. That's what
+// stops mail-security scanners — which fetch every link in an inbound message —
+// from recording a rating on every event and every button.
 export function ratingUrl(
   userId: string,
   eventId: string,
@@ -49,5 +54,5 @@ export function ratingUrl(
   baseUrl: string,
 ): string {
   const token = signRatingToken(userId, eventId)
-  return `${baseUrl}/api/rate?token=${encodeURIComponent(token)}&rating=${rating}`
+  return `${baseUrl}/rate?token=${encodeURIComponent(token)}&rating=${rating}`
 }
