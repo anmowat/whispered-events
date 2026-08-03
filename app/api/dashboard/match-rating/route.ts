@@ -63,20 +63,20 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const ok = await setMatchRating({
+    const result = await setMatchRating({
       eventId,
       userId: session.userId,
       rating,
       reason,
     })
-    if (!ok) {
+    if (result === 'missing') {
       console.error('match-rating: no row found', { userId: session.userId, eventId, rating })
       return NextResponse.json({ error: 'match not found' }, { status: 404 })
     }
 
-    // Only notify on set, not on clear. No point pinging
-    // Andy that someone undid a rating.
-    if (rating) {
+    // Only notify on set, not on clear, and only when the value actually
+    // changed. No point pinging Andy that someone undid or re-clicked a rating.
+    if (rating && result === 'changed') {
       waitUntil(
         (async () => {
           try {

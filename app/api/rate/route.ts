@@ -78,13 +78,20 @@ export async function POST(req: NextRequest) {
   const { userId, eventId } = parsed
 
   try {
-    // setMatchRating returns false when the value is unchanged. Honouring that
-    // is what keeps a re-submission from firing a duplicate Slack message —
-    // this path previously discarded the result and notified every time.
-    const changed = await setMatchRating({ eventId, userId, rating, reason: null })
+    // Only 'changed' writes and notifies. 'unchanged' is a re-submission;
+    // 'rejected_burst' is an automated opener working through every button on
+    // the same event. This path previously discarded the result entirely and
+    // notified on every call.
+    const result = await setMatchRating({
+      eventId,
+      userId,
+      rating,
+      reason: null,
+      guardRapidChange: true,
+    })
     void touchEmailLastSeen(userId)
 
-    if (changed) {
+    if (result === 'changed') {
       waitUntil(
         (async () => {
           try {

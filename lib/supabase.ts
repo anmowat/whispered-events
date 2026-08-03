@@ -237,24 +237,52 @@ export async function getMatchScoresForUser(
 // Writes the user's thumbs-up / thumbs-down (or clears it). Returns true
 // when the (event, user) row existed and was updated AND the rating value
 // actually changed (so callers only fire notifications on real changes).
+export type SetRatingResult = 'changed' | 'unchanged' | 'missing' | 'rejected_burst'
+
+// A person doesn't rate the same event two different ways within seconds.
+// Automated link-openers do — they submit every button on the event in one
+// pass. Anything conflicting inside this window is treated as machine traffic.
+const RAPID_CHANGE_WINDOW_MS = 2 * 60 * 1000
+
 export async function setMatchRating(params: {
   eventId: string
   userId: string
   rating: MatchRating | null
   reason: string | null
-}): Promise<boolean> {
+  /**
+   * Reject a conflicting rating that lands within RAPID_CHANGE_WINDOW_MS of the
+   * previous one. Set on the email path only — the dashboard is authenticated
+   * and deliberate, so a quick change of mind there is genuine.
+   */
+  guardRapidChange?: boolean
+}): Promise<SetRatingResult> {
   const supabase = getClient()
   // Read the current rating first so we can detect a no-op (user clicking
   // the same rating again). Only notify when the value genuinely changes.
   const { data: existing } = await supabase
     .from('matches')
-    .select('event_id, rating')
+    .select('event_id, rating, rated_at')
     .eq('event_id', params.eventId)
     .eq('user_id', params.userId)
     .maybeSingle()
-  if (!existing) return false
-  const previousRating = (existing as { rating: string | null }).rating ?? null
-  if (previousRating === params.rating) return false
+  if (!existing) return 'missing'
+  const row = existing as { rating: string | null; rated_at: string | null }
+  const previousRating = row.rating ?? null
+  if (previousRating === params.rating) return 'unchanged'
+
+  if (params.guardRapidChange && previousRating && params.rating && row.rated_at) {
+    const ageMs = Date.now() - new Date(row.rated_at).getTime()
+    if (ageMs >= 0 && ageMs < RAPID_CHANGE_WINDOW_MS) {
+      console.warn('setMatchRating: rejecting rapid conflicting rating', {
+        userId: params.userId,
+        eventId: params.eventId,
+        previousRating,
+        attempted: params.rating,
+        ageMs,
+      })
+      return 'rejected_burst'
+    }
+  }
 
   const { data, error } = await supabase
     .from('matches')
@@ -273,7 +301,7 @@ export async function setMatchRating(params: {
     .eq('user_id', params.userId)
     .select('event_id')
   if (error) throw new Error(`setMatchRating failed: ${error.message}`)
-  return (data?.length ?? 0) > 0
+  return (data?.length ?? 0) > 0 ? 'changed' : 'missing'
 }
 
 // Top-N never-rated future matches by match_percent, for the engagement gate.

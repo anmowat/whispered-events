@@ -1,4 +1,4 @@
-import AutoSubmitRating from './AutoSubmitRating'
+import ConfirmRating from './ConfirmRating'
 
 const SANS = `-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif`
 
@@ -15,7 +15,7 @@ const RATING_LABELS: Record<string, string> = {
 // than with useSearchParams) keeps the <noscript> form in the server HTML — with
 // a client-rendered page the whole boundary is empty until scripts run, which
 // would leave a JavaScript-disabled reader with a blank page and no way to
-// submit. The client island below handles the normal, no-extra-click path.
+// submit.
 export default function RatePage({
   searchParams,
 }: {
@@ -48,11 +48,11 @@ export default function RatePage({
           textAlign: 'center',
         }}
       >
-        <AutoSubmitRating token={token} rating={rating} label={label} />
+        <ConfirmRating token={token} rating={rating} label={label} />
 
         {/* No-JavaScript path: the client island never runs, so offer the same
-            submission directly. Scanners fetch pages but don't submit forms,
-            so this stays safe. */}
+            submission directly. Scanners don't submit forms, so this stays
+            safe even for one that renders the page. */}
         <noscript>
           <form method="POST" action="/api/rate">
             <input type="hidden" name="token" value={token} />
