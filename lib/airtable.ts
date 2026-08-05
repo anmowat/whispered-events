@@ -1017,9 +1017,10 @@ export interface UserAdminUpdate {
 export async function updateUserAdmin(
   id: string,
   update: UserAdminUpdate,
-): Promise<void> {
+): Promise<{ geocodeFailed: boolean }> {
   const supabase = getSupabase()
   const row: Record<string, unknown> = {}
+  let geocodeFailed = false
 
   if (update.email !== undefined) row.email = update.email
   if (update.name !== undefined) row.name = update.name
@@ -1049,6 +1050,9 @@ export async function updateUserAdmin(
       } else {
         // See updateUserProfile — keep existing coordinates rather than
         // nulling the user out of the matching loop on a transient failure.
+        // Reported back to the caller so the admin sees that the save left
+        // the user without coordinates instead of it passing silently.
+        geocodeFailed = true
         console.warn(`updateUserAdmin: could not geocode "${update.location}" — keeping existing lat/lng`)
       }
     } else {
@@ -1083,12 +1087,13 @@ export async function updateUserAdmin(
     row.is_partner = is_partner
   }
 
-  if (Object.keys(row).length === 0) return
+  if (Object.keys(row).length === 0) return { geocodeFailed }
   const { error } = await supabase.from('users').update(row).eq('id', id)
   if (error) {
     console.error('updateUserAdmin error', { id, error })
     throw new Error(`updateUserAdmin failed: ${error.message}`)
   }
+  return { geocodeFailed }
 }
 
 

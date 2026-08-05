@@ -247,7 +247,7 @@ export async function PATCH(
       priorStatus = prior?.status ?? null
     }
 
-    await updateUserAdmin(userId, update)
+    const { geocodeFailed } = await updateUserAdmin(userId, update)
 
     // Pending -> Live (or Partner) transition: fire the approval flow so the
     // welcome email + first matches go out regardless of which active status
@@ -269,7 +269,16 @@ export async function PATCH(
       )
     }
 
-    return NextResponse.json({ ok: true, updated: Object.keys(update) })
+    // The save succeeded, but a failed geocode leaves the user without
+    // coordinates — which drops them out of location matching. Report it so
+    // the admin sees it now rather than discovering it on the profile later.
+    return NextResponse.json({
+      ok: true,
+      updated: Object.keys(update),
+      ...(geocodeFailed
+        ? { warning: `Saved, but "${update.location}" could not be geocoded — this user has no coordinates and won't match on location.` }
+        : {}),
+    })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     console.error('admin/users/[id] PATCH error:', message)

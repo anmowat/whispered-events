@@ -47,46 +47,119 @@ async function throttle(): Promise<void> {
   lastRequestAt = Date.now()
 }
 
+function toLatLng(lat: unknown, lng: unknown): LatLng | null {
+  const a = Number(lat)
+  const b = Number(lng)
+  return Number.isFinite(a) && Number.isFinite(b) ? { lat: a, lng: b } : null
+}
+
+/**
+ * A provider returns coordinates, or null when it genuinely has no match.
+ * Anything else — HTTP error, network failure, unparseable body — throws, so
+ * the caller can fall through to the next provider instead of mistaking an
+ * outage for "this place doesn't exist".
+ */
+interface Provider {
+  name: string
+  lookup(query: string): Promise<LatLng | null>
+}
+
+const nominatim: Provider = {
+  name: 'nominatim',
+  async lookup(query) {
+    const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`
+    const res = await fetch(url, {
+      headers: { 'User-Agent': USER_AGENT, 'Accept-Language': 'en' },
+    })
+    if (!res.ok) throw new Error(`nominatim HTTP ${res.status}`)
+    const data = (await res.json()) as Array<{ lat: string; lon: string }>
+    return data.length ? toLatLng(data[0].lat, data[0].lon) : null
+  },
+}
+
+// Same OpenStreetMap data as Nominatim, but without the usage policy that gets
+// shared cloud egress IPs blocked — which is what was silently failing every
+// lookup from Vercel while the identical query succeeded elsewhere.
+const photon: Provider = {
+  name: 'photon',
+  async lookup(query) {
+    const url = `https://photon.komoot.io/api/?limit=1&q=${encodeURIComponent(query)}`
+    const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT } })
+    if (!res.ok) throw new Error(`photon HTTP ${res.status}`)
+    const data = (await res.json()) as {
+      features?: Array<{ geometry?: { coordinates?: [number, number] } }>
+    }
+    const coords = data.features?.[0]?.geometry?.coordinates
+    // GeoJSON is [lng, lat] — the opposite order to everything else here.
+    return coords ? toLatLng(coords[1], coords[0]) : null
+  },
+}
+
+const PROVIDERS: Provider[] = [nominatim, photon]
+
+// When a provider is being blocked outright, every lookup would otherwise pay
+// its failure plus the throttle before falling through. Skip it for a while
+// after repeated failures, then let it back in.
+const FAILURE_THRESHOLD = 3
+const COOLDOWN_MS = 5 * 60 * 1000
+const providerHealth = new Map<string, { failures: number; skipUntil: number }>()
+
+function isSkipped(name: string): boolean {
+  const h = providerHealth.get(name)
+  return !!h && h.skipUntil > Date.now()
+}
+
+function recordFailure(name: string): void {
+  const h = providerHealth.get(name) ?? { failures: 0, skipUntil: 0 }
+  h.failures += 1
+  if (h.failures >= FAILURE_THRESHOLD) {
+    h.skipUntil = Date.now() + COOLDOWN_MS
+    h.failures = 0
+    console.warn(`geocodeLocation: ${name} failing repeatedly — skipping it for ${COOLDOWN_MS / 60000}m`)
+  }
+  providerHealth.set(name, h)
+}
+
+function recordSuccess(name: string): void {
+  providerHealth.set(name, { failures: 0, skipUntil: 0 })
+}
+
 export async function geocodeLocation(text: string): Promise<LatLng | null> {
   if (!text) return null
   const key = text.trim().toLowerCase()
   if (!key) return null
   if (cache.has(key)) return cache.get(key)!
 
-  await throttle()
   const query = expandStateAbbr(text.trim())
-  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`
-  try {
-    const res = await fetch(url, {
-      headers: { 'User-Agent': USER_AGENT, 'Accept-Language': 'en' },
-    })
-    if (!res.ok) {
-      console.warn(`geocodeLocation: nominatim HTTP ${res.status} for "${text}"`)
-      // Deliberately NOT cached. An HTTP error is a transient Nominatim
-      // problem, not evidence the place doesn't exist — memoizing it would
-      // pin the failure for the life of the process and make every retry in
-      // that window fail too. Only a genuine zero-result response below is
-      // worth remembering.
-      return null
+  let allProvidersFailed = true
+
+  for (const provider of PROVIDERS) {
+    if (isSkipped(provider.name)) continue
+    await throttle()
+    try {
+      const result = await provider.lookup(query)
+      recordSuccess(provider.name)
+      // A definitive no-match still lets the next provider try — the indexes
+      // differ — but it means the lookup itself worked.
+      allProvidersFailed = false
+      if (result) {
+        cache.set(key, result)
+        return result
+      }
+    } catch (err) {
+      recordFailure(provider.name)
+      console.warn(
+        `geocodeLocation: ${provider.name} failed for "${text}":`,
+        err instanceof Error ? err.message : String(err),
+      )
     }
-    const data = (await res.json()) as Array<{ lat: string; lon: string }>
-    if (!data.length) {
-      cache.set(key, null)
-      return null
-    }
-    const lat = Number(data[0].lat)
-    const lng = Number(data[0].lon)
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-      cache.set(key, null)
-      return null
-    }
-    const result = { lat, lng }
-    cache.set(key, result)
-    return result
-  } catch (err) {
-    console.warn(`geocodeLocation: nominatim fetch failed for "${text}"`, err)
-    return null
   }
+
+  // Only memoize a miss when at least one provider answered. Caching an
+  // outage would pin the failure for the life of the process and make every
+  // retry in that window fail too.
+  if (!allProvidersFailed) cache.set(key, null)
+  return null
 }
 
 export function haversineMiles(

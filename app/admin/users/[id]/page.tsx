@@ -351,16 +351,25 @@ export default function AdminUserDetailPage() {
         }))
       }
       const results = await Promise.all(tasks)
+      const warnings: string[] = []
       for (const res of results) {
+        const data = (await res.json().catch(() => ({}))) as {
+          error?: string
+          warning?: string
+        }
         if (!res.ok) {
-          const data = (await res.json().catch(() => ({}))) as { error?: string }
           setEditError(data.error || `HTTP ${res.status}`)
           return
         }
+        if (data.warning) warnings.push(data.warning)
       }
       setDraft(null)
       setHostedEventsDraft(null)
       await fetchDetail()
+      // The save went through, but something needs attention — a location we
+      // couldn't geocode, for instance. Surfacing it here beats leaving the
+      // admin to notice a blank LatLon later.
+      if (warnings.length > 0) setEditError(warnings.join(' '))
     } catch (e) {
       setEditError(e instanceof Error ? e.message : String(e))
     } finally {
