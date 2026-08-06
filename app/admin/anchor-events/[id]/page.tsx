@@ -22,6 +22,7 @@ interface EventItem {
   date: string
   location: string
   type: string
+  organizer?: string | null
   startTime?: string | null
   featured?: boolean
 }
@@ -370,7 +371,10 @@ export default function AdminAnchorEventDetailPage({ params }: { params: { id: s
                     </button>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 500, fontSize: 14 }}>{ev.name}</div>
-                      <div style={{ fontSize: 12, color: '#888' }}>{ev.date} · {ev.location} · {ev.type}</div>
+                      <div style={{ fontSize: 12, color: '#888' }}>
+                        {ev.date} · {ev.location} · {ev.type}
+                        {ev.organizer ? ` · Host: ${ev.organizer}` : ''}
+                      </div>
                     </div>
                     <button onClick={() => removeEvent(ev.id)} style={{ background: 'none', border: 'none', color: '#c0392b', cursor: 'pointer', fontSize: 13, flexShrink: 0 }}>Remove</button>
                   </div>

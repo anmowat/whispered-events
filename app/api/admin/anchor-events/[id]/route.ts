@@ -30,6 +30,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
         date: e.date,
         location: e.location,
         type: e.type,
+        organizer: e.organizer ?? null,
         startTime: e.startTime,
         endTime: (e as { endTime?: string }).endTime ?? null,
         featured: e.featured,

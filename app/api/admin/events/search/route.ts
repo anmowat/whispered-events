@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
   const supabase = getSupabase()
   const { data, error } = await supabase
     .from('events')
-    .select('id, name, date, location, type')
+    .select('id, name, date, location, type, organizer')
     .ilike('name', `%${q}%`)
     .is('deleted_at', null)
     .is('airtable_deleted_at', null)
@@ -35,6 +35,7 @@ export async function GET(req: NextRequest) {
       date: e.date as string,
       location: e.location as string,
       type: e.type as string,
+      organizer: (e.organizer as string | null) ?? null,
     })),
   })
 }
