@@ -614,10 +614,14 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
 
                   const descToggleEl = ev.description ? (
                     <button onClick={() => toggleDescription(ev.id)} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#c9a86a', fontSize: 13 }}>
-                      {/* Arrow sized independently of the label so it reads at a
-                          glance as the affordance. lineHeight:1 keeps the taller
-                          glyph from stretching the meta row. */}
-                      <span style={{ fontSize: 19.5, lineHeight: 1 }}>{expanded ? '▲' : '▼'}</span>
+                      {/* Scaled rather than set to a larger font-size: a bigger
+                          glyph grows the button's line box, which makes this flex
+                          item taller than its siblings and pushes the text after
+                          it out of alignment. A transform draws it 50% larger
+                          while leaving the layout box at the 13px text size. */}
+                      <span style={{ display: 'inline-block', transform: 'scale(1.5)', lineHeight: 1, marginRight: 3 }}>
+                        {expanded ? '▲' : '▼'}
+                      </span>
                       Description
                     </button>
                   ) : null
