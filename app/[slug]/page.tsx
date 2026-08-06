@@ -75,18 +75,29 @@ function offerWindows<T>(arr: T[], size: number): T[][] {
   )
 }
 
+// How long a slot holds one chunk before the global tick swaps it. The mobile
+// carousel divides this between the chunk's offers, so the two stay in step.
+const OFFER_CYCLE_MS = 10000
+
 function InlineOfferSlot({ chunk, visible }: { chunk: Offer[]; visible: boolean }) {
   const [mobileIdx, setMobileIdx] = useState(0)
 
-  // Reset mobile index when chunk changes (on global tick)
-  useEffect(() => { setMobileIdx(0) }, [chunk])
-
-  // Mobile: slide every 5s within this chunk
+  // Reset and restart together, keyed on the chunk itself.
+  //
+  // These were two effects: one resetting the index on chunk change, another
+  // running a fixed 5s slide keyed on chunk.length. Because the length stays 3
+  // across swaps, the slide timer never restarted and drifted out of phase with
+  // the 10s chunk swap — so a 3-offer chunk only ever showed the first two, and
+  // the third appeared for a single frame during the fade-out before the swap.
+  // Dividing the cycle by the chunk size gives every offer an equal turn, and
+  // re-keying on `chunk` re-syncs the phase on each swap.
   useEffect(() => {
+    setMobileIdx(0)
     if (chunk.length <= 1) return
-    const id = setInterval(() => setMobileIdx((i) => (i + 1) % chunk.length), 5000)
+    const step = Math.floor(OFFER_CYCLE_MS / chunk.length)
+    const id = setInterval(() => setMobileIdx((i) => (i + 1) % chunk.length), step)
     return () => clearInterval(id)
-  }, [chunk.length])
+  }, [chunk])
 
   return (
     <div style={{ opacity: visible ? 1 : 0, transition: 'opacity 0.4s ease', margin: '8px 0 4px' }}>
@@ -203,7 +214,7 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
           requestAnimationFrame(() => setOffersVisible(true))
         })
       }, 450))
-    }, 10000)
+    }, OFFER_CYCLE_MS)
     return () => {
       clearInterval(id)
       timers.forEach(clearTimeout)
@@ -382,7 +393,11 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
           .aep-copy-btn { display: none !important; }
           .aep-auth-btn-header { display: none !important; }
           .aep-auth-btn-filter { display: inline-flex !important; }
-          .aep-card-inner { flex-direction: column; gap: 0; }
+          /* align-items:flex-start on the base rule sizes children to their
+             content. Harmless in a row, but in this column it stops the left
+             column filling the card — so the type pill and View event button
+             stop short of the right edge instead of sitting flush. */
+          .aep-card-inner { flex-direction: column; gap: 0; align-items: stretch !important; }
           .aep-card-right { display: none !important; }
           .aep-desc-desktop { display: none !important; }
           .aep-card-bottom-mobile { display: flex !important; justify-content: space-between; align-items: center; margin-top: 10px; }
