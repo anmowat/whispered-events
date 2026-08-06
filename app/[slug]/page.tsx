@@ -613,8 +613,12 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
                   ) : null
 
                   const descToggleEl = ev.description ? (
-                    <button onClick={() => toggleDescription(ev.id)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#c9a86a', fontSize: 13 }}>
-                      {expanded ? '▲ Description' : '▼ Description'}
+                    <button onClick={() => toggleDescription(ev.id)} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#c9a86a', fontSize: 13 }}>
+                      {/* Arrow sized independently of the label so it reads at a
+                          glance as the affordance. lineHeight:1 keeps the taller
+                          glyph from stretching the meta row. */}
+                      <span style={{ fontSize: 19.5, lineHeight: 1 }}>{expanded ? '▲' : '▼'}</span>
+                      Description
                     </button>
                   ) : null
 
@@ -623,23 +627,26 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
                       <div className="aep-card-inner">
                         {/* Left / main content */}
                         <div className="aep-card-left">
-                          {/* Title row: inline flow so type+favicon follow name without forced line break */}
-                          <div style={{ marginBottom: 5, lineHeight: 1.3 }}>
+                          {/* Title row: flex + wrap so the type pill and favicon sit
+                              centred against the title rather than on its baseline,
+                              and still drop to the next line only when space runs out. */}
+                          <div style={{ marginBottom: 5, lineHeight: 1.3, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
                             <span style={{ fontFamily: SERIF, fontSize: 21, color: '#ece6da' }}>{ev.name}</span>
                             {ev.type && (
-                              <span style={{ display: 'inline-block', background: 'rgba(255,255,255,0.06)', borderRadius: 4, padding: '2px 7px', fontSize: 11, letterSpacing: '.04em', color: '#7a6e66', marginLeft: 8, verticalAlign: 'middle' }}>{ev.type}</span>
+                              <span style={{ display: 'inline-block', background: 'rgba(255,255,255,0.14)', borderRadius: 5, padding: '3px 9px', fontSize: 13, fontWeight: 600, letterSpacing: '.03em', color: '#ffffff', whiteSpace: 'nowrap' }}>{ev.type}</span>
                             )}
                             {ev.faviconUrl && (
-                              <img className="aep-favicon-mobile" src={ev.faviconUrl} alt="" style={{ display: 'inline-block', height: 20, width: 20, objectFit: 'cover', borderRadius: 4, marginLeft: 6, verticalAlign: 'middle' }} />
+                              <img className="aep-favicon-mobile" src={ev.faviconUrl} alt="" style={{ height: 20, width: 20, objectFit: 'cover', borderRadius: 4 }} />
                             )}
                           </div>
                           {/* Meta row */}
                           <div style={{ fontSize: 13, color: '#9c8b7e', display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
                             {ev.date && <span>{formatEventDate(ev.date, { weekday: 'short', month: 'short', day: 'numeric' })}</span>}
                             {ev.startTime && <span style={{ color: '#c9a86a', fontWeight: 500 }}>{ev.startTime}{ev.endTime ? ` – ${ev.endTime}` : ''}</span>}
-                            {ev.organizer && <span>Host: {ev.organizer}</span>}
-                            {/* Description toggle — desktop only */}
+                            {/* Description toggle — desktop only. Host sits after it
+                                so the toggle stays adjacent to the time. */}
                             <span className="aep-desc-desktop">{descToggleEl}</span>
+                            {ev.organizer && <span>Host: {ev.organizer}</span>}
                           </div>
                           {expanded && ev.description && (
                             <div style={{ fontSize: 14, color: '#7a6e66', lineHeight: 1.6, marginTop: 8 }}>{ev.description}</div>
