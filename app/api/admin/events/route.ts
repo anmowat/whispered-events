@@ -69,6 +69,7 @@ export async function GET(req: NextRequest) {
         id: e.id,
         name: e.name,
         type: e.type,
+        organizer: e.organizer ?? null,
         date: e.date,
         created: e.created || null,
         location: e.location,

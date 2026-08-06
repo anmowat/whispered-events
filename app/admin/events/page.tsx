@@ -14,6 +14,7 @@ interface EventRow {
   created: string | null
   location: string
   audience: string[]
+  organizer: string | null
   lat: number | null
   lng: number | null
   matchCount: number
@@ -39,12 +40,12 @@ const SCOPE_LABEL: Record<Scope, string> = {
   all: 'All events',
 }
 
-type SortKey = 'name' | 'type' | 'date' | 'created' | 'location' | 'matches' | 'usersInRange' | 'matchPct' | 'rateU' | 'rateH'
+type SortKey = 'name' | 'host' | 'date' | 'created' | 'location' | 'matches' | 'usersInRange' | 'matchPct' | 'rateU' | 'rateH'
 type SortDir = 'asc' | 'desc'
 
 const DEFAULT_DIR: Record<SortKey, SortDir> = {
   name: 'asc',
-  type: 'asc',
+  host: 'asc',
   date: 'asc',
   created: 'desc',
   location: 'asc',
@@ -104,7 +105,7 @@ function dateMs(iso: string | null): number {
 function compareByKey(a: EventRow, b: EventRow, key: SortKey): number {
   switch (key) {
     case 'name': return a.name.toLowerCase().localeCompare(b.name.toLowerCase())
-    case 'type': return (a.type || '').localeCompare(b.type || '')
+    case 'host': return (a.organizer || '').toLowerCase().localeCompare((b.organizer || '').toLowerCase())
     case 'date': return (a.date || '').localeCompare(b.date || '')
     case 'created': return dateMs(a.created) - dateMs(b.created)
     case 'location': return (a.location || '').toLowerCase().localeCompare((b.location || '').toLowerCase())
@@ -385,7 +386,7 @@ export default function AdminEventsPage() {
                 <thead className="bg-[#FDFAF6] border-b border-[#E8DDD0] sticky top-0 z-20 shadow-[0_1px_0_0_#E8DDD0]">
                   <tr>
                     <SortHeader label="Event" sortKey="name" align="left" toggleSort={toggleSort} sortBy={sortBy} sortDir={sortDir} />
-                    <SortHeader label="Type" sortKey="type" align="left" toggleSort={toggleSort} sortBy={sortBy} sortDir={sortDir} />
+                    <SortHeader label="Host" sortKey="host" align="left" toggleSort={toggleSort} sortBy={sortBy} sortDir={sortDir} />
                     <SortHeader label="Date" sortKey="date" align="left" toggleSort={toggleSort} sortBy={sortBy} sortDir={sortDir} />
                     <SortHeader label="Created" sortKey="created" align="left" toggleSort={toggleSort} sortBy={sortBy} sortDir={sortDir} />
                     <SortHeader label="Location" sortKey="location" align="left" toggleSort={toggleSort} sortBy={sortBy} sortDir={sortDir} />
@@ -435,7 +436,9 @@ export default function AdminEventsPage() {
                           </span>
                         )}
                       </td>
-                      <td className="px-3 py-3 text-gray-600 text-xs">{e.type || <span className="text-gray-400 italic">—</span>}</td>
+                      <td className="px-3 py-3 text-gray-600 text-xs truncate max-w-[160px]" title={e.organizer || ''}>
+                        {e.organizer || <span className="text-gray-400 italic">—</span>}
+                      </td>
                       <td className="px-3 py-3 text-gray-600 text-xs" title={formatEventDate(e.date, { month: 'short', day: 'numeric', year: 'numeric' })}>
                         {formatEventDate(e.date, { month: 'short', day: 'numeric' })}
                       </td>
