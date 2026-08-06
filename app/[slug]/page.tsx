@@ -363,9 +363,9 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
         .aep-card-inner { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
         .aep-card-left { flex: 1; min-width: 0; }
         .aep-card-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-        .aep-favicon-mobile { display: none !important; }
         .aep-desc-desktop { display: inline !important; }
         .aep-card-bottom-mobile { display: none !important; }
+        .aep-bottom-right { display: flex; align-items: center; gap: 8px; }
         @media (max-width: 600px) {
           .aep-outer { padding: 24px 16px 60px; }
           .aep-header { flex-direction: column; gap: 12px; margin-bottom: 20px; }
@@ -384,9 +384,16 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
           .aep-auth-btn-filter { display: inline-flex !important; }
           .aep-card-inner { flex-direction: column; gap: 0; }
           .aep-card-right { display: none !important; }
-          .aep-favicon-mobile { display: inline-block !important; }
           .aep-desc-desktop { display: none !important; }
           .aep-card-bottom-mobile { display: flex !important; justify-content: space-between; align-items: center; margin-top: 10px; }
+          /* Push the type pill to the right edge of the title row. Desktop keeps
+             it beside the name, where there's room for it.
+             nowrap + min-width:0 keeps the pill on the first line and lets a long
+             title wrap beneath it — with wrapping on, margin-left:auto drops the
+             pill onto its own line and leaves a large gap. */
+          .aep-title-row { flex-wrap: nowrap !important; align-items: flex-start !important; }
+          .aep-event-name { min-width: 0; }
+          .aep-type { margin-left: auto; flex-shrink: 0; margin-top: 3px; }
         }
       `}</style>
 
@@ -634,13 +641,10 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
                           {/* Title row: flex + wrap so the type pill and favicon sit
                               centred against the title rather than on its baseline,
                               and still drop to the next line only when space runs out. */}
-                          <div style={{ marginBottom: 5, lineHeight: 1.3, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-                            <span style={{ fontFamily: SERIF, fontSize: 21, color: '#ece6da' }}>{ev.name}</span>
+                          <div className="aep-title-row" style={{ marginBottom: 5, lineHeight: 1.3, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                            <span className="aep-event-name" style={{ fontFamily: SERIF, fontSize: 21, color: '#ece6da' }}>{ev.name}</span>
                             {ev.type && (
-                              <span style={{ display: 'inline-block', background: 'rgba(255,255,255,0.14)', borderRadius: 5, padding: '3px 9px', fontSize: 13, fontWeight: 600, letterSpacing: '.03em', color: '#ffffff', whiteSpace: 'nowrap' }}>{ev.type}</span>
-                            )}
-                            {ev.faviconUrl && (
-                              <img className="aep-favicon-mobile" src={ev.faviconUrl} alt="" style={{ height: 20, width: 20, objectFit: 'cover', borderRadius: 4 }} />
+                              <span className="aep-type" style={{ display: 'inline-block', background: 'rgba(255,255,255,0.14)', borderRadius: 5, padding: '3px 9px', fontSize: 13, fontWeight: 600, letterSpacing: '.03em', color: '#ffffff', whiteSpace: 'nowrap' }}>{ev.type}</span>
                             )}
                           </div>
                           {/* Meta row */}
@@ -658,7 +662,12 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
                           {/* Bottom row — mobile only: desc toggle left, view event right */}
                           <div className="aep-card-bottom-mobile">
                             <span>{descToggleEl}</span>
-                            {viewEventEl}
+                            <div className="aep-bottom-right">
+                              {ev.faviconUrl && (
+                                <img src={ev.faviconUrl} alt="" style={{ height: 34, width: 34, objectFit: 'cover', borderRadius: 8, display: 'block', flexShrink: 0 }} />
+                              )}
+                              {viewEventEl}
+                            </div>
                           </div>
                         </div>
                         {/* Right column — desktop only: favicon + view event */}
