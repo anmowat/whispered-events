@@ -9,6 +9,16 @@ import AddEventModal from '@/components/AddEventModal'
 
 const SERIF = `'Cormorant Garamond', Georgia, 'Times New Roman', serif`
 
+// Inclusive [start, end] minute ranges for the time filter. Morning stops at
+// 11:59 so a midday start doesn't register as morning; the rest overlap on
+// purpose, since an event can genuinely span two of them.
+const TIME_WINDOWS: Record<string, [number, number]> = {
+  morning: [7 * 60, 12 * 60 - 1],
+  midday: [10 * 60 + 30, 14 * 60],
+  afternoon: [13 * 60, 17 * 60],
+  evening: [16 * 60, 24 * 60 - 1],
+}
+
 function timeToMinutes(t: string | null): number | null {
   if (!t) return null
   const m12 = t.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i)
@@ -184,12 +194,19 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
       if (filterType !== 'all' && e.type !== filterType) return false
       if (filterDay !== 'all' && e.date !== filterDay) return false
       if (filterTime !== 'all') {
-        const mins = timeToMinutes(e.startTime)
-        if (mins === null) return false
-        if (filterTime === 'morning' && !(mins >= 7 * 60 && mins < 12 * 60)) return false
-        if (filterTime === 'midday' && !(mins >= 10 * 60 + 30 && mins <= 14 * 60)) return false
-        if (filterTime === 'afternoon' && !(mins >= 13 * 60 && mins <= 17 * 60)) return false
-        if (filterTime === 'evening' && !(mins >= 16 * 60)) return false
+        const win = TIME_WINDOWS[filterTime]
+        if (!win) return false
+        const start = timeToMinutes(e.startTime)
+        if (start === null) return false
+        let end = timeToMinutes(e.endTime ?? null)
+        // No end time: treat it as a point. Ending before it starts means it
+        // runs past midnight, so extend it to the end of the day.
+        if (end === null) end = start
+        else if (end < start) end = 24 * 60 - 1
+        // Overlap, not just the start time. A 1:00–8:00 PM event runs through
+        // the evening and should appear under Evening as well as Afternoon;
+        // testing only the start hid it from every window but the first.
+        if (start > win[1] || end < win[0]) return false
       }
       return true
     })
