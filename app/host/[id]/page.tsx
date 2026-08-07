@@ -27,7 +27,6 @@ interface HostMatch {
   linkedin: string
   function: string
   seniority: string
-  interest: string
   employment: string
   companySize: string
   matchPercent: number
@@ -526,7 +525,6 @@ export default function HostEventDetailPage() {
                       </button>
                     </th>
                     <th className="text-left px-4 py-3 eyebrow">Size / Status</th>
-                    <th className="text-left px-4 py-3 eyebrow">Interest</th>
                     <th className="text-right px-4 py-3">
                       <button onClick={() => toggleMatchSort('matchPercent')} className="eyebrow" style={{ cursor: 'pointer', background: 'none', border: 'none', padding: 0, display: 'flex', alignItems: 'center', gap: 4, marginLeft: 'auto' }}>
                         Match <SortArrow col="matchPercent" sortBy={matchSortBy} dir={matchSortDir} />
@@ -597,13 +595,6 @@ export default function HostEventDetailPage() {
                         {m.employment === 'Employed'
                           ? (m.companySize || <span className="italic" style={{ color: 'var(--ink-3)' }}>—</span>)
                           : (m.employment || <span className="italic" style={{ color: 'var(--ink-3)' }}>—</span>)}
-                      </td>
-                      <td
-                        className="px-4 py-3 max-w-xs truncate"
-                        style={{ color: 'var(--ink-2)' }}
-                        title={m.interest || ''}
-                      >
-                        {m.interest || <span className="italic" style={{ color: 'var(--ink-3)' }}>—</span>}
                       </td>
                       <td
                         className="px-4 py-3 text-right num font-medium"
