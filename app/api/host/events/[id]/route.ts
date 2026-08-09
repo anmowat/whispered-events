@@ -176,7 +176,14 @@ export async function PATCH(
   }
 
   // Re-run matching against the updated event so the match list reflects new
-  // targeting. waitUntil keeps the background fetch alive past the response.
+  // targeting — this is what backs the "matches will automatically be rerun"
+  // promise on the host page. waitUntil keeps the background fetch alive past
+  // the response.
+  //
+  // Deliberately no resetNotified: an edit here must not re-notify users who
+  // were already emailed about this event. Scoring itself is cheap when the
+  // host changed something non-scoring, since an unchanged inputs hash serves
+  // the cached score.
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.whisperedevents.com'
   waitUntil(
     fetch(`${appUrl}/api/process-matches?trigger=event&id=${params.id}`).catch((e) =>

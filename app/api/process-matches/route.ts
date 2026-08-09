@@ -55,7 +55,7 @@ function countNearbyEvents(user: AirtableUser, events: AirtableEvent[]): number 
   return n
 }
 
-async function processEventTrigger(eventId: string, force = false) {
+async function processEventTrigger(eventId: string, force = false, resetNotified = false) {
   // Use getEventById so Pending events (not yet Live) can be pre-scored for
   // admin preview. getFutureEvents() filters status='Live' and would miss them.
   const event = await getEventById(eventId)
@@ -66,9 +66,14 @@ async function processEventTrigger(eventId: string, force = false) {
 
   const isLive = event.status === 'Live'
 
-  // When an event goes Live, reset any pre-stamped notified_at values from
-  // Pending-preview scoring so those rows become cron-eligible again.
-  if (isLive) {
+  // Clear the notified_at values stamped during Pending-preview scoring so
+  // those rows become cron-eligible once the event is Live.
+  //
+  // Only on the actual transition into Live — hence the explicit flag. This
+  // used to fire on every event trigger against a Live event, which meant a
+  // host fixing a typo on their own event reset notified_at for every matched
+  // user and re-sent them an event they'd already been emailed.
+  if (isLive && resetNotified) {
     try {
       await resetNotifiedAtForEvent(eventId)
     } catch (e) {
@@ -452,7 +457,8 @@ export async function GET(req: NextRequest) {
     // MATCHING_VERSION bump; routine triggers should leave it off.
     const force = searchParams.get('force') === '1'
     if (trigger === 'event') {
-      await processEventTrigger(id, force)
+      const resetNotified = searchParams.get('resetNotified') === '1'
+      await processEventTrigger(id, force, resetNotified)
     } else if (trigger === 'user') {
       await processUserTrigger(id, { noEmail, welcome, locationChanged, force })
     } else {

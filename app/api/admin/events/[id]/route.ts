@@ -316,7 +316,7 @@ export async function PATCH(
     // users won't get a duplicate email.
     if (update.status === 'Live' && priorStatus !== 'Live') {
       waitUntil(
-        fetch(`${appUrl}/api/process-matches?trigger=event&id=${eventId}`).catch(
+        fetch(`${appUrl}/api/process-matches?trigger=event&id=${eventId}&resetNotified=1`).catch(
           (e) => console.error('admin/events/[id] PATCH: trigger event match (live) failed', e),
         ),
       )
