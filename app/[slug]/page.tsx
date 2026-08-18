@@ -9,16 +9,6 @@ import AddEventModal from '@/components/AddEventModal'
 
 const SERIF = `'Cormorant Garamond', Georgia, 'Times New Roman', serif`
 
-// Inclusive [start, end] minute ranges for the time filter. Morning stops at
-// 11:59 so a midday start doesn't register as morning; the rest overlap on
-// purpose, since an event can genuinely span two of them.
-const TIME_WINDOWS: Record<string, [number, number]> = {
-  morning: [7 * 60, 12 * 60 - 1],
-  midday: [10 * 60 + 30, 14 * 60],
-  afternoon: [13 * 60, 17 * 60],
-  evening: [16 * 60, 24 * 60 - 1],
-}
-
 function timeToMinutes(t: string | null): number | null {
   if (!t) return null
   const m12 = t.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i)
@@ -147,7 +137,7 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
   const [filterType, setFilterType] = useState<string>('all')
   const [filterDay, setFilterDay] = useState<string>('all')
-  const [filterTime, setFilterTime] = useState<string>('all')
+  const [sortBy, setSortBy] = useState<'featured' | 'date'>('featured')
   const [showFilterSheet, setShowFilterSheet] = useState(false)
   const [offerTick, setOfferTick] = useState(0)
   const [offersVisible, setOffersVisible] = useState(true)
@@ -193,24 +183,31 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
       if (isLoggedIn && userSeniority && e.seniority.length > 0 && !e.seniority.includes(userSeniority)) return false
       if (filterType !== 'all' && e.type !== filterType) return false
       if (filterDay !== 'all' && e.date !== filterDay) return false
-      if (filterTime !== 'all') {
-        const win = TIME_WINDOWS[filterTime]
-        if (!win) return false
-        const start = timeToMinutes(e.startTime)
-        if (start === null) return false
-        let end = timeToMinutes(e.endTime ?? null)
-        // No end time: treat it as a point. Ending before it starts means it
-        // runs past midnight, so extend it to the end of the day.
-        if (end === null) end = start
-        else if (end < start) end = 24 * 60 - 1
-        // Overlap, not just the start time. A 1:00–8:00 PM event runs through
-        // the evening and should appear under Evening as well as Afternoon;
-        // testing only the start hid it from every window but the first.
-        if (start > win[1] || end < win[0]) return false
-      }
       return true
     })
-  }, [data, filterType, filterDay, filterTime, isLoggedIn, userSeniority])
+  }, [data, filterType, filterDay, isLoggedIn, userSeniority])
+
+  // Chronological order, used on its own for the Date sort and as the
+  // tie-breaker within each group for Featured. Events with no start time sort
+  // after those that have one on the same day.
+  const sortedEvents = useMemo(() => {
+    const byDateTime = (a: EventSummary, b: EventSummary) => {
+      const d = (a.date || '').localeCompare(b.date || '')
+      if (d !== 0) return d
+      const at = timeToMinutes(a.startTime)
+      const bt = timeToMinutes(b.startTime)
+      if (at !== bt) {
+        if (at === null) return 1
+        if (bt === null) return -1
+        return at - bt
+      }
+      return a.name.localeCompare(b.name)
+    }
+    return [...filteredEvents].sort((a, b) => {
+      if (sortBy === 'featured' && a.featured !== b.featured) return a.featured ? -1 : 1
+      return byDateTime(a, b)
+    })
+  }, [filteredEvents, sortBy])
 
   const bannerOffers = useMemo(() => (data?.offers ?? []).filter((o) => o.bannerUrl), [data])
   const offerChunks = useMemo(() => offerWindows(bannerOffers, 3), [bannerOffers])
@@ -523,23 +520,22 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
             {/* Filters */}
             {/* Filter bar */}
             {(() => {
-              const activeCount = [filterDay, filterTime, filterType].filter(v => v !== 'all').length
+              const activeCount = [filterDay, filterType].filter(v => v !== 'all').length
               const filterSelects = (
                 <>
                   <select value={filterDay} onChange={(e) => setFilterDay(e.target.value)} className="aep-filter-select" style={{ color: filterDay === 'all' ? '#6b5e53' : '#ece6da' }}>
                     <option value="all">All days</option>
                     {uniqueDays.map((d) => <option key={d} value={d}>{formatEventDate(d, { weekday: 'short', month: 'short', day: 'numeric' })}</option>)}
                   </select>
-                  <select value={filterTime} onChange={(e) => setFilterTime(e.target.value)} className="aep-filter-select" style={{ color: filterTime === 'all' ? '#6b5e53' : '#ece6da' }}>
-                    <option value="all">All times</option>
-                    <option value="morning">Morning</option>
-                    <option value="midday">Midday</option>
-                    <option value="afternoon">Afternoon</option>
-                    <option value="evening">Evening</option>
-                  </select>
                   <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className="aep-filter-select" style={{ color: filterType === 'all' ? '#6b5e53' : '#ece6da' }}>
                     <option value="all">All types</option>
                     {uniqueTypes.map((t) => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                  {/* Sort, not a filter — always reads as set, so it keeps full
+                      contrast and stays out of the active-filter count. */}
+                  <select value={sortBy} onChange={(e) => setSortBy(e.target.value as 'featured' | 'date')} className="aep-filter-select" style={{ color: '#ece6da' }}>
+                    <option value="featured">Sort: Featured</option>
+                    <option value="date">Sort: Date</option>
                   </select>
                 </>
               )
@@ -607,7 +603,7 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
                           {filterSelects}
                         </div>
                         {activeCount > 0 && (
-                          <button onClick={() => { setFilterDay('all'); setFilterTime('all'); setFilterType('all') }} style={{ marginTop: 4, background: 'none', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, padding: '8px', color: '#6b5e53', fontSize: 13, cursor: 'pointer' }}>
+                          <button onClick={() => { setFilterDay('all'); setFilterType('all') }} style={{ marginTop: 4, background: 'none', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, padding: '8px', color: '#6b5e53', fontSize: 13, cursor: 'pointer' }}>
                             Clear filters
                           </button>
                         )}
@@ -626,9 +622,9 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
                 // Inject offers after rows 3, 8, 13, 18… (0-indexed: 2, 7, 12, 17…).
                 // If we fall 1–2 events short of a threshold, show after the last event instead.
                 const slotAfter = new Set<number>()
-                const last = filteredEvents.length - 1
+                const last = sortedEvents.length - 1
                 for (let t = 2; ; t += 5) {
-                  if (t < filteredEvents.length) {
+                  if (t < sortedEvents.length) {
                     slotAfter.add(t)
                   } else {
                     if (last >= 0 && t - last <= 2) slotAfter.add(last)
@@ -637,7 +633,7 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
                 }
 
                 let slotCount = 0
-                return filteredEvents.flatMap((ev, i) => {
+                return sortedEvents.flatMap((ev, i) => {
                   const expanded = expandedIds.has(ev.id)
                   const viewEventEl = ev.link ? (
                     isLoggedIn ? (
@@ -695,7 +691,7 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
                           <div className="aep-card-bottom-mobile">
                             <span>{descToggleEl}</span>
                             <div className="aep-bottom-right">
-                              {ev.faviconUrl && (
+                              {ev.featured && ev.faviconUrl && (
                                 <img src={ev.faviconUrl} alt="" style={{ height: 34, width: 34, objectFit: 'cover', borderRadius: 8, display: 'block', flexShrink: 0 }} />
                               )}
                               {viewEventEl}
@@ -704,7 +700,7 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
                         </div>
                         {/* Right column — desktop only: favicon + view event */}
                         <div className="aep-card-right">
-                          {ev.faviconUrl && (
+                          {ev.featured && ev.faviconUrl && (
                             <img src={ev.faviconUrl} alt="" style={{ height: 36, width: 36, objectFit: 'cover', borderRadius: 8, display: 'block' }} />
                           )}
                           {viewEventEl}
