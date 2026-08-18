@@ -126,34 +126,43 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, reason: 'auto-submitted' })
   }
 
-  // When Google Workspace (or any external alias) forwards an inbound
-  // event to Resend, the envelope `from` gets rewritten to the
-  // forwarding mailbox — not the original sender. Detect that and
-  // recover the real sender from the body's forwarded-message block
-  // (Gmail/Outlook/etc all preserve the original From: header inline).
-  // Without this, every forwarded event records the forwarder mailbox
-  // as the submitter in Airtable.
+  // When a Google Group, Workspace alias, or any external forwarder relays an
+  // inbound event to Resend, the envelope `from` is rewritten to the relay
+  // address rather than the original sender. Two shapes to recover from:
+  //
+  //   * List/group relay — no forwarded block in the body at all; the real
+  //     sender is only in a header (X-Original-Sender for Google Groups).
+  //   * Manual forward — Gmail/Outlook/Apple Mail keep the original From:
+  //     inline in the body.
+  //
+  // Headers are checked first because they're structured and unambiguous.
+  // Without this the relay address is recorded as the submitter.
   if (isOwnDomain(senderEmail)) {
     // Try the text part first, then the HTML. Some clients only carry the
     // forwarded header block in the HTML alternative, so checking one source
     // isn't enough.
     const original =
+      extractOriginalSenderFromHeaders(headerLookup) ??
       extractOriginalSenderFromBody(text) ??
       extractOriginalSenderFromBody(stripHtml(fetched.data.html ?? ''))
     if (original) {
       console.log(
         'inbound-email: envelope sender',
         senderEmail,
-        'is a forwarder — using body-extracted original',
+        'is a relay/forwarder — recovered original sender',
         original,
       )
       senderEmail = original
     } else {
       console.warn(
-        'inbound-email: envelope sender',
-        senderEmail,
-        'looks like a forwarder but no original From: found in body — body preview:',
-        text.slice(0, 500),
+        'inbound-email: could not recover the original sender.',
+        JSON.stringify({
+          envelopeFrom: senderEmail,
+          headersPresent: Object.keys(headerLookup).sort(),
+          senderHeaders: SENDER_HEADERS.map((h) => `${h}=${headerLookup[h] ?? ''}`),
+          hasHtml: !!fetched.data.html,
+          bodyPreview: text.slice(0, 500),
+        }),
       )
       if (url) {
         // A URL was found so this is likely a real submission whose sender
@@ -399,6 +408,31 @@ function isOwnDomain(email: string): boolean {
 // We pick the first `From:` line that isn't one of our forwarder
 // domains. Returns null if nothing matches.
 const EMAIL_RE = /[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}/i
+
+// Headers that carry the real sender when a message reaches us via a relay
+// rather than a manual forward. event@whispered.com is a Google Group, and a
+// group relay rewrites the envelope sender to the group address without
+// putting a "---------- Forwarded message ----------" block in the body — so
+// there is nothing for the body parser to find. Google Groups records the
+// real sender in X-Original-Sender; other relays use X-Original-From. Reply-To
+// is last because a forwarder can legitimately set it to itself.
+const SENDER_HEADERS = ['x-original-sender', 'x-original-from', 'reply-to'] as const
+
+function extractOriginalSenderFromHeaders(
+  headers: Record<string, string>,
+): string | null {
+  for (const name of SENDER_HEADERS) {
+    const value = headers[name]
+    if (!value) continue
+    const found = value.match(EMAIL_RE)
+    if (!found) continue
+    const candidate = found[0].toLowerCase()
+    // Our own addresses are the relay, not the submitter.
+    if (isOwnDomain(candidate)) continue
+    return candidate
+  }
+  return null
+}
 
 function extractOriginalSenderFromBody(text: string): string | null {
   if (!text) return null
