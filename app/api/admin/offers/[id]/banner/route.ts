@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { isAdmin } from '@/lib/admin-auth'
 import { updateOffer } from '@/lib/offers'
+import { withVersion } from '@/lib/url'
 
 export const runtime = 'nodejs'
 
@@ -40,16 +41,18 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const supabase = getSupabase()
     const { error: uploadErr } = await supabase.storage
       .from(BUCKET)
-      .upload(key, bytes, { contentType, upsert: true })
+      .upload(key, bytes, { contentType, upsert: true, cacheControl: '3600' })
     if (uploadErr) {
       return NextResponse.json({ error: uploadErr.message }, { status: 500 })
     }
 
     const { data: publicData } = supabase.storage.from(BUCKET).getPublicUrl(key)
-    const publicUrl = publicData?.publicUrl ?? ''
-    if (!publicUrl) {
+    const baseUrl = publicData?.publicUrl ?? ''
+    if (!baseUrl) {
       return NextResponse.json({ error: 'getPublicUrl returned empty' }, { status: 500 })
     }
+
+    const publicUrl = withVersion(baseUrl)
 
     await updateOffer(id, { bannerUrl: publicUrl })
     return NextResponse.json({ ok: true, bannerUrl: publicUrl })

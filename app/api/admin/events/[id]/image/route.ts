@@ -3,6 +3,7 @@ import { waitUntil } from '@vercel/functions'
 import { createClient } from '@supabase/supabase-js'
 import { isAdmin } from '@/lib/admin-auth'
 import { updateEvent } from '@/lib/airtable'
+import { withVersion } from '@/lib/url'
 
 // Admin-only image management for an event. Mirrors Phase A's sync flow but
 // initiated by a human: upload bytes -> Supabase Storage -> events.image_url
@@ -64,8 +65,10 @@ export async function POST(
     }
 
     const { data: publicData } = supabase.storage.from(BUCKET).getPublicUrl(key)
-    const publicUrl = publicData?.publicUrl ?? ''
-    if (!publicUrl) {
+    const baseUrl = publicData?.publicUrl ?? ''
+    // See withVersion — a deterministic key means the URL alone can't signal a change.
+    const publicUrl = withVersion(baseUrl)
+    if (!baseUrl) {
       return NextResponse.json({ error: 'getPublicUrl returned empty' }, { status: 500 })
     }
 

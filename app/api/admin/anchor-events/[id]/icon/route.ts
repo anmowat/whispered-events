@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { isAdmin } from '@/lib/admin-auth'
 import { updateAnchorEvent } from '@/lib/anchor-events'
+import { withVersion } from '@/lib/url'
 
 export const runtime = 'nodejs'
 
@@ -45,8 +46,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     }
 
     const { data: publicData } = supabase.storage.from(BUCKET).getPublicUrl(key)
-    const publicUrl = publicData?.publicUrl ?? ''
-    if (!publicUrl) {
+    const baseUrl = publicData?.publicUrl ?? ''
+    // See withVersion — a deterministic key means the URL alone can't signal a change.
+    const publicUrl = withVersion(baseUrl)
+    if (!baseUrl) {
       return NextResponse.json({ error: 'getPublicUrl returned empty' }, { status: 500 })
     }
 
