@@ -654,14 +654,12 @@ function Landing({
             below) so the social proof + browse path stay together. */}
       </section>
 
-      {/* Side Events banners — Dreamforce + Unbound. Shown on Find
-          Events and Contribute tabs; hidden on Partner tab. */}
+      {/* Side Events banners. Dreamforce and Unbound link straight to their
+          anchor event pages; Sculpt has no page yet so it still opens the
+          share modal. Shown on Find Events and Contribute tabs; hidden on
+          Partner tab. */}
       {tab !== 'partner' && (
-        <SideEventBanners
-          onDreamforce={() => onSideEvent('dreamforce')}
-          onUnbound={() => onSideEvent('unbound')}
-          onSculpt={() => onSideEvent('sculpt')}
-        />
+        <SideEventBanners onSculpt={() => onSideEvent('sculpt')} />
       )}
 
       {/* Bottom section: Find Events / Contribute show example past
@@ -1076,15 +1074,7 @@ function BannerArrow({ nudge }: { nudge: boolean }) {
   )
 }
 
-function SideEventBanners({
-  onDreamforce,
-  onUnbound,
-  onSculpt,
-}: {
-  onDreamforce: () => void
-  onUnbound: () => void
-  onSculpt: () => void
-}) {
+function SideEventBanners({ onSculpt }: { onSculpt: () => void }) {
   const scrollerRef = useRef<HTMLDivElement>(null)
   const scrollBanner = (dir: 'left' | 'right') =>
     scrollerRef.current?.scrollBy({ left: dir === 'left' ? -460 : 460, behavior: 'smooth' })
@@ -1108,9 +1098,11 @@ function SideEventBanners({
           style={{ gap: 6, scrollSnapType: 'x mandatory', scrollbarWidth: 'none' }}
         >
           <style>{`.side-event-scroll::-webkit-scrollbar{display:none}`}</style>
-          <button
-            type="button"
-            onClick={onDreamforce}
+          {/* Real links, not buttons: these go to the anchor event pages, so
+              middle-click and open-in-new-tab work and crawlers can follow the
+              homepage through to them. */}
+          <a
+            href="/dreamforce"
             className="transition-opacity hover:opacity-90 overflow-hidden rounded-[16px] shrink-0"
             style={{ ...btnStyle, width: '45%', scrollSnapAlign: 'start' }}
           >
@@ -1119,10 +1111,9 @@ function SideEventBanners({
               alt="Dreamforce '26 Side Events — San Francisco, September 15–17"
               style={{ display: 'block', width: '100%' }}
             />
-          </button>
-          <button
-            type="button"
-            onClick={onUnbound}
+          </a>
+          <a
+            href="/unbound"
             className="transition-opacity hover:opacity-90 overflow-hidden rounded-[16px] shrink-0"
             style={{ ...btnStyle, width: '45%', scrollSnapAlign: 'start' }}
           >
@@ -1131,7 +1122,7 @@ function SideEventBanners({
               alt="Unbound '26 Side Events — Boston, September 16–18"
               style={{ display: 'block', width: '100%' }}
             />
-          </button>
+          </a>
           <button
             type="button"
             onClick={onSculpt}
@@ -1151,9 +1142,8 @@ function SideEventBanners({
 
       {/* Mobile: vertical stack, full width, no size change */}
       <div className="sm:hidden flex flex-col px-5" style={{ gap: 6 }}>
-        <button
-          type="button"
-          onClick={onDreamforce}
+        <a
+          href="/dreamforce"
           className="block w-full transition-opacity hover:opacity-90 overflow-hidden rounded-[16px]"
           style={btnStyle}
         >
@@ -1162,10 +1152,9 @@ function SideEventBanners({
             alt="Dreamforce '26 Side Events — San Francisco, September 15–17"
             style={{ display: 'block', width: '100%' }}
           />
-        </button>
-        <button
-          type="button"
-          onClick={onUnbound}
+        </a>
+        <a
+          href="/unbound"
           className="block w-full transition-opacity hover:opacity-90 overflow-hidden rounded-[16px]"
           style={btnStyle}
         >
@@ -1174,7 +1163,7 @@ function SideEventBanners({
             alt="Unbound '26 Side Events — Boston, September 16–18"
             style={{ display: 'block', width: '100%' }}
           />
-        </button>
+        </a>
         <button
           type="button"
           onClick={onSculpt}
