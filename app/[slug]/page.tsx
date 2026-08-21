@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react'
 import { formatEventDate } from '@/lib/dates'
+import { withUtm } from '@/lib/url'
 import type { AnchorEvent } from '@/lib/anchor-events'
 import type { Offer } from '@/lib/offers'
 import LoginModal from '@/components/LoginModal'
@@ -55,7 +56,7 @@ function OfferBanner({ offer }: { offer: Offer }) {
     />
   )
   return offer.url ? (
-    <a href={offer.url} target="_blank" rel="noopener noreferrer" style={{ display: 'block', borderRadius: 10, overflow: 'hidden', textDecoration: 'none' }}>
+    <a href={withUtm(offer.url)} target="_blank" rel="noopener noreferrer" style={{ display: 'block', borderRadius: 10, overflow: 'hidden', textDecoration: 'none' }}>
       {inner}
     </a>
   ) : (
@@ -637,7 +638,7 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
                   const expanded = expandedIds.has(ev.id)
                   const viewEventEl = ev.link ? (
                     isLoggedIn ? (
-                      <a href={ev.link} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(201,168,106,0.12)', color: '#c9a86a', border: '1px solid rgba(201,168,106,0.3)', borderRadius: 8, padding: '8px 14px', fontSize: 13, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                      <a href={withUtm(ev.link)} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(201,168,106,0.12)', color: '#c9a86a', border: '1px solid rgba(201,168,106,0.3)', borderRadius: 8, padding: '8px 14px', fontSize: 13, textDecoration: 'none', whiteSpace: 'nowrap' }}>
                         View event ↗
                       </a>
                     ) : (
