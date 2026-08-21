@@ -69,6 +69,11 @@ export default function AdminAnchorEventDetailPage({ params }: { params: { id: s
 
   // Offer picker
   const [allOffers, setAllOffers] = useState<OfferItem[]>([])
+  // Drag-to-reorder for linked offers. dragIndex is the row being dragged,
+  // overIndex the row it would land on — kept separate so the drop indicator
+  // can render before the array actually changes.
+  const [dragIndex, setDragIndex] = useState<number | null>(null)
+  const [overIndex, setOverIndex] = useState<number | null>(null)
 
   async function fetchData() {
     const res = await fetch(`/api/admin/anchor-events/${params.id}`, { cache: 'no-store' })
@@ -215,6 +220,26 @@ export default function AdminAnchorEventDetailPage({ params }: { params: { id: s
     if (res.ok) setData({ ...data, offers: newOffers })
   }
 
+  // Position is the array order, so every reorder is the same PATCH.
+  async function persistOfferOrder(newOffers: OfferItem[]) {
+    if (!data) return
+    const previous = data.offers
+    setSaveError(null)
+    // Optimistic: the row is already where it was dropped, so waiting on the
+    // round-trip would make the list visibly snap back and forth.
+    setData({ ...data, offers: newOffers })
+    const res = await fetch(`/api/admin/anchor-events/${params.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ offerIds: newOffers.map((o) => o.id) }),
+    })
+    if (!res.ok) {
+      // Restore rather than leave the screen disagreeing with the server.
+      setData((d) => (d ? { ...d, offers: previous } : d))
+      setSaveError('Could not save the new offer order — it has been reverted.')
+    }
+  }
+
   async function moveOffer(offerId: string, dir: 'up' | 'down') {
     if (!data) return
     const idx = data.offers.findIndex((o) => o.id === offerId)
@@ -223,12 +248,18 @@ export default function AdminAnchorEventDetailPage({ params }: { params: { id: s
     const swap = dir === 'up' ? idx - 1 : idx + 1
     if (swap < 0 || swap >= newOffers.length) return
     ;[newOffers[idx], newOffers[swap]] = [newOffers[swap], newOffers[idx]]
-    await fetch(`/api/admin/anchor-events/${params.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ offerIds: newOffers.map((o) => o.id) }),
-    })
-    setData({ ...data, offers: newOffers })
+    await persistOfferOrder(newOffers)
+  }
+
+  function handleOfferDrop(targetIndex: number) {
+    const from = dragIndex
+    setDragIndex(null)
+    setOverIndex(null)
+    if (!data || from === null || from === targetIndex) return
+    const newOffers = [...data.offers]
+    const [moved] = newOffers.splice(from, 1)
+    newOffers.splice(targetIndex, 0, moved)
+    void persistOfferOrder(newOffers)
   }
 
   if (authState === 'unauthorized') return <LoginModal onClose={() => setShowLogin(false)} next={`/admin/anchor-events/${params.id}`} />
@@ -416,7 +447,36 @@ export default function AdminAnchorEventDetailPage({ params }: { params: { id: s
             {data.offers.length > 0 && (
               <div style={{ marginBottom: 14 }}>
                 {data.offers.map((offer, i) => (
-                  <div key={offer.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid #F0EAE3' }}>
+                  <div
+                    key={offer.id}
+                    draggable
+                    onDragStart={(e) => { setDragIndex(i); e.dataTransfer.effectAllowed = 'move' }}
+                    // preventDefault is what marks this a valid drop target —
+                    // without it the browser refuses the drop entirely.
+                    onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (overIndex !== i) setOverIndex(i) }}
+                    onDrop={(e) => { e.preventDefault(); handleOfferDrop(i) }}
+                    onDragEnd={() => { setDragIndex(null); setOverIndex(null) }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      padding: '8px 0',
+                      borderBottom: '1px solid #F0EAE3',
+                      // Line shows where the row would land; dragged row dims.
+                      borderTop: overIndex === i && dragIndex !== null && dragIndex !== i ? '2px solid #6E1F2B' : '2px solid transparent',
+                      opacity: dragIndex === i ? 0.4 : 1,
+                      background: dragIndex === i ? '#FBF7F1' : 'transparent',
+                    }}
+                  >
+                    <span
+                      title="Drag to reorder"
+                      aria-hidden
+                      style={{ cursor: 'grab', color: '#bbb', fontSize: 14, lineHeight: 1, userSelect: 'none' }}
+                    >
+                      ⠿
+                    </span>
+                    {/* Arrows stay: dragging isn't keyboard-accessible, and they're
+                        more precise than a drag in a long list. */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                       <button onClick={() => moveOffer(offer.id, 'up')} disabled={i === 0} style={{ background: 'none', border: 'none', cursor: i === 0 ? 'default' : 'pointer', color: i === 0 ? '#ddd' : '#888', fontSize: 12, padding: 0, lineHeight: 1 }}>▲</button>
                       <button onClick={() => moveOffer(offer.id, 'down')} disabled={i === data.offers.length - 1} style={{ background: 'none', border: 'none', cursor: i === data.offers.length - 1 ? 'default' : 'pointer', color: i === data.offers.length - 1 ? '#ddd' : '#888', fontSize: 12, padding: 0, lineHeight: 1 }}>▼</button>
