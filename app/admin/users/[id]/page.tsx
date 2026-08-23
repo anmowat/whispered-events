@@ -211,11 +211,17 @@ export default function AdminUserDetailPage() {
   // writes a digest_sends row) suppresses the weekly cron for the next 7 days
   // via CRON_RECENT_TOUCH_DAYS. Confirm first — this mails a real member, and
   // the button sits next to one that only refreshes locally.
-  async function sendDigestNow() {
+  // `resend` re-sends matches this user was already told about. Only for
+  // testing a template against your own account — for a real member it means a
+  // duplicate of an email they've already had.
+  async function sendDigestNow(resend = false) {
     if (!userId) return
     const who = user?.email || 'this user'
     if (!window.confirm(
       `Send ${who} their next digest now?\n\n` +
+      (resend
+        ? 'RESEND: includes matches they have already been emailed about, so they may receive a duplicate.\n\n'
+        : '') +
       'This delivers a real email and marks those matches as notified. ' +
       'For a Weekly user it also replaces this week\'s scheduled send.',
     )) return
@@ -223,18 +229,28 @@ export default function AdminUserDetailPage() {
     setSendingDigest(true)
     setSendDigestMessage(null)
     try {
-      const res = await fetch(`/api/process-matches?trigger=user&id=${userId}`, {
-        cache: 'no-store',
-      })
-      // The endpoint returns ok whether or not it had anything to send, so say
-      // so rather than implying an email definitely went out.
-      setSendDigestMessage(
-        res.ok
-          ? 'Triggered. An email goes out only if they have matches they have not been notified about yet.'
-          : `Failed (HTTP ${res.status})`,
+      const res = await fetch(
+        `/api/process-matches?trigger=user&id=${userId}${resend ? '&resend=1' : ''}`,
+        { cache: 'no-store' },
       )
+      const data = (await res.json().catch(() => ({}))) as {
+        sent?: boolean
+        reason?: string
+        error?: string
+      }
+      if (!res.ok) {
+        setSendDigestMessage(`Failed: ${data.error || `HTTP ${res.status}`}`)
+      } else {
+        // The endpoint reports whether it actually sent, so a legitimate no-op
+        // reads as one instead of looking like a broken trigger.
+        setSendDigestMessage(
+          data.sent
+            ? `Sent — ${data.reason ?? 'email delivered'}`
+            : `No email sent — ${data.reason ?? 'nothing to send'}`,
+        )
+      }
     } catch (e) {
-      setSendDigestMessage(e instanceof Error ? e.message : String(e))
+      setSendDigestMessage(`Failed: ${e instanceof Error ? e.message : String(e)}`)
     } finally {
       setSendingDigest(false)
     }
@@ -490,12 +506,22 @@ export default function AdminUserDetailPage() {
               {rescoring ? 'Rescoring…' : 'Refresh'}
             </button>
             <button
-              onClick={sendDigestNow}
+              onClick={() => sendDigestNow(false)}
               disabled={sendingDigest}
               title="Rescore, then send this user the email they're next due. Sends a real email."
               className="px-3 py-1.5 rounded-lg border border-[#E8DDD0] bg-white text-xs text-gray-700 hover:bg-[#F5EFE6] transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {sendingDigest ? 'Sending…' : 'Send digest now'}
+            </button>
+            {/* Testing escape hatch: ignores notified_at, so it can send even
+                when the user has already seen all their matches. */}
+            <button
+              onClick={() => sendDigestNow(true)}
+              disabled={sendingDigest}
+              title="Force a send even if they've already been emailed about every match. For testing templates — a real member may get a duplicate."
+              className="px-3 py-1.5 rounded-lg border border-[#E8DDD0] bg-white text-xs text-gray-500 hover:bg-[#F5EFE6] transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Resend
             </button>
           </div>
         </div>

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { waitUntil } from '@vercel/functions'
 import { addEventHost } from '@/lib/airtable'
 import { getPartnerUserByEmail } from '@/lib/users'
+import { internalSecretHeaders } from '@/lib/internal-auth'
 
 // Partner-only "claim me as a host" mutation. Used by the contribute flow
 // when /api/check-event flagged the submitter as eligible to claim
@@ -47,7 +48,7 @@ export async function POST(req: NextRequest) {
   // background fetch alive past the response.
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.whisperedevents.com'
   waitUntil(
-    fetch(`${appUrl}/api/process-matches?trigger=event&id=${eventId}`).catch((e) =>
+    fetch(`${appUrl}/api/process-matches?trigger=event&id=${eventId}`, { headers: internalSecretHeaders() }).catch((e) =>
       console.error('claim-host: process-matches fire-and-forget error', e),
     ),
   )

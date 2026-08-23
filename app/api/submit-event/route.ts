@@ -7,6 +7,7 @@ import { recordContribution, getContributionStatsByEmail } from '@/lib/supabase'
 import { sendEventSubmittedEmail } from '@/lib/email'
 import { notifyNewEvent } from '@/lib/slack'
 import { EventRecord, VIRTUAL_LOCATION_RE } from '@/lib/types'
+import { internalSecretHeaders } from '@/lib/internal-auth'
 
 // Create-only endpoint as of the host-flow cleanup. Editing existing events
 // happens at /host (magic-link auth + multi-host aware). Anything that used
@@ -115,7 +116,7 @@ export async function POST(req: NextRequest) {
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
     waitUntil(
-      fetch(`${appUrl}/api/process-matches?trigger=event&id=${id}`).catch((e) =>
+      fetch(`${appUrl}/api/process-matches?trigger=event&id=${id}`, { headers: internalSecretHeaders() }).catch((e) =>
         console.error('process-matches fire-and-forget error:', e),
       ),
     )

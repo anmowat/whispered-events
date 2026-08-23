@@ -7,6 +7,7 @@ import { getEventByIdIfHost } from '@/lib/events'
 import { getMatchesForEvent, getRegionCountsByEventId } from '@/lib/supabase'
 import { notifyHostEventUpdate, type FieldChange } from '@/lib/slack'
 import { EventRecord, VIRTUAL_LOCATION_RE } from '@/lib/types'
+import { internalSecretHeaders } from '@/lib/internal-auth'
 
 // Per-event host view + edit. Auth: caller's Airtable user id must appear in
 // the event's Host linked field. updateEvent is shared with the regular submit
@@ -186,7 +187,7 @@ export async function PATCH(
   // the cached score.
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.whisperedevents.com'
   waitUntil(
-    fetch(`${appUrl}/api/process-matches?trigger=event&id=${params.id}`).catch((e) =>
+    fetch(`${appUrl}/api/process-matches?trigger=event&id=${params.id}`, { headers: internalSecretHeaders() }).catch((e) =>
       console.error('host/events/[id]: process-matches fire-and-forget error', e),
     ),
   )

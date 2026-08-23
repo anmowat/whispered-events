@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { isInternalOrAdmin } from '@/lib/internal-auth'
 import { AirtableEvent, AirtableUser } from '@/lib/airtable'
 import { getActiveUsers, getUserById } from '@/lib/users'
 import { getFutureEvents, getEventById } from '@/lib/events'
@@ -117,21 +118,29 @@ async function processEventTrigger(eventId: string, force = false, resetNotified
   )
 }
 
+interface TriggerResult { sent: boolean; reason: string }
+
 async function processUserTrigger(
   userId: string,
-  options: { noEmail?: boolean; welcome?: boolean; locationChanged?: boolean; force?: boolean } = {},
-) {
+  options: {
+    noEmail?: boolean
+    welcome?: boolean
+    locationChanged?: boolean
+    force?: boolean
+    resend?: boolean
+  } = {},
+): Promise<TriggerResult> {
   const force = options.force ?? false
   // Users are Supabase-canonical — getUserById reads the latest admin save
   // directly. No pre-fetch from Airtable needed.
   const targetUser = await getUserById(userId)
   if (!targetUser) {
     console.log(`process-matches: user ${userId} not found, skipping`)
-    return
+    return { sent: false, reason: 'user not found' }
   }
   if (!targetUser.active && !options.noEmail) {
     console.log(`process-matches: user ${targetUser.email} is not active, skipping`)
-    return
+    return { sent: false, reason: 'user is not active' }
   }
   if (!isMatchEligible(targetUser)) {
     console.log(
@@ -146,7 +155,10 @@ async function processUserTrigger(
         console.error(`process-matches: fallback sendUserApprovedEmail failed for ${targetUser.email}:`, e)
       }
     }
-    return
+    return {
+      sent: !!(options.welcome && !options.noEmail),
+      reason: 'not match-eligible (missing Grade/Function/Seniority)',
+    }
   }
 
   // Prefetch every prior score for this user in one query. Previously this
@@ -231,13 +243,15 @@ async function processUserTrigger(
     `process-matches: user "${targetUser.email}" done — scored ${scored.length - cachedCount} fresh, ${cachedCount} cached, failed ${failedCount} (of ${events.length})`,
   )
 
-  if (options.noEmail) return
+  if (options.noEmail) return { sent: false, reason: 'noEmail was set — scoring only' }
   // Paused users skip ongoing post-matching emails (location-change digests,
   // event-trigger blasts), but they DO receive the one-time welcome — same
   // shape as non-paused (matches if any, coaching variant if none). The
   // welcome path is the only event-driven email Paused users ever get;
   // ongoing match delivery is gated by their frequency preference downstream.
-  if (!options.welcome && targetUser.frequency === 'Paused') return
+  if (!options.welcome && targetUser.frequency === 'Paused') {
+    return { sent: false, reason: 'frequency is Paused' }
+  }
 
   // "New" = top 3 freshly-scored matches above threshold that the user
   // hasn't been told about yet (previousNotifiedAt is null). "Top Matches"
@@ -245,9 +259,13 @@ async function processUserTrigger(
   const allAboveThreshold = scored
     .filter((s) => s.outcome.result.score >= DIGEST_THRESHOLD)
     .sort((a, b) => b.outcome.result.score - a.outcome.result.score)
-  const freshAboveThreshold = allAboveThreshold.filter(
-    (s) => s.outcome.previousNotifiedAt === null,
-  )
+  // `resend` treats every above-threshold match as unseen for this one send.
+  // Purpose-built for testing a template against your own account: without it,
+  // anyone already notified about all their matches gets nothing, which reads
+  // as a broken trigger rather than a correct no-op.
+  const freshAboveThreshold = options.resend
+    ? allAboveThreshold
+    : allAboveThreshold.filter((s) => s.outcome.previousNotifiedAt === null)
 
   const toEntry = (s: { event: AirtableEvent; outcome: ScoreOutcome }) => ({
     event: s.event,
@@ -287,7 +305,7 @@ async function processUserTrigger(
         newEvents.map((e) => ({ eventId: e.event.id, userId: targetUser.id })),
       )
     }
-    return
+    return { sent: true, reason: 'sent welcome' }
   }
 
   if (options.locationChanged) {
@@ -295,7 +313,9 @@ async function processUserTrigger(
     // location-specific digest IFF the re-scoring surfaced new
     // matches above threshold. Silent no-op when nothing new came
     // into range (typo fix, city we don't have events near, etc.).
-    if (!freshAboveThreshold.length) return
+    if (!freshAboveThreshold.length) {
+      return { sent: false, reason: 'location changed but nothing new came into range' }
+    }
     try {
       await sendLocationUpdatedDigest(
         targetUser,
@@ -311,10 +331,18 @@ async function processUserTrigger(
         e,
       )
     }
-    return
+    return { sent: true, reason: 'sent location-updated digest' }
   }
 
-  if (!freshAboveThreshold.length) return
+  // The common no-op, and the one that used to be silent: everything above
+  // threshold has already been notified, so there is nothing new to say.
+  if (!freshAboveThreshold.length) {
+    const reason = allAboveThreshold.length
+      ? `already notified about all ${allAboveThreshold.length} matches above threshold — use resend=1 to send anyway`
+      : 'no matches above threshold'
+    console.log(`process-matches: no digest for ${targetUser.email} — ${reason}`)
+    return { sent: false, reason }
+  }
   await sendUserDigest(targetUser, {
     newEvents,
     topMatches,
@@ -323,6 +351,7 @@ async function processUserTrigger(
   await markMatchesNotified(
     newEvents.map((e) => ({ eventId: e.event.id, userId: targetUser.id })),
   )
+  return { sent: true, reason: `sent digest with ${newEvents.length} event(s)` }
 }
 
 type ScoreOutcomeStatus = 'scored' | 'cached' | 'failed'
@@ -440,6 +469,18 @@ async function scoreFresh(
 }
 
 export async function GET(req: NextRequest) {
+  // This endpoint runs LLM scoring and sends real email, and was previously
+  // reachable by anyone who knew a user or event id. Two legitimate callers:
+  // an admin's browser (session cookie) and our own route handlers
+  // server-to-server (internal secret header).
+  if (!(await isInternalOrAdmin(req))) {
+    console.warn('process-matches: unauthorized request', {
+      trigger: req.nextUrl.searchParams.get('trigger'),
+      id: req.nextUrl.searchParams.get('id'),
+    })
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  }
+
   const { searchParams } = new URL(req.url)
   const trigger = searchParams.get('trigger')
   const id = searchParams.get('id')
@@ -456,15 +497,22 @@ export async function GET(req: NextRequest) {
     // scratch. Needed when scoring behaviour changed without a
     // MATCHING_VERSION bump; routine triggers should leave it off.
     const force = searchParams.get('force') === '1'
+    // ?resend=1 re-sends matches the user was already notified about. Test-only
+    // escape hatch; routine triggers must leave it off or users get duplicates.
+    const resend = searchParams.get('resend') === '1'
     if (trigger === 'event') {
       const resetNotified = searchParams.get('resetNotified') === '1'
       await processEventTrigger(id, force, resetNotified)
-    } else if (trigger === 'user') {
-      await processUserTrigger(id, { noEmail, welcome, locationChanged, force })
-    } else {
-      return NextResponse.json({ error: 'trigger must be "event" or "user"' }, { status: 400 })
+      return NextResponse.json({ ok: true })
     }
-    return NextResponse.json({ ok: true })
+    if (trigger === 'user') {
+      // Report whether an email actually went out. The old bare { ok: true }
+      // was indistinguishable from a no-op, so a correct "nothing new to send"
+      // looked exactly like a broken trigger.
+      const result = await processUserTrigger(id, { noEmail, welcome, locationChanged, force, resend })
+      return NextResponse.json({ ok: true, ...result })
+    }
+    return NextResponse.json({ error: 'trigger must be "event" or "user"' }, { status: 400 })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     console.error('process-matches error:', message)

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getActiveUsers } from '@/lib/users'
 import { isMatchEligible } from '@/lib/matching'
+import { internalSecretHeaders } from '@/lib/internal-auth'
 
 // Re-runs matching for every active, eligible user. Auth via the shared
 // webhook secret. Pass ?noEmail=1 to suppress digest emails (recommended
@@ -42,7 +43,7 @@ export async function POST(req: NextRequest) {
       batch.map(async (u) => {
         const url = `${appUrl}/api/process-matches?trigger=user&id=${u.id}${noEmail ? '&noEmail=1' : ''}`
         try {
-          const res = await fetch(url)
+          const res = await fetch(url, { headers: internalSecretHeaders() })
           return { id: u.id, email: u.email, ok: res.ok, status: res.status }
         } catch (err) {
           console.error(`run-all-matches: ${u.email} fetch failed:`, err)

@@ -4,6 +4,7 @@ import { verifySession, markAllMatchesNotifiedForUser } from '@/lib/supabase'
 import { updateUserProfile, UserProfileUpdate } from '@/lib/airtable'
 import { getUserByEmail } from '@/lib/users'
 import { notifyUserProfileUpdate, type FieldChange } from '@/lib/slack'
+import { internalSecretHeaders } from '@/lib/internal-auth'
 
 // Frequencies that result in an email digest. 'Paused' opts out.
 const DIGEST_FREQUENCIES = new Set(['As they arrive', 'Weekly', 'Monthly'])
@@ -113,7 +114,7 @@ export async function POST(req: NextRequest) {
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
       const flags = locationChanged ? 'locationChanged=1' : 'noEmail=1'
       waitUntil(
-        fetch(`${appUrl}/api/process-matches?trigger=user&id=${updated.id}&${flags}`).catch((e) =>
+        fetch(`${appUrl}/api/process-matches?trigger=user&id=${updated.id}&${flags}`, { headers: internalSecretHeaders() }).catch((e) =>
           console.error('process-matches fire-and-forget error:', e),
         ),
       )

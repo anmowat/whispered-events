@@ -22,6 +22,7 @@
 
 import { linkContributionsToUser } from './supabase'
 import type { AirtableUser } from './airtable'
+import { internalSecretHeaders } from './internal-auth'
 
 export async function triggerUserApprovedFlow(
   user: AirtableUser,
@@ -40,6 +41,7 @@ export async function triggerUserApprovedFlow(
   try {
     await fetch(
       `${appUrl}/api/process-matches?trigger=user&id=${user.id}&welcome=1`,
+      { headers: internalSecretHeaders() },
     )
   } catch (e) {
     console.error('triggerUserApprovedFlow: welcome trigger failed', e)

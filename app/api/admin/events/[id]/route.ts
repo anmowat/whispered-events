@@ -9,6 +9,7 @@ import { NEARBY_RADIUS_MILES } from '@/lib/matching'
 import { updateEvent } from '@/lib/airtable'
 import type { EventType } from '@/lib/types'
 import { sendHostAddedEmail } from '@/lib/email'
+import { internalSecretHeaders } from '@/lib/internal-auth'
 
 // Admin event detail: returns the event + every active user within
 // range, each row paired with their match score (and breakdown) if
@@ -303,7 +304,7 @@ export async function PATCH(
     // Matches store notified_at = null and stay invisible to users until Live.
     if (update.status === 'Pending' && priorStatus !== 'Pending') {
       waitUntil(
-        fetch(`${appUrl}/api/process-matches?trigger=event&id=${eventId}`).catch(
+        fetch(`${appUrl}/api/process-matches?trigger=event&id=${eventId}`, { headers: internalSecretHeaders() }).catch(
           (e) => console.error('admin/events/[id] PATCH: trigger event match (pending) failed', e),
         ),
       )
@@ -316,7 +317,7 @@ export async function PATCH(
     // users won't get a duplicate email.
     if (update.status === 'Live' && priorStatus !== 'Live') {
       waitUntil(
-        fetch(`${appUrl}/api/process-matches?trigger=event&id=${eventId}&resetNotified=1`).catch(
+        fetch(`${appUrl}/api/process-matches?trigger=event&id=${eventId}&resetNotified=1`, { headers: internalSecretHeaders() }).catch(
           (e) => console.error('admin/events/[id] PATCH: trigger event match (live) failed', e),
         ),
       )

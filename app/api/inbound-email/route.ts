@@ -10,6 +10,7 @@ import { recordContribution, getContributionStatsByEmail } from '@/lib/supabase'
 import { sendEventCouldNotReadEmail, sendEventSubmittedEmail, sendDroppedEmailNotification } from '@/lib/email'
 import { notifyNewEvent } from '@/lib/slack'
 import { EventRecord, VIRTUAL_LOCATION_RE } from '@/lib/types'
+import { internalSecretHeaders } from '@/lib/internal-auth'
 
 export const maxDuration = 60
 
@@ -352,7 +353,7 @@ export async function POST(req: NextRequest) {
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.whisperedevents.com'
   waitUntil(
-    fetch(`${appUrl}/api/process-matches?trigger=event&id=${id}`).catch((e) =>
+    fetch(`${appUrl}/api/process-matches?trigger=event&id=${id}`, { headers: internalSecretHeaders() }).catch((e) =>
       console.error('inbound-email: process-matches fire-and-forget error', e),
     ),
   )

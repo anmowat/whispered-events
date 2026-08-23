@@ -3,6 +3,7 @@ import { waitUntil } from '@vercel/functions'
 import { getUserById } from '@/lib/users'
 import { sendUserApprovedEmail } from '@/lib/email'
 import { linkContributionsToUser } from '@/lib/supabase'
+import { internalSecretHeaders } from '@/lib/internal-auth'
 
 // Webhook target for the Airtable "User Approved" automation.
 // Configure Airtable to POST here when a user record transitions to Approved.
@@ -55,7 +56,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'send failed' }, { status: 500 })
     }
     waitUntil(
-      fetch(`${appUrl}/api/process-matches?trigger=user&id=${id}&noEmail=1`).catch((e) =>
+      fetch(`${appUrl}/api/process-matches?trigger=user&id=${id}&noEmail=1`, { headers: internalSecretHeaders() }).catch((e) =>
         console.error('airtable-user-approved: noEmail process-matches trigger failed', e),
       ),
     )
@@ -63,7 +64,7 @@ export async function POST(req: NextRequest) {
     // Digest-receiving user: defer the approval email until matching finishes
     // and ship one combined "welcome + first matches" email from there.
     waitUntil(
-      fetch(`${appUrl}/api/process-matches?trigger=user&id=${id}&welcome=1`).catch((e) =>
+      fetch(`${appUrl}/api/process-matches?trigger=user&id=${id}&welcome=1`, { headers: internalSecretHeaders() }).catch((e) =>
         console.error('airtable-user-approved: welcome process-matches trigger failed', e),
       ),
     )
