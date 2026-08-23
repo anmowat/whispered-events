@@ -3,6 +3,7 @@ import { AirtableEvent, AirtableUser } from './airtable'
 import { logDigestSend } from './supabase'
 import { ratingUrl } from './email-rating'
 import { withUtm } from './url'
+import { sideEventsPromo } from './promo-side-events'
 
 function getResend() {
   if (!process.env.RESEND_API_KEY) throw new Error('RESEND_API_KEY must be set')
@@ -35,7 +36,7 @@ const AUTO_HEADERS = { 'Auto-Submitted': 'auto-generated' as const }
 // homepage's champagne (#c9a86a). Headlines move to Cormorant Garamond
 // to match the homepage display serif. The diamond mark in the
 // wordmark carries brand continuity.
-const C = {
+export const C = {
   bg:           '#F1ECE2',
   paper:        '#FBF8F1',
   paper2:       '#F6F1E5',
@@ -52,8 +53,8 @@ const C = {
 
 // Cormorant Garamond display serif (homepage + emails). Sans stack is
 // the system family — emails do not load the homepage's Hanken Grotesk.
-const SERIF = `'Cormorant Garamond', Georgia, 'Times New Roman', serif`
-const SANS = `-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif`
+export const SERIF = `'Cormorant Garamond', Georgia, 'Times New Roman', serif`
+export const SANS = `-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif`
 
 const FONT_LINK = `<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500;1,600&display=swap" rel="stylesheet">`
 
@@ -284,12 +285,14 @@ export async function sendUserApprovedEmail(user: AirtableUser): Promise<void> {
   const resend = getResend()
   const firstName = firstNameOrThere(user)
   const eb = todayEyebrow()
+  const promo = sideEventsPromo(user)
   const html = shell(`
 
     ${h1(`<span style="font-style:italic;">Welcome</span> to the club, ${escapeHtml(firstName)}.`)}
     ${p("You've been approved for Whispered Events. Login via the top right of the site to see your matches — matches typically appear within ~5 minutes of approval.", { mt: 14 })}
     ${p("You can update your profile anytime to refine your matches — and we &#10084; feedback and feature ideas.", { mt: 12 })}
     ${p("Whispered Events is 100% free, built to help executives discover great events — the ones that aren't posted, they're whispered.", { mt: 12 })}
+    ${promo.html}
     ${digestFooterHtml(firstName)}
   `)
   const text = [
@@ -303,6 +306,7 @@ export async function sendUserApprovedEmail(user: AirtableUser): Promise<void> {
     '',
     "Whispered Events is 100% free, built to help executives discover great events — the ones that aren't posted, they're whispered.",
     '',
+    ...(promo.textLines.length ? [...promo.textLines, ''] : []),
     ...digestFooterTextLines(firstName),
   ].join('\n')
   const { error } = await resend.emails.send({
@@ -682,6 +686,7 @@ export async function sendRecap(
   // a recap of already-notified rows. We use the Top Matches section
   // styling so the layout reads as a normal digest body.
   const annotated = markDuplicates({ newEvents: [], topMatches })
+  const promo = sideEventsPromo(user)
 
   const html = shell(`
 
@@ -691,6 +696,7 @@ export async function sendRecap(
       { mt: 14 },
     )}
     ${renderEntries(annotated.topMatches, user.id)}
+    ${promo.html}
     ${p(
       `Want to see more? Update your interests on your <a href="${DASHBOARD_LINK}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">dashboard</a> — add functions or topics you'd like to see (e.g. "RevOps", "GTM", "AI", specific industries).`,
       { mt: 14 },
@@ -717,6 +723,7 @@ export async function sendRecap(
     textLines.push('')
   }
   textLines.push(
+    ...(promo.textLines.length ? [...promo.textLines, ''] : []),
     `Want to see more? Update your interests on your dashboard — ${DASHBOARD_LINK}`,
     '',
     ...digestFooterTextLines(firstName),
@@ -1059,6 +1066,7 @@ export async function sendApprovedWithDigest(
   const firstName = firstNameOrThere(user)
   const hasMatches = payload.newEvents.length > 0 || payload.topMatches.length > 0
   const annotated = markDuplicates(payload)
+  const promo = sideEventsPromo(user)
 
   // When the new user has no matches yet but is coaching-eligible
   // (A/Polish grade — B/C never get coaching, see lib/digest.ts), fold
@@ -1119,6 +1127,7 @@ export async function sendApprovedWithDigest(
     ${p(introCopyHtml, { mt: 14 })}
     ${hasMatches ? ratingNudgeHtml : ''}
     ${renderEntries(annotated.newEvents, user.id)}
+    ${promo.html}
     ${moreHtml}
     ${coachingHtml}
     ${digestFooterHtml(firstName)}
@@ -1154,6 +1163,7 @@ export async function sendApprovedWithDigest(
     }
   }
   appendEntries(annotated.newEvents)
+  if (promo.textLines.length) textLines.push(...promo.textLines, '')
   if (moreText) textLines.push(moreText, '')
   if (coachingTextLines.length) {
     textLines.push(...coachingTextLines, '')
@@ -1208,6 +1218,7 @@ export async function sendLocationUpdatedDigest(
   const resend = getResend()
   const firstName = firstNameOrThere(user)
   const annotated = markDuplicates(payload)
+  const promo = sideEventsPromo(user)
   const cityLabel = newLocation.trim() || 'your area'
 
   const moreCount = Math.max(
@@ -1225,6 +1236,7 @@ export async function sendLocationUpdatedDigest(
     ${h1(`New <span style="font-style:italic;">whispers</span> in ${escapeHtml(cityLabel)}, ${escapeHtml(firstName)}.`)}
     ${p(introCopy, { mt: 14 })}
     ${renderEntries(annotated.newEvents, user.id)}
+    ${promo.html}
     ${moreHtml}
     ${digestFooterHtml(firstName)}
   `)
@@ -1251,6 +1263,7 @@ export async function sendLocationUpdatedDigest(
     }
   }
   appendEntries(annotated.newEvents)
+  if (promo.textLines.length) textLines.push(...promo.textLines, '')
   if (moreText) textLines.push(moreText, '')
   textLines.push(...digestFooterTextLines(firstName))
   const text = textLines.join('\n')
@@ -1329,6 +1342,7 @@ export async function sendUserDigest(
   const resend = getResend()
   const firstName = firstNameOrThere(user)
   const annotated = markDuplicates(payload)
+  const promo = sideEventsPromo(user)
 
   // Per-event ('as they arrive') sends carry a single fresh event and
   // fire near-real-time — there's no 'week of X' framing and the
@@ -1382,6 +1396,7 @@ export async function sendUserDigest(
     ${h1(`New <span style="font-style:italic;">whispers</span> for ${escapeHtml(firstName)}.`)}
     ${p(introCopy, { mt: 12 })}
     ${renderEntries(annotated.newEvents, user.id)}
+    ${promo.html}
     ${digestRatingNudgeHtml}
     ${(payload.lockedCount ?? 0) > 0 ? '' : moreHtml}
     ${lockedNudgeHtml}
@@ -1412,6 +1427,7 @@ export async function sendUserDigest(
     }
   }
   appendEntries(annotated.newEvents)
+  if (promo.textLines.length) textLines.push(...promo.textLines, '')
   textLines.push(
     'Rating your matches helps us:',
     '• Send you more matches: When you rate more we unlock the next match',
