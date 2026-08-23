@@ -158,6 +158,10 @@ export default function AdminUserDetailPage() {
   const [enrichMessage, setEnrichMessage] = useState<string | null>(null)
   // Tracks the per-user rescore the Refresh button kicks off.
   const [rescoring, setRescoring] = useState(false)
+  // Tracks the manual digest send. Separate from `rescoring` so the two buttons
+  // disable independently and it's obvious which one is running.
+  const [sendingDigest, setSendingDigest] = useState(false)
+  const [sendDigestMessage, setSendDigestMessage] = useState<string | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
@@ -197,6 +201,42 @@ export default function AdminUserDetailPage() {
       console.error('rescoreAndFetch failed', e)
     } finally {
       setRescoring(false)
+    }
+    await fetchDetail()
+  }
+
+  // Same endpoint as Refresh, minus noEmail=1 — so it rescores and then sends
+  // whichever email this user is actually due. Not a preview: it delivers the
+  // real digest, marks those matches notified, and (because sendUserDigest
+  // writes a digest_sends row) suppresses the weekly cron for the next 7 days
+  // via CRON_RECENT_TOUCH_DAYS. Confirm first — this mails a real member, and
+  // the button sits next to one that only refreshes locally.
+  async function sendDigestNow() {
+    if (!userId) return
+    const who = user?.email || 'this user'
+    if (!window.confirm(
+      `Send ${who} their next digest now?\n\n` +
+      'This delivers a real email and marks those matches as notified. ' +
+      'For a Weekly user it also replaces this week\'s scheduled send.',
+    )) return
+
+    setSendingDigest(true)
+    setSendDigestMessage(null)
+    try {
+      const res = await fetch(`/api/process-matches?trigger=user&id=${userId}`, {
+        cache: 'no-store',
+      })
+      // The endpoint returns ok whether or not it had anything to send, so say
+      // so rather than implying an email definitely went out.
+      setSendDigestMessage(
+        res.ok
+          ? 'Triggered. An email goes out only if they have matches they have not been notified about yet.'
+          : `Failed (HTTP ${res.status})`,
+      )
+    } catch (e) {
+      setSendDigestMessage(e instanceof Error ? e.message : String(e))
+    } finally {
+      setSendingDigest(false)
     }
     await fetchDetail()
   }
@@ -412,6 +452,14 @@ export default function AdminUserDetailPage() {
             <span className="text-xs uppercase tracking-widest text-gray-500">← Admin</span>
           </a>
           <div className="flex items-center gap-2">
+            {sendDigestMessage && (
+              <span
+                className={`text-xs ${sendDigestMessage.startsWith('Failed') ? 'text-red-600 font-medium' : 'text-gray-500'}`}
+              >
+                {sendDigestMessage}
+                <button onClick={() => setSendDigestMessage(null)} className="ml-1 opacity-60 hover:opacity-100">✕</button>
+              </span>
+            )}
             {enrichMessage && (
               <span
                 className={`text-xs ${enrichMessage.startsWith('Enrich failed') ? 'text-red-600 font-medium' : 'text-gray-500'}`}
@@ -440,6 +488,14 @@ export default function AdminUserDetailPage() {
               className="px-3 py-1.5 rounded-lg border border-[#E8DDD0] bg-white text-xs text-gray-700 hover:bg-[#F5EFE6] transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {rescoring ? 'Rescoring…' : 'Refresh'}
+            </button>
+            <button
+              onClick={sendDigestNow}
+              disabled={sendingDigest}
+              title="Rescore, then send this user the email they're next due. Sends a real email."
+              className="px-3 py-1.5 rounded-lg border border-[#E8DDD0] bg-white text-xs text-gray-700 hover:bg-[#F5EFE6] transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {sendingDigest ? 'Sending…' : 'Send digest now'}
             </button>
           </div>
         </div>
