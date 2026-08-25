@@ -115,8 +115,14 @@ function nearCity(
 //   bicubic        Outlook 2007-2016 downscale nearest-neighbour otherwise, and
 //                  1048 -> 536 visibly aliases the banner text.
 //   font/colour    blocked-image alt text inherits the img's own styles, so the
-//                  fallback reads as an accent-coloured chip instead of default
+//                  fallback reads as accent-coloured sans instead of default
 //                  blue Times.
+//
+// No background colour here, deliberately. The artwork is RGBA with a soft
+// transparent margin around the card, so any background on the img shows
+// through as a tinted box around the banner. That costs the blocked-image
+// fallback its tinted chip, but the alt text still renders in the right font
+// and colour, and a visible box on every loaded image is the worse trade.
 //
 // The 1048px asset shown at 536 CSS px is already the 2x image, so there's no
 // srcset — support is inconsistent across Gmail, Outlook and Yahoo and it would
@@ -127,7 +133,7 @@ function banner(href: string, src: string, alt: string): string {
   <tr>
     <td align="center" style="padding:0;">
       <a href="${attr(href)}" style="display:block;text-decoration:none;">
-        <img src="${attr(src)}" alt="${alt}" width="536" border="0" style="display:block;width:100%;max-width:536px;height:auto;border:0;outline:none;text-decoration:none;-ms-interpolation-mode:bicubic;border-radius:6px;background:${C.accentSoft};font-family:${SANS};font-size:13px;line-height:1.5;color:${C.accent};">
+        <img src="${attr(src)}" alt="${alt}" width="536" border="0" style="display:block;width:100%;max-width:536px;height:auto;border:0;outline:none;text-decoration:none;-ms-interpolation-mode:bicubic;font-family:${SANS};font-size:13px;line-height:1.5;color:${C.accent};">
       </a>
     </td>
   </tr>
