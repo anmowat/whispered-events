@@ -32,6 +32,11 @@ export default function AdminLovePage() {
 
   // Per-row upload state
   const [uploadingId, setUploadingId] = useState<string | null>(null)
+  // Drag-to-reorder. dragIndex is the row being dragged, overIndex the row it
+  // would land on — separate so the drop indicator can render before the array
+  // actually changes.
+  const [dragIndex, setDragIndex] = useState<number | null>(null)
+  const [overIndex, setOverIndex] = useState<number | null>(null)
   const [uploadError, setUploadError] = useState<{ id: string; msg: string } | null>(null)
   const [savingId, setSavingId] = useState<string | null>(null)
   const [revalidating, setRevalidating] = useState(false)
@@ -145,6 +150,30 @@ export default function AdminLovePage() {
     }
   }
 
+  // Shared by the arrows and by drag. sort_order is derived from array order
+  // server-side, so every reorder is the same PATCH.
+  async function persistOrder(next: LoveEntry[]) {
+    const previous = entries
+    setErrorMsg(null)
+    // Optimistic: the row is already where it was dropped, so waiting on the
+    // round-trip would make the list visibly snap back and forth.
+    setEntries(next)
+    try {
+      const res = await fetch('/api/admin/love', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderedIds: next.map((e) => e.id) }),
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    } catch (e) {
+      // Restore rather than leave the screen disagreeing with the server. The
+      // old code swallowed this into console.error and left the wrong order on
+      // screen looking saved.
+      setEntries(previous)
+      setErrorMsg(`Could not save the new order (${e instanceof Error ? e.message : String(e)}) — reverted.`)
+    }
+  }
+
   function handleMove(index: number, dir: -1 | 1) {
     const neighbor = entries[index + dir]
     const me = entries[index]
@@ -152,12 +181,18 @@ export default function AdminLovePage() {
     const next = [...entries]
     next[index] = neighbor
     next[index + dir] = me
-    setEntries(next)
-    fetch('/api/admin/love', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ orderedIds: next.map((e) => e.id) }),
-    }).catch(console.error)
+    void persistOrder(next)
+  }
+
+  function handleDrop(targetIndex: number) {
+    const from = dragIndex
+    setDragIndex(null)
+    setOverIndex(null)
+    if (from === null || from === targetIndex) return
+    const next = [...entries]
+    const [moved] = next.splice(from, 1)
+    next.splice(targetIndex, 0, moved)
+    void persistOrder(next)
   }
 
   const input =
@@ -316,10 +351,49 @@ export default function AdminLovePage() {
                       return (
                         <tr
                           key={entry.id}
+                          // preventDefault is what marks this a valid drop
+                          // target — without it the browser refuses the drop.
+                          onDragOver={(e) => {
+                            if (dragIndex === null) return
+                            e.preventDefault()
+                            e.dataTransfer.dropEffect = 'move'
+                            if (overIndex !== i) setOverIndex(i)
+                          }}
+                          onDrop={(e) => {
+                            if (dragIndex === null) return
+                            e.preventDefault()
+                            handleDrop(i)
+                          }}
                           className="border-b border-[#F0E8DC] last:border-b-0 hover:bg-[#FDFAF6] transition-colors"
+                          style={{
+                            // Line shows where the row would land; dragged row dims.
+                            boxShadow:
+                              overIndex === i && dragIndex !== null && dragIndex !== i
+                                ? 'inset 0 2px 0 0 #6E1F2B'
+                                : undefined,
+                            opacity: dragIndex === i ? 0.4 : 1,
+                          }}
                         >
-                          {/* Order arrows */}
+                          {/* Drag handle + order arrows */}
                           <td className="px-2 py-2 text-center">
+                            {/* Only the handle is draggable, not the row: these
+                                rows contain text inputs, and a draggable row
+                                stops you selecting text inside them. */}
+                            <div
+                              draggable
+                              onDragStart={(e) => {
+                                setDragIndex(i)
+                                e.dataTransfer.effectAllowed = 'move'
+                              }}
+                              onDragEnd={() => {
+                                setDragIndex(null)
+                                setOverIndex(null)
+                              }}
+                              title="Drag to reorder"
+                              className="cursor-grab text-gray-300 hover:text-[#6E1F2B] text-[13px] leading-none select-none mb-1"
+                            >
+                              ⠿
+                            </div>
                             <div className="flex flex-col items-center gap-0.5">
                               <button
                                 onClick={() => handleMove(i, -1)}
