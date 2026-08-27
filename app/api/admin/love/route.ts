@@ -46,21 +46,29 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'author required' }, { status: 400 })
   }
   const supabase = getClient()
-  // sort_order = max existing sort_order + 1
-  const { data: maxData } = await supabase
+  // New entries go to the top: one below the current lowest sort_order, since
+  // both the admin list and the public page sort ascending.
+  //
+  // Taking min - 1 rather than shifting every other row keeps this a single
+  // insert. Values drift negative as entries are added, which is harmless —
+  // ordering is relative, and the reorder PATCH renumbers everything to 1..N
+  // the next time rows are dragged.
+  const { data: minData } = await supabase
     .from('love_entries')
     .select('sort_order')
     .is('deleted_at', null)
-    .order('sort_order', { ascending: false })
+    .order('sort_order', { ascending: true })
     .limit(1)
-  const maxOrder = ((maxData?.[0] as { sort_order?: number } | undefined)?.sort_order ?? 0)
+  const currentMin = (minData?.[0] as { sort_order?: number | null } | undefined)?.sort_order
+  // No rows yet, or a legacy row with a null sort_order: start at 1.
+  const sortOrder = typeof currentMin === 'number' ? currentMin - 1 : 1
   const { data, error } = await supabase
     .from('love_entries')
     .insert({
       author,
       role: (body.role ?? '').trim(),
       linkedin_url: (body.linkedinUrl ?? '').trim(),
-      sort_order: maxOrder + 1,
+      sort_order: sortOrder,
     })
     .select()
     .single()

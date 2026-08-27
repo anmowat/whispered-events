@@ -82,7 +82,9 @@ export default function AdminLovePage() {
         return
       }
       const data = (await res.json()) as { entry: LoveEntry }
-      setEntries((prev) => [...prev, data.entry])
+      // Prepend, matching the sort_order the API assigns. Appending here would
+      // show the new row at the bottom until the next refetch moved it.
+      setEntries((prev) => [data.entry, ...prev])
       setNewAuthor(''); setNewRole(''); setNewLinkedin('')
       setAdding(false)
     } catch (e) {
