@@ -470,8 +470,8 @@ export default function AdminAnchorEventDetailPage({ params }: { params: { id: s
                   >
                     <span
                       title="Drag to reorder"
-                      aria-hidden
-                      style={{ cursor: 'grab', color: '#bbb', fontSize: 14, lineHeight: 1, userSelect: 'none' }}
+                      aria-label="Drag to reorder"
+                      style={{ cursor: 'grab', color: '#9a9a9a', fontSize: 17, lineHeight: 1, userSelect: 'none', padding: '2px 4px' }}
                     >
                       ⠿
                     </span>

@@ -390,7 +390,8 @@ export default function AdminLovePage() {
                                 setOverIndex(null)
                               }}
                               title="Drag to reorder"
-                              className="cursor-grab text-gray-300 hover:text-[#6E1F2B] text-[13px] leading-none select-none mb-1"
+                              aria-label="Drag to reorder"
+                              className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-[#6E1F2B] hover:bg-[#F5EFE6] rounded text-[17px] leading-none select-none mx-auto mb-1 w-6 h-5 flex items-center justify-center transition-colors"
                             >
                               ⠿
                             </div>
