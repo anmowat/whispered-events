@@ -22,6 +22,7 @@ interface EventRow {
   matchPct: number | null
   featured: boolean
   status: string
+  grade: string
   hostCount: number
   ratings: { interested: number; skip: number; not_a_fit: number; host_up: number; host_down: number }
 }
@@ -418,6 +419,18 @@ export default function AdminEventsPage() {
                             />
                           )
                         })()}
+                        {(e.grade === 'B' || e.grade === 'C') && (
+                          <span
+                            className={`ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded border text-[10px] font-semibold align-middle ${
+                              e.grade === 'B'
+                                ? 'bg-amber-50 border-amber-200 text-amber-800'
+                                : 'bg-red-50 border-red-200 text-red-800'
+                            }`}
+                            title={`Grade ${e.grade} — matches at ${e.grade === 'B' ? '70' : '40'}% strength`}
+                          >
+                            {e.grade}
+                          </span>
+                        )}
                         {e.featured && (
                           <span
                             className="ml-1 text-[11px] align-middle"

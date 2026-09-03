@@ -40,6 +40,26 @@ const QUALITY_MULTIPLIER: Record<'A' | 'Polish' | 'B' | 'C', number> = {
   C: 0.25,
 }
 
+// Event quality, deliberately a SEPARATE scale from the member one above.
+// Three tiers, no "Polish" — polish describes a person's readiness and has no
+// meaning for an event. A is neutral (1.0), not a boost, so every event today
+// scores exactly as it did before this leg existed and MAX_SCORE is unchanged.
+//
+// Against the 40% notify threshold: a perfect match reads 100 / 70 / 40, and a
+// typical 70% match reads 70 / 49 / 28. So a B event still emails its strong
+// matches and drops the middling ones; a C event needs a near-perfect match to
+// clear the threshold at all, while staying fully listed on the site.
+//
+// Note this is NOT symmetrical with member grade C, which short-circuits to no
+// match row at all (skippedReason: 'grade_c'). A C *event* still produces match
+// rows so it appears on the site and in dashboards — it just scores too low to
+// be emailed.
+const EVENT_GRADE_MULTIPLIER: Record<'A' | 'B' | 'C', number> = {
+  A: 1.0,
+  B: 0.7,
+  C: 0.4,
+}
+
 // Bumped any time the scoring rubric / prompt / formula changes so the
 // inputs hash on every cached row turns stale. The admin rescore-missing
 // endpoint then picks them up and refreshes under the new model.
@@ -107,6 +127,13 @@ export function computeInputsHash(event: AirtableEvent, user: AirtableUser): str
       seniority: event.seniority ?? [],
       employment: event.employment ?? [],
       companySize: event.companySize ?? [],
+      // Only present when the event is downgraded. Grade A is the neutral
+      // default and scores identically to before this field existed, so
+      // omitting it keeps every existing row's hash byte-identical — no
+      // repo-wide rescore storm on deploy. Downgrading to B/C changes the
+      // hash (so Refresh actually re-scores); restoring A restores the
+      // original hash, which is correct because the score is the same.
+      ...(event.grade && event.grade !== 'A' ? { grade: event.grade } : {}),
     },
     user: {
       function: user.function ?? '',
@@ -773,7 +800,8 @@ export async function scoreEventUser(
   // function doesn't match the event's stated audience.
   const ceiling = audienceCeiling(event, user)
   const audience = Math.min(Math.max(llm.audience, audienceFloor(event, user)), ceiling)
-  const score = location * audience * quality * llm.preferences
+  const eventQuality = EVENT_GRADE_MULTIPLIER[event.grade ?? 'A'] ?? 1
+  const score = location * audience * quality * llm.preferences * eventQuality
   return {
     score,
     matchPercent: buildToPercent(score),

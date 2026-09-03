@@ -51,6 +51,7 @@ interface EventRow {
   organizer: string | null
   start_time: string | null
   end_time: string | null
+  grade: string | null
 }
 
 function toAirtableEvent(row: EventRow): AirtableEvent {
@@ -79,6 +80,9 @@ function toAirtableEvent(row: EventRow): AirtableEvent {
     organizer: row.organizer ?? '',
     startTime: row.start_time ?? undefined,
     endTime: row.end_time ?? undefined,
+    // Legacy rows predating the column read as null; 'A' is the neutral
+    // default so they score exactly as they always have.
+    grade: row.grade === 'B' || row.grade === 'C' ? row.grade : 'A',
   }
 }
 

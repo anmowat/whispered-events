@@ -1,7 +1,7 @@
 import Airtable, { FieldSet, Base } from 'airtable'
 import { createClient } from '@supabase/supabase-js'
 import { waitUntil } from '@vercel/functions'
-import { EventRecord, UserProfile, EMPLOYMENT_OPTIONS, COMPANY_SIZE_OPTIONS } from './types'
+import { EventRecord, EventGrade, UserProfile, EMPLOYMENT_OPTIONS, COMPANY_SIZE_OPTIONS } from './types'
 import stringSimilarity from 'string-similarity'
 import { geocodeLocation } from './geocode'
 import { linkContributionsToUser } from './supabase'
@@ -620,6 +620,11 @@ export async function updateEvent(
   if (fields.endTime !== undefined) {
     supabaseRow.end_time = fields.endTime || null
   }
+  if (fields.grade !== undefined) {
+    // Supabase-only: the Airtable Events table has no Grade field, and
+    // Supabase is canonical for everything scoring reads.
+    supabaseRow.grade = fields.grade
+  }
 
   // Supabase first as the canonical write. Failures bubble up — caller
   // (admin save) needs to know if the change didn't land.
@@ -826,6 +831,8 @@ export interface AirtableEvent {
   startTime?: string
   /** End time of the event, e.g. "12:00 PM". */
   endTime?: string
+  /** Quality grade: 'A' (default, neutral) | 'B' | 'C'. Decrements matching. */
+  grade?: EventGrade
 }
 
 export async function getActiveUsers(): Promise<AirtableUser[]> {

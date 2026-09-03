@@ -7,7 +7,8 @@ import { getAllMatchesForEvent, deleteEvent } from '@/lib/supabase'
 import { withinMiles } from '@/lib/geocode'
 import { NEARBY_RADIUS_MILES } from '@/lib/matching'
 import { updateEvent } from '@/lib/airtable'
-import type { EventType } from '@/lib/types'
+import { EVENT_GRADE_OPTIONS } from '@/lib/types'
+import type { EventType, EventGrade } from '@/lib/types'
 import { sendHostAddedEmail } from '@/lib/email'
 import { internalSecretHeaders } from '@/lib/internal-auth'
 
@@ -145,6 +146,7 @@ export async function GET(
         organizer: event.organizer ?? '',
         startTime: (event as { startTime?: string }).startTime ?? '',
         endTime: (event as { endTime?: string }).endTime ?? '',
+        grade: event.grade ?? 'A',
       },
       users,
       generatedAt: new Date().toISOString(),
@@ -193,6 +195,7 @@ export async function PATCH(
       organizer?: unknown
       startTime?: unknown
       endTime?: unknown
+      grade?: unknown
     }
 
     const update: Parameters<typeof updateEvent>[1] = {}
@@ -226,6 +229,9 @@ export async function PATCH(
     if (typeof body.organizer === 'string') update.organizer = body.organizer.trim()
     if (typeof body.startTime === 'string') update.startTime = body.startTime.trim()
     if (typeof body.endTime === 'string') update.endTime = body.endTime.trim()
+    if (typeof body.grade === 'string' && (EVENT_GRADE_OPTIONS as readonly string[]).includes(body.grade)) {
+      update.grade = body.grade as EventGrade
+    }
 
     // hostEmails is the canonical edit surface for the host list. Resolve
     // each email to a user id; any unresolved email blocks the save with

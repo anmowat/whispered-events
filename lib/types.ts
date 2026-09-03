@@ -33,7 +33,15 @@ export interface EventRecord {
   organizer?: string
   startTime?: string
   endTime?: string
+  // Quality grade. 'A' (the default for every event) is neutral and scores
+  // exactly as before this field existed; 'B' and 'C' decrement the match
+  // score so a lower-quality event still lists publicly but stops landing
+  // near the top of strong members' digests. See EVENT_GRADE_MULTIPLIER.
+  grade?: EventGrade
 }
+
+export const EVENT_GRADE_OPTIONS = ['A', 'B', 'C'] as const
+export type EventGrade = (typeof EVENT_GRADE_OPTIONS)[number]
 
 export const EMPLOYMENT_OPTIONS = ['Employed', 'Searching', 'Fractional', 'Other'] as const
 export const COMPANY_SIZE_OPTIONS = ['<$5M', '$5-25M', '$25-100M', '$100M-1B', '$1B+', 'Other'] as const

@@ -9,7 +9,7 @@ import {
   eventStatusPillClass,
   type EventStatus,
 } from '@/lib/event-status'
-import { EMPLOYMENT_OPTIONS, COMPANY_SIZE_OPTIONS } from '@/lib/types'
+import { EMPLOYMENT_OPTIONS, COMPANY_SIZE_OPTIONS, EVENT_GRADE_OPTIONS, type EventGrade } from '@/lib/types'
 import { SENIORITY_OPTIONS } from '@/lib/seniority'
 
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024
@@ -44,6 +44,7 @@ interface EventDetail {
   organizer: string
   startTime: string
   endTime: string
+  grade: string
 }
 
 // Draft mirrors EventDetail's editable fields. audience is a comma-joined
@@ -67,6 +68,7 @@ interface EventDraft {
   organizer: string
   startTime: string
   endTime: string
+  grade: EventGrade
 }
 
 function hostDisplayName(h: Host): string {
@@ -76,6 +78,24 @@ function hostDisplayName(h: Host): string {
 }
 
 const EVENT_TYPE_OPTIONS = ['Conference', 'Dinner', 'Happy Hour', 'Panel', 'Workshop', 'Activity', 'Other'] as const
+
+// A is the neutral default — anything unrecognised (including rows written
+// before the column existed) reads as A so nothing is silently downgraded.
+function normalizeEventGrade(value: string | undefined): EventGrade {
+  return value === 'B' || value === 'C' ? value : 'A'
+}
+
+function eventGradePillClass(grade: EventGrade): string {
+  if (grade === 'B') return 'bg-amber-50 border-amber-200 text-amber-800'
+  if (grade === 'C') return 'bg-red-50 border-red-200 text-red-800'
+  return 'bg-emerald-50 border-emerald-200 text-emerald-800'
+}
+
+const EVENT_GRADE_HINT: Record<EventGrade, string> = {
+  A: 'Full match strength (100%)',
+  B: 'Matches at 70% strength',
+  C: 'Matches at 40% strength — listed, but rarely emailed',
+}
 
 function draftFromEvent(e: EventDetail): EventDraft {
   return {
@@ -94,6 +114,7 @@ function draftFromEvent(e: EventDetail): EventDraft {
     organizer: e.organizer ?? '',
     startTime: e.startTime ?? '',
     endTime: e.endTime ?? '',
+    grade: normalizeEventGrade(e.grade),
   }
 }
 
@@ -1353,6 +1374,24 @@ function EventEditForm({
             className={`inline-flex items-center px-2 py-0.5 rounded-full border text-xs font-medium ${eventStatusPillClass(draft.status)}`}
           >
             {draft.status}
+          </span>
+        </label>
+        <label className="inline-flex items-center gap-2 text-sm text-gray-700 select-none">
+          <span className={disabled ? 'opacity-50' : ''}>Grade</span>
+          <select
+            value={draft.grade}
+            disabled={disabled}
+            onChange={(e) => update('grade', e.target.value as EventGrade)}
+            className="bg-white border border-[#E8DDD0] rounded-lg px-2 py-1 text-sm text-gray-800 focus:outline-none focus:border-[#6E1F2B] disabled:opacity-50 transition-colors"
+          >
+            {EVENT_GRADE_OPTIONS.map((g) => (
+              <option key={g} value={g}>{g}</option>
+            ))}
+          </select>
+          <span
+            className={`inline-flex items-center px-2 py-0.5 rounded-full border text-xs font-medium ${eventGradePillClass(draft.grade)}`}
+          >
+            {EVENT_GRADE_HINT[draft.grade]}
           </span>
         </label>
         <label className="inline-flex items-center gap-2 text-sm text-gray-700 cursor-pointer select-none">

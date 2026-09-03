@@ -81,6 +81,7 @@ export async function GET(req: NextRequest) {
         matchPct,
         featured: e.featured === true,
         status: e.status || 'Pending',
+        grade: e.grade ?? 'A',
         hostCount: (e.hostIds ?? []).length,
         ratings: ratingCounts.get(e.id) ?? { interested: 0, skip: 0, not_a_fit: 0, host_up: 0, host_down: 0 },
       }
