@@ -97,6 +97,37 @@ export async function notifyNewEvent(
   await postSlack(lines.join('\n'))
 }
 
+// An inbound submission rejected as an already-known event. This path
+// creates nothing and replies to the sender, so without this alert a wrong
+// match is invisible — the submission is simply gone, and the sender's only
+// recourse is to send it again into the same rejection. Carries the score so
+// a bad threshold can be diagnosed from Slack alone.
+export async function notifyDuplicateEvent(params: {
+  submittedName: string
+  submittedLink?: string
+  submitterEmail: string
+  existingId?: string
+  existingName: string
+  matchedBy?: 'link' | 'name'
+  similarity?: number
+}): Promise<void> {
+  const how =
+    params.matchedBy === 'name' && typeof params.similarity === 'number'
+      ? `name similarity ${params.similarity.toFixed(3)}`
+      : params.matchedBy === 'link'
+        ? 'identical link'
+        : 'unknown'
+  const lines: string[] = [
+    `*Duplicate submission rejected* — not added`,
+    `*Sent* ${params.submittedName}`,
+  ]
+  if (params.submittedLink) lines.push(params.submittedLink)
+  lines.push(`*Matched* ${params.existingName} (${how})`)
+  lines.push(`*From* ${params.submitterEmail}`)
+  if (params.existingId) lines.push(`${APP_URL}/admin/events/${params.existingId}`)
+  await postSlack(lines.join('\n'))
+}
+
 // Field-name display labels for profile + event change messages. Keeps the
 // Slack message readable (e.g. "Company Size" instead of "companySize").
 const PROFILE_FIELD_LABELS: Record<string, string> = {

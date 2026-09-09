@@ -49,10 +49,19 @@ export async function POST(req: NextRequest) {
     // hit that path).
     const dupCheck = await checkDuplicate(event.name, event.link, event.date)
     if (dupCheck.isDuplicate) {
+      // Name the matched event. The old copy ("refresh and submit again")
+      // described a recovery that cannot work — the check is deterministic,
+      // so a resubmission hits the identical rejection every time.
+      const matchedName = dupCheck.existingRecord?.name || ''
+      const matchedDate = dupCheck.existingRecord?.date || ''
+      const matched = [matchedName && `"${matchedName}"`, matchedDate && `(${matchedDate})`]
+        .filter(Boolean)
+        .join(' ')
       return NextResponse.json(
         {
-          error:
-            'This event already exists. Please refresh and submit again so we can pick up the latest record.',
+          error: matched
+            ? `This looks like the same event as ${matched}, which is already listed. If it's a different event, email us and we'll add it.`
+            : 'This event is already listed.',
         },
         { status: 409 }
       )

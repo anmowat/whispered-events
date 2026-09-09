@@ -363,10 +363,22 @@ export async function getEventHostEmails(eventId: string): Promise<string[]> {
     .filter(Boolean)
 }
 
+// Minimum Dice-bigram name similarity for the fuzzy branch to call two
+// same-day events the same event.
+//
+// This was 0.7 and produced a real false positive on 2026-09-09: a submitted
+// "Dreamforce Afterparty for Founders" scored 0.741 against the unrelated
+// "SF Ben Dreamforce Afterparty" — both Sep 15, both San Francisco — so the
+// submission was rejected as a duplicate and never written. Short event names
+// built from shared boilerplate ("Dreamforce", "Afterparty", "Happy Hour")
+// share enough bigrams to clear a 0.7 bar without being the same event.
+//
+// Raise this only with a concrete false negative in hand; lowering it is what
+// caused the incident above.
+const NAME_SIMILARITY_THRESHOLD = 0.85
+
 // Defense-in-depth dedupe: exact link match wins; otherwise fuzzy-name +
 // date check against events from the last 30 days through any future date.
-// Mirrors the Airtable implementation 1:1 — same thresholds, same windowing,
-// same returned shape.
 export async function checkDuplicate(
   name: string,
   link: string,
@@ -387,7 +399,7 @@ export async function checkDuplicate(
       .limit(1)
       .maybeSingle()
     if (error) console.error('checkDuplicate link match error', error)
-    if (data) return buildDuplicateResult(data as DupRow)
+    if (data) return buildDuplicateResult(data as DupRow, { matchedBy: 'link' })
   }
 
   // 2) Fuzzy name match against recent + future events. Skipping archived
@@ -405,14 +417,24 @@ export async function checkDuplicate(
     return { isDuplicate: false }
   }
   for (const row of (candidates ?? []) as DupRow[]) {
+    // Two events that each advertise a registration URL, and whose URLs
+    // differ, are not the same event — however alike their names look. The
+    // exact-link branch above has already caught the case where they agree,
+    // so reaching here with two different links is decisive. Compare cleaned
+    // so a UTM-tagged copy of one canonical URL doesn't read as a mismatch.
+    //
+    // This veto is what stops the "same city, same night, similar name,
+    // different host" collision that the name score cannot distinguish.
+    const candidateLink = cleanEventLink(row.link || '')
+    if (cleanedLink && candidateLink && cleanedLink !== candidateLink) continue
+
     const existingName = row.name || ''
     const nameSimilarity = existingName
       ? stringSimilarity.compareTwoStrings(name.toLowerCase(), existingName.toLowerCase())
       : 0
-    const nameMatch = nameSimilarity > 0.7
     const dateMatch = !!(date && row.date === date)
-    if ((nameMatch || nameSimilarity > 0.9) && dateMatch) {
-      return buildDuplicateResult(row)
+    if (nameSimilarity > NAME_SIMILARITY_THRESHOLD && dateMatch) {
+      return buildDuplicateResult(row, { matchedBy: 'name', similarity: nameSimilarity })
     }
   }
   return { isDuplicate: false }
@@ -430,7 +452,10 @@ interface DupRow {
   type: string | null
 }
 
-function buildDuplicateResult(row: DupRow): DuplicateCheckResult {
+function buildDuplicateResult(
+  row: DupRow,
+  how: { matchedBy: 'link' | 'name'; similarity?: number },
+): DuplicateCheckResult {
   const missingFields: string[] = []
   if (!row.description) missingFields.push('description')
   if (!row.audience || row.audience.length === 0) missingFields.push('audience')
@@ -450,5 +475,7 @@ function buildDuplicateResult(row: DupRow): DuplicateCheckResult {
       audience: row.audience ?? [],
     },
     missingFields,
+    matchedBy: how.matchedBy,
+    similarity: how.similarity,
   }
 }

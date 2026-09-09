@@ -8,7 +8,7 @@ import { getUserByEmail } from '@/lib/users'
 import { checkDuplicate } from '@/lib/events'
 import { recordContribution, getContributionStatsByEmail } from '@/lib/supabase'
 import { sendEventCouldNotReadEmail, sendEventSubmittedEmail, sendDroppedEmailNotification } from '@/lib/email'
-import { notifyNewEvent } from '@/lib/slack'
+import { notifyNewEvent, notifyDuplicateEvent } from '@/lib/slack'
 import { EventRecord, VIRTUAL_LOCATION_RE } from '@/lib/types'
 import { internalSecretHeaders } from '@/lib/internal-auth'
 
@@ -272,10 +272,54 @@ export async function POST(req: NextRequest) {
       source: 'inbound_email',
       airtableUserId: existingUser?.id ?? null,
     }).catch((e) => console.error('inbound-email: recordContribution (duplicate) error', e))
+    // Name the event we MATCHED, not the one that was sent. Quoting the
+    // submitter's own name back at them reads as confirmation that their
+    // event is in, and sends them looking for a row that was never created
+    // — which is exactly how a bad match stayed invisible for three
+    // submissions. Naming the match makes a wrong one obvious on sight, and
+    // the closing line gives the sender a way to say so.
+    const matchedName = dup.existingRecord?.name || parsed.name
+    const matchedDate = dup.existingRecord?.date || ''
+    const matchedLink = dup.existingRecord?.link || ''
+    const matchedLine = [`"${matchedName}"`, matchedDate ? `(${matchedDate})` : '']
+      .filter(Boolean)
+      .join(' ')
     await sendReply(
       senderEmail,
       'Event already in Whispered',
-      `Hi,\n\nGood news — "${parsed.name}" is already in Whispered Events, so members are already seeing it. Thanks for thinking of us.\n\n— Whispered Events`,
+      [
+        'Hi,',
+        '',
+        `Good news — this looks like the same event as ${matchedLine}, which is already in Whispered Events, so members are already seeing it.`,
+        ...(matchedLink ? ['', matchedLink] : []),
+        '',
+        "If that's not the same event, just reply to this email and we'll take a look.",
+        '',
+        '— Whispered Events',
+      ].join('\n'),
+    )
+
+    // A duplicate rejection drops the submission entirely — no event row, no
+    // new-event Slack ping. Announce it so a false positive surfaces
+    // immediately instead of the sender resubmitting into the same wall.
+    console.log('inbound-email: rejected as duplicate', {
+      submittedName: parsed.name,
+      submittedLink: link,
+      matchedEventId: dup.existingId,
+      matchedName,
+      matchedBy: dup.matchedBy,
+      similarity: dup.similarity,
+    })
+    waitUntil(
+      notifyDuplicateEvent({
+        submittedName: parsed.name,
+        submittedLink: link,
+        submitterEmail: senderEmail,
+        existingId: dup.existingId,
+        existingName: matchedName,
+        matchedBy: dup.matchedBy,
+        similarity: dup.similarity,
+      }).catch((e) => console.error('inbound-email: notifyDuplicateEvent error', e)),
     )
     return NextResponse.json({ ok: true, reason: 'duplicate' })
   }

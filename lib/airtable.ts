@@ -182,6 +182,11 @@ export interface DuplicateCheckResult {
   existingId?: string
   existingRecord?: Partial<EventRecord>
   missingFields?: string[]
+  /** Which branch decided this: exact link equality, or fuzzy name + date. */
+  matchedBy?: 'link' | 'name'
+  /** Name similarity that triggered a 'name' match. Reported so a wrong
+   *  rejection can be diagnosed from the Slack alert without a repro. */
+  similarity?: number
 }
 
 export async function checkDuplicate(
