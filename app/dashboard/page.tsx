@@ -1911,8 +1911,21 @@ function EventCard({
             )}
             {matchPct && <MatchBadge percent={matchPct} />}
           </div>
-          <p className="m-0 mt-1.5" style={{ fontSize: 13, color: 'var(--ink-3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {[event.type, dateFormatted, event.location].filter(Boolean).join(' · ')}
+          {/* Wraps rather than truncating. With Host on the line the row is
+              long enough to overflow on a phone, and an ellipsis would eat the
+              host first - it's last. Still one line on desktop. */}
+          <p className="m-0 mt-1.5" style={{ fontSize: 13, color: 'var(--ink-3)' }}>
+            {/* Host is the organizer, matching the label used on the anchor
+                pages and the admin events list. Last on the line so a long
+                company name is what the ellipsis eats, not the date or city. */}
+            {[
+              event.type,
+              dateFormatted,
+              event.location,
+              event.organizer ? `Host: ${event.organizer}` : '',
+            ]
+              .filter(Boolean)
+              .join(' · ')}
           </p>
           <div className="mt-2.5">
             <ThreeRatingButtons
