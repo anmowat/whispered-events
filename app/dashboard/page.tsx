@@ -297,10 +297,7 @@ export default function DashboardPage() {
             className="rounded-card border px-5 py-4"
             style={{ background: 'var(--paper)', borderColor: 'var(--rule)' }}
           >
-            <p className="m-0 font-medium" style={{ fontSize: 17, color: 'var(--ink)' }}>
-              Let your friends know which events you&rsquo;ll be at
-            </p>
-            <div className="mt-3 space-y-1">
+            <div className="space-y-1">
               <ProfileSubRow
                 title="Share events you're attending with contacts"
                 description="Events you've marked Interested"
@@ -1446,16 +1443,14 @@ interface SharingEvent {
 function ShareContactsModal({ onClose }: { onClose: () => void }) {
   const [contacts, setContacts] = useState<ShareContact[]>([])
   const [sharing, setSharing] = useState<SharingEvent[]>([])
-  const [max, setMax] = useState(50)
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  function apply(data: { contacts?: ShareContact[]; sharing?: SharingEvent[]; max?: number }) {
+  function apply(data: { contacts?: ShareContact[]; sharing?: SharingEvent[] }) {
     setContacts(data.contacts ?? [])
     setSharing(data.sharing ?? [])
-    if (typeof data.max === 'number') setMax(data.max)
   }
 
   useEffect(() => {
@@ -1566,7 +1561,7 @@ function ShareContactsModal({ onClose }: { onClose: () => void }) {
         </div>
       </ModalField>
 
-      <ModalField label={`Sharing with (${contacts.length}/${max})`}>
+      <ModalField label={`Sharing with (${contacts.length})`}>
         {loading ? (
           <p className="m-0" style={{ fontSize: 13, color: 'var(--ink-3)' }}>
             Loading&hellip;

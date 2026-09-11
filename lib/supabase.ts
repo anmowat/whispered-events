@@ -1608,9 +1608,37 @@ export async function deleteEvent(eventId: string): Promise<void> {
 // to the active, non-deleted row - users.email is not unique.
 // ---------------------------------------------------------------------------
 
-/** Hard ceiling per member. The add endpoint mails arbitrary addresses supplied
- *  by a member, so an unbounded list is a spam vector, not just a long list. */
-export const MAX_SHARE_CONTACTS = 50
+/**
+ * There is deliberately NO limit on how many contacts a member can share with
+ * - sharing with an existing member sends no mail at all, so it carries no
+ * abuse risk and needs no ceiling.
+ *
+ * The risk sits only on INVITES: adding an address that isn't a member yet
+ * sends mail from our domain to an arbitrary address. So the throttle is on
+ * invites per day rather than on the size of anyone's contact list. A member
+ * adding contacts at a human pace will never see it; someone pasting a
+ * purchased list will, and our sending reputation survives.
+ */
+export const MAX_INVITES_PER_DAY = 25
+
+/** Invites this member has sent in the last 24 hours. Counts soft-deleted rows
+ *  too - removing a contact doesn't un-send the email. */
+export async function countRecentInvites(ownerUserId: string): Promise<number> {
+  if (!ownerUserId) return 0
+  const supabase = getClient()
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+  const { count, error } = await supabase
+    .from('event_share_contacts')
+    .select('*', { count: 'exact', head: true })
+    .eq('owner_user_id', ownerUserId)
+    .gt('invited_at', since)
+  if (error) {
+    console.error('countRecentInvites error', { ownerUserId, error })
+    // Fail closed: an unknown invite count must not read as "none sent yet".
+    return MAX_INVITES_PER_DAY
+  }
+  return count ?? 0
+}
 
 export interface ShareContactRow {
   id: string

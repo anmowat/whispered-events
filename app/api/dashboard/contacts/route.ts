@@ -7,14 +7,15 @@ import {
   removeShareContact,
   markShareContactInvited,
   getInterestedEventIdsByUser,
-  MAX_SHARE_CONTACTS,
+  countRecentInvites,
+  MAX_INVITES_PER_DAY,
 } from '@/lib/supabase'
 import { getUserByEmail } from '@/lib/users'
 import { getFutureEventsByIds } from '@/lib/events'
 import { sendShareInviteEmail } from '@/lib/email'
 
 // Contacts a member shares their attending events with.
-//   GET    -> { contacts: [{ email, name, isMember }], max }
+//   GET    -> { contacts: [{ email, name, isMember }], sharing }
 //   POST   -> { email }  add (idempotent; invites non-members once)
 //   DELETE -> { email }  soft-remove
 //
@@ -71,7 +72,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       contacts: await decorate(rows.map((r) => r.contactEmail)),
       sharing,
-      max: MAX_SHARE_CONTACTS,
     })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
@@ -97,17 +97,9 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const existing = await listShareContacts(session.userId)
-    const alreadyThere = existing.some((c) => c.contactEmail === email)
-    // Cap the list before inserting. This endpoint sends mail to arbitrary
-    // member-supplied addresses, so the ceiling is a spam control, not tidiness.
-    if (!alreadyThere && existing.length >= MAX_SHARE_CONTACTS) {
-      return NextResponse.json(
-        { error: `You can share with up to ${MAX_SHARE_CONTACTS} contacts.` },
-        { status: 400 },
-      )
-    }
-
+    // No ceiling on the contact list itself - share with as many people as you
+    // like. Sharing with an existing member sends no mail at all, so there is
+    // nothing to rate-limit there.
     const { contact, created } = await addShareContact(session.userId, email)
 
     // Members already on Whispered are told in their next digest, so nothing
@@ -116,23 +108,33 @@ export async function POST(req: NextRequest) {
     // someone over and over.
     const contactUser = await getUserByEmail(email)
     if (created && !contactUser && !contact.invitedAt) {
-      const me = await getUserByEmail(session.email)
-      waitUntil(
-        sendShareInviteEmail({
-          contactEmail: email,
-          sharerName: me?.name ?? '',
-          sharerFirstName: me?.firstName ?? '',
+      // Daily invite throttle. The contact is saved either way and still sees
+      // the events once they join - only the notification mail is held back,
+      // so hitting this never costs anyone a share.
+      const recentInvites = await countRecentInvites(session.userId)
+      if (recentInvites >= MAX_INVITES_PER_DAY) {
+        console.warn('dashboard/contacts: daily invite limit reached, invite not sent', {
+          userId: session.userId,
+          recentInvites,
         })
-          .then(() => markShareContactInvited(contact.id))
-          .catch((e) => console.error('dashboard/contacts: sendShareInviteEmail failed', e)),
-      )
+      } else {
+        const me = await getUserByEmail(session.email)
+        waitUntil(
+          sendShareInviteEmail({
+            contactEmail: email,
+            sharerName: me?.name ?? '',
+            sharerFirstName: me?.firstName ?? '',
+          })
+            .then(() => markShareContactInvited(contact.id))
+            .catch((e) => console.error('dashboard/contacts: sendShareInviteEmail failed', e)),
+        )
+      }
     }
 
     const rows = await listShareContacts(session.userId)
     return NextResponse.json({
       contacts: await decorate(rows.map((r) => r.contactEmail)),
       sharing: await sharingEvents(session.userId),
-      max: MAX_SHARE_CONTACTS,
       added: created,
     })
   } catch (err) {
@@ -156,7 +158,6 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({
       contacts: await decorate(rows.map((r) => r.contactEmail)),
       sharing: await sharingEvents(session.userId),
-      max: MAX_SHARE_CONTACTS,
     })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
