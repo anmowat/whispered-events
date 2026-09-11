@@ -1484,21 +1484,39 @@ interface MemberResult {
   linkedin: string
 }
 
-/** Small LinkedIn link used in the contact list and search results. The href
- *  goes through absoluteLinkedin because older rows are stored without a
- *  scheme, which a browser would treat as a relative path. */
-function LinkedinLink({ url }: { url: string }) {
-  if (!url) return null
+/**
+ * A member's name, hyperlinked to their LinkedIn when we have one.
+ *
+ * The link is the name rather than a separate "LinkedIn" affordance - one
+ * clickable thing per person instead of two, which keeps these lists readable
+ * once they run to a dozen rows.
+ *
+ * Falls back to plain text when there's no profile on file. The href is
+ * already absolute: the server runs it through absoluteLinkedin, because older
+ * rows are stored without a scheme and a browser would treat those as a
+ * relative path.
+ */
+function MemberName({
+  name,
+  linkedin,
+  color = 'var(--ink)',
+}: {
+  name: string
+  linkedin: string
+  color?: string
+}) {
+  if (!linkedin) return <span style={{ fontSize: 14, color }}>{name}</span>
   return (
     <a
-      href={url}
+      href={linkedin}
       target="_blank"
       rel="noopener noreferrer"
+      title={`${name} on LinkedIn`}
       className="underline"
-      style={{ fontSize: 13, color: 'var(--accent)', textUnderlineOffset: 3 }}
+      style={{ fontSize: 14, color, textUnderlineOffset: 3 }}
       onClick={(e) => e.stopPropagation()}
     >
-      LinkedIn &#8599;
+      {name}
     </a>
   )
 }
@@ -1719,9 +1737,8 @@ function ShareContactsModal({ onClose }: { onClose: () => void }) {
                   className="flex items-center justify-between gap-3 px-3 py-2 border-b last:border-b-0"
                   style={{ borderColor: 'var(--rule)' }}
                 >
-                  <span className="min-w-0 flex items-baseline gap-2 flex-wrap">
-                    <span style={{ fontSize: 14, color: 'var(--ink)' }}>{r.name}</span>
-                    <LinkedinLink url={r.linkedin} />
+                  <span className="min-w-0">
+                    <MemberName name={r.name} linkedin={r.linkedin} />
                   </span>
                   <button
                     onClick={() => post({ userId: r.userId }, () => {
@@ -1798,13 +1815,12 @@ function ShareContactsModal({ onClose }: { onClose: () => void }) {
             {contacts.map((c) => (
               <div key={c.id} className="flex items-center justify-between gap-3">
                 <span className="min-w-0 flex items-baseline gap-2 flex-wrap">
-                  {c.name && <span style={{ fontSize: 14, color: 'var(--ink)' }}>{c.name}</span>}
+                  {c.name && <MemberName name={c.name} linkedin={c.linkedin} />}
                   {/* Shown only when you typed it. Someone added by name search
                       has no email here by design. */}
                   {c.email && (
                     <span style={{ fontSize: 14, color: 'var(--ink-2)' }}>{c.email}</span>
                   )}
-                  <LinkedinLink url={c.linkedin} />
                   {!c.isMember && (
                     <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>invited</span>
                   )}
@@ -2013,12 +2029,9 @@ function ContactEventsModal({ onClose }: { onClose: () => void }) {
                 style={{ fontSize: 13, color: 'var(--accent)' }}
               >
                 {e.attendees.map((a, i) => (
-                  <span key={a.userId} className="inline-flex items-baseline gap-1.5">
-                    <span>
-                      {a.name}
-                      {i < e.attendees.length - 1 ? ',' : ''}
-                    </span>
-                    <LinkedinLink url={a.linkedin} />
+                  <span key={a.userId} className="inline-flex items-baseline">
+                    <MemberName name={a.name} linkedin={a.linkedin} color="var(--accent)" />
+                    {i < e.attendees.length - 1 ? ',' : ''}
                   </span>
                 ))}
               </p>
