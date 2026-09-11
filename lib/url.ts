@@ -24,3 +24,18 @@ export function withVersion(url: string): string {
   if (!url) return url
   return `${url}${url.includes('?') ? '&' : '?'}v=${Date.now()}`
 }
+
+// Older rows store LinkedIn without a scheme (just "linkedin.com/in/foo"),
+// which a browser resolves as a path RELATIVE to the current page - so the
+// link lands on whisperedevents.com/linkedin.com/in/foo instead of LinkedIn.
+// Force https:// when it's missing.
+//
+// Lifted out of app/admin/users/[id]/page.tsx, where it was a local function
+// inside the component; the dashboard and host pages used the raw value and
+// carried the broken-link bug.
+export function absoluteLinkedin(raw: string | null | undefined): string {
+  const trimmed = (raw || '').trim()
+  if (!trimmed) return ''
+  if (/^https?:\/\//i.test(trimmed)) return trimmed
+  return `https://${trimmed}`
+}

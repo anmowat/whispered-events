@@ -29,6 +29,7 @@ export async function POST(req: NextRequest) {
   if (typeof body.companySize === 'string') update.companySize = body.companySize
   if (typeof body.frequency === 'string') update.frequency = body.frequency
   if (typeof body.function === 'string') update.function = body.function
+  if (typeof body.discoverable === 'boolean') update.discoverable = body.discoverable
 
   // Mirror the application form rule — Size only meaningful when Employed
   if (update.employment && update.employment.toLowerCase() !== 'employed') {
@@ -36,7 +37,8 @@ export async function POST(req: NextRequest) {
   }
 
   // Frequency is a delivery preference, not a matching input — skip the
-  // re-match if it's the only thing that changed.
+  // re-match if it's the only thing that changed. Discoverability is likewise
+  // about who can find you, not who you match.
   const matchingInputsChanged =
     update.location !== undefined ||
     update.interest !== undefined ||

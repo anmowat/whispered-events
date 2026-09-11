@@ -1646,6 +1646,10 @@ export interface ShareContactRow {
   contactEmail: string
   invitedAt: string | null
   createdAt: string
+  /** How this contact was added. 'member' means the owner picked them from a
+   *  name search and has never seen their address - so it must not be echoed
+   *  back. 'email' means the owner typed it and already knows it. */
+  addedVia: 'email' | 'member'
 }
 
 function normalizeContactEmail(email: string): string {
@@ -1659,6 +1663,8 @@ function mapShareContact(row: Record<string, unknown>): ShareContactRow {
     contactEmail: String(row.contact_email ?? ''),
     invitedAt: (row.invited_at as string | null) ?? null,
     createdAt: String(row.created_at ?? ''),
+    // Rows predating the column are email-added by definition.
+    addedVia: row.added_via === 'member' ? 'member' : 'email',
   }
 }
 
@@ -1701,6 +1707,7 @@ export async function listSharersFor(email: string): Promise<ShareContactRow[]> 
 export async function addShareContact(
   ownerUserId: string,
   email: string,
+  addedVia: 'email' | 'member' = 'email',
 ): Promise<{ contact: ShareContactRow; created: boolean }> {
   const cleaned = normalizeContactEmail(email)
   if (!ownerUserId || !cleaned) throw new Error('addShareContact: owner and email required')
@@ -1723,7 +1730,10 @@ export async function addShareContact(
     }
     const { data: restored, error: restoreErr } = await supabase
       .from('event_share_contacts')
-      .update({ deleted_at: null })
+      // Re-stamp provenance: someone who first added an address by typing it
+      // may re-add by name search, or the reverse, and the display rule must
+      // follow the most recent action.
+      .update({ deleted_at: null, added_via: addedVia })
       .eq('id', row.id as string)
       .select()
       .single()
@@ -1733,23 +1743,29 @@ export async function addShareContact(
 
   const { data, error } = await supabase
     .from('event_share_contacts')
-    .insert({ owner_user_id: ownerUserId, contact_email: cleaned })
+    .insert({ owner_user_id: ownerUserId, contact_email: cleaned, added_via: addedVia })
     .select()
     .single()
   if (error) throw new Error(`addShareContact failed: ${error.message}`)
   return { contact: mapShareContact(data as Record<string, unknown>), created: true }
 }
 
-/** Soft-remove a contact. */
-export async function removeShareContact(ownerUserId: string, email: string): Promise<void> {
-  const cleaned = normalizeContactEmail(email)
-  if (!ownerUserId || !cleaned) return
+/**
+ * Soft-remove a contact by row id.
+ *
+ * By id rather than by email because the client is not allowed to know the
+ * address of a contact it added by name search. The owner_user_id predicate
+ * is the authorization check - it makes a guessed id useless against someone
+ * else's contact list.
+ */
+export async function removeShareContact(ownerUserId: string, contactId: string): Promise<void> {
+  if (!ownerUserId || !contactId) return
   const supabase = getClient()
   const { error } = await supabase
     .from('event_share_contacts')
     .update({ deleted_at: new Date().toISOString() })
     .eq('owner_user_id', ownerUserId)
-    .ilike('contact_email', cleaned)
+    .eq('id', contactId)
     .is('deleted_at', null)
   if (error) throw new Error(`removeShareContact failed: ${error.message}`)
 }

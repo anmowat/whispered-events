@@ -6,7 +6,7 @@ import { formatEventDate } from '@/lib/dates'
 import Header from '@/components/Header'
 import MultiSelect from '@/components/MultiSelect'
 import TopicChips from '@/components/TopicChips'
-import { withUtm } from '@/lib/url'
+import { withUtm, absoluteLinkedin } from '@/lib/url'
 
 interface DashboardUser {
   email: string
@@ -1078,7 +1078,7 @@ function BioModal({
       >
         {user.linkedin ? (
           <a
-            href={user.linkedin}
+            href={absoluteLinkedin(user.linkedin)}
             target="_blank"
             rel="noopener noreferrer"
             style={{ color: 'var(--accent)', textDecoration: 'underline', textUnderlineOffset: 2 }}
@@ -1465,18 +1465,50 @@ function TopicsModal({
 // ---------------------------------------------------------------------------
 
 interface ShareContact {
-  email: string
+  id: string
   name: string
+  linkedin: string
   isMember: boolean
+  // Present only for contacts you added by typing an address. Null for anyone
+  // you picked from name search - you never saw their email and shouldn't.
+  email: string | null
 }
 interface SharingEvent {
   id: string
   name: string
   date: string
 }
+interface MemberResult {
+  userId: string
+  name: string
+  linkedin: string
+}
+
+/** Small LinkedIn link used in the contact list and search results. The href
+ *  goes through absoluteLinkedin because older rows are stored without a
+ *  scheme, which a browser would treat as a relative path. */
+function LinkedinLink({ url }: { url: string }) {
+  if (!url) return null
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="underline"
+      style={{ fontSize: 13, color: 'var(--accent)', textUnderlineOffset: 3 }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      LinkedIn &#8599;
+    </a>
+  )
+}
 
 /**
  * Add / remove the contacts who can see the events you're attending.
+ *
+ * Two ways in: search Whispered by name, or type an email for someone who
+ * isn't a member. The name path never exposes an address - the server resolves
+ * the member and stores their email without returning it.
  *
  * Writes land immediately (each add and remove is its own request), hence the
  * Done-only footer - there is no draft to cancel.
@@ -1484,14 +1516,23 @@ interface SharingEvent {
 function ShareContactsModal({ onClose }: { onClose: () => void }) {
   const [contacts, setContacts] = useState<ShareContact[]>([])
   const [sharing, setSharing] = useState<SharingEvent[]>([])
+  const [discoverable, setDiscoverable] = useState(true)
   const [email, setEmail] = useState('')
+  const [query, setQuery] = useState('')
+  const [results, setResults] = useState<MemberResult[]>([])
+  const [searching, setSearching] = useState(false)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  function apply(data: { contacts?: ShareContact[]; sharing?: SharingEvent[] }) {
+  function apply(data: {
+    contacts?: ShareContact[]
+    sharing?: SharingEvent[]
+    discoverable?: boolean
+  }) {
     setContacts(data.contacts ?? [])
     setSharing(data.sharing ?? [])
+    if (typeof data.discoverable === 'boolean') setDiscoverable(data.discoverable)
   }
 
   useEffect(() => {
@@ -1514,22 +1555,52 @@ function ShareContactsModal({ onClose }: { onClose: () => void }) {
     }
   }, [])
 
-  async function addContact() {
-    const value = email.trim()
-    if (!value || busy) return
+  // Name typeahead. Same debounce shape as the admin host picker: a timer plus
+  // a cancelled flag so a slow response can't overwrite a newer query.
+  useEffect(() => {
+    const q = query.trim()
+    if (q.length < 2) {
+      setResults([])
+      setSearching(false)
+      return
+    }
+    let cancelled = false
+    setSearching(true)
+    const id = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/dashboard/member-search?q=${encodeURIComponent(q)}`, {
+          cache: 'no-store',
+        })
+        if (!res.ok || cancelled) return
+        const data = (await res.json()) as { results: MemberResult[] }
+        if (!cancelled) setResults(data.results ?? [])
+      } catch {
+        if (!cancelled) setResults([])
+      } finally {
+        if (!cancelled) setSearching(false)
+      }
+    }, 200)
+    return () => {
+      cancelled = true
+      clearTimeout(id)
+    }
+  }, [query])
+
+  async function post(body: { email?: string; userId?: string }, onDone?: () => void) {
+    if (busy) return
     setBusy(true)
     setError(null)
     try {
       const res = await fetch('/api/dashboard/contacts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: value }),
+        body: JSON.stringify(body),
       })
       const data = await res.json()
       if (!res.ok) setError(data.error || 'Could not add that contact.')
       else {
         apply(data)
-        setEmail('')
+        onDone?.()
       }
     } catch {
       setError('Could not add that contact.')
@@ -1538,7 +1609,7 @@ function ShareContactsModal({ onClose }: { onClose: () => void }) {
     }
   }
 
-  async function removeContact(target: string) {
+  async function removeContact(id: string) {
     if (busy) return
     setBusy(true)
     setError(null)
@@ -1546,7 +1617,7 @@ function ShareContactsModal({ onClose }: { onClose: () => void }) {
       const res = await fetch('/api/dashboard/contacts', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: target }),
+        body: JSON.stringify({ id }),
       })
       const data = await res.json()
       if (!res.ok) setError(data.error || 'Could not remove that contact.')
@@ -1555,6 +1626,23 @@ function ShareContactsModal({ onClose }: { onClose: () => void }) {
       setError('Could not remove that contact.')
     } finally {
       setBusy(false)
+    }
+  }
+
+  async function toggleDiscoverable(next: boolean) {
+    setDiscoverable(next)
+    try {
+      const res = await fetch('/api/dashboard/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ discoverable: next }),
+      })
+      if (!res.ok) throw new Error('save failed')
+    } catch {
+      // Put the switch back rather than leaving the UI claiming a setting that
+      // didn't save.
+      setDiscoverable(!next)
+      setError('Could not save that setting.')
     }
   }
 
@@ -1569,12 +1657,66 @@ function ShareContactsModal({ onClose }: { onClose: () => void }) {
       wide
     >
       <p className="m-0" style={{ fontSize: 14, lineHeight: 1.6, color: 'var(--ink-2)' }}>
-        Add the email of anyone you&rsquo;d like to share the events you&rsquo;re attending with.
-        If they&rsquo;re already on Whispered, the events show up on their dashboard right away. If
-        they&rsquo;re not, we&rsquo;ll send them an invite to join Whispered Events.
+        Search Whispered for someone by name, or add anyone by email. If they&rsquo;re already on
+        Whispered, the events show up on their dashboard right away. If they&rsquo;re not,
+        we&rsquo;ll send them an invite to join Whispered Events.
       </p>
 
-      <ModalField label="Add a contact">
+      <ModalField label="Find someone on Whispered">
+        <input
+          type="text"
+          value={query}
+          disabled={busy}
+          placeholder="Search by name…"
+          onChange={(e) => setQuery(e.target.value)}
+          className={modalInputCls}
+          style={modalInputStyle}
+        />
+        {/* In-flow, not an absolute dropdown: the modal body is overflow-y-auto
+            and would clip a positioned popover. */}
+        {query.trim().length >= 2 && (
+          <div
+            className="mt-1.5 rounded-input border overflow-hidden"
+            style={{ borderColor: 'var(--rule)', background: 'var(--paper-2)' }}
+          >
+            {searching && results.length === 0 ? (
+              <p className="m-0 px-3 py-2" style={{ fontSize: 13, color: 'var(--ink-3)' }}>
+                Searching&hellip;
+              </p>
+            ) : results.length === 0 ? (
+              <p className="m-0 px-3 py-2" style={{ fontSize: 13, color: 'var(--ink-3)' }}>
+                No members found. You can add them by email below.
+              </p>
+            ) : (
+              results.map((r) => (
+                <div
+                  key={r.userId}
+                  className="flex items-center justify-between gap-3 px-3 py-2 border-b last:border-b-0"
+                  style={{ borderColor: 'var(--rule)' }}
+                >
+                  <span className="min-w-0 flex items-baseline gap-2 flex-wrap">
+                    <span style={{ fontSize: 14, color: 'var(--ink)' }}>{r.name}</span>
+                    <LinkedinLink url={r.linkedin} />
+                  </span>
+                  <button
+                    onClick={() => post({ userId: r.userId }, () => {
+                      setQuery('')
+                      setResults([])
+                    })}
+                    disabled={busy}
+                    className="shrink-0 px-3 py-1 rounded-pill text-[12px] font-medium text-white disabled:opacity-40 transition-colors"
+                    style={{ background: 'var(--accent)' }}
+                  >
+                    Share
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+      </ModalField>
+
+      <ModalField label="Not on Whispered? Add them by email">
         <div className="flex items-center gap-2">
           <input
             type="email"
@@ -1585,14 +1727,14 @@ function ShareContactsModal({ onClose }: { onClose: () => void }) {
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault()
-                addContact()
+                post({ email: email.trim() }, () => setEmail(''))
               }
             }}
             className={modalInputCls}
             style={modalInputStyle}
           />
           <button
-            onClick={addContact}
+            onClick={() => post({ email: email.trim() }, () => setEmail(''))}
             disabled={busy || !email.trim()}
             className="shrink-0 px-4 py-2 rounded-pill text-[13px] font-medium text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             style={{ background: 'var(--accent)' }}
@@ -1614,18 +1756,23 @@ function ShareContactsModal({ onClose }: { onClose: () => void }) {
         ) : (
           <div className="space-y-1">
             {contacts.map((c) => (
-              <div key={c.email} className="flex items-center justify-between gap-3">
-                <span className="min-w-0" style={{ fontSize: 14, color: 'var(--ink)' }}>
-                  {c.name ? `${c.name} · ` : ''}
-                  <span style={{ color: 'var(--ink-2)' }}>{c.email}</span>
+              <div key={c.id} className="flex items-center justify-between gap-3">
+                <span className="min-w-0 flex items-baseline gap-2 flex-wrap">
+                  {c.name && <span style={{ fontSize: 14, color: 'var(--ink)' }}>{c.name}</span>}
+                  {/* Shown only when you typed it. Someone added by name search
+                      has no email here by design. */}
+                  {c.email && (
+                    <span style={{ fontSize: 14, color: 'var(--ink-2)' }}>{c.email}</span>
+                  )}
+                  <LinkedinLink url={c.linkedin} />
                   {!c.isMember && (
-                    <span style={{ fontSize: 12, color: 'var(--ink-3)' }}> · invited</span>
+                    <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>invited</span>
                   )}
                 </span>
                 <button
-                  onClick={() => removeContact(c.email)}
+                  onClick={() => removeContact(c.id)}
                   disabled={busy}
-                  aria-label={`Remove ${c.email}`}
+                  aria-label={`Remove ${c.name || c.email || 'contact'}`}
                   className="shrink-0 text-lg leading-none disabled:opacity-40"
                   style={{ color: 'var(--ink-3)' }}
                 >
@@ -1660,9 +1807,31 @@ function ShareContactsModal({ onClose }: { onClose: () => void }) {
           </div>
         )}
       </ModalField>
+
+      {/* The opt-out lives here because this modal is where a member discovers
+          that name search exists at all. */}
+      <div className="pt-1 border-t" style={{ borderColor: 'var(--rule)' }}>
+        <label className="flex items-start gap-2 cursor-pointer select-none pt-3">
+          <input
+            type="checkbox"
+            checked={discoverable}
+            onChange={(e) => toggleDiscoverable(e.target.checked)}
+            className="mt-0.5 w-4 h-4 cursor-pointer accent-[#6E1F2B]"
+          />
+          <span style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--ink-2)' }}>
+            Let other members find me by name.
+            <span style={{ color: 'var(--ink-3)' }}>
+              {' '}
+              Turn this off and you won&rsquo;t appear in anyone&rsquo;s search. People already
+              sharing with you are unaffected.
+            </span>
+          </span>
+        </label>
+      </div>
     </ProfileModalShell>
   )
 }
+
 
 interface ContactEvent {
   id: string
@@ -1672,14 +1841,16 @@ interface ContactEvent {
   date: string
   type: string
   location: string
-  attendees: Array<{ name: string; email: string }>
+  attendees: Array<{ userId: string; name: string; linkedin: string }>
 }
 
 /** Everything the caller's contacts are attending, filterable by contact and
  *  by event type. Shows events regardless of the viewer's own match. */
 function ContactEventsModal({ onClose }: { onClose: () => void }) {
   const [events, setEvents] = useState<ContactEvent[]>([])
-  const [contacts, setContacts] = useState<Array<{ name: string; email: string }>>([])
+  const [contacts, setContacts] = useState<
+    Array<{ userId: string; name: string; linkedin: string }>
+  >([])
   const [contactFilter, setContactFilter] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
   const [loading, setLoading] = useState(true)
@@ -1711,7 +1882,7 @@ function ContactEventsModal({ onClose }: { onClose: () => void }) {
   const types = Array.from(new Set(events.map((e) => e.type).filter(Boolean))).sort()
   const visible = events.filter(
     (e) =>
-      (!contactFilter || e.attendees.some((a) => a.email === contactFilter)) &&
+      (!contactFilter || e.attendees.some((a) => a.userId === contactFilter)) &&
       (!typeFilter || e.type === typeFilter),
   )
 
@@ -1735,7 +1906,7 @@ function ContactEventsModal({ onClose }: { onClose: () => void }) {
           >
             <option value="">All contacts</option>
             {contacts.map((c) => (
-              <option key={c.email} value={c.email}>
+              <option key={c.userId} value={c.userId}>
                 {c.name}
               </option>
             ))}
@@ -1797,8 +1968,19 @@ function ContactEventsModal({ onClose }: { onClose: () => void }) {
                   .filter(Boolean)
                   .join(' · ')}
               </p>
-              <p className="m-0 mt-1" style={{ fontSize: 13, color: 'var(--accent)' }}>
-                {e.attendees.map((a) => a.name).join(', ')}
+              <p
+                className="m-0 mt-1 flex items-baseline gap-x-2 flex-wrap"
+                style={{ fontSize: 13, color: 'var(--accent)' }}
+              >
+                {e.attendees.map((a, i) => (
+                  <span key={a.userId} className="inline-flex items-baseline gap-1.5">
+                    <span>
+                      {a.name}
+                      {i < e.attendees.length - 1 ? ',' : ''}
+                    </span>
+                    <LinkedinLink url={a.linkedin} />
+                  </span>
+                ))}
               </p>
               {e.description && (
                 <p

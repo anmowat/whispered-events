@@ -799,6 +799,8 @@ export interface AirtableUser {
   frequency: string
   linkedin: string
   learn: string
+  /** Opt-out of appearing in another member's name search. Defaults true. */
+  discoverable?: boolean
 }
 
 export interface AirtableEvent {
@@ -912,6 +914,8 @@ export interface UserProfileUpdate {
   frequency?: string
   function?: string
   seniority?: string
+  /** Findable by name in another member's share picker. */
+  discoverable?: boolean
 }
 
 export async function updateUserProfile(
@@ -979,6 +983,7 @@ export async function updateUserProfile(
   if (update.seniority !== undefined) {
     row.seniority = update.seniority === '' ? null : update.seniority
   }
+  if (update.discoverable !== undefined) row.discoverable = !!update.discoverable
 
   if (Object.keys(row).length === 0) return { id: existing.id }
   const { error: updateErr } = await supabase

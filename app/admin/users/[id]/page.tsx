@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { absoluteLinkedin } from '@/lib/url'
 import { useParams } from 'next/navigation'
 import LoginModal from '@/components/LoginModal'
 import {
@@ -460,16 +461,6 @@ export default function AdminUserDetailPage() {
         : user.email
     : ''
 
-  // Older Airtable rows store LinkedIn without a scheme (just
-  // "linkedin.com/in/foo"), which the browser treats as relative to
-  // the current path. Force https:// when missing so the anchor lands
-  // on the real profile.
-  function absoluteLinkedin(raw: string): string {
-    const trimmed = (raw || '').trim()
-    if (!trimmed) return ''
-    if (/^https?:\/\//i.test(trimmed)) return trimmed
-    return `https://${trimmed}`
-  }
 
   return (
     <div className="min-h-screen bg-[#F5EFE6] flex flex-col">

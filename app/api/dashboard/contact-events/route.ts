@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { verifySession, listSharersFor, getInterestedEventIdsByUser } from '@/lib/supabase'
 import { getUsersByIds } from '@/lib/users'
 import { getFutureEventsByIds } from '@/lib/events'
+import { absoluteLinkedin } from '@/lib/url'
 
 // Events the caller's contacts are attending.
 //
@@ -44,16 +45,28 @@ export async function GET(req: NextRequest) {
     const events = await getFutureEventsByIds(Array.from(allEventIds))
     const eventById = new Map(events.map((e) => [e.id, e]))
 
-    // event id -> the contacts attending it
-    const attendeesByEvent = new Map<string, Array<{ name: string; email: string }>>()
+    // event id -> the contacts attending it. Keyed on userId, NOT email: these
+    // are people who shared with you, and you may never have known their
+    // address. Same rule as the contact list - name and LinkedIn, no email.
+    const attendeesByEvent = new Map<
+      string,
+      Array<{ userId: string; name: string; linkedin: string }>
+    >()
     Array.from(interestedByUser.entries()).forEach(([userId, eventIds]) => {
       const owner = ownerById.get(userId)
       if (!owner) return
-      const label = owner.name || owner.firstName || owner.email
+      // 'DEFAULT' is the no-name sentinel. No email fallback, not even the
+      // local part - the rule for this surface is name and LinkedIn only.
+      const raw = owner.name || owner.firstName || ''
+      const label = raw && raw !== 'DEFAULT' ? raw : 'A Whispered member'
       eventIds.forEach((eventId) => {
         if (!eventById.has(eventId)) return
         const list = attendeesByEvent.get(eventId)
-        const entry = { name: label, email: owner.email }
+        const entry = {
+          userId: owner.id,
+          name: label,
+          linkedin: absoluteLinkedin(owner.linkedin),
+        }
         if (list) list.push(entry)
         else attendeesByEvent.set(eventId, [entry])
       })
@@ -76,7 +89,14 @@ export async function GET(req: NextRequest) {
     // The filter dropdown lists every contact sharing with me, including ones
     // with nothing coming up - otherwise the list silently changes shape.
     const contacts = Array.from(ownerById.values())
-      .map((u) => ({ name: u.name || u.firstName || u.email, email: u.email }))
+      .map((u) => {
+        const raw = u.name || u.firstName || ''
+        return {
+          userId: u.id,
+          name: raw && raw !== 'DEFAULT' ? raw : 'A Whispered member',
+          linkedin: absoluteLinkedin(u.linkedin),
+        }
+      })
       .sort((a, b) => a.name.localeCompare(b.name))
 
     return NextResponse.json({ events: payload, contacts })

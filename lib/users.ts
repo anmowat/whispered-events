@@ -40,6 +40,7 @@ interface UserRow {
   frequency: string | null
   linkedin: string | null
   learn: string | null
+  discoverable: boolean | null
   is_partner: boolean
   first_activated_at: string | null
   // Airtable record createdTime — the real "when did this user originally
@@ -82,6 +83,9 @@ function toAirtableUser(row: UserRow): AirtableUser {
     frequency: row.frequency ?? '',
     linkedin: row.linkedin ?? '',
     learn: row.learn ?? '',
+    // Legacy rows predating the column read as null; true is the default, so
+    // an existing member stays findable until they say otherwise.
+    discoverable: row.discoverable !== false,
   }
 }
 
@@ -122,6 +126,65 @@ export async function getUserById(userId: string): Promise<AirtableUser | null> 
     return null
   }
   return data ? toAirtableUser(data as UserRow) : null
+}
+
+/** What one member is allowed to learn about another from a name search.
+ *  Mirrors the host match list (app/api/host/events/[id]/route.ts), which is
+ *  the existing precedent for member-to-member disclosure: name and LinkedIn,
+ *  never an email address. */
+export interface MemberSearchResult {
+  userId: string
+  name: string
+  linkedin: string
+}
+
+/**
+ * Member-facing name search for the share-with-contacts picker.
+ *
+ * Deliberately NOT searchUsersByName below, which is admin-only and unsafe to
+ * expose to a member on three counts: it selects the whole row (email, grade,
+ * employment, location...), it also matches on EMAIL - so typing "@acme.com"
+ * would enumerate that company's members - and it applies no `active` filter,
+ * so it returns pending, passed and deactivated people.
+ *
+ * This one projects four columns, matches names only, requires an active
+ * member, and honours the discoverable opt-out.
+ */
+export async function searchMembersByName(
+  query: string,
+  limit = 8,
+): Promise<MemberSearchResult[]> {
+  const q = query.trim()
+  // Two characters minimum. A single letter would return a slice of the roster
+  // to anyone who typed it, which turns the picker into a directory dump.
+  if (q.length < 2) return []
+  const supabase = getSupabase()
+  const pattern = `%${q.replace(/[%_]/g, (m) => `\\${m}`)}%`
+  const { data, error } = await supabase
+    .from('users')
+    .select('id, name, first_name, linkedin')
+    .or(`name.ilike.${pattern},first_name.ilike.${pattern}`)
+    .eq('active', true)
+    .eq('discoverable', true)
+    .is('airtable_deleted_at', null)
+    .is('deleted_at', null)
+    .limit(limit)
+  if (error) {
+    console.error('searchMembersByName error', { query: q, error })
+    return []
+  }
+  return (data ?? [])
+    .map((row) => {
+      const r = row as { id: string; name: string | null; first_name: string | null; linkedin: string | null }
+      // 'DEFAULT' is the project's sentinel for "no real name on file".
+      const full = (r.name || '').trim()
+      const first = (r.first_name || '').trim()
+      const name = full && full !== 'DEFAULT' ? full : first && first !== 'DEFAULT' ? first : ''
+      return { userId: r.id, name, linkedin: (r.linkedin || '').trim() }
+    })
+    // No display name means nothing to show and nothing to pick - a nameless
+    // row would render as an empty button.
+    .filter((u) => u.name)
 }
 
 // Name-prefix search for the admin host-add typeahead. Case-insensitive,

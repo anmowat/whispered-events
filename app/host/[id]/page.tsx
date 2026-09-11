@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { absoluteLinkedin } from '@/lib/url'
 import { useParams } from 'next/navigation'
 import Header from '@/components/Header'
 import LoginModal from '@/components/LoginModal'
@@ -554,7 +555,7 @@ export default function HostEventDetailPage() {
                           <div className="flex items-center gap-1.5">
                             {m.linkedin ? (
                               <a
-                                href={m.linkedin}
+                                href={absoluteLinkedin(m.linkedin)}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="underline"

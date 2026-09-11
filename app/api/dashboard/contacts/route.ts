@@ -9,16 +9,18 @@ import {
   getInterestedEventIdsByUser,
   countRecentInvites,
   MAX_INVITES_PER_DAY,
+  type ShareContactRow,
 } from '@/lib/supabase'
-import { getUserByEmail } from '@/lib/users'
+import { getUserByEmail, getUserById } from '@/lib/users'
 import { getFutureEventsByIds } from '@/lib/events'
 import { sendShareInviteEmail } from '@/lib/email'
 import { notifyInviteThrottle } from '@/lib/slack'
+import { absoluteLinkedin } from '@/lib/url'
 
 // Contacts a member shares their attending events with.
-//   GET    -> { contacts: [{ email, name, isMember }], sharing }
-//   POST   -> { email }  add (idempotent; invites non-members once)
-//   DELETE -> { email }  soft-remove
+//   GET    -> { contacts, sharing, discoverable }
+//   POST   -> { email } | { userId }   add (idempotent; invites non-members once)
+//   DELETE -> { id }                   soft-remove by contact row id
 //
 // Every handler is session-gated and scoped to the caller's own user id, so a
 // member can only ever read or edit their own contact list.
@@ -36,16 +38,29 @@ function looksLikeEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value)
 }
 
-/** Resolve each contact email to an active member, so the UI can say whether
- *  they'll see events now or still need to accept an invite. */
-async function decorate(emails: string[]) {
-  const users = await Promise.all(emails.map((e) => getUserByEmail(e)))
-  return emails.map((email, i) => {
+/**
+ * Shape each contact for the client.
+ *
+ * The email is returned ONLY for contacts the owner added by typing an address
+ * - they already know it. A contact added by picking a name from search comes
+ * back as name + LinkedIn with `email: null`, because the owner has never seen
+ * their address and must not learn it here. Without that rule the picker would
+ * be an email-harvesting tool: search a name, add, read the address back.
+ *
+ * Every contact carries its row `id`, which is what the client uses to remove
+ * one - so it never needs an address it isn't allowed to see.
+ */
+async function decorate(rows: ShareContactRow[]) {
+  const users = await Promise.all(rows.map((r) => getUserByEmail(r.contactEmail)))
+  return rows.map((r, i) => {
     const u = users[i]
+    const name = u ? u.name || u.firstName || '' : ''
     return {
-      email,
-      name: u ? u.name || u.firstName || '' : '',
+      id: r.id,
+      name: name === 'DEFAULT' ? '' : name,
+      linkedin: u ? absoluteLinkedin(u.linkedin) : '',
       isMember: !!u,
+      email: r.addedVia === 'email' ? r.contactEmail : null,
     }
   })
 }
@@ -62,18 +77,26 @@ async function sharingEvents(userId: string) {
     .sort((a, b) => (a.date || '').localeCompare(b.date || ''))
 }
 
+/** One response shape for every handler, so the modal re-hydrates fully after
+ *  any mutation rather than patching pieces of its own state. */
+async function currentState(userId: string, email: string) {
+  const [rows, sharing, me] = await Promise.all([
+    listShareContacts(userId),
+    sharingEvents(userId),
+    getUserByEmail(email),
+  ])
+  return {
+    contacts: await decorate(rows),
+    sharing,
+    discoverable: me?.discoverable !== false,
+  }
+}
+
 export async function GET(req: NextRequest) {
   const session = await requireSession(req)
   if (!session) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   try {
-    const [rows, sharing] = await Promise.all([
-      listShareContacts(session.userId),
-      sharingEvents(session.userId),
-    ])
-    return NextResponse.json({
-      contacts: await decorate(rows.map((r) => r.contactEmail)),
-      sharing,
-    })
+    return NextResponse.json(await currentState(session.userId, session.email))
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     console.error('dashboard/contacts GET error:', message)
@@ -85,14 +108,32 @@ export async function POST(req: NextRequest) {
   const session = await requireSession(req)
   if (!session) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
 
-  const body = (await req.json().catch(() => ({}))) as { email?: unknown }
-  const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : ''
-  if (!email || !looksLikeEmail(email)) {
-    return NextResponse.json({ error: 'Enter a valid email address.' }, { status: 400 })
+  const body = (await req.json().catch(() => ({}))) as { email?: unknown; userId?: unknown }
+  const rawUserId = typeof body.userId === 'string' ? body.userId.trim() : ''
+  const rawEmail = typeof body.email === 'string' ? body.email.trim().toLowerCase() : ''
+
+  // Resolve whichever identifier was sent into the address we store. On the
+  // userId path the address is looked up server-side and never returned, which
+  // is what lets a member share with someone whose email they don't know.
+  let email = ''
+  let addedVia: 'email' | 'member' = 'email'
+  if (rawUserId) {
+    const target = await getUserById(rawUserId)
+    if (!target || !target.active || !target.email) {
+      return NextResponse.json({ error: 'That member could not be found.' }, { status: 400 })
+    }
+    email = target.email.trim().toLowerCase()
+    addedVia = 'member'
+  } else {
+    if (!rawEmail || !looksLikeEmail(rawEmail)) {
+      return NextResponse.json({ error: 'Enter a valid email address.' }, { status: 400 })
+    }
+    email = rawEmail
   }
+
   if (email === session.email.trim().toLowerCase()) {
     return NextResponse.json(
-      { error: "That's your own address - you already see your events." },
+      { error: "That's you - you already see your own events." },
       { status: 400 },
     )
   }
@@ -101,12 +142,15 @@ export async function POST(req: NextRequest) {
     // No ceiling on the contact list itself - share with as many people as you
     // like. Sharing with an existing member sends no mail at all, so there is
     // nothing to rate-limit there.
-    const { contact, created } = await addShareContact(session.userId, email)
+    const { contact, created } = await addShareContact(session.userId, email, addedVia)
 
     // Members already on Whispered are told in their next digest, so nothing
     // is sent here. Non-members get one invite, ever - invited_at survives a
     // remove/re-add so repeatedly toggling a contact can't be used to mail
     // someone over and over.
+    //
+    // The name-search path can never reach this branch: search only returns
+    // members, and a member never gets an invite.
     const contactUser = await getUserByEmail(email)
     if (created && !contactUser && !contact.invitedAt) {
       // Daily invite throttle. The contact is saved either way and still sees
@@ -146,10 +190,8 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const rows = await listShareContacts(session.userId)
     return NextResponse.json({
-      contacts: await decorate(rows.map((r) => r.contactEmail)),
-      sharing: await sharingEvents(session.userId),
+      ...(await currentState(session.userId, session.email)),
       added: created,
     })
   } catch (err) {
@@ -163,17 +205,15 @@ export async function DELETE(req: NextRequest) {
   const session = await requireSession(req)
   if (!session) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
 
-  const body = (await req.json().catch(() => ({}))) as { email?: unknown }
-  const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : ''
-  if (!email) return NextResponse.json({ error: 'email required' }, { status: 400 })
+  const body = (await req.json().catch(() => ({}))) as { id?: unknown }
+  const id = typeof body.id === 'string' ? body.id.trim() : ''
+  if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
 
   try {
-    await removeShareContact(session.userId, email)
-    const rows = await listShareContacts(session.userId)
-    return NextResponse.json({
-      contacts: await decorate(rows.map((r) => r.contactEmail)),
-      sharing: await sharingEvents(session.userId),
-    })
+    // removeShareContact scopes the update to the caller's own owner_user_id,
+    // so a guessed id can't reach anyone else's contact list.
+    await removeShareContact(session.userId, id)
+    return NextResponse.json(await currentState(session.userId, session.email))
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     console.error('dashboard/contacts DELETE error:', message)
