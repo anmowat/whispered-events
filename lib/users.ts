@@ -170,8 +170,17 @@ export async function searchMembersByName(
     .is('deleted_at', null)
     .limit(limit)
   if (error) {
+    // Throw rather than return []. An empty array renders as "No members
+    // found", which is indistinguishable from a real empty result - so a
+    // missing column or a broken query would look like an empty roster and
+    // nobody would know the search was broken at all.
     console.error('searchMembersByName error', { query: q, error })
-    return []
+    const missingColumn = /discoverable/i.test(error.message ?? '')
+    throw new Error(
+      missingColumn
+        ? 'Member search is unavailable: the discoverable column is missing. Apply migration 20260912000000_member_discoverability.sql.'
+        : `searchMembersByName failed: ${error.message}`,
+    )
   }
   return (data ?? [])
     .map((row) => {

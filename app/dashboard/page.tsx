@@ -1521,6 +1521,7 @@ function ShareContactsModal({ onClose }: { onClose: () => void }) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<MemberResult[]>([])
   const [searching, setSearching] = useState(false)
+  const [searchError, setSearchError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -1566,16 +1567,27 @@ function ShareContactsModal({ onClose }: { onClose: () => void }) {
     }
     let cancelled = false
     setSearching(true)
+    setSearchError(null)
     const id = setTimeout(async () => {
       try {
         const res = await fetch(`/api/dashboard/member-search?q=${encodeURIComponent(q)}`, {
           cache: 'no-store',
         })
-        if (!res.ok || cancelled) return
-        const data = (await res.json()) as { results: MemberResult[] }
-        if (!cancelled) setResults(data.results ?? [])
+        if (cancelled) return
+        const data = (await res.json()) as { results?: MemberResult[]; error?: string }
+        // A failed search must not render as "No members found" - that reads
+        // as an empty roster and hides the fault completely.
+        if (!res.ok) {
+          setResults([])
+          setSearchError('Search is unavailable right now.')
+          return
+        }
+        setResults(data.results ?? [])
       } catch {
-        if (!cancelled) setResults([])
+        if (!cancelled) {
+          setResults([])
+          setSearchError('Search is unavailable right now.')
+        }
       } finally {
         if (!cancelled) setSearching(false)
       }
@@ -1665,6 +1677,15 @@ function ShareContactsModal({ onClose }: { onClose: () => void }) {
       <ModalField label="Find someone on Whispered">
         <input
           type="text"
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="none"
+          spellCheck={false}
+          name="whispered-member-search"
+          data-1p-ignore
+          data-lpignore="true"
+          data-bwignore
+          data-form-type="other"
           value={query}
           disabled={busy}
           placeholder="Search by name…"
@@ -1679,7 +1700,11 @@ function ShareContactsModal({ onClose }: { onClose: () => void }) {
             className="mt-1.5 rounded-input border overflow-hidden"
             style={{ borderColor: 'var(--rule)', background: 'var(--paper-2)' }}
           >
-            {searching && results.length === 0 ? (
+            {searchError ? (
+              <p className="m-0 px-3 py-2" style={{ fontSize: 13, color: 'var(--accent)' }}>
+                {searchError}
+              </p>
+            ) : searching && results.length === 0 ? (
               <p className="m-0 px-3 py-2" style={{ fontSize: 13, color: 'var(--ink-3)' }}>
                 Searching&hellip;
               </p>
@@ -1718,8 +1743,23 @@ function ShareContactsModal({ onClose }: { onClose: () => void }) {
 
       <ModalField label="Not on Whispered? Add them by email">
         <div className="flex items-center gap-2">
+          {/* type="text" + inputMode, not type="email": Safari/iCloud Passwords
+              treats an email input as a login username field and pops its
+              autofill panel over the contact list. inputMode keeps the email
+              keyboard on mobile. The data-* attributes opt out of 1Password,
+              LastPass, Bitwarden and Dashlane, which ignore autoComplete. */}
           <input
-            type="email"
+            type="text"
+            inputMode="email"
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="none"
+            spellCheck={false}
+            name="whispered-share-contact"
+            data-1p-ignore
+            data-lpignore="true"
+            data-bwignore
+            data-form-type="other"
             value={email}
             disabled={busy}
             placeholder="name@company.com"
