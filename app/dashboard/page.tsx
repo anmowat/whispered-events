@@ -1815,11 +1815,16 @@ function ShareContactsModal({ onClose }: { onClose: () => void }) {
             {contacts.map((c) => (
               <div key={c.id} className="flex items-center justify-between gap-3">
                 <span className="min-w-0 flex items-baseline gap-2 flex-wrap">
-                  {c.name && <MemberName name={c.name} linkedin={c.linkedin} />}
-                  {/* Shown only when you typed it. Someone added by name search
-                      has no email here by design. */}
-                  {c.email && (
-                    <span style={{ fontSize: 14, color: 'var(--ink-2)' }}>{c.email}</span>
+                  {/* Name only. The email is shown ONLY as a fallback when
+                      there's no name to show - someone you invited who hasn't
+                      joined yet has no profile, so their address is the only
+                      thing identifying which row is theirs. */}
+                  {c.name ? (
+                    <MemberName name={c.name} linkedin={c.linkedin} />
+                  ) : (
+                    <span style={{ fontSize: 14, color: 'var(--ink-2)' }}>
+                      {c.email || 'Unknown contact'}
+                    </span>
                   )}
                   {!c.isMember && (
                     <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>invited</span>
