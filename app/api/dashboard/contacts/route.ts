@@ -13,6 +13,7 @@ import {
 import { getUserByEmail } from '@/lib/users'
 import { getFutureEventsByIds } from '@/lib/events'
 import { sendShareInviteEmail } from '@/lib/email'
+import { notifyInviteThrottle } from '@/lib/slack'
 
 // Contacts a member shares their attending events with.
 //   GET    -> { contacts: [{ email, name, isMember }], sharing }
@@ -112,13 +113,27 @@ export async function POST(req: NextRequest) {
       // the events once they join - only the notification mail is held back,
       // so hitting this never costs anyone a share.
       const recentInvites = await countRecentInvites(session.userId)
+      const me = await getUserByEmail(session.email)
       if (recentInvites >= MAX_INVITES_PER_DAY) {
         console.warn('dashboard/contacts: daily invite limit reached, invite not sent', {
           userId: session.userId,
           recentInvites,
         })
+        // Shout about it. A withheld invite is invisible on the monitor BCC -
+        // it looks exactly like the member having stopped - so Slack is the
+        // only place this surfaces.
+        waitUntil(
+          notifyInviteThrottle({
+            userId: session.userId,
+            email: session.email,
+            name: me?.name,
+            linkedin: me?.linkedin,
+            recentInvites,
+            limit: MAX_INVITES_PER_DAY,
+            attemptedEmail: email,
+          }).catch((e) => console.error('dashboard/contacts: notifyInviteThrottle failed', e)),
+        )
       } else {
-        const me = await getUserByEmail(session.email)
         waitUntil(
           sendShareInviteEmail({
             contactEmail: email,

@@ -128,6 +128,50 @@ export async function notifyDuplicateEvent(params: {
   await postSlack(lines.join('\n'))
 }
 
+/**
+ * A member hit the daily invite ceiling on event sharing.
+ *
+ * This is the abuse signal. Invites go to arbitrary member-supplied addresses
+ * from our sending domain, and the throttle silently withholds mail once
+ * someone crosses the line - so without this alert the only symptom is the
+ * monitor BCC going quiet, which looks identical to the member simply
+ * stopping. Loud on purpose: reaching this at all means someone is adding
+ * addresses far faster than a person adds friends.
+ */
+// Last alert per member. Once someone is over the limit EVERY further add is
+// blocked, so an unguarded alert would post once per pasted address - hundreds
+// of messages that bury the very thing they're meant to surface. Instance-local
+// (so a cold start can repeat it), which is fine: the goal is collapsing a
+// burst, not exactly-once delivery.
+const INVITE_ALERT_COOLDOWN_MS = 60 * 60 * 1000
+const lastInviteAlertAt = new Map<string, number>()
+
+export async function notifyInviteThrottle(params: {
+  userId: string
+  email: string
+  name?: string | null
+  linkedin?: string | null
+  recentInvites: number
+  limit: number
+  attemptedEmail: string
+}): Promise<void> {
+  const now = Date.now()
+  const last = lastInviteAlertAt.get(params.userId) ?? 0
+  if (now - last < INVITE_ALERT_COOLDOWN_MS) return
+  lastInviteAlertAt.set(params.userId, now)
+
+  const lines: string[] = [
+    ':rotating_light: :rotating_light: *INVITE LIMIT HIT - POSSIBLE ABUSE* :rotating_light: :rotating_light:',
+    '',
+    `> *${params.recentInvites} invites in 24h* (limit ${params.limit}) - further invites are being BLOCKED`,
+    '',
+    `*Member* ${formatPerson({ name: params.name, email: params.email, linkedin: params.linkedin })}`,
+    `*Blocked address* ${params.attemptedEmail}`,
+    `${APP_URL}/admin/users/${params.userId}`,
+  ]
+  await postSlack(lines.join('\n'))
+}
+
 // Field-name display labels for profile + event change messages. Keeps the
 // Slack message readable (e.g. "Company Size" instead of "companySize").
 const PROFILE_FIELD_LABELS: Record<string, string> = {

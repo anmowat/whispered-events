@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { AirtableEvent } from '@/lib/airtable'
 import { formatEventDate } from '@/lib/dates'
 import Header from '@/components/Header'
@@ -110,6 +110,46 @@ export default function DashboardPage() {
   useEffect(() => {
     document.body.classList.add('theme-after-hours')
     return () => document.body.classList.remove('theme-after-hours')
+  }, [])
+
+  // Re-read the server's view after a rating. The engagement gate lives
+  // server-side: rating an event stamps first_rated_at, which frees a slot and
+  // drops lockedCount. Without this the "N more matches waiting" card kept
+  // whatever number it was given on page load, so a member who rated
+  // everything still saw the nudge and had no way to know a reload would clear
+  // it.
+  //
+  // Merges rather than replaces: events already on screen stay put, so a card
+  // the server now filters out (not_a_fit, or host thumbs-down) doesn't vanish
+  // out from under the member mid-interaction. Only genuinely new unlocks are
+  // appended.
+  const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  function scheduleUnlockRefresh() {
+    if (refreshTimer.current) clearTimeout(refreshTimer.current)
+    // Debounced so rating several events in a row costs one request, not one
+    // per click.
+    refreshTimer.current = setTimeout(async () => {
+      try {
+        const res = await fetch('/api/dashboard/events')
+        if (!res.ok) return
+        const data = (await res.json()) as { events: DashboardEvent[]; lockedCount?: number }
+        setLockedCount(data.lockedCount ?? 0)
+        setEvents((prev) => {
+          const seen = new Set(prev.map((e) => e.id))
+          const additions = data.events.filter((e) => !seen.has(e.id))
+          if (additions.length === 0) return prev
+          return [...prev, ...additions].sort((a, b) => a.date.localeCompare(b.date))
+        })
+      } catch {
+        // Leave the current counts alone — a failed refresh should never
+        // blank out a dashboard that is already rendering fine.
+      }
+    }, 600)
+  }
+  useEffect(() => {
+    return () => {
+      if (refreshTimer.current) clearTimeout(refreshTimer.current)
+    }
   }, [])
 
   useEffect(() => {
@@ -365,7 +405,7 @@ export default function DashboardPage() {
                   key={event.id}
                   event={event}
                   onGrowRequested={() => setShowGrowConfirm(true)}
-                  onRated={(rating, reason) =>
+                  onRated={(rating, reason) => {
                     setEvents((prev) =>
                       prev.map((e) =>
                         e.id === event.id
@@ -373,7 +413,8 @@ export default function DashboardPage() {
                           : e,
                       ),
                     )
-                  }
+                    scheduleUnlockRefresh()
+                  }}
                 />
               ))}
             </div>
@@ -1598,7 +1639,10 @@ function ShareContactsModal({ onClose }: { onClose: () => void }) {
 
       {/* Interested doubles as the attending signal, so spell out exactly what
           these contacts will see. Without this a member has no way to know. */}
-      <ModalField label={`They'll see (${sharing.length})`}>
+      <ModalField
+        label={`They'll see (${sharing.length})`}
+        hint="Contacts see the events you've marked Interested on your dashboard. Events drop off this list once they've passed."
+      >
         {sharing.length === 0 ? (
           <p className="m-0" style={{ fontSize: 13, color: 'var(--ink-3)' }}>
             Nothing yet — mark an event <strong>Interested</strong> and it appears here.
@@ -1772,10 +1816,32 @@ function ContactEventsModal({ onClose }: { onClose: () => void }) {
   )
 }
 
-function ModalField({ label, children }: { label: string; children: React.ReactNode }) {
+function ModalField({
+  label,
+  children,
+  hint,
+}: {
+  label: string
+  children: React.ReactNode
+  // Optional hover explanation. Renders a small marker after the label and
+  // puts the text in a title tooltip.
+  hint?: string
+}) {
   return (
     <div className="space-y-1.5">
-      <label className="eyebrow">{label}</label>
+      <label className="eyebrow" title={hint}>
+        {label}
+        {hint && (
+          <span
+            className="ml-1 cursor-help"
+            style={{ color: 'var(--ink-3)' }}
+            aria-label={hint}
+            title={hint}
+          >
+            &#9432;
+          </span>
+        )}
+      </label>
       {children}
     </div>
   )
