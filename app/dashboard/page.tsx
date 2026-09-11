@@ -1674,7 +1674,7 @@ function ShareContactsModal({ onClose }: { onClose: () => void }) {
         we&rsquo;ll send them an invite to join Whispered Events.
       </p>
 
-      <ModalField label="Find someone on Whispered">
+      <ModalField label="Search Whispered Events Members">
         <input
           type="text"
           autoComplete="off"
@@ -1741,7 +1741,7 @@ function ShareContactsModal({ onClose }: { onClose: () => void }) {
         )}
       </ModalField>
 
-      <ModalField label="Not on Whispered? Add them by email">
+      <ModalField label="Add Contact by Email">
         <div className="flex items-center gap-2">
           {/* type="text" + inputMode, not type="email": Safari/iCloud Passwords
               treats an email input as a login username field and pops its
