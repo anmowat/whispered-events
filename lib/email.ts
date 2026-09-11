@@ -950,6 +950,85 @@ export async function sendHostAddedEmail(params: {
   }
 }
 
+/**
+ * A member shared the events they're attending with someone who isn't on
+ * Whispered yet. Members already on the platform are told in their next digest
+ * instead (see shareContactsHtml) - a non-member has no dashboard and no
+ * digest, so this invite is the only way they would ever find out.
+ *
+ * Names the sharer, because an unexplained invite from a brand reads as spam.
+ * Deliberately does not list which events: the recipient hasn't joined, hasn't
+ * agreed to anything, and the sharer's plans are not ours to broadcast to an
+ * unverified address.
+ */
+export async function sendShareInviteEmail(params: {
+  contactEmail: string
+  sharerName: string
+  sharerFirstName: string
+}): Promise<void> {
+  const resend = getResend()
+  const { contactEmail } = params
+  const sharer = (params.sharerName || params.sharerFirstName || '').trim()
+  const safeSharer = escapeHtml(sharer || 'A Whispered member')
+  const joinLink = dashboardLinkFor(contactEmail)
+  const html = shell(`
+    ${eyebrow(todayEyebrow())}
+    ${h1(`${safeSharer} wants to share the events they're attending with you.`)}
+    ${p(
+      `Whispered Events is a private list of in-person dinners, happy hours and panels for senior go-to-market leaders. ${safeSharer} has added you as a contact, which means once you join you'll see which events they'll be at - and you can share yours back.`,
+      { mt: 14 },
+    )}
+    ${accentButton(joinLink, 'Join Whispered Events')}
+    ${p(`If you weren't expecting this, you can ignore it - nothing has been shared with you yet.`, { mt: 16 })}
+    ${signature()}
+  `)
+  const text = [
+    `${sharer || 'A Whispered member'} wants to share the events they're attending with you.`,
+    '',
+    `Whispered Events is a private list of in-person dinners, happy hours and panels for senior go-to-market leaders. ${sharer || 'They'} added you as a contact, which means once you join you'll see which events they'll be at - and you can share yours back.`,
+    '',
+    `Join Whispered Events: ${joinLink}`,
+    '',
+    `If you weren't expecting this, you can ignore it - nothing has been shared with you yet.`,
+    '',
+    '- Whispered Events',
+  ].join('\n')
+  const { error } = await resend.emails.send({
+    from: TEAM_FROM,
+    to: contactEmail,
+    bcc: MONITOR_BCC,
+    subject: `${sharer || 'A Whispered member'} is sharing the events they're attending with you`,
+    html,
+    text,
+    headers: AUTO_HEADERS,
+  })
+  if (error) {
+    console.error('sendShareInviteEmail: Resend error', { email: contactEmail, error })
+    throw new Error(`Resend send failed: ${error.message ?? JSON.stringify(error)}`)
+  }
+}
+
+/**
+ * Digest block telling an existing member that contacts have started sharing
+ * their events. This is how members find out - per product call there is no
+ * separate "X added you" email, so this line is the only signal.
+ */
+export function shareContactsHtml(newSharers: number): string {
+  if (newSharers <= 0) return ''
+  const noun = newSharers === 1 ? 'person is' : 'people are'
+  return `
+<p style="font-family:${SANS};font-size:14px;line-height:1.6;color:${C.ink2};margin:20px 0 0;">
+  <strong style="color:${C.ink};">${newSharers} ${noun}</strong> sharing the events they're attending with you &mdash; see them on <a href="${DASHBOARD_LINK}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">your dashboard</a> &rarr;
+</p>
+`.trim()
+}
+
+export function shareContactsTextLine(newSharers: number): string {
+  if (newSharers <= 0) return ''
+  const noun = newSharers === 1 ? 'person is' : 'people are'
+  return `${newSharers} ${noun} sharing the events they're attending with you - see them on your dashboard: ${DASHBOARD_LINK}`
+}
+
 // ----- Digests -----
 
 export interface DigestEventEntry {
@@ -971,6 +1050,10 @@ export interface DigestPayload {
   // Number of never-rated matches beyond the 7-slot cap. When > 0,
   // a nudge line is appended after the match list.
   lockedCount?: number
+  // Contacts who started sharing the events they're attending since this
+  // user's last digest. There is no separate "X added you" email, so this
+  // line is the only way an existing member learns a share happened.
+  newSharers?: number
 }
 
 export function firstNameOrThere(user: AirtableUser): string {
@@ -1400,6 +1483,7 @@ export async function sendUserDigest(
     ${digestRatingNudgeHtml}
     ${(payload.lockedCount ?? 0) > 0 ? '' : moreHtml}
     ${lockedNudgeHtml}
+    ${shareContactsHtml(payload.newSharers ?? 0)}
     ${digestFooterHtml(firstName)}
   `)
 
@@ -1436,6 +1520,8 @@ export async function sendUserDigest(
   )
   if (!(payload.lockedCount ?? 0) && moreText) textLines.push(moreText, '')
   if (lockedNudgeText) textLines.push(lockedNudgeText, '')
+  const sharersText = shareContactsTextLine(payload.newSharers ?? 0)
+  if (sharersText) textLines.push(sharersText, '')
   textLines.push(...digestFooterTextLines(firstName))
   const text = textLines.join('\n')
 

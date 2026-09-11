@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { waitUntil } from '@vercel/functions'
 import { isAdmin } from '@/lib/admin-auth'
-import { getUserById, getUserByEmail } from '@/lib/users'
+import { getUserById, getUserByEmail, getUsersByIds } from '@/lib/users'
 import { getFutureEvents } from '@/lib/events'
 import { createClient } from '@supabase/supabase-js'
-import { getAllMatchesForUser, getContributionStatsForUser, getLastSeenForUser, getLastEmailSentForUser, deleteUser } from '@/lib/supabase'
+import { getAllMatchesForUser, getContributionStatsForUser, getLastSeenForUser, getLastEmailSentForUser, deleteUser, listShareContacts, listSharersFor } from '@/lib/supabase'
 import { updateUserAdmin, type UserAdminUpdate } from '@/lib/airtable'
 import { triggerUserApprovedFlow } from '@/lib/user-approval'
 import { withinMiles } from '@/lib/geocode'
@@ -115,6 +115,39 @@ export async function GET(
       date: e.date as string,
     }))
 
+    // Event-sharing contacts, both directions. "Shared with" is keyed by this
+    // member's id; "shared from" is keyed by their email, which is what lets a
+    // share made before they joined resolve to them now.
+    const [sharedWithRows, sharedFromRows] = await Promise.all([
+      listShareContacts(user.id),
+      listSharersFor(user.email),
+    ])
+    const sharerUsers = await getUsersByIds(
+      Array.from(new Set(sharedFromRows.map((r) => r.ownerUserId))),
+    )
+    const sharerById = new Map(sharerUsers.map((u) => [u.id, u]))
+    const contactUsers = await Promise.all(
+      sharedWithRows.map((r) => getUserByEmail(r.contactEmail)),
+    )
+    const contactsSharedWith = sharedWithRows.map((r, i) => {
+      const u = contactUsers[i]
+      return {
+        email: r.contactEmail,
+        name: u ? u.name || u.firstName || '' : '',
+        userId: u?.id ?? null,
+        invitedAt: r.invitedAt,
+      }
+    })
+    const contactsSharedFrom = sharedFromRows.map((r) => {
+      const u = sharerById.get(r.ownerUserId)
+      return {
+        email: u?.email ?? '',
+        name: u ? u.name || u.firstName || '' : '',
+        userId: r.ownerUserId,
+        invitedAt: r.invitedAt,
+      }
+    })
+
     return NextResponse.json({
       user: {
         id: user.id,
@@ -145,6 +178,8 @@ export async function GET(
       },
       events,
       hostedEvents,
+      contactsSharedWith,
+      contactsSharedFrom,
       generatedAt: new Date().toISOString(),
     })
   } catch (err) {

@@ -98,6 +98,16 @@ function draftDiff(draft: UserDraft, original: UserDraft): Partial<UserDraft> {
   return diff
 }
 
+// One end of an event-sharing relationship. userId is null when the contact
+// has been invited but hasn't joined yet, which is also what `invitedAt`
+// records - both are shown so admin can tell a pending invite from a live share.
+interface ShareContact {
+  email: string
+  name: string
+  userId: string | null
+  invitedAt: string | null
+}
+
 interface EventRow {
   id: string
   name: string
@@ -143,6 +153,8 @@ export default function AdminUserDetailPage() {
 
   const [user, setUser] = useState<UserDetail | null>(null)
   const [events, setEvents] = useState<EventRow[] | null>(null)
+  const [sharedWith, setSharedWith] = useState<ShareContact[]>([])
+  const [sharedFrom, setSharedFrom] = useState<ShareContact[]>([])
   const [authState, setAuthState] = useState<'unknown' | 'authorized' | 'unauthorized' | 'not_found' | 'error'>('unknown')
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [showLogin, setShowLogin] = useState(false)
@@ -275,9 +287,11 @@ export default function AdminUserDetailPage() {
         setErrorMsg(data.error || `HTTP ${res.status}`)
         return
       }
-      const data = (await res.json()) as { user: Omit<UserDetail, 'hostedEvents'>; events: EventRow[]; hostedEvents: { id: string; name: string; date: string }[] }
+          const data = (await res.json()) as { user: Omit<UserDetail, 'hostedEvents'>; events: EventRow[]; hostedEvents: { id: string; name: string; date: string }[]; contactsSharedWith?: ShareContact[]; contactsSharedFrom?: ShareContact[] }
       setUser({ ...data.user, hostedEvents: data.hostedEvents ?? [] })
       setEvents(data.events)
+      setSharedWith(data.contactsSharedWith ?? [])
+      setSharedFrom(data.contactsSharedFrom ?? [])
       setAuthState('authorized')
     } catch (e) {
       setAuthState('error')
@@ -765,6 +779,30 @@ export default function AdminUserDetailPage() {
               )}
             </div>
 
+            {/* Event-sharing contacts */}
+            <div className="bg-white border border-[#E8DDD0] rounded-2xl p-6 shadow-sm mb-8">
+              <h3 className="text-xs uppercase tracking-widest text-gold-700 font-medium mb-3">
+                Contacts shared with · {sharedWith.length}
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {sharedWith.length === 0 ? (
+                  <span className="text-sm text-gray-400 italic">None</span>
+                ) : (
+                  sharedWith.map((c) => <ContactPill key={`to-${c.email}`} contact={c} />)
+                )}
+              </div>
+              <h3 className="text-xs uppercase tracking-widest text-gold-700 font-medium mt-5 mb-3">
+                Contacts shared from · {sharedFrom.length}
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {sharedFrom.length === 0 ? (
+                  <span className="text-sm text-gray-400 italic">None</span>
+                ) : (
+                  sharedFrom.map((c) => <ContactPill key={`from-${c.email}`} contact={c} />)
+                )}
+              </div>
+            </div>
+
             {/* Future events sorted by % match */}
             <div className="flex items-end justify-between mb-3 flex-wrap gap-2">
               <h3 className="text-xs uppercase tracking-widest text-gold-700 font-medium">Future events within range · {events.length}</h3>
@@ -1091,6 +1129,31 @@ function UserEditForm({
         once, which mirrors back to Supabase and reruns matches for this user.
       </p>
     </div>
+  )
+}
+
+// Links through to the contact's own admin page when they're a member; a
+// non-member has no page to link to, so it renders as plain text plus the
+// invite stamp.
+function ContactPill({ contact }: { contact: ShareContact }) {
+  const label = contact.name ? `${contact.name} · ${contact.email}` : contact.email
+  const cls =
+    'inline-flex items-center gap-1 px-3 py-1 rounded-full border border-[#E8DDD0] bg-[#FDFAF6] text-xs text-gray-700'
+  if (contact.userId) {
+    return (
+      <a
+        href={`/admin/users/${contact.userId}`}
+        className={`${cls} hover:border-gold-400 hover:text-gold-700 transition-colors`}
+      >
+        {label}
+      </a>
+    )
+  }
+  return (
+    <span className={cls} title={contact.invitedAt ? `Invited ${contact.invitedAt}` : 'Not a member'}>
+      {label}
+      <span className="text-gray-400 italic">· invited</span>
+    </span>
   )
 }
 

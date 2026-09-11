@@ -1594,3 +1594,284 @@ export async function deleteEvent(eventId: string): Promise<void> {
     .eq('id', eventId)
   if (error) throw new Error(`deleteEvent failed: ${error.message}`)
 }
+
+// ---------------------------------------------------------------------------
+// Event-share contacts - "share the events you're attending".
+//
+// event_share_contacts: see migration 20260911000000_event_share_contacts.sql.
+//   id uuid, owner_user_id text, contact_email text (lowercased),
+//   invited_at timestamptz, deleted_at timestamptz, created_at, updated_at
+//
+// Rows are keyed by EMAIL rather than by a contact user id, so a member can
+// share with someone who has not joined yet and the share activates by itself
+// when they do. Every read that turns an email back into a member must filter
+// to the active, non-deleted row - users.email is not unique.
+// ---------------------------------------------------------------------------
+
+/** Hard ceiling per member. The add endpoint mails arbitrary addresses supplied
+ *  by a member, so an unbounded list is a spam vector, not just a long list. */
+export const MAX_SHARE_CONTACTS = 50
+
+export interface ShareContactRow {
+  id: string
+  ownerUserId: string
+  contactEmail: string
+  invitedAt: string | null
+  createdAt: string
+}
+
+function normalizeContactEmail(email: string): string {
+  return (email || '').trim().toLowerCase()
+}
+
+function mapShareContact(row: Record<string, unknown>): ShareContactRow {
+  return {
+    id: String(row.id),
+    ownerUserId: String(row.owner_user_id),
+    contactEmail: String(row.contact_email ?? ''),
+    invitedAt: (row.invited_at as string | null) ?? null,
+    createdAt: String(row.created_at ?? ''),
+  }
+}
+
+/** Contacts this member shares their events with. */
+export async function listShareContacts(ownerUserId: string): Promise<ShareContactRow[]> {
+  if (!ownerUserId) return []
+  const supabase = getClient()
+  const { data, error } = await supabase
+    .from('event_share_contacts')
+    .select('*')
+    .eq('owner_user_id', ownerUserId)
+    .is('deleted_at', null)
+    .order('created_at', { ascending: true })
+  if (error) throw new Error(`listShareContacts failed: ${error.message}`)
+  return (data ?? []).map((r) => mapShareContact(r as Record<string, unknown>))
+}
+
+/** Members sharing their events WITH this email address - the reverse lookup. */
+export async function listSharersFor(email: string): Promise<ShareContactRow[]> {
+  const cleaned = normalizeContactEmail(email)
+  if (!cleaned) return []
+  const supabase = getClient()
+  const { data, error } = await supabase
+    .from('event_share_contacts')
+    .select('*')
+    .ilike('contact_email', cleaned)
+    .is('deleted_at', null)
+  if (error) throw new Error(`listSharersFor failed: ${error.message}`)
+  return (data ?? []).map((r) => mapShareContact(r as Record<string, unknown>))
+}
+
+/**
+ * Add a contact. Idempotent: re-adding one that is already live returns the
+ * existing row with `created: false`, which is what stops a second invite email
+ * reaching the same person.
+ *
+ * A soft-deleted row is resurrected rather than duplicated, so the partial
+ * unique index never trips, and invited_at survives so they are not re-invited.
+ */
+export async function addShareContact(
+  ownerUserId: string,
+  email: string,
+): Promise<{ contact: ShareContactRow; created: boolean }> {
+  const cleaned = normalizeContactEmail(email)
+  if (!ownerUserId || !cleaned) throw new Error('addShareContact: owner and email required')
+  const supabase = getClient()
+
+  const { data: existing, error: findErr } = await supabase
+    .from('event_share_contacts')
+    .select('*')
+    .eq('owner_user_id', ownerUserId)
+    .ilike('contact_email', cleaned)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (findErr) throw new Error(`addShareContact lookup failed: ${findErr.message}`)
+
+  if (existing) {
+    const row = existing as Record<string, unknown>
+    if (row.deleted_at == null) {
+      return { contact: mapShareContact(row), created: false }
+    }
+    const { data: restored, error: restoreErr } = await supabase
+      .from('event_share_contacts')
+      .update({ deleted_at: null })
+      .eq('id', row.id as string)
+      .select()
+      .single()
+    if (restoreErr) throw new Error(`addShareContact restore failed: ${restoreErr.message}`)
+    return { contact: mapShareContact(restored as Record<string, unknown>), created: true }
+  }
+
+  const { data, error } = await supabase
+    .from('event_share_contacts')
+    .insert({ owner_user_id: ownerUserId, contact_email: cleaned })
+    .select()
+    .single()
+  if (error) throw new Error(`addShareContact failed: ${error.message}`)
+  return { contact: mapShareContact(data as Record<string, unknown>), created: true }
+}
+
+/** Soft-remove a contact. */
+export async function removeShareContact(ownerUserId: string, email: string): Promise<void> {
+  const cleaned = normalizeContactEmail(email)
+  if (!ownerUserId || !cleaned) return
+  const supabase = getClient()
+  const { error } = await supabase
+    .from('event_share_contacts')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('owner_user_id', ownerUserId)
+    .ilike('contact_email', cleaned)
+    .is('deleted_at', null)
+  if (error) throw new Error(`removeShareContact failed: ${error.message}`)
+}
+
+/**
+ * How many contacts started sharing with this member since their last digest.
+ *
+ * Derived rather than stored: compare the contact row's created_at against the
+ * last row in digest_sends. That means no new state to keep in sync, and a
+ * member who has never had a digest correctly sees every sharer as new.
+ *
+ * Returns 0 on error - a failure here must not block a digest that is
+ * otherwise ready to send.
+ */
+export async function countNewSharersForUser(
+  userId: string,
+  email: string,
+): Promise<number> {
+  const cleaned = normalizeContactEmail(email)
+  if (!cleaned) return 0
+  try {
+    const supabase = getClient()
+    const { data: lastSend } = await supabase
+      .from('digest_sends')
+      .select('sent_at')
+      .eq('user_id', userId)
+      .order('sent_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    const since = (lastSend as { sent_at?: string } | null)?.sent_at
+    let q = supabase
+      .from('event_share_contacts')
+      .select('*', { count: 'exact', head: true })
+      .ilike('contact_email', cleaned)
+      .is('deleted_at', null)
+    if (since) q = q.gt('created_at', since)
+    const { count, error } = await q
+    if (error) {
+      console.error('countNewSharersForUser error', { userId, error })
+      return 0
+    }
+    return count ?? 0
+  } catch (e) {
+    console.error('countNewSharersForUser threw', { userId, e })
+    return 0
+  }
+}
+
+/** Stamp invited_at so a non-member is invited once, not once per re-add. */
+export async function markShareContactInvited(contactId: string): Promise<void> {
+  if (!contactId) return
+  const supabase = getClient()
+  const { error } = await supabase
+    .from('event_share_contacts')
+    .update({ invited_at: new Date().toISOString() })
+    .eq('id', contactId)
+  if (error) console.error('markShareContactInvited failed', { contactId, error })
+}
+
+/**
+ * Event ids each of these members has rated 'interested' - the definition of
+ * "attending" for this feature. Returns user_id -> event ids.
+ *
+ * Reads matches directly and applies no match_percent or engagement filtering
+ * on purpose: what a contact is attending does not depend on how well the
+ * VIEWER matches it.
+ */
+export async function getInterestedEventIdsByUser(
+  userIds: string[],
+): Promise<Map<string, string[]>> {
+  const out = new Map<string, string[]>()
+  if (userIds.length === 0) return out
+  const supabase = getClient()
+  const { data, error } = await supabase
+    .from('matches')
+    .select('user_id, event_id')
+    .in('user_id', userIds)
+    .eq('rating', 'interested')
+    .limit(50_000)
+  if (error) throw new Error(`getInterestedEventIdsByUser failed: ${error.message}`)
+  for (const row of (data ?? []) as Array<{ user_id: string; event_id: string }>) {
+    const list = out.get(row.user_id)
+    if (list) list.push(row.event_id)
+    else out.set(row.user_id, [row.event_id])
+  }
+  return out
+}
+
+/**
+ * Admin member list: user_id -> { to, from } contact counts.
+ *
+ * Same shape and failure handling as getMatchCountsByUserId - one GROUP BY in
+ * the database, with a per-user fallback if the aggregate is missing, because
+ * an empty map would render in the admin as a confident "0".
+ */
+export async function getContactCountsByUserId(
+  userIds: string[],
+): Promise<Map<string, { to: number; from: number }>> {
+  const counts = new Map<string, { to: number; from: number }>()
+  if (userIds.length === 0) return counts
+  const supabase = getClient()
+  const { data, error } = await supabase.rpc('contact_counts_by_user', { p_user_ids: userIds })
+  if (error) {
+    console.warn(
+      'getContactCountsByUserId: contact_counts_by_user RPC failed, falling back to per-user counts.',
+      isMissingFunction(error)
+        ? 'The function is missing - apply migration 20260911000000_event_share_contacts.sql.'
+        : '',
+      error,
+    )
+    // The "from" direction is matched on email, so the fallback needs each
+    // member's address as well as their id.
+    const { data: userRows } = await supabase.from('users').select('id, email').in('id', userIds)
+    const emailById = new Map<string, string>()
+    for (const u of (userRows ?? []) as Array<{ id: string; email: string }>) {
+      emailById.set(u.id, normalizeContactEmail(u.email))
+    }
+    // Only ids with an address on file can have a "from" count at all, so
+    // they're the only ones queried - no sentinel value needed.
+    const idsWithEmail = userIds.filter((id) => !!emailById.get(id))
+    const [toCounts, fromCounts] = await Promise.all([
+      countPerKey(userIds, (id) =>
+        supabase
+          .from('event_share_contacts')
+          .select('*', { count: 'exact', head: true })
+          .eq('owner_user_id', id)
+          .is('deleted_at', null),
+      ),
+      countPerKey(idsWithEmail, (id) =>
+        supabase
+          .from('event_share_contacts')
+          .select('*', { count: 'exact', head: true })
+          .ilike('contact_email', emailById.get(id) as string)
+          .is('deleted_at', null),
+      ),
+    ])
+    for (const id of userIds) {
+      counts.set(id, { to: toCounts.get(id) ?? 0, from: fromCounts.get(id) ?? 0 })
+    }
+    return counts
+  }
+  for (const row of (data ?? []) as Array<{
+    user_id: string
+    shared_with: number
+    shared_from: number
+  }>) {
+    counts.set(row.user_id, {
+      to: Number(row.shared_with) || 0,
+      from: Number(row.shared_from) || 0,
+    })
+  }
+  return counts
+}

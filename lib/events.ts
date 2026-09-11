@@ -128,6 +128,29 @@ export async function getFutureEvents(): Promise<AirtableEvent[]> {
   return (data ?? []).map((row) => toAirtableEvent(row as EventRow)).filter((e) => e.name)
 }
 
+/**
+ * Future, Live, non-deleted events by id. Used by the contact-sharing surface,
+ * which resolves an arbitrary set of event ids that the viewer may have no
+ * match against at all - so it deliberately reads events directly rather than
+ * going through the matching-scoped readers above.
+ */
+export async function getFutureEventsByIds(eventIds: string[]): Promise<AirtableEvent[]> {
+  const unique = Array.from(new Set(eventIds.filter(Boolean)))
+  if (unique.length === 0) return []
+  const supabase = getSupabase()
+  const { data, error } = await supabase
+    .from('events')
+    .select('*')
+    .in('id', unique)
+    .gte('date', todayIso())
+    .eq('status', 'Live')
+    .is('airtable_deleted_at', null)
+    .is('deleted_at', null)
+    .limit(50_000)
+  if (error) throw new Error(`getFutureEventsByIds failed: ${error.message}`)
+  return (data ?? []).map((row) => toAirtableEvent(row as EventRow)).filter((e) => e.name)
+}
+
 export async function getEventById(eventId: string): Promise<AirtableEvent | null> {
   if (!eventId) return null
   const supabase = getSupabase()

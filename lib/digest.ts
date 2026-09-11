@@ -19,6 +19,7 @@ import {
   upsertDigestState,
   getTopUnratedFutureMatchIds,
   getNeverRatedFutureMatchCount,
+  countNewSharersForUser,
 } from './supabase'
 
 export const DIGEST_CAP_PER_SECTION = 3
@@ -112,11 +113,14 @@ async function processUser(
     const totalNeverRated = await getNeverRatedFutureMatchCount(user.id, futureIds)
     const lockedCount = Math.max(0, totalNeverRated - ENGAGEMENT_CAP)
 
+    const newSharers = await countNewSharersForUser(user.id, user.email)
+
     await sendUserDigest(user, {
       newEvents: toEntries(topNew, futureById),
       topMatches: toEntries(top, futureById),
       totalUpcomingMatches: allUpcoming.length,
       lockedCount,
+      newSharers,
     })
 
     await markMatchesNotified(

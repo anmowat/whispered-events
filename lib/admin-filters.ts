@@ -39,6 +39,10 @@ export interface UserRow {
   ratingsGoing: number
   ratingsCantMakeIt: number
   ratingsNotAFit: number
+  // Event-sharing contacts: how many this member shares their attending
+  // events WITH, and how many share theirs with them.
+  contactsSharedWith: number
+  contactsSharedFrom: number
 }
 
 export type FieldType = 'text' | 'enum' | 'number' | 'date' | 'boolean' | 'geo'

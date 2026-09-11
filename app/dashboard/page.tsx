@@ -97,6 +97,8 @@ export default function DashboardPage() {
   // Multi-select mirroring Type: null = all selected (interested + hide + not_a_fit + unrated).
   // Default hides 'not_a_fit' so rated-out events disappear automatically.
   const [ratingFilter, setRatingFilter] = useState<Rating[] | null>(DEFAULT_RATINGS)
+  const [sharingContacts, setSharingContacts] = useState(false)
+  const [viewingContactEvents, setViewingContactEvents] = useState(false)
   const [dateRange, setDateRange] = useState<'' | '30' | '60' | '90'>('')
   const [sortBy, setSortBy] = useState<'match' | 'date-asc' | 'date-desc'>('match')
   const [showFilterDialog, setShowFilterDialog] = useState(false)
@@ -285,6 +287,37 @@ export default function DashboardPage() {
           </div>
         </section>
 
+        {/* Event sharing with contacts */}
+        <section className="mb-8">
+          <div className="eyebrow mb-2.5">
+            See/Share Events you and your connections are attending{' '}
+            <span style={{ color: 'var(--ink-3)' }}>(BETA)</span>
+          </div>
+          <div
+            className="rounded-card border px-5 py-4"
+            style={{ background: 'var(--paper)', borderColor: 'var(--rule)' }}
+          >
+            <p className="m-0 font-medium" style={{ fontSize: 17, color: 'var(--ink)' }}>
+              Let your friends know which events you&rsquo;ll be at
+            </p>
+            <div className="mt-3 space-y-1">
+              <ProfileSubRow
+                title="Share events you're attending with contacts"
+                description="Events you've marked Interested"
+                icon={<svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden><path d="M11.5 5.5a2.5 2.5 0 1 0-2.45-3L5.9 4.2a2.5 2.5 0 1 0 0 3.6l3.15 1.7a2.5 2.5 0 1 0 .5-.9L6.4 6.9a2.5 2.5 0 0 0 0-1.8l3.15-1.7c.45.67 1.22 1.1 2.05 1.1z"/></svg>}
+                onEdit={() => setSharingContacts(true)}
+              />
+              <ProfileSubRow
+                title="View events contacts are attending"
+                description="Where your contacts will be"
+                icon={<svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden><path d="M5.5 8a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM1 14a4.5 4.5 0 0 1 9 0H1zm10.5-6a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm-.4 1.02A5.49 5.49 0 0 1 11.9 14H15v-.5a3.5 3.5 0 0 0-3.9-3.48z"/></svg>}
+                onEdit={() => setViewingContactEvents(true)}
+                actionLabel="View"
+              />
+            </div>
+          </div>
+        </section>
+
         {/* Matched events */}
         <section>
           <div className="flex items-center justify-between mb-3.5">
@@ -376,6 +409,11 @@ export default function DashboardPage() {
 
         </section>
       </main>
+
+      {sharingContacts && <ShareContactsModal onClose={() => setSharingContacts(false)} />}
+      {viewingContactEvents && (
+        <ContactEventsModal onClose={() => setViewingContactEvents(false)} />
+      )}
 
       {showFilterDialog && (
         <FilterDialog
@@ -684,11 +722,13 @@ function ProfileSubRow({
   description,
   icon,
   onEdit,
+  actionLabel = 'Edit',
 }: {
   title: string
   description: string
   icon?: React.ReactNode
   onEdit: () => void
+  actionLabel?: string
 }) {
   return (
     <div className="flex justify-between items-center gap-4">
@@ -709,7 +749,7 @@ function ProfileSubRow({
         className="eyebrow shrink-0 underline"
         style={{ color: 'var(--accent)', textUnderlineOffset: 3 }}
       >
-        Edit
+        {actionLabel}
       </button>
     </div>
   )
@@ -727,6 +767,7 @@ function ProfileModalShell({
   onClose,
   children,
   wide = false,
+  doneOnly = false,
 }: {
   title: string
   saving: boolean
@@ -739,6 +780,10 @@ function ProfileModalShell({
   onClose: () => void
   children: React.ReactNode
   wide?: boolean
+  // Replaces Cancel/Save with a single Done. For modals whose changes have
+  // already been persisted, where offering Cancel would promise an undo that
+  // isn't implemented.
+  doneOnly?: boolean
 }) {
   const disabled = saving || saveDisabled
   return (
@@ -778,22 +823,24 @@ function ProfileModalShell({
             {error && <span style={{ color: 'var(--accent)' }}>{error}</span>}
           </div>
           <div className="flex items-center gap-2">
+            {!doneOnly && (
+              <button
+                onClick={onClose}
+                className="px-4 py-2 text-[13px]"
+                style={{ color: 'var(--ink-2)' }}
+              >
+                Cancel
+              </button>
+            )}
             <button
-              onClick={onClose}
-              className="px-4 py-2 text-[13px]"
-              style={{ color: 'var(--ink-2)' }}
-            >
-              Cancel
-            </button>
-            <button
-              onClick={onSave}
-              disabled={disabled}
+              onClick={doneOnly ? onClose : onSave}
+              disabled={doneOnly ? false : disabled}
               className="px-5 py-2 rounded-pill text-[13px] font-medium text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               style={{ background: 'var(--accent)' }}
               onMouseEnter={(e) => !disabled && (e.currentTarget.style.background = 'var(--accent-2)')}
               onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--accent)')}
             >
-              {saving ? 'Saving…' : 'Save changes'}
+              {doneOnly ? 'Done' : saving ? 'Saving…' : 'Save changes'}
             </button>
           </div>
         </div>
@@ -1371,6 +1418,361 @@ function TopicsModal({
           <TopicChips value={interest} onChange={setInterest} />
         </div>
       </ModalField>
+    </ProfileModalShell>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Event sharing with contacts
+// ---------------------------------------------------------------------------
+
+interface ShareContact {
+  email: string
+  name: string
+  isMember: boolean
+}
+interface SharingEvent {
+  id: string
+  name: string
+  date: string
+}
+
+/**
+ * Add / remove the contacts who can see the events you're attending.
+ *
+ * Writes land immediately (each add and remove is its own request), hence the
+ * Done-only footer - there is no draft to cancel.
+ */
+function ShareContactsModal({ onClose }: { onClose: () => void }) {
+  const [contacts, setContacts] = useState<ShareContact[]>([])
+  const [sharing, setSharing] = useState<SharingEvent[]>([])
+  const [max, setMax] = useState(50)
+  const [email, setEmail] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  function apply(data: { contacts?: ShareContact[]; sharing?: SharingEvent[]; max?: number }) {
+    setContacts(data.contacts ?? [])
+    setSharing(data.sharing ?? [])
+    if (typeof data.max === 'number') setMax(data.max)
+  }
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch('/api/dashboard/contacts')
+        const data = await res.json()
+        if (cancelled) return
+        if (!res.ok) setError(data.error || 'Could not load your contacts.')
+        else apply(data)
+      } catch {
+        if (!cancelled) setError('Could not load your contacts.')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  async function addContact() {
+    const value = email.trim()
+    if (!value || busy) return
+    setBusy(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/dashboard/contacts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: value }),
+      })
+      const data = await res.json()
+      if (!res.ok) setError(data.error || 'Could not add that contact.')
+      else {
+        apply(data)
+        setEmail('')
+      }
+    } catch {
+      setError('Could not add that contact.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function removeContact(target: string) {
+    if (busy) return
+    setBusy(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/dashboard/contacts', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: target }),
+      })
+      const data = await res.json()
+      if (!res.ok) setError(data.error || 'Could not remove that contact.')
+      else apply(data)
+    } catch {
+      setError('Could not remove that contact.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <ProfileModalShell
+      title="Share events you're attending"
+      saving={busy}
+      error={error}
+      onSave={onClose}
+      onClose={onClose}
+      doneOnly
+      wide
+    >
+      <p className="m-0" style={{ fontSize: 14, lineHeight: 1.6, color: 'var(--ink-2)' }}>
+        Add the email of anyone you&rsquo;d like to share the events you&rsquo;re attending with.
+        If they&rsquo;re already on Whispered, the events show up on their dashboard right away. If
+        they&rsquo;re not, we&rsquo;ll send them an invite to join Whispered Events.
+      </p>
+
+      <ModalField label="Add a contact">
+        <div className="flex items-center gap-2">
+          <input
+            type="email"
+            value={email}
+            disabled={busy}
+            placeholder="name@company.com"
+            onChange={(e) => setEmail(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                addContact()
+              }
+            }}
+            className={modalInputCls}
+            style={modalInputStyle}
+          />
+          <button
+            onClick={addContact}
+            disabled={busy || !email.trim()}
+            className="shrink-0 px-4 py-2 rounded-pill text-[13px] font-medium text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            style={{ background: 'var(--accent)' }}
+          >
+            Add
+          </button>
+        </div>
+      </ModalField>
+
+      <ModalField label={`Sharing with (${contacts.length}/${max})`}>
+        {loading ? (
+          <p className="m-0" style={{ fontSize: 13, color: 'var(--ink-3)' }}>
+            Loading&hellip;
+          </p>
+        ) : contacts.length === 0 ? (
+          <p className="m-0" style={{ fontSize: 13, color: 'var(--ink-3)' }}>
+            No one yet.
+          </p>
+        ) : (
+          <div className="space-y-1">
+            {contacts.map((c) => (
+              <div key={c.email} className="flex items-center justify-between gap-3">
+                <span className="min-w-0" style={{ fontSize: 14, color: 'var(--ink)' }}>
+                  {c.name ? `${c.name} · ` : ''}
+                  <span style={{ color: 'var(--ink-2)' }}>{c.email}</span>
+                  {!c.isMember && (
+                    <span style={{ fontSize: 12, color: 'var(--ink-3)' }}> · invited</span>
+                  )}
+                </span>
+                <button
+                  onClick={() => removeContact(c.email)}
+                  disabled={busy}
+                  aria-label={`Remove ${c.email}`}
+                  className="shrink-0 text-lg leading-none disabled:opacity-40"
+                  style={{ color: 'var(--ink-3)' }}
+                >
+                  &times;
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </ModalField>
+
+      {/* Interested doubles as the attending signal, so spell out exactly what
+          these contacts will see. Without this a member has no way to know. */}
+      <ModalField label={`They'll see (${sharing.length})`}>
+        {sharing.length === 0 ? (
+          <p className="m-0" style={{ fontSize: 13, color: 'var(--ink-3)' }}>
+            Nothing yet — mark an event <strong>Interested</strong> and it appears here.
+          </p>
+        ) : (
+          <div className="space-y-1">
+            {sharing.map((e) => (
+              <p key={e.id} className="m-0" style={{ fontSize: 14, color: 'var(--ink)' }}>
+                {e.name}
+                <span style={{ color: 'var(--ink-3)' }}>
+                  {e.date ? ` · ${formatEventDate(e.date, { month: 'short', day: 'numeric' })}` : ''}
+                </span>
+              </p>
+            ))}
+          </div>
+        )}
+      </ModalField>
+    </ProfileModalShell>
+  )
+}
+
+interface ContactEvent {
+  id: string
+  name: string
+  description: string
+  link: string
+  date: string
+  type: string
+  location: string
+  attendees: Array<{ name: string; email: string }>
+}
+
+/** Everything the caller's contacts are attending, filterable by contact and
+ *  by event type. Shows events regardless of the viewer's own match. */
+function ContactEventsModal({ onClose }: { onClose: () => void }) {
+  const [events, setEvents] = useState<ContactEvent[]>([])
+  const [contacts, setContacts] = useState<Array<{ name: string; email: string }>>([])
+  const [contactFilter, setContactFilter] = useState('')
+  const [typeFilter, setTypeFilter] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch('/api/dashboard/contact-events')
+        const data = await res.json()
+        if (cancelled) return
+        if (!res.ok) setError(data.error || 'Could not load these events.')
+        else {
+          setEvents(data.events ?? [])
+          setContacts(data.contacts ?? [])
+        }
+      } catch {
+        if (!cancelled) setError('Could not load these events.')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const types = Array.from(new Set(events.map((e) => e.type).filter(Boolean))).sort()
+  const visible = events.filter(
+    (e) =>
+      (!contactFilter || e.attendees.some((a) => a.email === contactFilter)) &&
+      (!typeFilter || e.type === typeFilter),
+  )
+
+  return (
+    <ProfileModalShell
+      title="Events your contacts are attending"
+      saving={false}
+      error={error}
+      onSave={onClose}
+      onClose={onClose}
+      doneOnly
+      wide
+    >
+      {contacts.length > 0 && (
+        <div className="flex items-center gap-2">
+          <select
+            value={contactFilter}
+            onChange={(e) => setContactFilter(e.target.value)}
+            className={modalInputCls}
+            style={modalInputStyle}
+          >
+            <option value="">All contacts</option>
+            {contacts.map((c) => (
+              <option key={c.email} value={c.email}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+          <select
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value)}
+            className={modalInputCls}
+            style={modalInputStyle}
+          >
+            <option value="">All types</option>
+            {types.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {loading ? (
+        <p className="m-0" style={{ fontSize: 13, color: 'var(--ink-3)' }}>
+          Loading&hellip;
+        </p>
+      ) : events.length === 0 ? (
+        <p className="m-0" style={{ fontSize: 14, lineHeight: 1.6, color: 'var(--ink-2)' }}>
+          No one is sharing their events with you yet. When a contact adds you, what they&rsquo;re
+          attending shows up here.
+        </p>
+      ) : visible.length === 0 ? (
+        <p className="m-0" style={{ fontSize: 13, color: 'var(--ink-3)' }}>
+          Nothing matches these filters.
+        </p>
+      ) : (
+        <div className="space-y-4">
+          {visible.map((e) => (
+            <div key={e.id}>
+              <p className="m-0" style={{ fontSize: 16 }}>
+                {e.link ? (
+                  <a
+                    href={withUtm(e.link)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline"
+                    style={{ color: 'var(--ink)', textUnderlineOffset: 3, fontWeight: 500 }}
+                  >
+                    {e.name} &#8599;
+                  </a>
+                ) : (
+                  <span style={{ color: 'var(--ink)', fontWeight: 500 }}>{e.name}</span>
+                )}
+              </p>
+              <p className="m-0 mt-0.5" style={{ fontSize: 13, color: 'var(--ink-3)' }}>
+                {[
+                  e.type,
+                  e.date ? formatEventDate(e.date, { month: 'long', day: 'numeric' }) : '',
+                  e.location,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </p>
+              <p className="m-0 mt-1" style={{ fontSize: 13, color: 'var(--accent)' }}>
+                {e.attendees.map((a) => a.name).join(', ')}
+              </p>
+              {e.description && (
+                <p
+                  className="m-0 mt-1"
+                  style={{ fontSize: 14, lineHeight: 1.55, color: 'var(--ink-2)' }}
+                >
+                  {e.description}
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </ProfileModalShell>
   )
 }

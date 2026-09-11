@@ -50,6 +50,7 @@ type SortKey =
   | 'lastDigestSent'
   | 'lastBlastSent'
   | 'ratings'
+  | 'contacts'
 
 type SortDir = 'asc' | 'desc'
 
@@ -69,6 +70,7 @@ const DEFAULT_DIR: Record<SortKey, SortDir> = {
   lastDigestSent: 'desc',
   lastBlastSent: 'desc',
   ratings: 'desc',
+  contacts: 'desc',
 }
 
 const POLL_MS = 10_000
@@ -145,6 +147,8 @@ const USER_CSV_COLUMNS: CsvColumn<UserRow>[] = [
   { id: 'ratingsGoing', header: 'interested', format: (r) => r.ratingsGoing },
   { id: 'ratingsCantMakeIt', header: 'skip', format: (r) => r.ratingsCantMakeIt },
   { id: 'ratingsNotAFit', header: 'not_a_fit', format: (r) => r.ratingsNotAFit },
+  { id: 'contactsSharedWith', header: 'contacts_shared_with', format: (r) => r.contactsSharedWith },
+  { id: 'contactsSharedFrom', header: 'contacts_shared_from', format: (r) => r.contactsSharedFrom },
   { id: 'isHost', header: 'is_host', format: (r) => (r.isHost ? 'true' : 'false') },
 ]
 
@@ -191,6 +195,7 @@ function compareByKey(a: UserRow, b: UserRow, key: SortKey): number {
     case 'lastDigestSent': return dateMs(a.lastDigestSent) - dateMs(b.lastDigestSent)
     case 'lastBlastSent': return dateMs(a.lastBlastSent) - dateMs(b.lastBlastSent)
     case 'ratings': return (a.ratingsGoing + a.ratingsCantMakeIt + a.ratingsNotAFit) - (b.ratingsGoing + b.ratingsCantMakeIt + b.ratingsNotAFit)
+    case 'contacts': return (a.contactsSharedWith + a.contactsSharedFrom) - (b.contactsSharedWith + b.contactsSharedFrom)
   }
 }
 
@@ -749,6 +754,15 @@ export default function AdminPage() {
                           title="Lifetime ratings submitted on their dashboard. Format: interested / skip / not a fit. Sorted by total."
                         />
                         <SortHeader
+                          label="Shared"
+                          sortKey="contacts"
+                          align="right"
+                          sortBy={sortBy}
+                          sortDir={sortDir}
+                          onToggle={toggleSort}
+                          title="Event-sharing contacts. Format: shared with / shared from. Sorted by total."
+                        />
+                        <SortHeader
                           label="Sent"
                           sortKey="lastDigestSent"
                           align="right"
@@ -900,6 +914,14 @@ export default function AdminPage() {
                             {u.ratingsGoing + u.ratingsCantMakeIt + u.ratingsNotAFit === 0
                               ? '—'
                               : `${u.ratingsGoing} / ${u.ratingsCantMakeIt} / ${u.ratingsNotAFit}`}
+                          </td>
+                          <td
+                            className={`px-4 py-3 text-right tabular-nums whitespace-nowrap ${u.contactsSharedWith + u.contactsSharedFrom === 0 ? 'text-gray-400' : 'text-gray-800'}`}
+                            title={`Shares their events with ${u.contactsSharedWith} · ${u.contactsSharedFrom} share with them`}
+                          >
+                            {u.contactsSharedWith + u.contactsSharedFrom === 0
+                              ? '—'
+                              : `${u.contactsSharedWith} / ${u.contactsSharedFrom}`}
                           </td>
                           <td
                             className={`px-4 py-3 text-right tabular-nums whitespace-nowrap ${u.lastDigestSent ? 'text-gray-800' : 'text-gray-400'}`}

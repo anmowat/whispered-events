@@ -19,6 +19,7 @@ import {
   logMatch,
   markMatchesNotified,
   resetNotifiedAtForEvent,
+  countNewSharersForUser,
 } from '@/lib/supabase'
 import {
   sendUserDigest,
@@ -347,6 +348,7 @@ async function processUserTrigger(
     newEvents,
     topMatches,
     totalUpcomingMatches: allAboveThreshold.length,
+    newSharers: await countNewSharersForUser(targetUser.id, targetUser.email),
   })
   await markMatchesNotified(
     newEvents.map((e) => ({ eventId: e.event.id, userId: targetUser.id })),

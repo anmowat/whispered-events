@@ -8,6 +8,7 @@ import {
   getLastBlastSentByUserId,
   getMatchesForEvent,
   getRatingCountsByUserId,
+  getContactCountsByUserId,
 } from '@/lib/supabase'
 import { getUsersForAdmin, type StatusBucket } from '@/lib/users'
 import { getFutureEvents, getFutureEventHostIds } from '@/lib/events'
@@ -52,7 +53,10 @@ export async function GET(req: NextRequest) {
     ])
     const futureEventIds = futureEvents.map((e) => e.id)
     const userIds = activeUsers.map((u) => u.id)
-    const counts = await getMatchCountsByUserId(futureEventIds, userIds)
+    const [counts, contactCounts] = await Promise.all([
+      getMatchCountsByUserId(futureEventIds, userIds),
+      getContactCountsByUserId(userIds),
+    ])
 
     // When eventId is set, intersect users against the match set for
     // that event (already-threshold-filtered by getMatchesForEvent).
@@ -93,6 +97,7 @@ export async function GET(req: NextRequest) {
           ? Math.round((matchCount / nearbyCount) * 100)
           : null
         const ratings = ratingCounts.get(u.id) ?? { interested: 0, skip: 0, notAFit: 0 }
+        const contacts = contactCounts.get(u.id) ?? { to: 0, from: 0 }
         return {
           id: u.id,
           created: u.created || null,
@@ -104,6 +109,8 @@ export async function GET(req: NextRequest) {
           grade: u.grade ?? null,
           status: u.status || 'Pending',
           isHost: hostIds.has(u.id),
+          contactsSharedWith: contacts.to,
+          contactsSharedFrom: contacts.from,
           // Fields used by the "To Approve" column set. Cheap to include
           // unconditionally; payload bump is a few hundred bytes per user.
           function: u.function || '',
