@@ -1815,16 +1815,21 @@ function ShareContactsModal({ onClose }: { onClose: () => void }) {
             {contacts.map((c) => (
               <div key={c.id} className="flex items-center justify-between gap-3">
                 <span className="min-w-0 flex items-baseline gap-2 flex-wrap">
-                  {/* Name only. The email is shown ONLY as a fallback when
-                      there's no name to show - someone you invited who hasn't
-                      joined yet has no profile, so their address is the only
-                      thing identifying which row is theirs. */}
-                  {c.name ? (
-                    <MemberName name={c.name} linkedin={c.linkedin} />
-                  ) : (
-                    <span style={{ fontSize: 14, color: 'var(--ink-2)' }}>
-                      {c.email || 'Unknown contact'}
-                    </span>
+                  {/* A name plus a LinkedIn is a complete identity, so the
+                      address is redundant and hidden. Missing either one, the
+                      email is what tells you whose row this is - a pending
+                      invitee has no profile at all, and a bare unclickable
+                      name can't separate two people called Dan.
+
+                      A contact added by member search has email: null by
+                      design (the server never returns an address you didn't
+                      type), so those rows show the name alone regardless. */}
+                  {c.name && <MemberName name={c.name} linkedin={c.linkedin} />}
+                  {!(c.name && c.linkedin) && c.email && (
+                    <span style={{ fontSize: 14, color: 'var(--ink-2)' }}>{c.email}</span>
+                  )}
+                  {!c.name && !c.email && (
+                    <span style={{ fontSize: 14, color: 'var(--ink-3)' }}>Unknown contact</span>
                   )}
                   {!c.isMember && (
                     <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>invited</span>
