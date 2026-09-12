@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifySession, getMatchScoresForUser } from '@/lib/supabase'
 import { getFutureEvents } from '@/lib/events'
+import { getUserByEmail } from '@/lib/users'
+import { getContactAttendance, attendanceCounts } from '@/lib/contact-attendance'
 
 const MATCH_PERCENT_THRESHOLD = 40
 const ENGAGEMENT_CAP = 7
@@ -37,10 +39,23 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'could not load events' }, { status: 500 })
   }
 
+  // Contacts attending, from the shared privacy-aware reader. Costs one
+  // indexed query for the overwhelming majority of members, who have nobody
+  // sharing with them and short-circuit immediately.
+  let attendance = new Map<string, number>()
+  try {
+    const me = await getUserByEmail(session.email)
+    attendance = attendanceCounts(await getContactAttendance(session.email, me?.findable))
+  } catch (err) {
+    // A soft signal must never take the dashboard down with it.
+    console.error('dashboard/events: contact attendance failed', err)
+  }
+
   const withScores = futureEvents.map((e) => {
     const entry = scores.get(e.id)
     return {
       ...e,
+      contactsAttending: attendance.get(e.id) ?? 0,
       matchScore: entry?.score ?? null,
       matchPercent: entry?.matchPercent ?? null,
       rating: entry?.rating ?? null,

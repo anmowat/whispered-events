@@ -1036,6 +1036,10 @@ export interface DigestEventEntry {
   matchPercent: number
   // Set on Top Matches rows whose event also appears in the New section.
   isDuplicate?: boolean
+  // How many of the recipient's sharing contacts are attending. Omitted or 0
+  // renders nothing - this line only ever appears when it says something real.
+  // Note it's a SEND-TIME snapshot; a digest read days later may be stale.
+  contactsAttending?: number
 }
 
 export interface DigestPayload {
@@ -1094,6 +1098,13 @@ function renderEntry(entry: DigestEventEntry, userId: string, baseUrl: string): 
       ? `<span style="color:${C.ink2};">${escapeHtml(event.description)}</span> `
       : ''
 
+  // Social proof, only when there is any. Sits with the date/match metadata
+  // rather than on its own line so it doesn't lengthen the entry.
+  const attending = entry.contactsAttending ?? 0
+  const attendingPart = attending
+    ? `<strong style="color:${C.accent};"> (${attending} ${attending === 1 ? 'contact' : 'contacts'} attending)</strong> `
+    : ''
+
   const interestedUrl = ratingUrl(userId, event.id, 'interested', baseUrl)
   const skipUrl = ratingUrl(userId, event.id, 'skip', baseUrl)
   const notFitUrl = ratingUrl(userId, event.id, 'not_a_fit', baseUrl)
@@ -1114,7 +1125,7 @@ function renderEntry(entry: DigestEventEntry, userId: string, baseUrl: string): 
   // link treatment.
   return `
 <p style="font-family:${SANS};margin:0;font-size:14.5px;line-height:1.55;">
-  <a href="${withUtm(event.link)}" style="font-family:${SERIF};font-size:17px;color:${C.accent};text-decoration:underline;text-underline-offset:3px;font-weight:400;letter-spacing:-0.01em;">${escapeHtml(event.name)}</a>${datePart}${body}<br><span style="display:inline-block;margin-top:4px;">${ratingHtml}</span>
+  <a href="${withUtm(event.link)}" style="font-family:${SERIF};font-size:17px;color:${C.accent};text-decoration:underline;text-underline-offset:3px;font-weight:400;letter-spacing:-0.01em;">${escapeHtml(event.name)}</a>${datePart}${attendingPart}${body}<br><span style="display:inline-block;margin-top:4px;">${ratingHtml}</span>
 </p>
 <div style="margin-bottom:20px;"></div>
 `.trim()
@@ -1240,7 +1251,11 @@ export async function sendApprovedWithDigest(
       const city = cityFromLocation(event.location)
       const datePart = date ? ` (${date}${city ? ` ${city}` : ''} - ${Math.round(matchPercent)}% Match)` : ` (${Math.round(matchPercent)}% Match)`
       const body = isDuplicate ? ' see above' : event.description ? ` ${event.description}` : ''
-      textLines.push(`${event.name}${datePart}${body}`)
+      // Plain-text twin of attendingPart in renderEntry. Same rule: nothing at
+      // zero. All three text renderers in this file are identical by design.
+      const att = entry.contactsAttending ?? 0
+      const attPart = att ? ` (${att} ${att === 1 ? 'contact' : 'contacts'} attending)` : ''
+      textLines.push(`${event.name}${datePart}${attPart}${body}`)
       textLines.push(withUtm(event.link))
       textLines.push('')
     }
@@ -1340,7 +1355,11 @@ export async function sendLocationUpdatedDigest(
       const city = cityFromLocation(event.location)
       const datePart = date ? ` (${date}${city ? ` ${city}` : ''} - ${Math.round(matchPercent)}% Match)` : ` (${Math.round(matchPercent)}% Match)`
       const body = isDuplicate ? ' see above' : event.description ? ` ${event.description}` : ''
-      textLines.push(`${event.name}${datePart}${body}`)
+      // Plain-text twin of attendingPart in renderEntry. Same rule: nothing at
+      // zero. All three text renderers in this file are identical by design.
+      const att = entry.contactsAttending ?? 0
+      const attPart = att ? ` (${att} ${att === 1 ? 'contact' : 'contacts'} attending)` : ''
+      textLines.push(`${event.name}${datePart}${attPart}${body}`)
       textLines.push(withUtm(event.link))
       textLines.push('')
     }
@@ -1505,7 +1524,11 @@ export async function sendUserDigest(
       const city = cityFromLocation(event.location)
       const datePart = date ? ` (${date}${city ? ` ${city}` : ''} - ${Math.round(matchPercent)}% Match)` : ` (${Math.round(matchPercent)}% Match)`
       const body = isDuplicate ? ' see above' : event.description ? ` ${event.description}` : ''
-      textLines.push(`${event.name}${datePart}${body}`)
+      // Plain-text twin of attendingPart in renderEntry. Same rule: nothing at
+      // zero. All three text renderers in this file are identical by design.
+      const att = entry.contactsAttending ?? 0
+      const attPart = att ? ` (${att} ${att === 1 ? 'contact' : 'contacts'} attending)` : ''
+      textLines.push(`${event.name}${datePart}${attPart}${body}`)
       textLines.push(withUtm(event.link))
       textLines.push('')
     }

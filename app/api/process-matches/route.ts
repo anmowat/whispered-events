@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { isInternalOrAdmin } from '@/lib/internal-auth'
+import { getContactAttendance, attendanceCounts } from '@/lib/contact-attendance'
 import { AirtableEvent, AirtableUser } from '@/lib/airtable'
 import { getActiveUsers, getUserById } from '@/lib/users'
 import { getFutureEvents, getEventById } from '@/lib/events'
@@ -344,9 +345,21 @@ async function processUserTrigger(
     console.log(`process-matches: no digest for ${targetUser.email} — ${reason}`)
     return { sent: false, reason }
   }
+  // One privacy-aware read, applied to every entry in both sections.
+  let attendance = new Map<string, number>()
+  try {
+    attendance = attendanceCounts(
+      await getContactAttendance(targetUser.email, targetUser.findable),
+    )
+  } catch (err) {
+    console.error('process-matches: contact attendance failed', err)
+  }
+  const withAttendance = (entries: typeof newEvents) =>
+    entries.map((e) => ({ ...e, contactsAttending: attendance.get(e.event.id) ?? 0 }))
+
   await sendUserDigest(targetUser, {
-    newEvents,
-    topMatches,
+    newEvents: withAttendance(newEvents),
+    topMatches: withAttendance(topMatches),
     totalUpcomingMatches: allAboveThreshold.length,
     newSharers: await countNewSharersForUser(targetUser.id, targetUser.email, targetUser.findable),
   })

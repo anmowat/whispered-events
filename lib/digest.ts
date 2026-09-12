@@ -2,6 +2,7 @@ import {
   AirtableEvent,
   AirtableUser,
 } from './airtable'
+import { getContactAttendance, attendanceCounts } from './contact-attendance'
 import { getActiveUsers } from './users'
 import { getFutureEvents } from './events'
 import { isMatchEligible, NEARBY_RADIUS_MILES } from './matching'
@@ -71,6 +72,7 @@ export function nextSundayAfter(now: Date): string {
 function toEntries(
   rows: DigestMatchRow[],
   futureById: Map<string, AirtableEvent>,
+  attendance?: Map<string, number>,
 ): DigestEventEntry[] {
   const entries: DigestEventEntry[] = []
   for (const row of rows) {
@@ -79,7 +81,7 @@ function toEntries(
     const matchPercent =
       row.match_percent ??
       Math.max(0, Math.min(100, Math.round((row.score / 3.0) * 100)))
-    entries.push({ event, matchPercent })
+    entries.push({ event, matchPercent, contactsAttending: attendance?.get(event.id) ?? 0 })
   }
   return entries
 }
@@ -115,9 +117,19 @@ async function processUser(
 
     const newSharers = await countNewSharersForUser(user.id, user.email, user.findable)
 
+    // One privacy-aware read per user, reused for every entry. Short-circuits
+    // on a single indexed query for the majority who have nobody sharing.
+    let attendance = new Map<string, number>()
+    try {
+      attendance = attendanceCounts(await getContactAttendance(user.email, user.findable))
+    } catch (err) {
+      // A soft signal must never block a digest that is otherwise ready.
+      console.error('digest: contact attendance failed', { userId: user.id, err })
+    }
+
     await sendUserDigest(user, {
-      newEvents: toEntries(topNew, futureById),
-      topMatches: toEntries(top, futureById),
+      newEvents: toEntries(topNew, futureById, attendance),
+      topMatches: toEntries(top, futureById, attendance),
       totalUpcomingMatches: allUpcoming.length,
       lockedCount,
       newSharers,

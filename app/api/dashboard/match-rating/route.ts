@@ -7,6 +7,7 @@ import {
   MatchRating,
 } from '@/lib/supabase'
 import { getUserByEmail } from '@/lib/users'
+import { getContactAttendance } from '@/lib/contact-attendance'
 import { getEventById } from '@/lib/events'
 import { sendMatchRatingNotification } from '@/lib/email'
 
@@ -120,7 +121,20 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ ok: true, showGrowModal })
+    // Contacts attending the event just rated. Only computed when the modal is
+    // actually going to show, so the ordinary rating path stays untouched.
+    let contactsAttending = 0
+    if (showGrowModal && rating === 'interested') {
+      try {
+        const me = await getUserByEmail(session.email)
+        const attendance = await getContactAttendance(session.email, me?.findable)
+        contactsAttending = (attendance.byEvent.get(eventId) ?? []).length
+      } catch (err) {
+        console.error('match-rating: contact attendance failed', err)
+      }
+    }
+
+    return NextResponse.json({ ok: true, showGrowModal, contactsAttending })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     console.error('dashboard/match-rating error:', message)

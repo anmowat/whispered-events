@@ -55,6 +55,10 @@ type DashboardEvent = AirtableEvent & {
   matchPercent: number | null
   rating: 'interested' | 'skip' | 'not_a_fit' | null
   ratingReason: string | null
+  /** How many of the viewer's sharing contacts are attending. 0 for almost
+   *  everyone, and the card shows nothing at 0 - this is only ever a real
+   *  signal, never an empty-state nag. */
+  contactsAttending?: number
 }
 
 const EMPLOYMENT_OPTIONS = ['Employed', 'Fractional', 'Searching', 'Other']
@@ -102,6 +106,7 @@ export default function DashboardPage() {
   // Phase 2 = anniversary milestones); EventCard reads the flag from
   // the response and calls back up here.
   const [showGrowConfirm, setShowGrowConfirm] = useState(false)
+  const [growContactsAttending, setGrowContactsAttending] = useState(0)
 
   // Filter state — Type is multi-select per the redesign, the other two
   // remain single-select wrapped around the existing values.
@@ -459,7 +464,11 @@ export default function DashboardPage() {
                 <EventCard
                   key={event.id}
                   event={event}
-                  onGrowRequested={() => setShowGrowConfirm(true)}
+                  onGrowRequested={(n) => {
+                    setGrowContactsAttending(n)
+                    setShowGrowConfirm(true)
+                  }}
+                  onShowContacts={() => setViewingContactEvents(true)}
                   onRated={(rating, reason) => {
                     setEvents((prev) =>
                       prev.map((e) =>
@@ -568,7 +577,10 @@ export default function DashboardPage() {
         <RescoreConfirmationModal onClose={() => setShowRescoreConfirm(false)} />
       )}
       {showGrowConfirm && (
-        <GrowAfterThumbsUpModal onClose={() => setShowGrowConfirm(false)} />
+        <GrowAfterThumbsUpModal
+          onClose={() => setShowGrowConfirm(false)}
+          contactsAttending={growContactsAttending}
+        />
       )}
     </div>
   )
@@ -2620,13 +2632,17 @@ function EventCard({
   event,
   onRated,
   onGrowRequested,
+  onShowContacts,
 }: {
   event: DashboardEvent
   onRated: (rating: 'interested' | 'skip' | 'not_a_fit' | null, reason: string | null) => void
   // Called when the rating API response says we should pop the
   // "thanks, here's how to help us grow" modal — only fires on a
-  // successful 👍 toggle-on under the current phase rule.
-  onGrowRequested?: () => void
+  // successful 👍 toggle-on under the current phase rule. Carries the contact
+  // count for the event just rated.
+  onGrowRequested?: (contactsAttending: number) => void
+  // Opens the View events modal from the "N contacts attending" line.
+  onShowContacts?: () => void
 }) {
   const [showDownModal, setShowDownModal] = useState(false)
   const [showThanks, setShowThanks] = useState(false)
@@ -2666,8 +2682,11 @@ function EventCard({
         }
         return
       }
-      const data = (await res.json().catch(() => ({}))) as { showGrowModal?: boolean }
-      if (data.showGrowModal) onGrowRequested?.()
+      const data = (await res.json().catch(() => ({}))) as {
+        showGrowModal?: boolean
+        contactsAttending?: number
+      }
+      if (data.showGrowModal) onGrowRequested?.(data.contactsAttending ?? 0)
     } catch {
       onRated(prevRating, prevReason)
       alert("Couldn't save your rating. Please try again.")
@@ -2757,6 +2776,18 @@ function EventCard({
             />
           </div>
         </div>
+        {/* Only ever rendered when someone is actually going. Opens the View
+            events modal, which is where the names live. */}
+        {(event.contactsAttending ?? 0) > 0 && (
+          <button
+            onClick={onShowContacts}
+            className="mt-2 underline"
+            style={{ fontSize: 13, color: 'var(--accent)', textUnderlineOffset: 3 }}
+          >
+            {event.contactsAttending}{' '}
+            {event.contactsAttending === 1 ? 'contact' : 'contacts'} attending
+          </button>
+        )}
         {event.description && (
           <p
             className="m-0 mt-2.5 leading-relaxed"
@@ -2940,7 +2971,15 @@ function ThumbsDownModal({
 // target=_blank so the dashboard stays put — and an × in the corner.
 // Backdrop click, Esc, and the × all close; clicking a CTA does NOT
 // auto-close so the user can hit both if they want.
-function GrowAfterThumbsUpModal({ onClose }: { onClose: () => void }) {
+function GrowAfterThumbsUpModal({
+  onClose,
+  contactsAttending = 0,
+}: {
+  onClose: () => void
+  /** Contacts attending the event just rated. Renders nothing at 0, so the
+   *  modal is byte-identical to before for anyone not yet using sharing. */
+  contactsAttending?: number
+}) {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') onClose()
@@ -2978,6 +3017,14 @@ function GrowAfterThumbsUpModal({ onClose }: { onClose: () => void }) {
         <p className="mt-3 leading-relaxed m-0" style={{ fontSize: 14, color: 'var(--ink-2)' }}>
           Each feedback you share helps us improve the matches we send you. Rate them in your email or on the dashboard.
         </p>
+        {contactsAttending > 0 && (
+          <p className="mt-3 leading-relaxed m-0" style={{ fontSize: 14, color: 'var(--accent)' }}>
+            <strong>
+              {contactsAttending} {contactsAttending === 1 ? 'contact' : 'contacts'} of yours{' '}
+              {contactsAttending === 1 ? 'is' : 'are'} also attending this one.
+            </strong>
+          </p>
+        )}
         <p className="mt-2 leading-relaxed m-0" style={{ fontSize: 14, color: 'var(--ink-2)' }}>
           <strong style={{ color: 'var(--accent)' }}>Love what we are doing? Want to help us grow?</strong> Post on LinkedIn and tag Whispered Events - feel free to screenshot your dashboard in the post!!
         </p>

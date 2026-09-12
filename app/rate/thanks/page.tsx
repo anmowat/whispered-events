@@ -32,6 +32,13 @@ function RateThanksContent() {
 
   // Event details for interested / not_a_fit pages
   const [event, setEvent] = useState<{ name: string; link: string | null } | null>(null)
+  // Contacts attending this event. Shown only on the 'interested' branch, and
+  // only when non-zero - at the moment someone says they're going, "who else
+  // is going" is the most useful thing we can tell them.
+  const [attending, setAttending] = useState<{ count: number; names: string[] }>({
+    count: 0,
+    names: [],
+  })
 
   useEffect(() => {
     if (!eventId) return
@@ -41,6 +48,16 @@ function RateThanksContent() {
       .then((d) => { if (d?.event) setEvent(d.event) })
       .catch(() => {})
   }, [rating, eventId])
+
+  useEffect(() => {
+    if (!eventId) return
+    // Returns zeroes when signed out or on any error, so this never blocks the
+    // page whose real job - recording the rating - has already succeeded.
+    fetch(`/api/dashboard/event-attendance?eventId=${encodeURIComponent(eventId)}`)
+      .then((r) => r.json())
+      .then((d) => setAttending({ count: d.count ?? 0, names: d.names ?? [] }))
+      .catch(() => {})
+  }, [eventId])
 
   useEffect(() => {
     if (rating !== 'not_a_fit') return
@@ -131,6 +148,14 @@ function RateThanksContent() {
           <p style={{ color: muted, fontSize: 15, lineHeight: 1.65, margin: '0 0 24px' }}>
             Your feedback helps us improve the matches we send.
           </p>
+
+          {attending.count > 0 && (
+            <p style={{ color: gold, fontSize: 15, lineHeight: 1.65, margin: '0 0 24px' }}>
+              {attending.names.slice(0, 3).join(', ')}
+              {attending.count > 3 ? ` and ${attending.count - 3} more` : ''}{' '}
+              {attending.count === 1 ? 'is' : 'are'} also attending.
+            </p>
+          )}
 
           {event && (
             <p style={{ color: muted, fontSize: 15, lineHeight: 1.65, margin: '0 0 24px' }}>
