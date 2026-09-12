@@ -1918,9 +1918,20 @@ function ContactEventsModal({ onClose }: { onClose: () => void }) {
     Array<{ userId: string; name: string; linkedin: string }>
   >([])
   const [contactFilter, setContactFilter] = useState('')
-  const [typeFilter, setTypeFilter] = useState('')
+  const [fromDate, setFromDate] = useState('')
+  const [toDate, setToDate] = useState('')
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  function toggleDescription(id: string) {
+    setExpandedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -1945,11 +1956,16 @@ function ContactEventsModal({ onClose }: { onClose: () => void }) {
     }
   }, [])
 
-  const types = Array.from(new Set(events.map((e) => e.type).filter(Boolean))).sort()
+  // Bare 'YYYY-MM-DD' on both sides, so these are plain lexicographic string
+  // compares. Parsing to Date would reintroduce the bug lib/dates.ts exists to
+  // avoid: new Date('2026-09-17') is UTC midnight, which reads as the 16th
+  // everywhere in the Americas and would shift both filter boundaries by a day.
+  // Same approach as the matched-events date filter above.
   const visible = events.filter(
     (e) =>
       (!contactFilter || e.attendees.some((a) => a.userId === contactFilter)) &&
-      (!typeFilter || e.type === typeFilter),
+      (!fromDate || (e.date && e.date >= fromDate)) &&
+      (!toDate || (e.date && e.date <= toDate)),
   )
 
   return (
@@ -1977,19 +1993,36 @@ function ContactEventsModal({ onClose }: { onClose: () => void }) {
               </option>
             ))}
           </select>
-          <select
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
-            className={modalInputCls}
-            style={modalInputStyle}
-          >
-            <option value="">All types</option>
-            {types.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
+        </div>
+      )}
+
+      {/* Date range. colorScheme: 'dark' is load-bearing - this modal is always
+          on the dark theme, and without it the native calendar glyph and the
+          picker panel render dark-on-dark and are effectively invisible. */}
+      {contacts.length > 0 && (
+        <div className="flex items-center gap-2">
+          <label className="flex-1 flex items-center gap-2">
+            <span className="eyebrow shrink-0">From</span>
+            <input
+              type="date"
+              value={fromDate}
+              max={toDate || undefined}
+              onChange={(e) => setFromDate(e.target.value)}
+              className={modalInputCls}
+              style={{ ...modalInputStyle, colorScheme: 'dark' }}
+            />
+          </label>
+          <label className="flex-1 flex items-center gap-2">
+            <span className="eyebrow shrink-0">To</span>
+            <input
+              type="date"
+              value={toDate}
+              min={fromDate || undefined}
+              onChange={(e) => setToDate(e.target.value)}
+              className={modalInputCls}
+              style={{ ...modalInputStyle, colorScheme: 'dark' }}
+            />
+          </label>
         </div>
       )}
 
@@ -2025,15 +2058,58 @@ function ContactEventsModal({ onClose }: { onClose: () => void }) {
                   <span style={{ color: 'var(--ink)', fontWeight: 500 }}>{e.name}</span>
                 )}
               </p>
-              <p className="m-0 mt-0.5" style={{ fontSize: 13, color: 'var(--ink-3)' }}>
-                {[
-                  e.type,
-                  e.date ? formatEventDate(e.date, { month: 'long', day: 'numeric' }) : '',
-                  e.location,
-                ]
-                  .filter(Boolean)
-                  .join(' · ')}
-              </p>
+              {/* Meta left, description toggle pushed to the far right. The
+                  toggle is shrink-0 and the meta text wraps, so a long city
+                  name pushes itself onto a second line rather than squeezing
+                  the toggle off the row on a phone. */}
+              <div
+                className="mt-0.5 flex items-baseline justify-between gap-3"
+                style={{ fontSize: 13, color: 'var(--ink-3)' }}
+              >
+                <span className="min-w-0">
+                  {[
+                    e.type,
+                    e.date ? formatEventDate(e.date, { month: 'long', day: 'numeric' }) : '',
+                    e.location,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </span>
+                {e.description && (
+                  <button
+                    onClick={() => toggleDescription(e.id)}
+                    className="shrink-0"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 5,
+                      background: 'none',
+                      border: 'none',
+                      padding: 0,
+                      cursor: 'pointer',
+                      color: 'var(--accent)',
+                      fontSize: 13,
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {/* Scaled rather than set to a larger font-size: a bigger
+                        glyph grows the button's line box, which makes this flex
+                        item taller than its siblings and pushes the meta row out
+                        of alignment. Same fix as the anchor event pages. */}
+                    <span
+                      style={{
+                        display: 'inline-block',
+                        transform: 'scale(1.5)',
+                        lineHeight: 1,
+                        marginRight: 3,
+                      }}
+                    >
+                      {expandedIds.has(e.id) ? '▲' : '▼'}
+                    </span>
+                    {expandedIds.has(e.id) ? 'Hide description' : 'See description'}
+                  </button>
+                )}
+              </div>
               <p
                 className="m-0 mt-1 flex items-baseline gap-x-2 flex-wrap"
                 style={{ fontSize: 13, color: 'var(--accent)' }}
@@ -2045,7 +2121,7 @@ function ContactEventsModal({ onClose }: { onClose: () => void }) {
                   </span>
                 ))}
               </p>
-              {e.description && (
+              {e.description && expandedIds.has(e.id) && (
                 <p
                   className="m-0 mt-1"
                   style={{ fontSize: 14, lineHeight: 1.55, color: 'var(--ink-2)' }}
