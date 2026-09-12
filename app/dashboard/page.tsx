@@ -353,7 +353,29 @@ export default function DashboardPage() {
         <section className="mb-8">
           <div className="eyebrow mb-2.5">
             See/Share Events you and your connections are attending{' '}
-            <span style={{ color: 'var(--ink-3)' }}>(BETA)</span>
+            {/* text-white is load-bearing, not literal: globals.css redefines
+                it to #1b1814 under theme-after-hours, so the label comes out
+                near-black on gold. Same mechanism the accent buttons use.
+
+                lineHeight 1 keeps the padded pill from growing the header's
+                line box and shifting the text beside it, and the letter
+                spacing overrides .eyebrow's 0.18em, which is airy at 12px but
+                looks broken inside a small badge. */}
+            <span
+              className="rounded-pill text-white"
+              style={{
+                display: 'inline-block',
+                verticalAlign: 'middle',
+                background: 'var(--accent)',
+                fontSize: 10,
+                fontWeight: 600,
+                letterSpacing: '0.1em',
+                lineHeight: 1,
+                padding: '3px 7px',
+              }}
+            >
+              BETA
+            </span>
           </div>
           <div
             className="rounded-card border px-5 py-4"
