@@ -2517,7 +2517,9 @@ function ContactEventsModal({ onClose }: { onClose: () => void }) {
                     >
                       {expandedIds.has(e.id) ? '▲' : '▼'}
                     </span>
-                    {expandedIds.has(e.id) ? 'Hide description' : 'See description'}
+                    {/* One word in both states - the arrow already says open
+                        or closed. Same as the anchor event pages. */}
+                    Description
                   </button>
                 )}
               </div>
