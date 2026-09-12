@@ -177,7 +177,8 @@ function digestFooterHtml(_firstName: string): string {
   return `
 <p style="font-family:${SANS};font-size:13px;line-height:1.7;color:${C.ink3};margin:24px 0 0;">
   <strong style="color:${C.accent};">Improve your matches?</strong> <strong style="color:${C.ink};"><a href="${DASHBOARD_LINK}" style="color:${C.ink};text-decoration:underline;text-underline-offset:3px;">Visit your dashboard.</a></strong><br>
-  <strong style="color:${C.accent};">Know an event we should add?</strong> <strong style="color:${C.ink};">Email <a href="${NEW_EVENT_MAILTO}" style="color:${C.ink};text-decoration:underline;text-underline-offset:3px;">event@whispered.com</a></strong>
+  <strong style="color:${C.accent};">Know an event we should add?</strong> <strong style="color:${C.ink};">Email <a href="${NEW_EVENT_MAILTO}" style="color:${C.ink};text-decoration:underline;text-underline-offset:3px;">event@whispered.com</a></strong><br>
+  <strong style="color:${C.accent};">Want to let your network know which events you're attending?</strong> <strong style="color:${C.ink};"><a href="${DASHBOARD_LINK}" style="color:${C.ink};text-decoration:underline;text-underline-offset:3px;">Visit your dashboard.</a></strong>
 </p>
 `.trim()
 }
@@ -186,6 +187,7 @@ function digestFooterTextLines(_firstName: string): string[] {
   return [
     `Improve your matches? Visit your dashboard: ${DASHBOARD_LINK}`,
     `Know an event we should add? Email event@whispered.com`,
+    `Want to let your network know which events you're attending? Visit your dashboard: ${DASHBOARD_LINK}`,
   ]
 }
 
