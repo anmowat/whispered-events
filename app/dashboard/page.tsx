@@ -1535,7 +1535,12 @@ function RadioRow({
         checked={checked}
         disabled={disabled}
         onChange={() => onChange(value)}
-        className="mt-0.5 w-4 h-4 cursor-pointer accent-[#6E1F2B] disabled:opacity-40"
+        className="mt-0.5 w-4 h-4 cursor-pointer disabled:opacity-40"
+        // The theme token, not a literal: the dashboard is always on the dark
+        // theme, where the accent is champagne. The hardcoded #6E1F2B was the
+        // LIGHT theme's deep red, which made these the only control on the
+        // page in the wrong palette.
+        style={{ accentColor: 'var(--accent)' }}
       />
       <span style={{ fontSize: 14, lineHeight: 1.5, color: 'var(--ink)' }}>
         {label}
@@ -1631,6 +1636,15 @@ function PrivacyModal({
       doneOnly
       wide
     >
+      <p
+        className="m-0"
+        style={{ fontSize: 14, lineHeight: 1.6, color: 'var(--ink-2)', fontStyle: 'italic' }}
+      >
+        We value your privacy and have designed our settings to give you maximum control. By
+        default nobody can see events you are attending and we never share your email address with
+        anyone!
+      </p>
+
       <ModalField label="Let others share events with you">
         <p className="m-0 mb-2" style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--ink-2)' }}>
           Allow Whispered Events users to share what events they are attending and find you by:
