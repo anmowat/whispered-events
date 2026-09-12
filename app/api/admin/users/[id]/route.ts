@@ -180,6 +180,10 @@ export async function GET(
       hostedEvents,
       contactsSharedWith,
       contactsSharedFrom,
+      // Without these, "why can't this member see anything?" is unanswerable
+      // from the admin - the answer is almost always findable = 'none'.
+      findable: user.findable,
+      shareVisibility: user.shareVisibility,
       generatedAt: new Date().toISOString(),
     })
   } catch (err) {

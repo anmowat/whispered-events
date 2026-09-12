@@ -1,7 +1,7 @@
 import Airtable, { FieldSet, Base } from 'airtable'
 import { createClient } from '@supabase/supabase-js'
 import { waitUntil } from '@vercel/functions'
-import { EventRecord, EventGrade, UserProfile, EMPLOYMENT_OPTIONS, COMPANY_SIZE_OPTIONS } from './types'
+import { EventRecord, EventGrade, UserProfile, EMPLOYMENT_OPTIONS, COMPANY_SIZE_OPTIONS, type Findable, type ShareVisibility, toFindable, toShareVisibility } from './types'
 import stringSimilarity from 'string-similarity'
 import { geocodeLocation } from './geocode'
 import { linkContributionsToUser } from './supabase'
@@ -799,8 +799,10 @@ export interface AirtableUser {
   frequency: string
   linkedin: string
   learn: string
-  /** Opt-out of appearing in another member's name search. Defaults true. */
-  discoverable?: boolean
+  /** How other members can reach you for event sharing. */
+  findable?: Findable
+  /** Who can see the events you're attending. */
+  shareVisibility?: ShareVisibility
 }
 
 export interface AirtableEvent {
@@ -914,8 +916,10 @@ export interface UserProfileUpdate {
   frequency?: string
   function?: string
   seniority?: string
-  /** Findable by name in another member's share picker. */
-  discoverable?: boolean
+  /** How other members can reach you for event sharing. */
+  findable?: Findable
+  /** Who can see the events you're attending. */
+  shareVisibility?: ShareVisibility
 }
 
 export async function updateUserProfile(
@@ -983,7 +987,13 @@ export async function updateUserProfile(
   if (update.seniority !== undefined) {
     row.seniority = update.seniority === '' ? null : update.seniority
   }
-  if (update.discoverable !== undefined) row.discoverable = !!update.discoverable
+  // Narrowed, not coerced. The old boolean column used `!!update.x`, which
+  // would turn ANY non-empty string into true - a silent corruption once the
+  // field became an enum.
+  if (update.findable !== undefined) row.findable = toFindable(update.findable)
+  if (update.shareVisibility !== undefined) {
+    row.share_visibility = toShareVisibility(update.shareVisibility)
+  }
 
   if (Object.keys(row).length === 0) return { id: existing.id }
   const { error: updateErr } = await supabase

@@ -16,9 +16,10 @@ import { getFutureEventsByIds } from '@/lib/events'
 import { sendShareInviteEmail } from '@/lib/email'
 import { notifyInviteThrottle } from '@/lib/slack'
 import { absoluteLinkedin } from '@/lib/url'
+import { toFindable, toShareVisibility } from '@/lib/types'
 
 // Contacts a member shares their attending events with.
-//   GET    -> { contacts, sharing, discoverable }
+//   GET    -> { contacts, sharing, findable, shareVisibility }
 //   POST   -> { email } | { userId }   add (idempotent; invites non-members once)
 //   DELETE -> { id }                   soft-remove by contact row id
 //
@@ -61,6 +62,7 @@ async function decorate(rows: ShareContactRow[]) {
       linkedin: u ? absoluteLinkedin(u.linkedin) : '',
       isMember: !!u,
       email: r.addedVia === 'email' ? r.contactEmail : null,
+      followed: r.addedVia === 'follow',
     }
   })
 }
@@ -88,7 +90,8 @@ async function currentState(userId: string, email: string) {
   return {
     contacts: await decorate(rows),
     sharing,
-    discoverable: me?.discoverable !== false,
+    findable: toFindable(me?.findable),
+    shareVisibility: toShareVisibility(me?.shareVisibility),
   }
 }
 

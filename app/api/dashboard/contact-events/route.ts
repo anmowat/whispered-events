@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifySession, listSharersFor, getInterestedEventIdsByUser } from '@/lib/supabase'
-import { getUsersByIds } from '@/lib/users'
+import { getUsersByIds, getUserByEmail } from '@/lib/users'
 import { getFutureEventsByIds } from '@/lib/events'
 import { absoluteLinkedin } from '@/lib/url'
+import { toFindable, toShareVisibility } from '@/lib/types'
 
 // Events the caller's contacts are attending.
 //
@@ -19,6 +20,15 @@ export async function GET(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
 
   try {
+    // A member set to 'none' has opted out of receiving. Rows are still being
+    // written for them - we never fail the sharer's action - but nothing is
+    // shown until they switch back, at which point the whole backlog appears.
+    // That is why the dashboard row reads "Activate" rather than "View".
+    const me = await getUserByEmail(session.email)
+    if (toFindable(me?.findable) === 'none') {
+      return NextResponse.json({ events: [], contacts: [], inactive: true })
+    }
+
     // Who shares with me, resolved from my email rather than my id - that is
     // what lets a share made before I joined light up the moment I do.
     const sharers = await listSharersFor(session.email)
@@ -34,7 +44,28 @@ export async function GET(req: NextRequest) {
 
     // Only active members share. A deactivated or removed account should stop
     // broadcasting even though its contact rows still exist.
-    const ownerById = new Map(owners.filter((u) => u.active).map((u) => [u.id, u]))
+    //
+    // Follow rows get a second check. A follow was authorised by the owner
+    // being set to 'everyone' at the time; if they have since switched back to
+    // 'contacts' that access must end. Re-reading the owner's CURRENT setting
+    // rather than trusting the row is what makes the switch a real revocation
+    // for every follower at once.
+    const followOwnerIds = new Set(
+      sharers.filter((r) => r.addedVia === 'follow').map((r) => r.ownerUserId),
+    )
+    const deliberateOwnerIds = new Set(
+      sharers.filter((r) => r.addedVia !== 'follow').map((r) => r.ownerUserId),
+    )
+    const ownerById = new Map(
+      owners
+        .filter((u) => u.active)
+        .filter(
+          (u) =>
+            deliberateOwnerIds.has(u.id) ||
+            (followOwnerIds.has(u.id) && toShareVisibility(u.shareVisibility) === 'everyone'),
+        )
+        .map((u) => [u.id, u]),
+    )
 
     const allEventIds = new Set<string>()
     Array.from(interestedByUser.entries()).forEach(([userId, eventIds]) => {

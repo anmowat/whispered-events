@@ -102,6 +102,18 @@ function draftDiff(draft: UserDraft, original: UserDraft): Partial<UserDraft> {
 // One end of an event-sharing relationship. userId is null when the contact
 // has been invited but hasn't joined yet, which is also what `invitedAt`
 // records - both are shown so admin can tell a pending invite from a live share.
+// Mirrors the member-facing copy so admin and member are reading the same
+// words when someone asks why their sharing isn't working.
+const FINDABLE_LABELS: Record<string, string> = {
+  email_name: 'By email / name',
+  email: 'By email only',
+  none: 'Not findable',
+}
+const SHARE_VISIBILITY_LABELS: Record<string, string> = {
+  contacts: 'Users they add',
+  everyone: 'Everyone',
+}
+
 interface ShareContact {
   email: string
   name: string
@@ -156,6 +168,10 @@ export default function AdminUserDetailPage() {
   const [events, setEvents] = useState<EventRow[] | null>(null)
   const [sharedWith, setSharedWith] = useState<ShareContact[]>([])
   const [sharedFrom, setSharedFrom] = useState<ShareContact[]>([])
+  const [sharingPrivacy, setSharingPrivacy] = useState<{
+    findable?: string
+    shareVisibility?: string
+  }>({})
   const [authState, setAuthState] = useState<'unknown' | 'authorized' | 'unauthorized' | 'not_found' | 'error'>('unknown')
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [showLogin, setShowLogin] = useState(false)
@@ -288,11 +304,12 @@ export default function AdminUserDetailPage() {
         setErrorMsg(data.error || `HTTP ${res.status}`)
         return
       }
-          const data = (await res.json()) as { user: Omit<UserDetail, 'hostedEvents'>; events: EventRow[]; hostedEvents: { id: string; name: string; date: string }[]; contactsSharedWith?: ShareContact[]; contactsSharedFrom?: ShareContact[] }
+          const data = (await res.json()) as { user: Omit<UserDetail, 'hostedEvents'>; events: EventRow[]; hostedEvents: { id: string; name: string; date: string }[]; contactsSharedWith?: ShareContact[]; contactsSharedFrom?: ShareContact[]; findable?: string; shareVisibility?: string }
       setUser({ ...data.user, hostedEvents: data.hostedEvents ?? [] })
       setEvents(data.events)
       setSharedWith(data.contactsSharedWith ?? [])
       setSharedFrom(data.contactsSharedFrom ?? [])
+      setSharingPrivacy({ findable: data.findable, shareVisibility: data.shareVisibility })
       setAuthState('authorized')
     } catch (e) {
       setAuthState('error')
@@ -772,6 +789,24 @@ export default function AdminUserDetailPage() {
 
             {/* Event-sharing contacts */}
             <div className="bg-white border border-[#E8DDD0] rounded-2xl p-6 shadow-sm mb-8">
+              <h3 className="text-xs uppercase tracking-widest text-gold-700 font-medium mb-3">
+                Sharing privacy
+              </h3>
+              <div className="flex flex-wrap gap-4 mb-5 text-sm">
+                <span className="text-gray-700">
+                  <span className="text-gray-400">Findable:</span>{' '}
+                  {FINDABLE_LABELS[sharingPrivacy.findable ?? 'email_name'] ??
+                    sharingPrivacy.findable}
+                  {sharingPrivacy.findable === 'none' && (
+                    <span className="ml-1 text-amber-700">(sees nothing)</span>
+                  )}
+                </span>
+                <span className="text-gray-700">
+                  <span className="text-gray-400">Shares with:</span>{' '}
+                  {SHARE_VISIBILITY_LABELS[sharingPrivacy.shareVisibility ?? 'contacts'] ??
+                    sharingPrivacy.shareVisibility}
+                </span>
+              </div>
               <h3 className="text-xs uppercase tracking-widest text-gold-700 font-medium mb-3">
                 Contacts shared with · {sharedWith.length}
               </h3>

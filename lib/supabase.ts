@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { DEFAULT_FINDABLE, type Findable } from './types'
 
 // Required Supabase tables:
 //
@@ -1646,10 +1647,15 @@ export interface ShareContactRow {
   contactEmail: string
   invitedAt: string | null
   createdAt: string
-  /** How this contact was added. 'member' means the owner picked them from a
-   *  name search and has never seen their address - so it must not be echoed
-   *  back. 'email' means the owner typed it and already knows it. */
-  addedVia: 'email' | 'member'
+  /** How this contact was added.
+   *  'email'  - the owner typed the address and already knows it.
+   *  'member' - the owner picked them from a name search and has never seen
+   *             their address, so it must not be echoed back.
+   *  'follow' - the CONTACT added themselves, because the owner opted into
+   *             share_visibility = 'everyone'. The row alone is not authority
+   *             to read: the owner's current setting is re-checked on every
+   *             read, so switching back to 'contacts' revokes every follower. */
+  addedVia: 'email' | 'member' | 'follow'
 }
 
 function normalizeContactEmail(email: string): string {
@@ -1664,7 +1670,10 @@ function mapShareContact(row: Record<string, unknown>): ShareContactRow {
     invitedAt: (row.invited_at as string | null) ?? null,
     createdAt: String(row.created_at ?? ''),
     // Rows predating the column are email-added by definition.
-    addedVia: row.added_via === 'member' ? 'member' : 'email',
+    addedVia:
+      row.added_via === 'member' || row.added_via === 'follow'
+        ? (row.added_via as 'member' | 'follow')
+        : 'email',
   }
 }
 
@@ -1707,7 +1716,7 @@ export async function listSharersFor(email: string): Promise<ShareContactRow[]> 
 export async function addShareContact(
   ownerUserId: string,
   email: string,
-  addedVia: 'email' | 'member' = 'email',
+  addedVia: 'email' | 'member' | 'follow' = 'email',
 ): Promise<{ contact: ShareContactRow; created: boolean }> {
   const cleaned = normalizeContactEmail(email)
   if (!ownerUserId || !cleaned) throw new Error('addShareContact: owner and email required')
@@ -1783,9 +1792,13 @@ export async function removeShareContact(ownerUserId: string, contactId: string)
 export async function countNewSharersForUser(
   userId: string,
   email: string,
+  findable: Findable = DEFAULT_FINDABLE,
 ): Promise<number> {
   const cleaned = normalizeContactEmail(email)
   if (!cleaned) return 0
+  // A member who opted out of receiving sees nothing in View Events, so
+  // telling them people are sharing would point at an empty room.
+  if (findable === 'none') return 0
   try {
     const supabase = getClient()
     const { data: lastSend } = await supabase
@@ -1812,6 +1825,28 @@ export async function countNewSharersForUser(
     console.error('countNewSharersForUser threw', { userId, e })
     return 0
   }
+}
+
+/**
+ * Remove a follow the CONTACT created (share_visibility = 'everyone').
+ *
+ * The mirror image of removeShareContact: there the owner_user_id predicate is
+ * the authorization check, here it's the contact_email, so a member can only
+ * ever unfollow on their own behalf. Restricted to added_via = 'follow' so
+ * this can't be used to delete a share somebody deliberately made to you.
+ */
+export async function removeFollow(ownerUserId: string, contactEmail: string): Promise<void> {
+  const cleaned = normalizeContactEmail(contactEmail)
+  if (!ownerUserId || !cleaned) return
+  const supabase = getClient()
+  const { error } = await supabase
+    .from('event_share_contacts')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('owner_user_id', ownerUserId)
+    .ilike('contact_email', cleaned)
+    .eq('added_via', 'follow')
+    .is('deleted_at', null)
+  if (error) throw new Error(`removeFollow failed: ${error.message}`)
 }
 
 /** Stamp invited_at so a non-member is invited once, not once per re-add. */

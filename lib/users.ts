@@ -7,6 +7,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { AirtableUser } from './airtable'
+import { toFindable, toShareVisibility } from './types'
 
 export type { AirtableUser }
 
@@ -40,7 +41,8 @@ interface UserRow {
   frequency: string | null
   linkedin: string | null
   learn: string | null
-  discoverable: boolean | null
+  findable: string | null
+  share_visibility: string | null
   is_partner: boolean
   first_activated_at: string | null
   // Airtable record createdTime — the real "when did this user originally
@@ -83,9 +85,11 @@ function toAirtableUser(row: UserRow): AirtableUser {
     frequency: row.frequency ?? '',
     linkedin: row.linkedin ?? '',
     learn: row.learn ?? '',
-    // Legacy rows predating the column read as null; true is the default, so
-    // an existing member stays findable until they say otherwise.
-    discoverable: row.discoverable !== false,
+    // Narrowed through the shared helpers so a null (row predating the
+    // column) or an unexpected value lands on the documented default rather
+    // than on whatever truthiness happens to produce.
+    findable: toFindable(row.findable),
+    shareVisibility: toShareVisibility(row.share_visibility),
   }
 }
 
@@ -148,7 +152,7 @@ export interface MemberSearchResult {
  * so it returns pending, passed and deactivated people.
  *
  * This one projects four columns, matches names only, requires an active
- * member, and honours the discoverable opt-out.
+ * member, and honours the findable setting.
  */
 export async function searchMembersByName(
   query: string,
@@ -165,7 +169,7 @@ export async function searchMembersByName(
     .select('id, name, first_name, linkedin')
     .or(`name.ilike.${pattern},first_name.ilike.${pattern}`)
     .eq('active', true)
-    .eq('discoverable', true)
+    .eq('findable', 'email_name')
     .is('airtable_deleted_at', null)
     .is('deleted_at', null)
     .limit(limit)
@@ -175,25 +179,66 @@ export async function searchMembersByName(
     // missing column or a broken query would look like an empty roster and
     // nobody would know the search was broken at all.
     console.error('searchMembersByName error', { query: q, error })
-    const missingColumn = /discoverable/i.test(error.message ?? '')
-    throw new Error(
-      missingColumn
-        ? 'Member search is unavailable: the discoverable column is missing. Apply migration 20260912000000_member_discoverability.sql.'
-        : `searchMembersByName failed: ${error.message}`,
-    )
+    throw new Error(describeSearchError('searchMembersByName', error.message))
   }
-  return (data ?? [])
-    .map((row) => {
-      const r = row as { id: string; name: string | null; first_name: string | null; linkedin: string | null }
-      // 'DEFAULT' is the project's sentinel for "no real name on file".
-      const full = (r.name || '').trim()
-      const first = (r.first_name || '').trim()
-      const name = full && full !== 'DEFAULT' ? full : first && first !== 'DEFAULT' ? first : ''
-      return { userId: r.id, name, linkedin: (r.linkedin || '').trim() }
-    })
-    // No display name means nothing to show and nothing to pick - a nameless
-    // row would render as an empty button.
-    .filter((u) => u.name)
+  // No display name means nothing to show and nothing to pick - a nameless row
+  // would render as an empty button.
+  return (data ?? []).map(toMemberResult).filter((u) => u.name)
+}
+
+/** Turns a Supabase error into something actionable. A missing column here
+ *  almost always means the migration hasn't been applied, and the symptom
+ *  (an empty search) looks identical to an empty roster. */
+function describeSearchError(fn: string, message?: string): string {
+  if (/findable|share_visibility/i.test(message ?? '')) {
+    return 'Member search is unavailable: apply migration 20260912100000_sharing_privacy.sql.'
+  }
+  return `${fn} failed: ${message}`
+}
+
+/** Map a projected row to the public member shape, dropping the 'DEFAULT'
+ *  no-name sentinel. Shared by both member-facing searches. */
+function toMemberResult(row: unknown): MemberSearchResult {
+  const r = row as { id: string; name: string | null; first_name: string | null; linkedin: string | null }
+  const full = (r.name || '').trim()
+  const first = (r.first_name || '').trim()
+  const name = full && full !== 'DEFAULT' ? full : first && first !== 'DEFAULT' ? first : ''
+  return { userId: r.id, name, linkedin: (r.linkedin || '').trim() }
+}
+
+/**
+ * Search members who have opted into share_visibility = 'everyone' - the pool
+ * behind "Search users" in the View Events modal.
+ *
+ * Deliberately independent of `findable`: the two settings answer different
+ * questions, and opting into 'everyone' IS the opt-in to being found for this
+ * purpose. Someone can be un-findable for receiving shares while still
+ * broadcasting their own events here.
+ *
+ * Same projection as searchMembersByName - name and LinkedIn, never an email.
+ */
+export async function searchEveryoneMembers(
+  query: string,
+  limit = 8,
+): Promise<MemberSearchResult[]> {
+  const q = query.trim()
+  if (q.length < 2) return []
+  const supabase = getSupabase()
+  const pattern = `%${q.replace(/[%_]/g, (m) => `\${m}`)}%`
+  const { data, error } = await supabase
+    .from('users')
+    .select('id, name, first_name, linkedin')
+    .or(`name.ilike.${pattern},first_name.ilike.${pattern}`)
+    .eq('active', true)
+    .eq('share_visibility', 'everyone')
+    .is('airtable_deleted_at', null)
+    .is('deleted_at', null)
+    .limit(limit)
+  if (error) {
+    console.error('searchEveryoneMembers error', { query: q, error })
+    throw new Error(describeSearchError('searchEveryoneMembers', error.message))
+  }
+  return (data ?? []).map(toMemberResult).filter((u) => u.name)
 }
 
 // Name-prefix search for the admin host-add typeahead. Case-insensitive,

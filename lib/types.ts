@@ -43,6 +43,43 @@ export interface EventRecord {
 export const EVENT_GRADE_OPTIONS = ['A', 'B', 'C'] as const
 export type EventGrade = (typeof EVENT_GRADE_OPTIONS)[number]
 
+// --- Event-sharing privacy -------------------------------------------------
+// Two settings answering two different questions, deliberately independent:
+// `findable` governs how other people reach YOU, `shareVisibility` governs who
+// can see YOUR events. A member can broadcast widely and receive nothing.
+
+/** How other members can reach you.
+ *  email_name - in name search, and reachable by address
+ *  email      - not in name search, still reachable by address
+ *  none       - opted out of receiving: rows are still written, but you see
+ *               nothing in View Events and get no digest line until you
+ *               switch back. */
+export const FINDABLE_OPTIONS = ['email_name', 'email', 'none'] as const
+export type Findable = (typeof FINDABLE_OPTIONS)[number]
+export const DEFAULT_FINDABLE: Findable = 'email_name'
+
+/** Who can see the events you're attending.
+ *  contacts - only people you add
+ *  everyone - any member can find you in Search Users and follow */
+export const SHARE_VISIBILITY_OPTIONS = ['contacts', 'everyone'] as const
+export type ShareVisibility = (typeof SHARE_VISIBILITY_OPTIONS)[number]
+export const DEFAULT_SHARE_VISIBILITY: ShareVisibility = 'contacts'
+
+/** Narrow an arbitrary value to a Findable, falling back to the default.
+ *  Used on every read and write boundary - the old boolean column had
+ *  `typeof x === 'boolean'` guards that would silently drop a string enum. */
+export function toFindable(value: unknown): Findable {
+  return (FINDABLE_OPTIONS as readonly string[]).includes(value as string)
+    ? (value as Findable)
+    : DEFAULT_FINDABLE
+}
+
+export function toShareVisibility(value: unknown): ShareVisibility {
+  return (SHARE_VISIBILITY_OPTIONS as readonly string[]).includes(value as string)
+    ? (value as ShareVisibility)
+    : DEFAULT_SHARE_VISIBILITY
+}
+
 export const EMPLOYMENT_OPTIONS = ['Employed', 'Searching', 'Fractional', 'Other'] as const
 export const COMPANY_SIZE_OPTIONS = ['<$5M', '$5-25M', '$25-100M', '$100M-1B', '$1B+', 'Other'] as const
 export const SENIORITY_OPTIONS = ['C-Level', 'VP', 'Director', 'Lead', 'Manager', 'Junior'] as const

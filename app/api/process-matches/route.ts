@@ -348,7 +348,7 @@ async function processUserTrigger(
     newEvents,
     topMatches,
     totalUpcomingMatches: allAboveThreshold.length,
-    newSharers: await countNewSharersForUser(targetUser.id, targetUser.email),
+    newSharers: await countNewSharersForUser(targetUser.id, targetUser.email, targetUser.findable),
   })
   await markMatchesNotified(
     newEvents.map((e) => ({ eventId: e.event.id, userId: targetUser.id })),

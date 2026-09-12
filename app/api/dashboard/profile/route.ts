@@ -5,6 +5,12 @@ import { updateUserProfile, UserProfileUpdate } from '@/lib/airtable'
 import { getUserByEmail } from '@/lib/users'
 import { notifyUserProfileUpdate, type FieldChange } from '@/lib/slack'
 import { internalSecretHeaders } from '@/lib/internal-auth'
+import {
+  FINDABLE_OPTIONS,
+  SHARE_VISIBILITY_OPTIONS,
+  type Findable,
+  type ShareVisibility,
+} from '@/lib/types'
 
 // Frequencies that result in an email digest. 'Paused' opts out.
 const DIGEST_FREQUENCIES = new Set(['As they arrive', 'Weekly', 'Monthly'])
@@ -29,7 +35,15 @@ export async function POST(req: NextRequest) {
   if (typeof body.companySize === 'string') update.companySize = body.companySize
   if (typeof body.frequency === 'string') update.frequency = body.frequency
   if (typeof body.function === 'string') update.function = body.function
-  if (typeof body.discoverable === 'boolean') update.discoverable = body.discoverable
+  // Allow-list checks, not `typeof === 'boolean'`. The previous boolean guard
+  // would silently drop a string enum, so the save would 200 while changing
+  // nothing - the worst possible failure for a privacy setting.
+  if (FINDABLE_OPTIONS.includes(body.findable as Findable)) {
+    update.findable = body.findable as Findable
+  }
+  if (SHARE_VISIBILITY_OPTIONS.includes(body.shareVisibility as ShareVisibility)) {
+    update.shareVisibility = body.shareVisibility as ShareVisibility
+  }
 
   // Mirror the application form rule — Size only meaningful when Employed
   if (update.employment && update.employment.toLowerCase() !== 'employed') {
@@ -37,8 +51,8 @@ export async function POST(req: NextRequest) {
   }
 
   // Frequency is a delivery preference, not a matching input — skip the
-  // re-match if it's the only thing that changed. Discoverability is likewise
-  // about who can find you, not who you match.
+  // re-match if it's the only thing that changed. The two sharing-privacy
+  // settings are likewise about who can find you, not who you match.
   const matchingInputsChanged =
     update.location !== undefined ||
     update.interest !== undefined ||

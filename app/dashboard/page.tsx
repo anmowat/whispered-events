@@ -7,6 +7,16 @@ import Header from '@/components/Header'
 import MultiSelect from '@/components/MultiSelect'
 import TopicChips from '@/components/TopicChips'
 import { withUtm, absoluteLinkedin } from '@/lib/url'
+import {
+  FINDABLE_OPTIONS,
+  SHARE_VISIBILITY_OPTIONS,
+  DEFAULT_FINDABLE,
+  DEFAULT_SHARE_VISIBILITY,
+  toFindable,
+  toShareVisibility,
+  type Findable,
+  type ShareVisibility,
+} from '@/lib/types'
 
 interface DashboardUser {
   email: string
@@ -24,6 +34,8 @@ interface DashboardUser {
   contributionsLast30: number
   contributionsLast90: number
   frequency: string
+  findable?: string
+  shareVisibility?: string
 }
 
 // Frequency picklist values — must match the Airtable Users table
@@ -99,6 +111,14 @@ export default function DashboardPage() {
   const [ratingFilter, setRatingFilter] = useState<Rating[] | null>(DEFAULT_RATINGS)
   const [sharingContacts, setSharingContacts] = useState(false)
   const [viewingContactEvents, setViewingContactEvents] = useState(false)
+  const [editingPrivacy, setEditingPrivacy] = useState(false)
+  // Held at page level because the View row's label depends on it. Loaded
+  // alongside the dashboard so the row is right on first paint rather than
+  // flipping from View to Activate a moment later.
+  const [findable, setFindable] = useState<Findable>(DEFAULT_FINDABLE)
+  const [shareVisibility, setShareVisibility] = useState<ShareVisibility>(
+    DEFAULT_SHARE_VISIBILITY,
+  )
   const [dateRange, setDateRange] = useState<'' | '30' | '60' | '90'>('')
   const [sortBy, setSortBy] = useState<'match' | 'date-asc' | 'date-desc'>('match')
   const [showFilterDialog, setShowFilterDialog] = useState(false)
@@ -161,6 +181,8 @@ export default function DashboardPage() {
         return
       }
       setUser(meData.user)
+      setFindable(toFindable(meData.user.findable))
+      setShareVisibility(toShareVisibility(meData.user.shareVisibility))
 
       const eventsRes = await fetch('/api/dashboard/events')
       if (eventsRes.ok) {
@@ -339,17 +361,28 @@ export default function DashboardPage() {
           >
             <div className="space-y-1">
               <ProfileSubRow
-                title="Share events you're attending with contacts"
-                description="Events you've marked Interested"
+                title="Share events"
+                description="Allow select contacts to see events you are planning to attend"
                 icon={<svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden><path d="M11.5 5.5a2.5 2.5 0 1 0-2.45-3L5.9 4.2a2.5 2.5 0 1 0 0 3.6l3.15 1.7a2.5 2.5 0 1 0 .5-.9L6.4 6.9a2.5 2.5 0 0 0 0-1.8l3.15-1.7c.45.67 1.22 1.1 2.05 1.1z"/></svg>}
                 onEdit={() => setSharingContacts(true)}
               />
+              {/* Reads "Activate" when the member has opted out of receiving:
+                  opening the view would show an empty room, so the button
+                  points at the setting that fixes it instead. */}
               <ProfileSubRow
-                title="View events contacts are attending"
-                description="Where your contacts will be"
+                title="View events"
+                description="See events your network is attending"
                 icon={<svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden><path d="M5.5 8a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM1 14a4.5 4.5 0 0 1 9 0H1zm10.5-6a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm-.4 1.02A5.49 5.49 0 0 1 11.9 14H15v-.5a3.5 3.5 0 0 0-3.9-3.48z"/></svg>}
-                onEdit={() => setViewingContactEvents(true)}
-                actionLabel="View"
+                onEdit={() =>
+                  findable === 'none' ? setEditingPrivacy(true) : setViewingContactEvents(true)
+                }
+                actionLabel={findable === 'none' ? 'Activate' : 'View'}
+              />
+              <ProfileSubRow
+                title="Privacy"
+                description="Determine who can see/find you on Whispered events"
+                icon={<svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden><path d="M8 1l5 2v4.2c0 3.3-2.1 6.3-5 7.3-2.9-1-5-4-5-7.3V3l5-2zm0 4a1.6 1.6 0 0 0-1.6 1.6c0 .6.3 1.1.8 1.4V10a.8.8 0 0 0 1.6 0V8a1.6 1.6 0 0 0-.8-3z"/></svg>}
+                onEdit={() => setEditingPrivacy(true)}
               />
             </div>
           </div>
@@ -448,6 +481,17 @@ export default function DashboardPage() {
         </section>
       </main>
 
+      {editingPrivacy && (
+        <PrivacyModal
+          findable={findable}
+          shareVisibility={shareVisibility}
+          onClose={() => setEditingPrivacy(false)}
+          onSaved={(f, v) => {
+            setFindable(f)
+            setShareVisibility(v)
+          }}
+        />
+      )}
       {sharingContacts && <ShareContactsModal onClose={() => setSharingContacts(false)} />}
       {viewingContactEvents && (
         <ContactEventsModal onClose={() => setViewingContactEvents(false)} />
@@ -1464,6 +1508,199 @@ function TopicsModal({
 // Event sharing with contacts
 // ---------------------------------------------------------------------------
 
+/** One labelled radio row inside the privacy modal. */
+function RadioRow({
+  name,
+  value,
+  checked,
+  label,
+  hint,
+  onChange,
+  disabled,
+}: {
+  name: string
+  value: string
+  checked: boolean
+  label: string
+  hint?: string
+  onChange: (value: string) => void
+  disabled?: boolean
+}) {
+  return (
+    <label className="flex items-start gap-2 cursor-pointer select-none">
+      <input
+        type="radio"
+        name={name}
+        value={value}
+        checked={checked}
+        disabled={disabled}
+        onChange={() => onChange(value)}
+        className="mt-0.5 w-4 h-4 cursor-pointer accent-[#6E1F2B] disabled:opacity-40"
+      />
+      <span style={{ fontSize: 14, lineHeight: 1.5, color: 'var(--ink)' }}>
+        {label}
+        {hint && (
+          <span style={{ color: 'var(--ink-3)' }}>
+            {' '}
+            {hint}
+          </span>
+        )}
+      </span>
+    </label>
+  )
+}
+
+/**
+ * The two event-sharing privacy settings.
+ *
+ * They are deliberately independent: `findable` governs how other people reach
+ * YOU, `shareVisibility` governs who can see YOUR events. A member can
+ * broadcast their events to everyone while receiving nothing from anybody.
+ *
+ * Writes go straight through on change - no Save button - so the footer is
+ * Done-only, matching the other sharing modals.
+ */
+function PrivacyModal({
+  findable,
+  shareVisibility,
+  onClose,
+  onSaved,
+}: {
+  findable: Findable
+  shareVisibility: ShareVisibility
+  onClose: () => void
+  onSaved: (findable: Findable, shareVisibility: ShareVisibility) => void
+}) {
+  const [localFindable, setLocalFindable] = useState<Findable>(findable)
+  const [localVisibility, setLocalVisibility] = useState<ShareVisibility>(shareVisibility)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function save(next: { findable?: Findable; shareVisibility?: ShareVisibility }) {
+    // Capture what to restore BEFORE optimistically applying. The boolean
+    // version rolled back with `!next`, which is meaningless once there are
+    // three values.
+    const prevFindable = localFindable
+    const prevVisibility = localVisibility
+    const appliedFindable = next.findable ?? prevFindable
+    const appliedVisibility = next.shareVisibility ?? prevVisibility
+
+    setLocalFindable(appliedFindable)
+    setLocalVisibility(appliedVisibility)
+    setBusy(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/dashboard/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(next),
+      })
+      if (!res.ok) throw new Error('save failed')
+      onSaved(appliedFindable, appliedVisibility)
+    } catch {
+      setLocalFindable(prevFindable)
+      setLocalVisibility(prevVisibility)
+      setError('Could not save that setting.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  function chooseFindable(value: string) {
+    const next = toFindable(value)
+    if (next === localFindable) return
+    // Opting out of receiving is the one choice with a consequence people
+    // don't expect: it silently empties their own View Events, not just other
+    // people's view of them.
+    if (next === 'none') {
+      const ok = window.confirm(
+        "Turn off finding?\n\nYou won't be able to see which events your contacts are attending until you turn this back on. People can still add your email, but you won't be notified and nothing will show up.",
+      )
+      if (!ok) return
+    }
+    save({ findable: next })
+  }
+
+  return (
+    <ProfileModalShell
+      title="Privacy"
+      saving={busy}
+      error={error}
+      onSave={onClose}
+      onClose={onClose}
+      doneOnly
+      wide
+    >
+      <ModalField label="Let others share events with you">
+        <p className="m-0 mb-2" style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--ink-2)' }}>
+          Allow Whispered Events users to share what events they are attending and find you by:
+        </p>
+        <div className="space-y-2">
+          <RadioRow
+            name="findable"
+            value="email_name"
+            checked={localFindable === 'email_name'}
+            label="By email / name"
+            hint="People can find you by name or share with you by email."
+            onChange={chooseFindable}
+            disabled={busy}
+          />
+          <RadioRow
+            name="findable"
+            value="email"
+            checked={localFindable === 'email'}
+            label="By email"
+            hint="You won't appear in name search, but people who know your email can still share with you."
+            onChange={chooseFindable}
+            disabled={busy}
+          />
+          <RadioRow
+            name="findable"
+            value="none"
+            checked={localFindable === 'none'}
+            label="Not findable"
+            hint="You won't receive shares or see what your contacts are attending."
+            onChange={chooseFindable}
+            disabled={busy}
+          />
+        </div>
+        {localFindable === 'none' && (
+          <p className="m-0 mt-2" style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--accent)' }}>
+            You currently can&rsquo;t see which events your contacts are attending. Choose
+            &ldquo;By email&rdquo; or &ldquo;By email / name&rdquo; to turn it back on.
+          </p>
+        )}
+      </ModalField>
+
+      <ModalField label="Share events I'm attending">
+        <p className="m-0 mb-2" style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--ink-2)' }}>
+          Determine who can see which events you are attending:
+        </p>
+        <div className="space-y-2">
+          <RadioRow
+            name="shareVisibility"
+            value="contacts"
+            checked={localVisibility === 'contacts'}
+            label="Users I add"
+            hint="Only the contacts on your sharing list."
+            onChange={(v) => save({ shareVisibility: toShareVisibility(v) })}
+            disabled={busy}
+          />
+          <RadioRow
+            name="shareVisibility"
+            value="everyone"
+            checked={localVisibility === 'everyone'}
+            label="Everyone"
+            hint="Any Whispered Events member can find you and follow the events you're attending."
+            onChange={(v) => save({ shareVisibility: toShareVisibility(v) })}
+            disabled={busy}
+          />
+        </div>
+      </ModalField>
+    </ProfileModalShell>
+  )
+}
+
 interface ShareContact {
   id: string
   name: string
@@ -1472,6 +1709,9 @@ interface ShareContact {
   // Present only for contacts you added by typing an address. Null for anyone
   // you picked from name search - you never saw their email and shouldn't.
   email: string | null
+  // True when this person added themselves because you're set to "Everyone".
+  // Marked so you can tell who found you from who you chose.
+  followed?: boolean
 }
 interface SharingEvent {
   id: string
@@ -1534,7 +1774,6 @@ function MemberName({
 function ShareContactsModal({ onClose }: { onClose: () => void }) {
   const [contacts, setContacts] = useState<ShareContact[]>([])
   const [sharing, setSharing] = useState<SharingEvent[]>([])
-  const [discoverable, setDiscoverable] = useState(true)
   const [email, setEmail] = useState('')
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<MemberResult[]>([])
@@ -1547,11 +1786,9 @@ function ShareContactsModal({ onClose }: { onClose: () => void }) {
   function apply(data: {
     contacts?: ShareContact[]
     sharing?: SharingEvent[]
-    discoverable?: boolean
   }) {
     setContacts(data.contacts ?? [])
     setSharing(data.sharing ?? [])
-    if (typeof data.discoverable === 'boolean') setDiscoverable(data.discoverable)
   }
 
   useEffect(() => {
@@ -1656,23 +1893,6 @@ function ShareContactsModal({ onClose }: { onClose: () => void }) {
       setError('Could not remove that contact.')
     } finally {
       setBusy(false)
-    }
-  }
-
-  async function toggleDiscoverable(next: boolean) {
-    setDiscoverable(next)
-    try {
-      const res = await fetch('/api/dashboard/profile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ discoverable: next }),
-      })
-      if (!res.ok) throw new Error('save failed')
-    } catch {
-      // Put the switch back rather than leaving the UI claiming a setting that
-      // didn't save.
-      setDiscoverable(!next)
-      setError('Could not save that setting.')
     }
   }
 
@@ -1834,6 +2054,14 @@ function ShareContactsModal({ onClose }: { onClose: () => void }) {
                   {!c.isMember && (
                     <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>invited</span>
                   )}
+                  {c.followed && (
+                    <span
+                      style={{ fontSize: 12, color: 'var(--ink-3)' }}
+                      title="Found you because your events are set to Everyone. Remove them to cut off their access."
+                    >
+                      found you
+                    </span>
+                  )}
                 </span>
                 <button
                   onClick={() => removeContact(c.id)}
@@ -1874,26 +2102,6 @@ function ShareContactsModal({ onClose }: { onClose: () => void }) {
         )}
       </ModalField>
 
-      {/* The opt-out lives here because this modal is where a member discovers
-          that name search exists at all. */}
-      <div className="pt-1 border-t" style={{ borderColor: 'var(--rule)' }}>
-        <label className="flex items-start gap-2 cursor-pointer select-none pt-3">
-          <input
-            type="checkbox"
-            checked={discoverable}
-            onChange={(e) => toggleDiscoverable(e.target.checked)}
-            className="mt-0.5 w-4 h-4 cursor-pointer accent-[#6E1F2B]"
-          />
-          <span style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--ink-2)' }}>
-            Let other members find me by name.
-            <span style={{ color: 'var(--ink-3)' }}>
-              {' '}
-              Turn this off and you won&rsquo;t appear in anyone&rsquo;s search. People already
-              sharing with you are unaffected.
-            </span>
-          </span>
-        </label>
-      </div>
     </ProfileModalShell>
   )
 }
@@ -1910,6 +2118,169 @@ interface ContactEvent {
   attendees: Array<{ userId: string; name: string; linkedin: string }>
 }
 
+// Sentinel for the "Search users…" entry in the contact picklist. Prefixed so
+// it can never collide with a real user id, and special-cased before the
+// filter compares against attendee ids.
+const SEARCH_USERS_OPTION = '__search_users__'
+
+/**
+ * Find members who set their events to "Everyone" and follow them.
+ *
+ * Following writes a row on THEIR contact list, which is why the server
+ * re-checks their setting rather than trusting the row: if they switch back to
+ * "Users I add", every follower loses access at once.
+ */
+function SearchUsersModal({ onClose, onFollowed }: { onClose: () => void; onFollowed: () => void }) {
+  const [query, setQuery] = useState('')
+  const [results, setResults] = useState<MemberResult[]>([])
+  const [searching, setSearching] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [added, setAdded] = useState<Set<string>>(new Set())
+
+  useEffect(() => {
+    const q = query.trim()
+    if (q.length < 2) {
+      setResults([])
+      setSearching(false)
+      return
+    }
+    let cancelled = false
+    setSearching(true)
+    setError(null)
+    const id = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/dashboard/everyone-search?q=${encodeURIComponent(q)}`, {
+          cache: 'no-store',
+        })
+        if (cancelled) return
+        const data = (await res.json()) as { results?: MemberResult[]; error?: string }
+        if (!res.ok) {
+          setResults([])
+          setError('Search is unavailable right now.')
+          return
+        }
+        setResults(data.results ?? [])
+      } catch {
+        if (!cancelled) {
+          setResults([])
+          setError('Search is unavailable right now.')
+        }
+      } finally {
+        if (!cancelled) setSearching(false)
+      }
+    }, 200)
+    return () => {
+      cancelled = true
+      clearTimeout(id)
+    }
+  }, [query])
+
+  async function follow(userId: string) {
+    if (busy) return
+    setBusy(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/dashboard/follow', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data.error || 'Could not add that member.')
+        return
+      }
+      setAdded((prev) => new Set(prev).add(userId))
+      onFollowed()
+    } catch {
+      setError('Could not add that member.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <ProfileModalShell
+      title="Search users"
+      saving={busy}
+      error={error}
+      onSave={onClose}
+      onClose={onClose}
+      doneOnly
+      wide
+    >
+      <p className="m-0" style={{ fontSize: 14, lineHeight: 1.6, color: 'var(--ink-2)' }}>
+        Find members who share their events with everyone. Add them and the events they&rsquo;re
+        attending appear in your list.
+      </p>
+
+      <ModalField label="Search by name">
+        <input
+          type="text"
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="none"
+          spellCheck={false}
+          name="whispered-everyone-search"
+          data-1p-ignore
+          data-lpignore="true"
+          data-bwignore
+          data-form-type="other"
+          value={query}
+          disabled={busy}
+          placeholder="Search by name…"
+          onChange={(e) => setQuery(e.target.value)}
+          className={modalInputCls}
+          style={modalInputStyle}
+        />
+        {query.trim().length >= 2 && (
+          <div
+            className="mt-1.5 rounded-input border overflow-hidden"
+            style={{ borderColor: 'var(--rule)', background: 'var(--paper-2)' }}
+          >
+            {searching && results.length === 0 ? (
+              <p className="m-0 px-3 py-2" style={{ fontSize: 13, color: 'var(--ink-3)' }}>
+                Searching&hellip;
+              </p>
+            ) : results.length === 0 ? (
+              <p className="m-0 px-3 py-2" style={{ fontSize: 13, color: 'var(--ink-3)' }}>
+                No members found who share their events with everyone.
+              </p>
+            ) : (
+              results.map((r) => (
+                <div
+                  key={r.userId}
+                  className="flex items-center justify-between gap-3 px-3 py-2 border-b last:border-b-0"
+                  style={{ borderColor: 'var(--rule)' }}
+                >
+                  <span className="min-w-0">
+                    <MemberName name={r.name} linkedin={r.linkedin} />
+                  </span>
+                  {added.has(r.userId) ? (
+                    <span className="shrink-0" style={{ fontSize: 12, color: 'var(--ink-3)' }}>
+                      Added
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => follow(r.userId)}
+                      disabled={busy}
+                      className="shrink-0 px-3 py-1 rounded-pill text-[12px] font-medium text-white disabled:opacity-40 transition-colors"
+                      style={{ background: 'var(--accent)' }}
+                    >
+                      Add
+                    </button>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        )}
+      </ModalField>
+    </ProfileModalShell>
+  )
+}
+
 /** Everything the caller's contacts are attending, filterable by contact and
  *  by event type. Shows events regardless of the viewer's own match. */
 function ContactEventsModal({ onClose }: { onClose: () => void }) {
@@ -1921,6 +2292,8 @@ function ContactEventsModal({ onClose }: { onClose: () => void }) {
   const [fromDate, setFromDate] = useState('')
   const [toDate, setToDate] = useState('')
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
+  const [searchingUsers, setSearchingUsers] = useState(false)
+  const [inactive, setInactive] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -1933,27 +2306,29 @@ function ContactEventsModal({ onClose }: { onClose: () => void }) {
     })
   }
 
-  useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      try {
-        const res = await fetch('/api/dashboard/contact-events')
-        const data = await res.json()
-        if (cancelled) return
-        if (!res.ok) setError(data.error || 'Could not load these events.')
-        else {
-          setEvents(data.events ?? [])
-          setContacts(data.contacts ?? [])
-        }
-      } catch {
-        if (!cancelled) setError('Could not load these events.')
-      } finally {
-        if (!cancelled) setLoading(false)
+  // Named so following someone can re-run it and their events appear without
+  // the member having to close and reopen the modal.
+  async function load() {
+    try {
+      const res = await fetch('/api/dashboard/contact-events')
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data.error || 'Could not load these events.')
+        return
       }
-    })()
-    return () => {
-      cancelled = true
+      setEvents(data.events ?? [])
+      setContacts(data.contacts ?? [])
+      setInactive(data.inactive === true)
+    } catch {
+      setError('Could not load these events.')
+    } finally {
+      setLoading(false)
     }
+  }
+
+  useEffect(() => {
+    void load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Bare 'YYYY-MM-DD' on both sides, so these are plain lexicographic string
@@ -1978,28 +2353,39 @@ function ContactEventsModal({ onClose }: { onClose: () => void }) {
       doneOnly
       wide
     >
-      {contacts.length > 0 && (
-        <div className="flex items-center gap-2">
-          <select
-            value={contactFilter}
-            onChange={(e) => setContactFilter(e.target.value)}
-            className={modalInputCls}
-            style={modalInputStyle}
-          >
-            <option value="">All contacts</option>
-            {contacts.map((c) => (
-              <option key={c.userId} value={c.userId}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
+      {/* Not gated on contacts.length: a member with nobody sharing yet is
+          precisely the one who needs Search users, and hiding the control from
+          them made it unreachable. */}
+      <div className="flex items-center gap-2">
+        <select
+          value={contactFilter}
+          onChange={(e) => {
+            if (e.target.value === SEARCH_USERS_OPTION) {
+              // A sentinel, not a real filter value - open the picker and put
+              // the select straight back, so it never displays as the choice.
+              setSearchingUsers(true)
+              setContactFilter('')
+              return
+            }
+            setContactFilter(e.target.value)
+          }}
+          className={modalInputCls}
+          style={modalInputStyle}
+        >
+          <option value="">All contacts</option>
+          {contacts.map((c) => (
+            <option key={c.userId} value={c.userId}>
+              {c.name}
+            </option>
+          ))}
+          <option value={SEARCH_USERS_OPTION}>Search users&hellip;</option>
+        </select>
+      </div>
 
       {/* Date range. colorScheme: 'dark' is load-bearing - this modal is always
           on the dark theme, and without it the native calendar glyph and the
           picker panel render dark-on-dark and are effectively invisible. */}
-      {contacts.length > 0 && (
+      {events.length > 0 && (
         <div className="flex items-center gap-2">
           <label className="flex-1 flex items-center gap-2">
             <span className="eyebrow shrink-0">From</span>
@@ -2026,14 +2412,25 @@ function ContactEventsModal({ onClose }: { onClose: () => void }) {
         </div>
       )}
 
+      {searchingUsers && (
+        <SearchUsersModal onClose={() => setSearchingUsers(false)} onFollowed={() => void load()} />
+      )}
+
       {loading ? (
         <p className="m-0" style={{ fontSize: 13, color: 'var(--ink-3)' }}>
           Loading&hellip;
         </p>
+      ) : inactive ? (
+        <p className="m-0" style={{ fontSize: 14, lineHeight: 1.6, color: 'var(--ink-2)' }}>
+          You&rsquo;re set to <strong>Not findable</strong>, so nothing is shown here. Change it
+          under <strong>Privacy</strong> to see which events your contacts are attending &mdash;
+          anything shared with you in the meantime will appear.
+        </p>
       ) : events.length === 0 ? (
         <p className="m-0" style={{ fontSize: 14, lineHeight: 1.6, color: 'var(--ink-2)' }}>
           No one is sharing their events with you yet. When a contact adds you, what they&rsquo;re
-          attending shows up here.
+          attending shows up here &mdash; or use <strong>Search users</strong> above to follow
+          members who share with everyone.
         </p>
       ) : visible.length === 0 ? (
         <p className="m-0" style={{ fontSize: 13, color: 'var(--ink-3)' }}>

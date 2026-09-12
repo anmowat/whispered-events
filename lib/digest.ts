@@ -113,7 +113,7 @@ async function processUser(
     const totalNeverRated = await getNeverRatedFutureMatchCount(user.id, futureIds)
     const lockedCount = Math.max(0, totalNeverRated - ENGAGEMENT_CAP)
 
-    const newSharers = await countNewSharersForUser(user.id, user.email)
+    const newSharers = await countNewSharersForUser(user.id, user.email, user.findable)
 
     await sendUserDigest(user, {
       newEvents: toEntries(topNew, futureById),

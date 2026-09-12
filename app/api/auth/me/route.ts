@@ -38,6 +38,11 @@ export async function GET(req: NextRequest) {
       status: user.status,
       active: user.active,
       frequency: user.frequency,
+      // Event-sharing privacy. Sent here so the dashboard renders the View
+      // row's label correctly on first paint instead of flipping from View to
+      // Activate once a second request lands.
+      findable: user.findable,
+      shareVisibility: user.shareVisibility,
       // Sourced from Supabase `contributions` table.
       lastContribution: stats.lastAt,
       totalContributions: stats.total,
