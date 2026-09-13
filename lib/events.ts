@@ -52,6 +52,7 @@ interface EventRow {
   start_time: string | null
   end_time: string | null
   grade: string | null
+  favicon_url: string | null
 }
 
 function toAirtableEvent(row: EventRow): AirtableEvent {
@@ -164,6 +165,29 @@ export async function getEventById(eventId: string): Promise<AirtableEvent | nul
     return null
   }
   return data ? toAirtableEvent(data as EventRow) : null
+}
+
+// Batched sibling of getEventById, for callers holding a list of ids (the
+// anchor-event page used to await getEventById once per event, which is dozens
+// of round trips on a page like Dreamforce). favicon_url rides along because
+// it lives on the same row and the anchor page needs it; it is not part of
+// AirtableEvent, so it is attached rather than folded into the mapper.
+export async function getEventsByIds(
+  eventIds: string[],
+): Promise<Map<string, AirtableEvent & { faviconUrl: string }>> {
+  const ids = eventIds.filter(Boolean)
+  const out = new Map<string, AirtableEvent & { faviconUrl: string }>()
+  if (ids.length === 0) return out
+  const supabase = getSupabase()
+  const { data, error } = await supabase.from('events').select('*').in('id', ids)
+  if (error) {
+    console.error('getEventsByIds error', { count: ids.length, error })
+    return out
+  }
+  for (const row of (data ?? []) as EventRow[]) {
+    out.set(row.id, { ...toAirtableEvent(row), faviconUrl: row.favicon_url ?? '' })
+  }
+  return out
 }
 
 // Homepage carousel source. Strict criteria: must be flagged featured in

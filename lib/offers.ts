@@ -66,6 +66,19 @@ export async function getOfferById(id: string): Promise<Offer | null> {
   return data ? toOffer(data as OfferRow) : null
 }
 
+// Batched sibling of getOfferById, so a caller with a list of ids makes one
+// round trip instead of one per offer.
+export async function getOffersByIds(ids: string[]): Promise<Map<string, Offer>> {
+  const wanted = ids.filter(Boolean)
+  const out = new Map<string, Offer>()
+  if (wanted.length === 0) return out
+  const supabase = getSupabase()
+  const { data, error } = await supabase.from('offers').select('*').in('id', wanted)
+  if (error) throw new Error(`getOffersByIds: ${error.message}`)
+  for (const row of (data ?? []) as OfferRow[]) out.set(row.id, toOffer(row))
+  return out
+}
+
 export interface OfferInput {
   name?: string
   logoUrl?: string

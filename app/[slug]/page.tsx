@@ -129,7 +129,12 @@ function InlineOfferSlot({ chunk, visible }: { chunk: Offer[]; visible: boolean 
 
 export default function AnchorEventPage({ params }: { params: { slug: string } }) {
   const [data, setData] = useState<PageData | null>(null)
-  const [notFound, setNotFound] = useState(false)
+  // 'missing' is a real 404 from the API; 'error' is anything else (a 500 from
+  // a cold Supabase, a dropped connection). They used to render the same "Page
+  // not found" screen, which told people a live page didn't exist whenever the
+  // backend hiccuped.
+  const [loadState, setLoadState] = useState<'loading' | 'ok' | 'missing' | 'error'>('loading')
+  const [reloadTick, setReloadTick] = useState(0)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [userSeniority, setUserSeniority] = useState<string | null>(null)
   const [showAuthDialog, setShowAuthDialog] = useState(false)
@@ -148,22 +153,39 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
 
   useEffect(() => {
     async function load() {
-      const [pageRes, meRes] = await Promise.all([
-        fetch(`/api/anchor-events/${params.slug}`, { cache: 'no-store' }),
-        fetch('/api/auth/me'),
-      ])
-      if (!pageRes.ok) {
-        setNotFound(true)
+      setLoadState('loading')
+      let pageRes: Response
+      let meRes: Response
+      try {
+        ;[pageRes, meRes] = await Promise.all([
+          fetch(`/api/anchor-events/${params.slug}`, { cache: 'no-store' }),
+          fetch('/api/auth/me'),
+        ])
+      } catch (err) {
+        // Previously unhandled, which left the loading screen up forever.
+        console.error('anchor event load failed', err)
+        setLoadState('error')
         return
       }
-      const pageData = await pageRes.json() as PageData
-      setData(pageData)
-      const meData = await meRes.json() as { user: { seniority?: string | null } | null }
-      setIsLoggedIn(!!meData.user)
-      setUserSeniority(meData.user?.seniority ?? null)
+      if (!pageRes.ok) {
+        setLoadState(pageRes.status === 404 ? 'missing' : 'error')
+        return
+      }
+      try {
+        const pageData = await pageRes.json() as PageData
+        setData(pageData)
+        setLoadState('ok')
+        // Signed-in state is a nice-to-have; never let it take the page down.
+        const meData = await meRes.json().catch(() => ({ user: null })) as { user: { seniority?: string | null } | null }
+        setIsLoggedIn(!!meData.user)
+        setUserSeniority(meData.user?.seniority ?? null)
+      } catch (err) {
+        console.error('anchor event parse failed', err)
+        setLoadState('error')
+      }
     }
     load()
-  }, [params.slug])
+  }, [params.slug, reloadTick])
 
   const uniqueTypes = useMemo(() => {
     if (!data) return []
@@ -245,7 +267,7 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
     })
   }
 
-  if (notFound) {
+  if (loadState === 'missing') {
     return (
       <div style={{ minHeight: '100vh', background: '#1b1814', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'system-ui, sans-serif' }}>
         <div style={{ color: '#6b5e53', textAlign: 'center' }}>
@@ -253,6 +275,28 @@ export default function AnchorEventPage({ params }: { params: { slug: string } }
           <div style={{ color: '#9c8b7e' }}>Page not found</div>
 
           <a href="/" style={{ display: 'inline-block', marginTop: 20, color: '#c9a86a', fontSize: 14 }}>← Back to Whispered Events</a>
+        </div>
+      </div>
+    )
+  }
+
+  if (loadState === 'error') {
+    return (
+      <div style={{ minHeight: '100vh', background: '#1b1814', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'system-ui, sans-serif', padding: 20 }}>
+        <div style={{ color: '#6b5e53', textAlign: 'center' }}>
+          <div style={{ color: '#e8dfd3', fontSize: 18, marginBottom: 10 }}>This page didn&apos;t load</div>
+          <div style={{ color: '#9c8b7e', fontSize: 14, maxWidth: 380 }}>
+            The page is there — something went wrong fetching it. Give it another go.
+          </div>
+          <button
+            onClick={() => setReloadTick((t) => t + 1)}
+            style={{ marginTop: 18, background: 'rgba(201,168,106,0.15)', border: '1px solid rgba(201,168,106,0.35)', borderRadius: 8, padding: '10px 20px', fontSize: 14, color: '#c9a86a', cursor: 'pointer' }}
+          >
+            Try again
+          </button>
+          <div>
+            <a href="/" style={{ display: 'inline-block', marginTop: 18, color: '#c9a86a', fontSize: 14 }}>← Back to Whispered Events</a>
+          </div>
         </div>
       </div>
     )

@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
-import { getEventById } from './events'
-import { getOfferById, type Offer } from './offers'
+import { getEventsByIds } from './events'
+import { getOffersByIds, type Offer } from './offers'
 import type { AirtableEvent } from './airtable'
 
 function getSupabase() {
@@ -107,26 +107,19 @@ export async function getAnchorEventEvents(
     .eq('anchor_event_id', anchorEventId)
   if (error) throw new Error(`getAnchorEventEvents: ${error.message}`)
   const rows = data as Array<{ event_id: string; start_time: string | null; featured: boolean }>
-  // Fetch favicon_url for all events in one query
-  const eventIds = rows.map((r) => r.event_id)
-  const { data: faviconRows } = await supabase
-    .from('events')
-    .select('id, favicon_url')
-    .in('id', eventIds.length > 0 ? eventIds : ['__none__'])
-  const faviconMap = new Map(
-    ((faviconRows ?? []) as Array<{ id: string; favicon_url: string | null }>).map((r) => [r.id, r.favicon_url ?? ''])
-  )
+  // One query for every event on the page. This used to await getEventById per
+  // row - dozens of sequential round trips on a big anchor event, and the
+  // single slowest thing about that page.
+  const byId = await getEventsByIds(rows.map((r) => r.event_id))
 
-  const events = await Promise.all(
-    rows.map(async (r) => {
-      const ev = await getEventById(r.event_id)
-      if (!ev) return null
-      // Use junction table start_time override if set, otherwise fall back to event's own startTime
-      const startTime = r.start_time ?? (ev as { startTime?: string }).startTime ?? null
-      return { ...ev, startTime, featured: r.featured ?? false, faviconUrl: faviconMap.get(r.event_id) ?? '' }
-    }),
-  )
-  const valid = events.filter((e): e is AirtableEvent & AnchorEventEventMeta & { faviconUrl: string } => e !== null)
+  type Row = AirtableEvent & AnchorEventEventMeta & { faviconUrl: string }
+  const valid = rows.flatMap<Row>((r) => {
+    const ev = byId.get(r.event_id)
+    if (!ev) return []
+    // Use junction table start_time override if set, otherwise fall back to event's own startTime
+    const startTime = r.start_time ?? ev.startTime ?? null
+    return [{ ...ev, startTime, featured: r.featured ?? false } as Row]
+  })
   // Sort: featured first, then by start_time ascending (nulls last), then by name
   return valid.sort((a, b) => {
     if (a.featured !== b.featured) return a.featured ? -1 : 1
@@ -165,8 +158,13 @@ export async function getAnchorEventOffers(anchorEventId: string): Promise<Offer
     .order('position', { ascending: true })
   if (error) throw new Error(`getAnchorEventOffers: ${error.message}`)
   const rows = data as Array<{ offer_id: string }>
-  const offers = await Promise.all(rows.map((r) => getOfferById(r.offer_id)))
-  return offers.filter((o): o is Offer => o !== null)
+  // Batched for the same reason as the events above; order comes from the
+  // junction query, so the map is only a lookup.
+  const byId = await getOffersByIds(rows.map((r) => r.offer_id))
+  return rows.flatMap((r) => {
+    const offer = byId.get(r.offer_id)
+    return offer ? [offer] : []
+  })
 }
 
 // Returns event ids for the admin UI
