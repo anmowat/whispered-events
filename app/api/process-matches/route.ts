@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { isInternalOrAdmin } from '@/lib/internal-auth'
-import { getContactAttendance, attendanceCounts } from '@/lib/contact-attendance'
+import { getContactAttendance, attendanceCounts , listNewSharersFor } from '@/lib/contact-attendance'
 import { AirtableEvent, AirtableUser } from '@/lib/airtable'
 import { getActiveUsers, getUserById } from '@/lib/users'
 import { getFutureEvents, getEventById } from '@/lib/events'
@@ -20,7 +20,7 @@ import {
   logMatch,
   markMatchesNotified,
   resetNotifiedAtForEvent,
-  countNewSharersForUser,
+  markShareContactsAnnounced,
 } from '@/lib/supabase'
 import {
   sendUserDigest,
@@ -289,11 +289,22 @@ async function processUserTrigger(
     // waiting for next Monday's cron.
     const nearbyCount = countNearbyEvents(targetUser, events)
     try {
+      const sharers = await listNewSharersFor(targetUser.email, targetUser.findable)
       await sendApprovedWithDigest(
         targetUser,
-        { newEvents, topMatches, totalUpcomingMatches: allAboveThreshold.length },
+        {
+          newEvents,
+          topMatches,
+          totalUpcomingMatches: allAboveThreshold.length,
+          // Arriving to "2 people are already sharing with you" is the best
+          // first impression this feature gets.
+          newSharers: sharers.contacts,
+        },
         nearbyCount,
       )
+      // Only reached when the send succeeded - the plain-approval fallback
+      // below renders no block, so it must not consume the notice.
+      await markShareContactsAnnounced(sharers.rowIds)
     } catch (e) {
       console.error(`process-matches: sendApprovedWithDigest failed for ${targetUser.email}, falling back to plain approval:`, e)
       try {
@@ -319,11 +330,18 @@ async function processUserTrigger(
       return { sent: false, reason: 'location changed but nothing new came into range' }
     }
     try {
+      const sharers = await listNewSharersFor(targetUser.email, targetUser.findable)
       await sendLocationUpdatedDigest(
         targetUser,
-        { newEvents, topMatches, totalUpcomingMatches: allAboveThreshold.length },
+        {
+          newEvents,
+          topMatches,
+          totalUpcomingMatches: allAboveThreshold.length,
+          newSharers: sharers.contacts,
+        },
         targetUser.location || '',
       )
+      await markShareContactsAnnounced(sharers.rowIds)
       await markMatchesNotified(
         newEvents.map((e) => ({ eventId: e.event.id, userId: targetUser.id })),
       )
@@ -357,12 +375,14 @@ async function processUserTrigger(
   const withAttendance = (entries: typeof newEvents) =>
     entries.map((e) => ({ ...e, contactsAttending: attendance.get(e.event.id) ?? 0 }))
 
+  const sharers = await listNewSharersFor(targetUser.email, targetUser.findable)
   await sendUserDigest(targetUser, {
     newEvents: withAttendance(newEvents),
     topMatches: withAttendance(topMatches),
     totalUpcomingMatches: allAboveThreshold.length,
-    newSharers: await countNewSharersForUser(targetUser.id, targetUser.email, targetUser.findable),
+    newSharers: sharers.contacts,
   })
+  await markShareContactsAnnounced(sharers.rowIds)
   await markMatchesNotified(
     newEvents.map((e) => ({ eventId: e.event.id, userId: targetUser.id })),
   )

@@ -1784,53 +1784,6 @@ export async function removeShareContact(ownerUserId: string, contactId: string)
   if (error) throw new Error(`removeShareContact failed: ${error.message}`)
 }
 
-/**
- * How many contacts started sharing with this member since their last digest.
- *
- * Derived rather than stored: compare the contact row's created_at against the
- * last row in digest_sends. That means no new state to keep in sync, and a
- * member who has never had a digest correctly sees every sharer as new.
- *
- * Returns 0 on error - a failure here must not block a digest that is
- * otherwise ready to send.
- */
-export async function countNewSharersForUser(
-  userId: string,
-  email: string,
-  findable: Findable = DEFAULT_FINDABLE,
-): Promise<number> {
-  const cleaned = normalizeContactEmail(email)
-  if (!cleaned) return 0
-  // A member who opted out of receiving sees nothing in View Events, so
-  // telling them people are sharing would point at an empty room.
-  if (findable === 'none') return 0
-  try {
-    const supabase = getClient()
-    const { data: lastSend } = await supabase
-      .from('digest_sends')
-      .select('sent_at')
-      .eq('user_id', userId)
-      .order('sent_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-    const since = (lastSend as { sent_at?: string } | null)?.sent_at
-    let q = supabase
-      .from('event_share_contacts')
-      .select('*', { count: 'exact', head: true })
-      .ilike('contact_email', cleaned)
-      .is('deleted_at', null)
-    if (since) q = q.gt('created_at', since)
-    const { count, error } = await q
-    if (error) {
-      console.error('countNewSharersForUser error', { userId, error })
-      return 0
-    }
-    return count ?? 0
-  } catch (e) {
-    console.error('countNewSharersForUser threw', { userId, e })
-    return 0
-  }
-}
 
 /**
  * Remove a follow the CONTACT created (share_visibility = 'everyone').

@@ -2,7 +2,7 @@ import {
   AirtableEvent,
   AirtableUser,
 } from './airtable'
-import { getContactAttendance, attendanceCounts } from './contact-attendance'
+import { getContactAttendance, attendanceCounts, listNewSharersFor } from './contact-attendance'
 import { getActiveUsers } from './users'
 import { getFutureEvents } from './events'
 import { isMatchEligible, NEARBY_RADIUS_MILES } from './matching'
@@ -20,7 +20,7 @@ import {
   upsertDigestState,
   getTopUnratedFutureMatchIds,
   getNeverRatedFutureMatchCount,
-  countNewSharersForUser,
+  markShareContactsAnnounced,
 } from './supabase'
 
 export const DIGEST_CAP_PER_SECTION = 3
@@ -115,7 +115,9 @@ async function processUser(
     const totalNeverRated = await getNeverRatedFutureMatchCount(user.id, futureIds)
     const lockedCount = Math.max(0, totalNeverRated - ENGAGEMENT_CAP)
 
-    const newSharers = await countNewSharersForUser(user.id, user.email, user.findable)
+    // Named in the email below, then ticked off so they are never named
+    // again. The stamp deliberately comes AFTER the send.
+    const sharers = await listNewSharersFor(user.email, user.findable)
 
     // One privacy-aware read per user, reused for every entry. Short-circuits
     // on a single indexed query for the majority who have nobody sharing.
@@ -132,8 +134,9 @@ async function processUser(
       topMatches: toEntries(top, futureById, attendance),
       totalUpcomingMatches: allUpcoming.length,
       lockedCount,
-      newSharers,
+      newSharers: sharers.contacts,
     })
+    await markShareContactsAnnounced(sharers.rowIds)
 
     await markMatchesNotified(
       topNew.map((m) => ({ eventId: m.event_id, userId: user.id })),
@@ -470,7 +473,9 @@ async function safelySendRecap(
     // send. We don't fall back to a no-event variant because the
     // matchCount precondition implies the rows exist.
     if (topEntries.length === 0) return
-    await sendRecap(user, topEntries, nearbyCount, totalMatchCount)
+    const sharers = await listNewSharersFor(user.email, user.findable)
+    await sendRecap(user, topEntries, nearbyCount, totalMatchCount, sharers.contacts)
+    await markShareContactsAnnounced(sharers.rowIds)
   } catch (err) {
     console.error(
       `runDigests: sendRecap failed for ${user.email}`,

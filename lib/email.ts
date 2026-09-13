@@ -1,6 +1,7 @@
 import { Resend } from 'resend'
 import { AirtableEvent, AirtableUser } from './airtable'
 import { logDigestSend } from './supabase'
+import type { ContactAttendee } from './contact-attendance'
 import { ratingUrl } from './email-rating'
 import { withUtm } from './url'
 import { sideEventsPromo } from './promo-side-events'
@@ -670,8 +671,13 @@ export async function sendRecap(
   topMatches: DigestEventEntry[],
   nearbyCount: number,
   totalMatchCount: number,
+  /** People who have started sharing with this member and have never been
+   *  named to them. A recap is still an email carrying events, so it is a
+   *  perfectly good place to tell them. */
+  newSharers?: ContactAttendee[],
 ): Promise<void> {
   if (topMatches.length === 0) return
+  const sharersText = shareContactsTextLines(newSharers ?? [])
   const resend = getResend()
   const firstName = firstNameOrThere(user)
   const safeName = escapeHtml(firstName)
@@ -703,6 +709,7 @@ export async function sendRecap(
       `Want to see more? Update your interests on your <a href="${DASHBOARD_LINK}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">dashboard</a> — add functions or topics you'd like to see (e.g. "RevOps", "GTM", "AI", specific industries).`,
       { mt: 14 },
     )}
+    ${shareContactsHtml(newSharers ?? [])}
     ${digestFooterHtml(firstName)}
   `)
 
@@ -728,6 +735,8 @@ export async function sendRecap(
     ...(promo.textLines.length ? [...promo.textLines, ''] : []),
     `Want to see more? Update your interests on your dashboard — ${DASHBOARD_LINK}`,
     '',
+    ...sharersText,
+    ...(sharersText.length ? [''] : []),
     ...digestFooterTextLines(firstName),
   )
 
@@ -1015,20 +1024,65 @@ export async function sendShareInviteEmail(params: {
  * their events. This is how members find out - per product call there is no
  * separate "X added you" email, so this line is the only signal.
  */
-export function shareContactsHtml(newSharers: number): string {
-  if (newSharers <= 0) return ''
-  const noun = newSharers === 1 ? 'person is' : 'people are'
+const MAX_NAMED_SHARERS = 3
+
+/** "Dan Cohen, Wendy Shah and 4 others" - the same phrasing in HTML and text,
+ *  so the two versions can never drift. `render` decides how one name is
+ *  drawn. */
+function sharerList(
+  contacts: ContactAttendee[],
+  render: (c: ContactAttendee) => string,
+): string {
+  const named = contacts.slice(0, MAX_NAMED_SHARERS).map(render)
+  const extra = contacts.length - named.length
+  // The overflow count takes the "and" slot, so the names before it are a
+  // plain comma list - otherwise it reads "A, B and C and 4 others".
+  const tail = extra > 0 ? `${extra} ${extra === 1 ? 'other' : 'others'}` : null
+  const parts = tail ? [...named, tail] : named
+  if (parts.length === 1) return parts[0]
+  return `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`
+}
+
+/**
+ * Block naming the people who have started sharing their events with this
+ * member, plus how to share back.
+ *
+ * There is no separate "X added you" email - sharing with an existing member
+ * sends nothing at the time - so this is the only way a member ever learns a
+ * share happened. Hence names rather than a count: a number gives nobody a
+ * reason to look.
+ *
+ * Names only, never an address. A name links to LinkedIn when we have one and
+ * renders as plain text when we don't, matching the MemberName rule used on
+ * every member-to-member surface in the dashboard.
+ */
+export function shareContactsHtml(contacts: ContactAttendee[]): string {
+  if (contacts.length === 0) return ''
+  const verb = contacts.length === 1 ? 'has' : 'have'
+  const names = sharerList(contacts, (c) =>
+    c.linkedin
+      ? `<a href="${escapeHtml(c.linkedin)}" style="color:${C.ink};font-weight:700;text-decoration:underline;text-underline-offset:3px;">${escapeHtml(c.name)}</a>`
+      : `<strong style="color:${C.ink};">${escapeHtml(c.name)}</strong>`,
+  )
   return `
-<p style="font-family:${SANS};font-size:14px;line-height:1.6;color:${C.ink2};margin:20px 0 0;">
-  <strong style="color:${C.ink};">${newSharers} ${noun}</strong> sharing the events they're attending with you &mdash; see them on <a href="${DASHBOARD_LINK}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">your dashboard</a> &rarr;
+<p style="font-family:${SANS};font-size:14px;line-height:1.6;color:${C.ink2};margin:24px 0 0;">
+  ${names} ${verb} started sharing the events they're attending with you &mdash; see them on <a href="${DASHBOARD_LINK}" style="color:${C.accent};text-decoration:underline;text-underline-offset:3px;">your dashboard</a> &rarr;
+</p>
+<p style="font-family:${SANS};font-size:13px;line-height:1.7;color:${C.ink3};margin:8px 0 0;">
+  Want to share back? Mark an event <strong style="color:${C.ink};">Interested</strong> on your dashboard and choose who can see it. Only events you mark Interested are ever shared, and you can change it or turn it off any time.
 </p>
 `.trim()
 }
 
-export function shareContactsTextLine(newSharers: number): string {
-  if (newSharers <= 0) return ''
-  const noun = newSharers === 1 ? 'person is' : 'people are'
-  return `${newSharers} ${noun} sharing the events they're attending with you - see them on your dashboard: ${DASHBOARD_LINK}`
+/** Plain-text twin. Names, no links, no addresses. */
+export function shareContactsTextLines(contacts: ContactAttendee[]): string[] {
+  if (contacts.length === 0) return []
+  const verb = contacts.length === 1 ? 'has' : 'have'
+  const names = sharerList(contacts, (c) => c.name)
+  return [
+    `${names} ${verb} started sharing the events they're attending with you - see them on your dashboard: ${DASHBOARD_LINK}`,
+    `Want to share back? Mark an event Interested on your dashboard and choose who can see it. Only events you mark Interested are ever shared, and you can change it or turn it off any time.`,
+  ]
 }
 
 // ----- Digests -----
@@ -1056,10 +1110,11 @@ export interface DigestPayload {
   // Number of never-rated matches beyond the 7-slot cap. When > 0,
   // a nudge line is appended after the match list.
   lockedCount?: number
-  // Contacts who started sharing the events they're attending since this
-  // user's last digest. There is no separate "X added you" email, so this
-  // line is the only way an existing member learns a share happened.
-  newSharers?: number
+  // People who have started sharing the events they're attending with this
+  // member and have never been named to them. There is no separate "X added
+  // you" email, so this block is the only way an existing member learns a
+  // share happened. Populate from listNewSharersFor.
+  newSharers?: ContactAttendee[]
 }
 
 export function firstNameOrThere(user: AirtableUser): string {
@@ -1226,6 +1281,7 @@ export async function sendApprovedWithDigest(
     ${promo.html}
     ${moreHtml}
     ${coachingHtml}
+    ${shareContactsHtml(payload.newSharers ?? [])}
     ${digestFooterHtml(firstName)}
   `)
 
@@ -1268,6 +1324,8 @@ export async function sendApprovedWithDigest(
   if (coachingTextLines.length) {
     textLines.push(...coachingTextLines, '')
   }
+  const sharersText = shareContactsTextLines(payload.newSharers ?? [])
+  if (sharersText.length) textLines.push(...sharersText, '')
   textLines.push(...digestFooterTextLines(firstName))
   const text = textLines.join('\n')
 
@@ -1338,6 +1396,7 @@ export async function sendLocationUpdatedDigest(
     ${renderEntries(annotated.newEvents, user.id)}
     ${promo.html}
     ${moreHtml}
+    ${shareContactsHtml(payload.newSharers ?? [])}
     ${digestFooterHtml(firstName)}
   `)
 
@@ -1369,6 +1428,8 @@ export async function sendLocationUpdatedDigest(
   appendEntries(annotated.newEvents)
   if (promo.textLines.length) textLines.push(...promo.textLines, '')
   if (moreText) textLines.push(moreText, '')
+  const sharersText = shareContactsTextLines(payload.newSharers ?? [])
+  if (sharersText.length) textLines.push(...sharersText, '')
   textLines.push(...digestFooterTextLines(firstName))
   const text = textLines.join('\n')
 
@@ -1504,7 +1565,7 @@ export async function sendUserDigest(
     ${digestRatingNudgeHtml}
     ${(payload.lockedCount ?? 0) > 0 ? '' : moreHtml}
     ${lockedNudgeHtml}
-    ${shareContactsHtml(payload.newSharers ?? 0)}
+    ${shareContactsHtml(payload.newSharers ?? [])}
     ${digestFooterHtml(firstName)}
   `)
 
@@ -1545,8 +1606,8 @@ export async function sendUserDigest(
   )
   if (!(payload.lockedCount ?? 0) && moreText) textLines.push(moreText, '')
   if (lockedNudgeText) textLines.push(lockedNudgeText, '')
-  const sharersText = shareContactsTextLine(payload.newSharers ?? 0)
-  if (sharersText) textLines.push(sharersText, '')
+  const sharersText = shareContactsTextLines(payload.newSharers ?? [])
+  if (sharersText.length) textLines.push(...sharersText, '')
   textLines.push(...digestFooterTextLines(firstName))
   const text = textLines.join('\n')
 
