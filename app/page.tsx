@@ -7,6 +7,7 @@ import ShareEventTab from '@/components/ShareEventTab'
 import PartnerApplyTab from '@/components/PartnerApplyTab'
 import ViewEventsTab from '@/components/ViewEventsTab'
 import LoginModal from '@/components/LoginModal'
+import MatchOdometer from '@/components/MatchOdometer'
 import AddEventModal from '@/components/AddEventModal'
 import PartnerMarquee from '@/components/PartnerMarquee'
 import { Partner, FeaturedEvent } from '@/lib/airtable'
@@ -619,7 +620,7 @@ function Landing({
             }}
           >
             <span style={{ fontWeight: 700, color: '#c9a86a', marginRight: 5 }}>
-              {matches30.toLocaleString()}
+              <MatchOdometer value={matches30} />
             </span>
             Matches since June 2026
           </p>
