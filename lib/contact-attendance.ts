@@ -141,6 +141,74 @@ export async function getContactAttendance(
   return { inactive: false, byEvent, contacts, events }
 }
 
+export interface NewSharers {
+  /** The people to name, already sorted. Empty when there is nothing to say. */
+  contacts: ContactAttendee[]
+  /** The event_share_contacts row ids behind those names. Stamp these with
+   *  markShareContactsAnnounced AFTER the email sends, never before. */
+  rowIds: string[]
+}
+
+const NO_NEW_SHARERS: NewSharers = { contacts: [], rowIds: [] }
+
+/**
+ * Members who have started sharing with this viewer and have never been named
+ * to them in an email.
+ *
+ * The same three privacy rules as getContactAttendance apply and are applied
+ * the same way - a name is as much a disclosure as an attendance list, so a
+ * deactivated account or a revoked 'everyone' setting must drop out of here
+ * too. Never returns an email address.
+ *
+ * rowIds is returned rather than stamped here because only the sender knows
+ * whether the mail actually went out.
+ */
+export async function listNewSharersFor(
+  viewerEmail: string,
+  viewerFindable?: string,
+): Promise<NewSharers> {
+  // Opted out of receiving: their View Events is empty, so naming people would
+  // point at an empty room. The rows stay unstamped for whenever they switch
+  // back on.
+  if (toFindable(viewerFindable) === 'none') return NO_NEW_SHARERS
+
+  const sharers = (await listSharersFor(viewerEmail)).filter((r) => !r.announcedAt)
+  if (sharers.length === 0) return NO_NEW_SHARERS
+
+  const ownerIds = Array.from(new Set(sharers.map((s) => s.ownerUserId)))
+  const owners = await getUsersByIds(ownerIds)
+
+  const followOwnerIds = new Set(
+    sharers.filter((r) => r.addedVia === 'follow').map((r) => r.ownerUserId),
+  )
+  const deliberateOwnerIds = new Set(
+    sharers.filter((r) => r.addedVia !== 'follow').map((r) => r.ownerUserId),
+  )
+  const visible = owners
+    .filter((u) => u.active)
+    .filter(
+      (u) =>
+        deliberateOwnerIds.has(u.id) ||
+        (followOwnerIds.has(u.id) && toShareVisibility(u.shareVisibility) === 'everyone'),
+    )
+  if (visible.length === 0) return NO_NEW_SHARERS
+
+  const visibleIds = new Set(visible.map((u) => u.id))
+  const contacts = visible
+    .map((u) => ({
+      userId: u.id,
+      name: displayName(u),
+      linkedin: absoluteLinkedin(u.linkedin),
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name))
+
+  // Only the rows we are actually naming. A row whose owner was filtered out
+  // stays unstamped, so it surfaces if they reactivate or re-open sharing.
+  const rowIds = sharers.filter((r) => visibleIds.has(r.ownerUserId)).map((r) => r.id)
+
+  return { contacts, rowIds }
+}
+
 /** event id -> count, for surfaces that show a number rather than names. */
 export function attendanceCounts(a: ContactAttendance): Map<string, number> {
   const counts = new Map<string, number>()

@@ -1646,6 +1646,10 @@ export interface ShareContactRow {
   ownerUserId: string
   contactEmail: string
   invitedAt: string | null
+  /** When this sharer was named to the contact in one of their event emails.
+   *  null means never - which is also true of every row predating the column,
+   *  so they are all correctly in the catch-up set. */
+  announcedAt: string | null
   createdAt: string
   /** How this contact was added.
    *  'email'  - the owner typed the address and already knows it.
@@ -1668,6 +1672,7 @@ function mapShareContact(row: Record<string, unknown>): ShareContactRow {
     ownerUserId: String(row.owner_user_id),
     contactEmail: String(row.contact_email ?? ''),
     invitedAt: (row.invited_at as string | null) ?? null,
+    announcedAt: (row.announced_at as string | null) ?? null,
     createdAt: String(row.created_at ?? ''),
     // Rows predating the column are email-added by definition.
     addedVia:
@@ -1858,6 +1863,27 @@ export async function markShareContactInvited(contactId: string): Promise<void> 
     .update({ invited_at: new Date().toISOString() })
     .eq('id', contactId)
   if (error) console.error('markShareContactInvited failed', { contactId, error })
+}
+
+/**
+ * Ticks off sharers we have just named in someone's event email, so they are
+ * never named again.
+ *
+ * Call this only AFTER the mail has actually gone out. Stamping first would
+ * mean a send that throws silently burns the notice, and those people would
+ * never be mentioned to the recipient at all. Failing to stamp is the safe
+ * direction - at worst a name repeats once - so an error here is logged and
+ * swallowed rather than allowed to fail a digest.
+ */
+export async function markShareContactsAnnounced(contactIds: string[]): Promise<void> {
+  const ids = contactIds.filter(Boolean)
+  if (ids.length === 0) return
+  const supabase = getClient()
+  const { error } = await supabase
+    .from('event_share_contacts')
+    .update({ announced_at: new Date().toISOString() })
+    .in('id', ids)
+  if (error) console.error('markShareContactsAnnounced failed', { count: ids.length, error })
 }
 
 /**

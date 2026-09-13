@@ -1,0 +1,23 @@
+-- "We have named this sharer to the person they're sharing with."
+--
+-- When one member shares their events with another, the recipient is sent
+-- nothing at the time - by design, since they're already on the platform. The
+-- next event email they get is the only way they ever find out, and it should
+-- name who started sharing rather than give a bare count.
+--
+-- That needs a memory: name someone once, not in every digest forever. The old
+-- code derived it by comparing created_at against the member's last digest_sends
+-- row, which quietly lost shares - SEVEN senders write to digest_sends and only
+-- one rendered the notice, so a recap or coaching email landing in between moved
+-- the watermark past a share that had never been mentioned. This column belongs
+-- to the notice itself, so nothing else can consume it.
+--
+-- Per (owner, contact) row rather than per user, because that's the grain of the
+-- thing being announced. Deliberately NOT invited_at: that already means "we
+-- mailed this non-member an invite" and countRecentInvites throttles on it.
+--
+-- null means "never named to the recipient", so every share that exists today
+-- is in the catch-up set and gets named once on the next event email - which
+-- also repairs everyone the old watermark dropped.
+alter table event_share_contacts
+  add column if not exists announced_at timestamptz;

@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 
-// The hero match counter, as a mechanical odometer.
+// The hero match counter, as a mechanical odometer: white wheels, dark digits.
 //
 // `value` is the real all-time notified-match count from /api/match-stats. Each
 // page load anchors the display at value - START_OFFSET and ticks upward from
@@ -11,30 +11,85 @@ import { useEffect, useRef, useState } from 'react'
 // value) is what keeps the number close to reality for anyone arriving at the
 // page, since a long-lived tab will drift above it.
 //
-// Only the digits that actually change animate, so a +1 tick usually rolls just
-// the ones column and a boundary crossing rolls several at once.
+// Only the digits that actually change spin, so a +1 tick usually turns the
+// ones wheel alone and a boundary crossing turns several at once.
 
 const START_OFFSET = 20
 const MIN_GAP_MS = 3000
 const MAX_GAP_MS = 5000
-const ROLL_MS = 400
+// Fast enough that a wheel is never caught resting between two digits. The
+// whole point of the cadence is the pause BETWEEN turns, not during one.
+const ROLL_MS = 320
+
+// Wheel height, in ems of the counter's own font size. Every box in here is
+// pinned to it - height, line-height and the slide distance alike - because the
+// three must agree exactly or the wheel stops mid-digit. The surrounding
+// paragraph sets line-height 1.65, which is what this overrides.
+const H = '1.25em'
+
+interface Reading {
+  value: number
+  /** The formatted number we were showing before this tick, to spin up from. */
+  prevText: string
+}
+
+function Wheel({ from, to, spinKey }: { from: string | null; to: string; spinKey: number }) {
+  const cell = {
+    display: 'block',
+    height: H,
+    lineHeight: H,
+    textAlign: 'center' as const,
+  }
+  return (
+    <span
+      style={{
+        display: 'inline-block',
+        height: H,
+        lineHeight: H,
+        overflow: 'hidden',
+        verticalAlign: 'top',
+        minWidth: '0.68em',
+        background: '#fdfcfa',
+        color: '#1b1814',
+        borderRadius: 2,
+        margin: '0 0.5px',
+        boxShadow: 'inset 0 -2px 3px rgba(0,0,0,0.18), inset 0 2px 3px rgba(0,0,0,0.10)',
+      }}
+    >
+      {/* A wheel that didn't change renders one static cell. Giving it a stack
+          too would replay the keyframe and spin it from a digit to itself. */}
+      {from === null ? (
+        <span style={cell}>{to}</span>
+      ) : (
+        // Remounting restarts the animation - a changed key is the only
+        // reliable way to replay a CSS keyframe.
+        <span key={spinKey} className="odo-stack" style={{ display: 'block' }}>
+          <span style={cell}>{from}</span>
+          <span style={cell}>{to}</span>
+        </span>
+      )}
+    </span>
+  )
+}
 
 export default function MatchOdometer({ value }: { value: number }) {
-  const [display, setDisplay] = useState(() => Math.max(value - START_OFFSET, 0))
-  // The string we last rendered, so a tick can diff old glyphs against new.
-  // A ref rather than state: it must update in the same commit as `display`
-  // without scheduling a second render.
-  const prevRef = useRef<string>(Math.max(value - START_OFFSET, 0).toLocaleString())
+  const anchor = Math.max(value - START_OFFSET, 0)
+  // One piece of state, so the outgoing digits are always exactly the ones we
+  // last painted. Deriving `prev` during render instead would mutate on every
+  // pass React happens to make.
+  const [reading, setReading] = useState<Reading>(() => ({
+    value: anchor,
+    prevText: anchor.toLocaleString(),
+  }))
 
   useEffect(() => {
     const start = Math.max(value - START_OFFSET, 0)
-    setDisplay(start)
-    prevRef.current = start.toLocaleString()
+    setReading({ value: start, prevText: start.toLocaleString() })
 
     let timer: ReturnType<typeof setTimeout>
     const schedule = () => {
       timer = setTimeout(() => {
-        setDisplay((n) => n + 1)
+        setReading((r) => ({ value: r.value + 1, prevText: r.value.toLocaleString() }))
         schedule()
       }, MIN_GAP_MS + Math.random() * (MAX_GAP_MS - MIN_GAP_MS))
     }
@@ -42,42 +97,38 @@ export default function MatchOdometer({ value }: { value: number }) {
     return () => clearTimeout(timer)
   }, [value])
 
-  const text = display.toLocaleString()
-  const prev = prevRef.current
-  prevRef.current = text
+  const text = reading.value.toLocaleString()
+  const prev = reading.prevText
 
   return (
-    <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+    <span style={{ display: 'inline-block', fontVariantNumeric: 'tabular-nums', lineHeight: H }}>
       {text.split('').map((ch, i) => {
-        // Compare from the right: leading digits keep their meaning when the
-        // number gains a character, so a rollover doesn't animate every column.
-        const from = prev[prev.length - text.length + i]
-        if (from === undefined || from === ch) return <span key={i}>{ch}</span>
-        return (
-          <span
-            key={i}
-            className="odo-window"
-            // Keying the stack on the pair restarts the CSS animation each time
-            // this position changes.
-            style={{ display: 'inline-block', height: '1em', overflow: 'hidden', verticalAlign: 'bottom' }}
-          >
-            <span key={`${from}-${ch}`} className="odo-stack" style={{ display: 'block' }}>
-              <span style={{ display: 'block', height: '1em' }}>{from}</span>
-              <span style={{ display: 'block', height: '1em' }}>{ch}</span>
+        // Commas aren't wheels - a real odometer has none, and boxing them
+        // would read as a digit.
+        if (ch === ',') {
+          return (
+            <span key={i} style={{ display: 'inline-block', height: H, lineHeight: H, verticalAlign: 'top', margin: '0 0.5px' }}>
+              ,
             </span>
-          </span>
-        )
+          )
+        }
+        // Compare from the right, so gaining a digit doesn't spin every wheel.
+        const from = prev[prev.length - text.length + i]
+        const changed = from !== undefined && from !== ch
+        return <Wheel key={i} from={changed ? from : null} to={ch} spinKey={reading.value} />
       })}
       <style>{`
         @keyframes odo-roll {
           from { transform: translateY(0); }
-          to   { transform: translateY(-1em); }
+          to   { transform: translateY(-${H}); }
         }
         .odo-stack {
-          animation: odo-roll ${ROLL_MS}ms cubic-bezier(0.2, 0.8, 0.3, 1) both;
+          /* forwards, and an ease that spends no time near either end: a wheel
+             is either turning or settled, never loitering half-way. */
+          animation: odo-roll ${ROLL_MS}ms cubic-bezier(0.45, 0.05, 0.2, 1) forwards;
         }
         @media (prefers-reduced-motion: reduce) {
-          .odo-stack { animation: none; transform: translateY(-1em); }
+          .odo-stack { animation: none; transform: translateY(-${H}); }
         }
       `}</style>
     </span>
