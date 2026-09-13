@@ -172,6 +172,52 @@ export async function notifyInviteThrottle(params: {
   await postSlack(lines.join('\n'))
 }
 
+/**
+ * Someone shared their events with someone else.
+ *
+ * Fires once per NEWLY created share - addShareContact reports `created`, and
+ * re-adding an existing contact returns false, so toggling a chip doesn't
+ * generate noise. No cooldown otherwise: unlike the invite-throttle alert,
+ * every one of these is a real event worth seeing.
+ *
+ * Reports both dimensions that are hard to reconstruct afterwards: HOW they
+ * were added (typed an address vs picked from name search) and WHERE it
+ * happened (signup finish screen vs dashboard), since only the calling route
+ * knows the latter.
+ */
+export async function notifyEventShare(params: {
+  ownerUserId: string
+  ownerName?: string | null
+  ownerEmail: string
+  ownerLinkedin?: string | null
+  contactEmail: string
+  /** 'follow' is the inverse: the CONTACT added themselves because the owner
+   *  is set to share with everyone. */
+  method: 'email' | 'member' | 'follow'
+  source: 'signup' | 'dashboard'
+}): Promise<void> {
+  const where = params.source === 'signup' ? 'in the signup flow' : 'from the dashboard'
+  const how =
+    params.method === 'member'
+      ? `looked up by name · ${where}`
+      : params.method === 'follow'
+        ? `followed them — their events are set to Everyone · ${where}`
+        : `added by email · ${where}`
+
+  const lines: string[] = [
+    params.method === 'follow' ? '*Event follow*' : '*Event share*',
+    `*Member* ${formatPerson({
+      name: params.ownerName,
+      email: params.ownerEmail,
+      linkedin: params.ownerLinkedin,
+    })}`,
+    `*Shared with* ${params.contactEmail}`,
+    `*How* ${how}`,
+    `${APP_URL}/admin/users/${params.ownerUserId}`,
+  ]
+  await postSlack(lines.join('\n'))
+}
+
 // Field-name display labels for profile + event change messages. Keeps the
 // Slack message readable (e.g. "Company Size" instead of "companySize").
 const PROFILE_FIELD_LABELS: Record<string, string> = {

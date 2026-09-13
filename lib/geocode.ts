@@ -124,6 +124,52 @@ function recordSuccess(name: string): void {
   providerHealth.set(name, { failures: 0, skipUntil: 0 })
 }
 
+/**
+ * Geocode, reporting WHY a lookup came back empty.
+ *
+ * geocodeLocation collapses two very different outcomes into null: "every
+ * provider answered and none of them know this place" (a bad address) and
+ * "no provider could be reached" (an outage). Callers that validate user input
+ * need to tell those apart - pushing back on a typo is right, refusing a
+ * signup because Nominatim is down is not.
+ */
+export async function geocodeLocationDetailed(
+  text: string,
+): Promise<{ coords: LatLng | null; providersAnswered: boolean }> {
+  if (!text) return { coords: null, providersAnswered: true }
+  const key = text.trim().toLowerCase()
+  if (!key) return { coords: null, providersAnswered: true }
+  // A cached entry is by definition the result of a lookup that worked -
+  // geocodeLocation only memoizes a miss when a provider actually answered.
+  if (cache.has(key)) return { coords: cache.get(key)!, providersAnswered: true }
+
+  const query = expandStateAbbr(text.trim())
+  let allProvidersFailed = true
+
+  for (const provider of PROVIDERS) {
+    if (isSkipped(provider.name)) continue
+    await throttle()
+    try {
+      const result = await provider.lookup(query)
+      recordSuccess(provider.name)
+      allProvidersFailed = false
+      if (result) {
+        cache.set(key, result)
+        return { coords: result, providersAnswered: true }
+      }
+    } catch (err) {
+      recordFailure(provider.name)
+      console.warn(
+        `geocodeLocationDetailed: ${provider.name} failed for "${text}":`,
+        err instanceof Error ? err.message : String(err),
+      )
+    }
+  }
+
+  if (!allProvidersFailed) cache.set(key, null)
+  return { coords: null, providersAnswered: !allProvidersFailed }
+}
+
 export async function geocodeLocation(text: string): Promise<LatLng | null> {
   if (!text) return null
   const key = text.trim().toLowerCase()

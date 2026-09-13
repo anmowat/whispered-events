@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { NEARBY_RADIUS_MILES } from '@/lib/matching'
+import { geocodeLocationDetailed } from '@/lib/geocode'
 
 // Quality check for user-entered locations at signup + dashboard edit.
 // Catches three failure modes the downstream Nominatim geocoder will
@@ -24,6 +25,43 @@ interface CheckResponse {
   ok: boolean
   message?: string
   suggestion?: string
+  /** Set when the geocoder itself could not find the place. The UI must NOT
+   *  offer a "keep what you wrote" override in that case - forcing an
+   *  un-geocodable location through is exactly the bug this check exists to
+   *  stop, since matching is radius-based and silently does nothing without
+   *  coordinates. */
+  hardFail?: boolean
+}
+
+/**
+ * The authoritative check: can the geocoder actually place this?
+ *
+ * The LLM pass below judges whether the STRING looks clean. That is a
+ * different question, and it is why locations were reaching the database
+ * without coordinates - Claude approved the text, then Nominatim failed later
+ * with nobody watching. Only the geocoder can answer this one.
+ */
+async function geocodeCheck(location: string): Promise<CheckResponse> {
+  const { coords, providersAnswered } = await geocodeLocationDetailed(location)
+  if (coords) return { ok: true }
+
+  if (!providersAnswered) {
+    // Every provider was unreachable. Let them through: an outage must not
+    // halt signups. The row lands without coordinates and shows up in admin,
+    // which is recoverable; a blocked signup is not.
+    console.error(
+      'check-location: all geocode providers failed, accepting unverified location',
+      { location },
+    )
+    return { ok: true }
+  }
+
+  // Providers answered and none of them know this place.
+  return {
+    ok: false,
+    hardFail: true,
+    message: `We couldn't find "${location}" on the map, so we wouldn't be able to match you to nearby events. Could you give a city — for example "San Francisco, CA"?`,
+  }
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse<CheckResponse>> {
@@ -113,10 +151,17 @@ When ok=false, the message should be one short friendly sentence. Be helpful, no
         suggestion: suggestion || undefined,
       })
     }
-    return NextResponse.json({ ok: true })
+    // The string reads clean — now find out whether it actually geocodes.
+    return NextResponse.json(await geocodeCheck(location))
   } catch (err) {
     console.error('check-location: LLM call failed:', err)
-    // Fail open — never block a save on a flaky API.
-    return NextResponse.json({ ok: true })
+    // The LLM is optional; the geocoder is not. Fall through to it rather than
+    // failing fully open, which is how un-geocodable locations got saved.
+    try {
+      return NextResponse.json(await geocodeCheck(location))
+    } catch (geoErr) {
+      console.error('check-location: geocode also failed:', geoErr)
+      return NextResponse.json({ ok: true })
+    }
   }
 }

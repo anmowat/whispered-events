@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { verifySession, addShareContact, removeFollow } from '@/lib/supabase'
 import { getUserById } from '@/lib/users'
 import { toShareVisibility } from '@/lib/types'
+import { waitUntil } from '@vercel/functions'
+import { notifyEventShare } from '@/lib/slack'
 
 // Follow a member who opted into share_visibility = 'everyone'.
 //
@@ -48,7 +50,23 @@ export async function POST(req: NextRequest) {
 
     // owner = the person being followed, contact = me. No invite mail: the
     // target is a member by definition, and the follower is the one acting.
-    await addShareContact(target.id, session.email, 'follow')
+    const { created } = await addShareContact(target.id, session.email, 'follow')
+
+    if (created) {
+      // Reported against the OWNER, since it's their events that just became
+      // visible to someone new - even though the follower took the action.
+      waitUntil(
+        notifyEventShare({
+          ownerUserId: target.id,
+          ownerName: target.name,
+          ownerEmail: target.email,
+          ownerLinkedin: target.linkedin,
+          contactEmail: session.email,
+          method: 'follow',
+          source: 'dashboard',
+        }).catch((e) => console.error('dashboard/follow: notifyEventShare failed', e)),
+      )
+    }
     return NextResponse.json({ ok: true })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)

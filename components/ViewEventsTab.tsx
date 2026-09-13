@@ -14,7 +14,6 @@ import {
 
 type Step =
   | 'email'
-  | 'learn'
   | 'interest'
   | 'location'
   | 'linkedin'
@@ -49,8 +48,6 @@ const SEARCHING_NOTE =
 const QUESTIONS: Record<Step, string> = {
   email:
     "Welcome! Let's get started.\n\n**What's your email address?**\n\nWe use this only to send you events — nothing else.",
-  learn:
-    "👀 **How did you learn about Whispered events?**\n\nKnowing who pointed you our way — the community, partner, post or friend — helps us connect more people with great events.",
   location:
     "**What city are you based in?**\n\nWe'll send events in your metro area (closer to you match higher).\n\nUpdate your location any time you travel!",
   linkedin:
@@ -83,7 +80,6 @@ const EMPTY_PROFILE: UserProfile = {
 function profileField(step: Step): keyof UserProfile | null {
   const map: Partial<Record<Step, keyof UserProfile>> = {
     email: 'email',
-    learn: 'learn',
     location: 'location',
     linkedin: 'linkedin',
     interest: 'interest',
@@ -97,7 +93,6 @@ function profileField(step: Step): keyof UserProfile | null {
 function nextStep(current: Step, value: string): Step | null {
   const order: Step[] = [
     'email',
-    'learn',
     'interest',
     'location',
     'linkedin',
@@ -118,16 +113,15 @@ function nextStep(current: Step, value: string): Step | null {
 // progress reads as one logical step regardless of whether Size shows.
 const STEP_INDEX: Record<Step, number> = {
   email: 1,
-  learn: 2,
-  interest: 3,
-  location: 4,
-  linkedin: 5,
-  employment: 6,
-  size: 6,
-  frequency: 7,
-  submitted: 7,
+  interest: 2,
+  location: 3,
+  linkedin: 4,
+  employment: 5,
+  size: 5,
+  frequency: 6,
+  submitted: 6,
 }
-const TOTAL_STEPS = 7
+const TOTAL_STEPS = 6
 
 export default function ViewEventsTab({
   eventCount = 0,
@@ -163,6 +157,14 @@ export default function ViewEventsTab({
   // pendingLocationOverride holds the original text so the user can
   // dismiss the nudge; pendingLocationSuggestion is the cleaned value
   // we offer as a one-click correction (typo fix / noise stripped).
+  // Returned by submit-profile. Authorises the contact writes below, since
+  // there's no session at this point - the member is Pending until approved.
+  const [signupToken, setSignupToken] = useState<string | null>(null)
+  const [shareEmail, setShareEmail] = useState('')
+  const [shareContacts, setShareContacts] = useState<string[]>([])
+  const [shareBusy, setShareBusy] = useState(false)
+  const [shareError, setShareError] = useState<string | null>(null)
+
   const [pendingLocationOverride, setPendingLocationOverride] = useState<string | null>(null)
   const [pendingLocationSuggestion, setPendingLocationSuggestion] = useState<string | null>(null)
 
@@ -219,18 +221,6 @@ export default function ViewEventsTab({
     const val = (value ?? input).trim()
     if (!val) return
     setInput('')
-    if (step === 'learn') {
-      // Required field — we want this for attribution. Reject empties
-      // and the typical 'skip'/'none' bypass we accept everywhere else.
-      const lower = val.toLowerCase()
-      if (!val || lower === 'skip' || lower === 'none') {
-        setAssistantContent(
-          `Please share how you heard about us — even a few words is enough.\n\n${QUESTIONS['learn']}`,
-        )
-        setInput(val)
-        return
-      }
-    }
     if (step === 'linkedin' && !val.includes('linkedin.com')) {
       setAssistantContent(
         `Please share your LinkedIn profile URL (e.g. https://linkedin.com/in/yourname).\n\n${QUESTIONS['linkedin']}`,
@@ -256,8 +246,20 @@ export default function ViewEventsTab({
           ok?: boolean
           message?: string
           suggestion?: string
+          hardFail?: boolean
         }
         if (data.ok === false && data.message) {
+          // hardFail means the geocoder itself couldn't place it. No override
+          // button: letting someone force an un-geocodable location through
+          // would silently break their matching, which is the whole reason
+          // this check exists.
+          if (data.hardFail) {
+            setAssistantContent(data.message)
+            setInput(val)
+            setPendingLocationOverride(null)
+            setPendingLocationSuggestion(null)
+            return
+          }
           setAssistantContent(
             `${data.message}\n\nUse the suggestion below, or keep what you wrote.`,
           )
@@ -328,6 +330,54 @@ export default function ViewEventsTab({
     advance(step, val, prelude)
   }
 
+  async function addShareContact() {
+    const value = shareEmail.trim()
+    if (!value || !signupToken || shareBusy) return
+    setShareBusy(true)
+    setShareError(null)
+    try {
+      const res = await fetch('/api/signup/contacts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: signupToken, email: value }),
+      })
+      const data = (await res.json()) as { contacts?: string[]; error?: string }
+      if (!res.ok) {
+        setShareError(data.error || 'Could not add that contact.')
+        return
+      }
+      setShareContacts(data.contacts ?? [])
+      setShareEmail('')
+    } catch {
+      setShareError('Could not add that contact.')
+    } finally {
+      setShareBusy(false)
+    }
+  }
+
+  async function removeShareContact(email: string) {
+    if (!signupToken || shareBusy) return
+    setShareBusy(true)
+    setShareError(null)
+    try {
+      const res = await fetch('/api/signup/contacts', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: signupToken, email }),
+      })
+      const data = (await res.json()) as { contacts?: string[]; error?: string }
+      if (!res.ok) {
+        setShareError(data.error || 'Could not remove that contact.')
+        return
+      }
+      setShareContacts(data.contacts ?? [])
+    } catch {
+      setShareError('Could not remove that contact.')
+    } finally {
+      setShareBusy(false)
+    }
+  }
+
   async function handleSubmit(submittedProfile: UserProfile) {
     setIsSubmitting(true)
     setStep('submitted')
@@ -338,10 +388,15 @@ export default function ViewEventsTab({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ profile: submittedProfile }),
       })
-      const data = (await res.json()) as { status?: string; error?: string }
+      const data = (await res.json()) as {
+        status?: string
+        error?: string
+        signupToken?: string
+      }
       if (!res.ok) throw new Error(data.error || 'Submission failed')
+      if (data.signupToken) setSignupToken(data.signupToken)
       setAssistantContent(
-        `You're all set. As long as your LinkedIn checks out, you're approved — we'll send matching events to ${submittedProfile.email}.\n\nLove what we are doing? Tag [Whispered Events](https://www.linkedin.com/company/whispered-events/about/?viewAsMember=true) on a LinkedIn post to help us grow.`,
+        `You're all set. As long as your LinkedIn checks out, you're approved — we'll send matching events to ${submittedProfile.email}.`,
       )
     } catch (err) {
       setStep('frequency')
@@ -502,6 +557,118 @@ export default function ViewEventsTab({
             labelOf={displayFrequency}
             onPick={(opt) => handleSend(opt)}
           />
+        )}
+
+        {/* Sharing, offered on the finish screen rather than as a step: the
+            profile is already saved, so there is nothing to abandon and no
+            reason to make anyone pass through it. Email only - name search
+            stays behind a session on the dashboard. */}
+        {step === 'submitted' && signupToken && (
+          <div
+            className="mt-4 pt-4 border-t animate-slide-up"
+            style={{ borderColor: 'var(--rule)' }}
+          >
+            <p className="m-0 font-semibold" style={{ color: 'var(--accent)' }}>
+              See/Share Events with your contacts
+            </p>
+            <p className="m-0 mt-1.5" style={{ fontSize: 14, lineHeight: 1.6 }}>
+              Share which events you&rsquo;re attending with select contacts — and see which
+              events they&rsquo;re attending.
+            </p>
+
+            <div className="mt-3 flex items-center gap-2">
+              <input
+                type="text"
+                inputMode="email"
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="none"
+                spellCheck={false}
+                name="whispered-signup-contact"
+                data-1p-ignore
+                data-lpignore="true"
+                data-bwignore
+                data-form-type="other"
+                value={shareEmail}
+                disabled={shareBusy}
+                placeholder="name@company.com"
+                onChange={(e) => setShareEmail(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    void addShareContact()
+                  }
+                }}
+                className="flex-1 rounded-input border px-3 py-2 text-[13px] focus:outline-none transition-colors"
+                style={{
+                  backgroundColor: 'var(--paper-2)',
+                  borderColor: 'var(--rule)',
+                  color: 'var(--ink)',
+                }}
+              />
+              <button
+                onClick={() => void addShareContact()}
+                disabled={shareBusy || !shareEmail.trim()}
+                className="shrink-0 px-4 py-2 rounded-pill text-[13px] font-medium text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                style={{ background: 'var(--accent)' }}
+              >
+                Add
+              </button>
+            </div>
+
+            {shareError && (
+              <p className="m-0 mt-2" style={{ fontSize: 13, color: 'var(--accent)' }}>
+                {shareError}
+              </p>
+            )}
+
+            {shareContacts.length > 0 && (
+              <div className="mt-2.5 flex flex-wrap gap-2">
+                {shareContacts.map((email) => (
+                  <span
+                    key={email}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-pill border"
+                    style={{
+                      borderColor: 'var(--rule)',
+                      background: 'var(--paper-2)',
+                      fontSize: 13,
+                      color: 'var(--ink)',
+                    }}
+                  >
+                    {email}
+                    <button
+                      onClick={() => void removeShareContact(email)}
+                      disabled={shareBusy}
+                      aria-label={`Remove ${email}`}
+                      className="leading-none disabled:opacity-40"
+                      style={{ color: 'var(--ink-3)' }}
+                    >
+                      &times;
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+
+            <p className="m-0 mt-2.5" style={{ fontSize: 13, color: 'var(--ink-3)' }}>
+              We&rsquo;ll share your events with them once you are approved. You can add more at
+              anytime on your Dashboard.
+            </p>
+
+            {/* Only once they've actually added someone - explaining the rules
+                to a person who skipped would be noise on a finish screen. */}
+            {shareContacts.length > 0 && (
+              <div className="mt-3 space-y-1.5" style={{ fontSize: 13, color: 'var(--ink-2)' }}>
+                <p className="m-0">
+                  • They&rsquo;ll only see events you mark <strong>Interested</strong> — rating is
+                  what drives this. It also unlocks more matches and teaches the algorithm what
+                  fits you.
+                </p>
+                <p className="m-0">• They can share the events they&rsquo;re attending with you too.</p>
+                <p className="m-0">• Change or turn off sharing any time from your dashboard.</p>
+              </div>
+            )}
+          </div>
         )}
 
         {step === 'submitted' && onReturnHome && (

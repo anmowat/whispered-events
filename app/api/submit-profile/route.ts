@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { signSignupToken } from '@/lib/signup-token'
 import { waitUntil } from '@vercel/functions'
 import { createProfile } from '@/lib/airtable'
 import { sendUserAppliedEmail } from '@/lib/email'
@@ -86,7 +87,10 @@ export async function POST(req: NextRequest) {
 
     // Match runs are kicked off by the team via the Airtable `Match` checkbox
     // after the user is enriched (Grade, Function, Seniority).
-    return NextResponse.json({ status: 'created', id })
+    // The signed token lets the finish screen add sharing contacts. There is no
+    // session at this point - the member is Pending - so this is what proves
+    // the caller just completed signup as this user. Expires in 30 minutes.
+    return NextResponse.json({ status: 'created', id, signupToken: signSignupToken(id) })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     console.error('submit-profile error:', message)

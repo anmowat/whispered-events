@@ -14,7 +14,7 @@ import {
 import { getUserByEmail, getUserById } from '@/lib/users'
 import { getFutureEventsByIds } from '@/lib/events'
 import { sendShareInviteEmail } from '@/lib/email'
-import { notifyInviteThrottle } from '@/lib/slack'
+import { notifyInviteThrottle, notifyEventShare } from '@/lib/slack'
 import { absoluteLinkedin } from '@/lib/url'
 import { toFindable, toShareVisibility } from '@/lib/types'
 
@@ -146,6 +146,21 @@ export async function POST(req: NextRequest) {
     // like. Sharing with an existing member sends no mail at all, so there is
     // nothing to rate-limit there.
     const { contact, created } = await addShareContact(session.userId, email, addedVia)
+
+    if (created) {
+      const sharer = await getUserByEmail(session.email)
+      waitUntil(
+        notifyEventShare({
+          ownerUserId: session.userId,
+          ownerName: sharer?.name,
+          ownerEmail: session.email,
+          ownerLinkedin: sharer?.linkedin,
+          contactEmail: email,
+          method: addedVia,
+          source: 'dashboard',
+        }).catch((e) => console.error('dashboard/contacts: notifyEventShare failed', e)),
+      )
+    }
 
     // Members already on Whispered are told in their next digest, so nothing
     // is sent here. Non-members get one invite, ever - invited_at survives a
