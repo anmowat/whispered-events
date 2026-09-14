@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifySession, getMatchScoresForUser } from '@/lib/supabase'
+import { verifySession, getMatchScoresForUser, listShareContacts } from '@/lib/supabase'
 import { getFutureEvents } from '@/lib/events'
 import { getUserByEmail } from '@/lib/users'
 import { getContactAttendance, attendanceCounts } from '@/lib/contact-attendance'
@@ -43,12 +43,27 @@ export async function GET(req: NextRequest) {
   // indexed query for the overwhelming majority of members, who have nobody
   // sharing with them and short-circuit immediately.
   let attendance = new Map<string, number>()
+  // The two counts shown beside the sharing rows on the profile card. Both
+  // come from the readers that back the MODALS, so the number on the row is
+  // always the number you see when you open it - a raw row count would include
+  // deactivated owners and revoked follows and read as broken.
+  let sharedWithMeCount = 0
+  let sharingWithCount = 0
   try {
     const me = await getUserByEmail(session.email)
-    attendance = attendanceCounts(await getContactAttendance(session.email, me?.findable))
+    const contactAttendance = await getContactAttendance(session.email, me?.findable)
+    attendance = attendanceCounts(contactAttendance)
+    // Already computed above - free. Empty for findable='none', which is what
+    // makes the count disappear for members who opted out of receiving.
+    sharedWithMeCount = contactAttendance.contacts.length
   } catch (err) {
     // A soft signal must never take the dashboard down with it.
     console.error('dashboard/events: contact attendance failed', err)
+  }
+  try {
+    sharingWithCount = (await listShareContacts(session.userId)).length
+  } catch (err) {
+    console.error('dashboard/events: share contact count failed', err)
   }
 
   const withScores = futureEvents.map((e) => {
@@ -89,5 +104,5 @@ export async function GET(req: NextRequest) {
   const lockedCount = showAll ? 0 : Math.max(0, neverRated.length - ENGAGEMENT_CAP)
 
   const events = [...everRated, ...cappedUnrated].sort((a, b) => a.date.localeCompare(b.date))
-  return NextResponse.json({ events, lockedCount })
+  return NextResponse.json({ events, lockedCount, sharingWithCount, sharedWithMeCount })
 }

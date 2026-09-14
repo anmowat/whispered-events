@@ -88,6 +88,10 @@ export default function DashboardPage() {
   const [user, setUser] = useState<DashboardUser | null>(null)
   const [events, setEvents] = useState<DashboardEvent[]>([])
   const [lockedCount, setLockedCount] = useState(0)
+  // Shown beside the Edit / View buttons on the two sharing rows. Loaded with
+  // the main events payload, which already computes one of them.
+  const [sharingWithCount, setSharingWithCount] = useState(0)
+  const [sharedWithMeCount, setSharedWithMeCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [editingBio, setEditingBio] = useState(false)
   const [editingTopics, setEditingTopics] = useState(false)
@@ -157,8 +161,15 @@ export default function DashboardPage() {
       try {
         const res = await fetch('/api/dashboard/events')
         if (!res.ok) return
-        const data = (await res.json()) as { events: DashboardEvent[]; lockedCount?: number }
+        const data = (await res.json()) as {
+          events: DashboardEvent[]
+          lockedCount?: number
+          sharingWithCount?: number
+          sharedWithMeCount?: number
+        }
         setLockedCount(data.lockedCount ?? 0)
+        setSharingWithCount(data.sharingWithCount ?? 0)
+        setSharedWithMeCount(data.sharedWithMeCount ?? 0)
         setEvents((prev) => {
           const seen = new Set(prev.map((e) => e.id))
           const additions = data.events.filter((e) => !seen.has(e.id))
@@ -191,9 +202,16 @@ export default function DashboardPage() {
 
       const eventsRes = await fetch('/api/dashboard/events')
       if (eventsRes.ok) {
-        const eventsData = (await eventsRes.json()) as { events: DashboardEvent[]; lockedCount?: number }
+        const eventsData = (await eventsRes.json()) as {
+          events: DashboardEvent[]
+          lockedCount?: number
+          sharingWithCount?: number
+          sharedWithMeCount?: number
+        }
         setEvents(eventsData.events)
         setLockedCount(eventsData.lockedCount ?? 0)
+        setSharingWithCount(eventsData.sharingWithCount ?? 0)
+        setSharedWithMeCount(eventsData.sharedWithMeCount ?? 0)
       }
       setLoading(false)
     }
@@ -392,6 +410,11 @@ export default function DashboardPage() {
                 description="Allow select contacts to see events you are planning to attend"
                 icon={<svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden><path d="M11.5 5.5a2.5 2.5 0 1 0-2.45-3L5.9 4.2a2.5 2.5 0 1 0 0 3.6l3.15 1.7a2.5 2.5 0 1 0 .5-.9L6.4 6.9a2.5 2.5 0 0 0 0-1.8l3.15-1.7c.45.67 1.22 1.1 2.05 1.1z"/></svg>}
                 onEdit={() => setSharingContacts(true)}
+                count={
+                  sharingWithCount > 0
+                    ? `${sharingWithCount} contact${sharingWithCount === 1 ? '' : 's'}`
+                    : undefined
+                }
               />
               {/* Reads "Activate" when the member has opted out of receiving:
                   opening the view would show an empty room, so the button
@@ -404,6 +427,10 @@ export default function DashboardPage() {
                   findable === 'none' ? setEditingPrivacy(true) : setViewingContactEvents(true)
                 }
                 actionLabel={findable === 'none' ? 'Activate' : 'View'}
+                // Empty for findable='none' by way of getContactAttendance, so
+                // someone who opted out of receiving isn't told what they're
+                // missing - consistent with every other surface.
+                count={sharedWithMeCount > 0 ? `${sharedWithMeCount} sharing` : undefined}
               />
               <ProfileSubRow
                 title="Privacy"
@@ -523,7 +550,12 @@ export default function DashboardPage() {
           }}
         />
       )}
-      {sharingContacts && <ShareContactsModal onClose={() => setSharingContacts(false)} />}
+      {sharingContacts && (
+        <ShareContactsModal
+          onClose={() => setSharingContacts(false)}
+          onCountChange={setSharingWithCount}
+        />
+      )}
       {viewingContactEvents && (
         <ContactEventsModal onClose={() => setViewingContactEvents(false)} />
       )}
@@ -839,12 +871,17 @@ function ProfileSubRow({
   icon,
   onEdit,
   actionLabel = 'Edit',
+  count,
 }: {
   title: string
   description: string
   icon?: React.ReactNode
   onEdit: () => void
   actionLabel?: string
+  /** Short status shown left of the button, e.g. "12 contacts". Callers pass
+   *  undefined at zero rather than "0 contacts" - a card of zeroes reads as
+   *  failure rather than as a new account. */
+  count?: string
 }) {
   return (
     <div className="flex justify-between items-center gap-4">
@@ -860,13 +897,18 @@ function ProfileSubRow({
         <span style={{ fontWeight: 500, color: 'var(--ink)' }}>{title}</span>
         <span style={{ fontSize: 15, color: 'var(--ink-3)' }}>{description}</span>
       </p>
-      <button
-        onClick={onEdit}
-        className="eyebrow shrink-0 underline"
-        style={{ color: 'var(--accent)', textUnderlineOffset: 3 }}
-      >
-        {actionLabel}
-      </button>
+      <div className="flex items-center gap-3 shrink-0">
+        {count && (
+          <span style={{ fontSize: 14, color: 'var(--ink-3)' }}>{count}</span>
+        )}
+        <button
+          onClick={onEdit}
+          className="eyebrow underline"
+          style={{ color: 'var(--accent)', textUnderlineOffset: 3 }}
+        >
+          {actionLabel}
+        </button>
+      </div>
     </div>
   )
 }
@@ -1819,7 +1861,16 @@ function MemberName({
  * Writes land immediately (each add and remove is its own request), hence the
  * Done-only footer - there is no draft to cancel.
  */
-function ShareContactsModal({ onClose }: { onClose: () => void }) {
+function ShareContactsModal({
+  onClose,
+  onCountChange,
+}: {
+  onClose: () => void
+  /** Keeps the count on the profile row in step with what's in here. Every
+   *  add and remove writes immediately, so reporting the length is exact and
+   *  saves the page a refetch on close. */
+  onCountChange?: (count: number) => void
+}) {
   const [contacts, setContacts] = useState<ShareContact[]>([])
   const [sharing, setSharing] = useState<SharingEvent[]>([])
   const [email, setEmail] = useState('')
@@ -1835,8 +1886,12 @@ function ShareContactsModal({ onClose }: { onClose: () => void }) {
     contacts?: ShareContact[]
     sharing?: SharingEvent[]
   }) {
-    setContacts(data.contacts ?? [])
+    const next = data.contacts ?? []
+    setContacts(next)
     setSharing(data.sharing ?? [])
+    // Only ever called with a server response, so this never reports the
+    // pre-load empty state to the page.
+    onCountChange?.(next.length)
   }
 
   useEffect(() => {

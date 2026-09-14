@@ -15,19 +15,26 @@ import { useEffect, useState } from 'react'
 // ones wheel alone and a boundary crossing turns several at once.
 
 const START_OFFSET = 20
-// Mean gap between ticks. The gap itself is drawn from an exponential
-// distribution - the arrival time of a Poisson process, which is what random
-// events actually turning up looks like - so ticks cluster and then lull on
-// their own. A uniform range can't do that: its hard floor means two ticks can
-// never land close together, which reads as a metronome.
-const MEAN_GAP_MS = 3000
+// How long between ticks. Two clocks rather than one: most of the time a fast
+// one, and now and then a slow one, each drawing an exponential gap (the
+// arrival time of a Poisson process - what random events turning up actually
+// look like). A single distribution has a fixed spread and settles into an
+// average rhythm; mixing two means a run of ticks half a second apart can be
+// followed by twenty seconds of nothing, which is the point.
+//
+// 65% at a 1.2s mean and 35% at a 13.2s mean gives an overall mean of 5.0s,
+// measured over 400k samples: ~40% of gaps under a second, ~15% over ten.
+const P_FAST = 0.65
+const FAST_MEAN_MS = 1200
+const SLOW_MEAN_MS = 13200
 // Floor sits above ROLL_MS so a burst can never restart a wheel mid-turn.
 const MIN_GAP_MS = 400
-// The exponential tail is unbounded; cap it so a long lull never looks broken.
-const MAX_GAP_MS = 15000
+// The exponential tail is unbounded; cap it so a lull never looks broken.
+const MAX_GAP_MS = 30000
 
 function nextGapMs(): number {
-  const gap = -MEAN_GAP_MS * Math.log(1 - Math.random())
+  const mean = Math.random() < P_FAST ? FAST_MEAN_MS : SLOW_MEAN_MS
+  const gap = -mean * Math.log(1 - Math.random())
   return Math.min(Math.max(gap, MIN_GAP_MS), MAX_GAP_MS)
 }
 // Fast enough that a wheel is never caught resting between two digits. The
