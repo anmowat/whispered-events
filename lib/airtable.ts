@@ -524,6 +524,22 @@ export async function createEvent(
   return record.id
 }
 
+/** Gateway timeouts, upstream 5xx and dropped connections - the class of
+ *  failure where retrying is both safe and likely to work. A constraint
+ *  violation or a bad column is none of those and must surface immediately. */
+function isTransientWriteError(error: { message?: string; code?: string }): boolean {
+  const message = (error.message || '').toLowerCase()
+  return (
+    message.includes('timeout') ||
+    message.includes('timed out') ||
+    message.includes('gateway') ||
+    message.includes('fetch failed') ||
+    message.includes('econnreset') ||
+    message.includes('socket hang up') ||
+    /\b5\d\d\b/.test(message)
+  )
+}
+
 export async function updateEvent(
   id: string,
   fields: Partial<EventRecord>,
@@ -635,10 +651,25 @@ export async function updateEvent(
   // (admin save) needs to know if the change didn't land.
   if (Object.keys(supabaseRow).length > 0) {
     const supabase = getSupabase()
-    const { error } = await supabase.from('events').update(supabaseRow).eq('id', id)
+    // One retry on a transient gateway/5xx stall. Updating a single row by
+    // primary key is idempotent, so re-sending it can't double-apply anything,
+    // and most gateway timeouts clear well inside a second attempt.
+    let error = (await supabase.from('events').update(supabaseRow).eq('id', id)).error
+    if (error && isTransientWriteError(error)) {
+      console.warn('updateEvent: transient write failure, retrying once', { id, message: error.message })
+      await new Promise((r) => setTimeout(r, 400))
+      error = (await supabase.from('events').update(supabaseRow).eq('id', id)).error
+    }
     if (error) {
       console.error('updateEvent supabase update failed', { id, error })
-      throw new Error(`updateEvent supabase update failed: ${error.message}`)
+      // A timeout means no answer came back, NOT that nothing happened - the
+      // write may well have landed. Saying so is the difference between an
+      // admin reloading to check and an admin re-entering an edit that was
+      // already saved.
+      const ambiguous = isTransientWriteError(error)
+        ? ' The edit may still have been applied - reload the page to check before re-saving.'
+        : ''
+      throw new Error(`updateEvent supabase update failed: ${error.message}.${ambiguous}`)
     }
   }
 

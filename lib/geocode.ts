@@ -59,6 +59,23 @@ function toLatLng(lat: unknown, lng: unknown): LatLng | null {
  * the caller can fall through to the next provider instead of mistaking an
  * outage for "this place doesn't exist".
  */
+// A provider that hasn't answered in this long has failed, and is treated
+// exactly like one that returned an error: the loop records the failure and
+// moves to the next one.
+//
+// Without this the fetches were unbounded, and a provider that accepts a
+// connection and then stalls would hang whatever called us. That is not
+// hypothetical here - Nominatim has a history of misbehaving from cloud egress
+// IPs (see the photon comment below), and callers geocode on the critical path:
+// an admin event save writes lat/lng before the row, and signup validates a
+// location at step 4. A hang there burns the whole function budget and the
+// caller fails at whatever it was doing next, blaming the wrong thing.
+//
+// It also keeps allProvidersFailed honest - a hang never finishes, so it was
+// never counted as a failure, and the outage-vs-bad-address distinction
+// silently didn't cover it.
+const PROVIDER_TIMEOUT_MS = 4000
+
 interface Provider {
   name: string
   lookup(query: string): Promise<LatLng | null>
@@ -70,6 +87,7 @@ const nominatim: Provider = {
     const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`
     const res = await fetch(url, {
       headers: { 'User-Agent': USER_AGENT, 'Accept-Language': 'en' },
+      signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
     })
     if (!res.ok) throw new Error(`nominatim HTTP ${res.status}`)
     const data = (await res.json()) as Array<{ lat: string; lon: string }>
@@ -84,7 +102,10 @@ const photon: Provider = {
   name: 'photon',
   async lookup(query) {
     const url = `https://photon.komoot.io/api/?limit=1&q=${encodeURIComponent(query)}`
-    const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT } })
+    const res = await fetch(url, {
+      headers: { 'User-Agent': USER_AGENT },
+      signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
+    })
     if (!res.ok) throw new Error(`photon HTTP ${res.status}`)
     const data = (await res.json()) as {
       features?: Array<{ geometry?: { coordinates?: [number, number] } }>
