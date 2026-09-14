@@ -15,8 +15,21 @@ import { useEffect, useState } from 'react'
 // ones wheel alone and a boundary crossing turns several at once.
 
 const START_OFFSET = 20
-const MIN_GAP_MS = 3000
-const MAX_GAP_MS = 5000
+// Mean gap between ticks. The gap itself is drawn from an exponential
+// distribution - the arrival time of a Poisson process, which is what random
+// events actually turning up looks like - so ticks cluster and then lull on
+// their own. A uniform range can't do that: its hard floor means two ticks can
+// never land close together, which reads as a metronome.
+const MEAN_GAP_MS = 3000
+// Floor sits above ROLL_MS so a burst can never restart a wheel mid-turn.
+const MIN_GAP_MS = 400
+// The exponential tail is unbounded; cap it so a long lull never looks broken.
+const MAX_GAP_MS = 15000
+
+function nextGapMs(): number {
+  const gap = -MEAN_GAP_MS * Math.log(1 - Math.random())
+  return Math.min(Math.max(gap, MIN_GAP_MS), MAX_GAP_MS)
+}
 // Fast enough that a wheel is never caught resting between two digits. The
 // whole point of the cadence is the pause BETWEEN turns, not during one.
 const ROLL_MS = 320
@@ -79,39 +92,30 @@ export default function MatchOdometer({ value }: { value: number }) {
   // pass React happens to make.
   const [reading, setReading] = useState<Reading>(() => ({
     value: anchor,
-    prevText: anchor.toLocaleString(),
+    prevText: String(anchor),
   }))
 
   useEffect(() => {
     const start = Math.max(value - START_OFFSET, 0)
-    setReading({ value: start, prevText: start.toLocaleString() })
+    setReading({ value: start, prevText: String(start) })
 
     let timer: ReturnType<typeof setTimeout>
     const schedule = () => {
       timer = setTimeout(() => {
-        setReading((r) => ({ value: r.value + 1, prevText: r.value.toLocaleString() }))
+        setReading((r) => ({ value: r.value + 1, prevText: String(r.value) }))
         schedule()
-      }, MIN_GAP_MS + Math.random() * (MAX_GAP_MS - MIN_GAP_MS))
+      }, nextGapMs())
     }
     schedule()
     return () => clearTimeout(timer)
   }, [value])
 
-  const text = reading.value.toLocaleString()
+  const text = String(reading.value)
   const prev = reading.prevText
 
   return (
     <span style={{ display: 'inline-block', fontVariantNumeric: 'tabular-nums', lineHeight: H }}>
       {text.split('').map((ch, i) => {
-        // Commas aren't wheels - a real odometer has none, and boxing them
-        // would read as a digit.
-        if (ch === ',') {
-          return (
-            <span key={i} style={{ display: 'inline-block', height: H, lineHeight: H, verticalAlign: 'top', margin: '0 0.5px' }}>
-              ,
-            </span>
-          )
-        }
         // Compare from the right, so gaining a digit doesn't spin every wheel.
         const from = prev[prev.length - text.length + i]
         const changed = from !== undefined && from !== ch
