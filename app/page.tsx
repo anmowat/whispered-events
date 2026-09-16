@@ -1075,12 +1075,76 @@ function BannerArrow({ nudge }: { nudge: boolean }) {
   )
 }
 
+// The side-event cards, defined once and rendered by both layouts below.
+//
+// Each card used to be written out twice - once for the desktop carousel and
+// once for the mobile stack - which is six near-identical blocks for three
+// cards, with the obvious failure mode of updating one layout and forgetting
+// the other.
+//
+// href null is what separates the two behaviours: a card with an href renders a
+// real anchor, one without renders the button that opens the Coming Soon modal.
+const SIDE_EVENT_BANNERS: ReadonlyArray<{
+  key: string
+  href: string | null
+  img: string
+  alt: string
+}> = [
+  {
+    key: 'dreamforce',
+    href: '/dreamforce',
+    img: '/banners/dreamforce-26-banner.png',
+    alt: "Dreamforce '26 Side Events — San Francisco, September 15–17",
+  },
+  {
+    key: 'unbound',
+    href: '/unbound',
+    img: '/banners/unbound-26-banner.png',
+    alt: "Unbound '26 Side Events — Boston, September 16–18",
+  },
+  {
+    key: 'gtm',
+    href: '/gtm2026',
+    img: '/banners/gtm-26-banner.png',
+    alt: "GTM '26 Side Events — New York City, September 29 – October 1",
+  },
+  // Sculpt has no anchor event page yet, so it opens the Coming Soon modal.
+  {
+    key: 'sculpt',
+    href: null,
+    img: '/banners/sculpt-26-banner.png',
+    alt: "Sculpt '26 Side Events — San Francisco, October 8",
+  },
+]
+
 function SideEventBanners({ onSculpt }: { onSculpt: () => void }) {
   const scrollerRef = useRef<HTMLDivElement>(null)
   const scrollBanner = (dir: 'left' | 'right') =>
     scrollerRef.current?.scrollBy({ left: dir === 'left' ? -460 : 460, behavior: 'smooth' })
 
   const btnStyle: React.CSSProperties = { background: 'none', border: 'none', padding: 0, cursor: 'pointer' }
+
+  // Real links, not buttons, wherever there's a page to go to: so middle-click
+  // and open-in-new-tab work and crawlers can follow the homepage through to
+  // the anchor event pages.
+  const card = (
+    banner: (typeof SIDE_EVENT_BANNERS)[number],
+    className: string,
+    style: React.CSSProperties,
+  ) => {
+    const img = (
+      <img src={banner.img} alt={banner.alt} style={{ display: 'block', width: '100%' }} />
+    )
+    return banner.href ? (
+      <a key={banner.key} href={banner.href} className={className} style={style}>
+        {img}
+      </a>
+    ) : (
+      <button key={banner.key} type="button" onClick={onSculpt} className={className} style={style}>
+        {img}
+      </button>
+    )
+  }
 
   return (
     <section className="max-w-[1200px] mx-auto pb-10">
@@ -1099,43 +1163,13 @@ function SideEventBanners({ onSculpt }: { onSculpt: () => void }) {
           style={{ gap: 6, scrollSnapType: 'x mandatory', scrollbarWidth: 'none' }}
         >
           <style>{`.side-event-scroll::-webkit-scrollbar{display:none}`}</style>
-          {/* Real links, not buttons: these go to the anchor event pages, so
-              middle-click and open-in-new-tab work and crawlers can follow the
-              homepage through to them. */}
-          <a
-            href="/dreamforce"
-            className="transition-opacity hover:opacity-90 overflow-hidden rounded-[16px] shrink-0"
-            style={{ ...btnStyle, width: '45%', scrollSnapAlign: 'start' }}
-          >
-            <img
-              src="/banners/dreamforce-26-banner.png"
-              alt="Dreamforce '26 Side Events — San Francisco, September 15–17"
-              style={{ display: 'block', width: '100%' }}
-            />
-          </a>
-          <a
-            href="/unbound"
-            className="transition-opacity hover:opacity-90 overflow-hidden rounded-[16px] shrink-0"
-            style={{ ...btnStyle, width: '45%', scrollSnapAlign: 'start' }}
-          >
-            <img
-              src="/banners/unbound-26-banner.png"
-              alt="Unbound '26 Side Events — Boston, September 16–18"
-              style={{ display: 'block', width: '100%' }}
-            />
-          </a>
-          <button
-            type="button"
-            onClick={onSculpt}
-            className="transition-opacity hover:opacity-90 overflow-hidden rounded-[16px] shrink-0"
-            style={{ ...btnStyle, width: '45%', scrollSnapAlign: 'start' }}
-          >
-            <img
-              src="/banners/sculpt-26-banner.png"
-              alt="Sculpt '26 Side Events — San Francisco, October 8"
-              style={{ display: 'block', width: '100%' }}
-            />
-          </button>
+          {SIDE_EVENT_BANNERS.map((b) =>
+            card(b, 'transition-opacity hover:opacity-90 overflow-hidden rounded-[16px] shrink-0', {
+              ...btnStyle,
+              width: '45%',
+              scrollSnapAlign: 'start',
+            }),
+          )}
         </div>
         <CarouselButton dir="left" onClick={() => scrollBanner('left')} />
         <CarouselButton dir="right" onClick={() => scrollBanner('right')} />
@@ -1143,40 +1177,13 @@ function SideEventBanners({ onSculpt }: { onSculpt: () => void }) {
 
       {/* Mobile: vertical stack, full width, no size change */}
       <div className="sm:hidden flex flex-col px-5" style={{ gap: 6 }}>
-        <a
-          href="/dreamforce"
-          className="block w-full transition-opacity hover:opacity-90 overflow-hidden rounded-[16px]"
-          style={btnStyle}
-        >
-          <img
-            src="/banners/dreamforce-26-banner.png"
-            alt="Dreamforce '26 Side Events — San Francisco, September 15–17"
-            style={{ display: 'block', width: '100%' }}
-          />
-        </a>
-        <a
-          href="/unbound"
-          className="block w-full transition-opacity hover:opacity-90 overflow-hidden rounded-[16px]"
-          style={btnStyle}
-        >
-          <img
-            src="/banners/unbound-26-banner.png"
-            alt="Unbound '26 Side Events — Boston, September 16–18"
-            style={{ display: 'block', width: '100%' }}
-          />
-        </a>
-        <button
-          type="button"
-          onClick={onSculpt}
-          className="block w-full transition-opacity hover:opacity-90 overflow-hidden rounded-[16px]"
-          style={btnStyle}
-        >
-          <img
-            src="/banners/sculpt-26-banner.png"
-            alt="Sculpt '26 Side Events — San Francisco, October 8"
-            style={{ display: 'block', width: '100%' }}
-          />
-        </button>
+        {SIDE_EVENT_BANNERS.map((b) =>
+          card(
+            b,
+            'block w-full transition-opacity hover:opacity-90 overflow-hidden rounded-[16px]',
+            btnStyle,
+          ),
+        )}
       </div>
     </section>
   )
