@@ -573,6 +573,10 @@ export default function AdminEventDetailPage() {
   function startEdit() {
     if (!event) return
     setEditError(null)
+    // Disarm a delete the admin started and then thought better of, so it
+    // can't reappear when they cancel out of the edit.
+    setDeleteConfirm(false)
+    setDeleteError(null)
     setDraft(draftFromEvent(event))
     setHostsDraft(event.hosts)
     setHostSearch('')
@@ -901,6 +905,18 @@ export default function AdminEventDetailPage() {
                       >
                         Edit
                       </button>
+                      {/* Triage action: an event that isn't a real event should
+                          be deletable from where you're already looking, not
+                          from the bottom of the matched-users table. Guarded by
+                          the confirm panel below rather than by being hard to
+                          find. */}
+                      <button
+                        type="button"
+                        onClick={() => setDeleteConfirm(true)}
+                        className="px-3 py-1.5 rounded-lg border border-red-200 bg-white text-xs text-red-600 hover:bg-red-50 transition-colors shadow-sm"
+                      >
+                        Delete
+                      </button>
                       <label className="inline-flex items-center gap-2 text-sm text-gray-700 cursor-pointer select-none">
                         <input
                           type="checkbox"
@@ -944,6 +960,28 @@ export default function AdminEventDetailPage() {
               )}
               {editError && (
                 <p className="text-xs text-red-600 mb-3">{editError}</p>
+              )}
+              {deleteConfirm && !isEditing && (
+                <div className="bg-red-50 border border-red-200 rounded-2xl p-4 space-y-3 mb-4">
+                  <p className="text-sm text-red-800 font-medium">
+                    This will permanently delete the event and all its matches. This cannot be undone.
+                  </p>
+                  {deleteError && <p className="text-xs text-red-600">{deleteError}</p>}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleDelete}
+                      className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors"
+                    >
+                      Yes, delete
+                    </button>
+                    <button
+                      onClick={() => { setDeleteConfirm(false); setDeleteError(null) }}
+                      className="px-4 py-2 rounded-lg border border-[#E8DDD0] text-sm text-gray-600 hover:bg-[#F5EFE6] transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
               )}
               {!isEditing ? (
                 <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
@@ -1259,38 +1297,6 @@ export default function AdminEventDetailPage() {
               )}
             </div>
 
-            {/* Delete event */}
-            <div className="mt-10 pt-6 border-t border-[#E8DDD0]">
-              {!deleteConfirm ? (
-                <button
-                  onClick={() => setDeleteConfirm(true)}
-                  className="px-4 py-2 rounded-lg border border-red-200 text-red-600 text-sm hover:bg-red-50 transition-colors"
-                >
-                  Delete event
-                </button>
-              ) : (
-                <div className="bg-red-50 border border-red-200 rounded-2xl p-4 space-y-3">
-                  <p className="text-sm text-red-800 font-medium">
-                    This will permanently delete the event and all its matches. This cannot be undone.
-                  </p>
-                  {deleteError && <p className="text-xs text-red-600">{deleteError}</p>}
-                  <div className="flex gap-2">
-                    <button
-                      onClick={handleDelete}
-                      className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors"
-                    >
-                      Yes, delete
-                    </button>
-                    <button
-                      onClick={() => { setDeleteConfirm(false); setDeleteError(null) }}
-                      className="px-4 py-2 rounded-lg border border-[#E8DDD0] text-sm text-gray-600 hover:bg-[#F5EFE6] transition-colors"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
           </>
         )}
       </main>
