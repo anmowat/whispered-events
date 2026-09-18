@@ -1,6 +1,6 @@
 // Internal Slack notifications. Single Incoming Webhook URL, single channel,
 // no Block Kit (mrkdwn is grep-friendlier and these messages are
-// short-lived). All four notifiers no-op silently when SLACK_WEBHOOK_URL
+// short-lived). Every notifier no-ops silently when SLACK_WEBHOOK_URL
 // is unset, so local dev doesn't need to configure Slack.
 
 import { UserProfile, EventRecord } from './types'
@@ -9,7 +9,7 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://www.whisperedevents.
 
 // Raw POST to the webhook. Logs + swallows errors so callers never bubble
 // a Slack outage into the user-facing response. Exported for ad-hoc use; the
-// four notifyXxx formatters below cover the standard paths.
+// notifyXxx formatters below cover the standard paths.
 export async function postSlack(text: string): Promise<void> {
   const url = process.env.SLACK_WEBHOOK_URL
   if (!url) return
@@ -55,23 +55,33 @@ function formatPerson(p: {
   return `*${display}* · ${p.email}`
 }
 
-// New user signup. Mirrors the existing Airtable automation format —
-// LinkedIn (via the lead line's hyperlink), Employment+Size, Interest,
-// email, "Find" (how they heard about us, sourced from UserProfile.learn).
-// Deep links to the admin user detail page so admin can triage in one click.
-export async function notifyNewUser(
-  profile: UserProfile,
-  userId: string,
-  name?: string,
-): Promise<void> {
+// Partner application from the Partner tab.
+//
+// This replaced the member-signup alert (notifyNewUser): member signups run at
+// a volume that made the channel noise, while partner applications are the
+// commercially interesting ones and used to arrive silently in Airtable, seen
+// only by someone going to look.
+//
+// No admin deep link, because partners have no admin page - review happens in
+// Airtable, where the row has just been written.
+export async function notifyPartnerApplication(params: {
+  company: string
+  email: string
+  audience: string
+  partnershipType: string
+  description: string
+}): Promise<void> {
   const lines: string[] = [
-    `*New user* ${formatPerson({ name, email: profile.email, linkedin: profile.linkedin })}`,
+    `*Partner application* ${params.company} · ${params.email}`,
+    `*Type* ${params.partnershipType}`,
+    `*Audience* ${params.audience}`,
   ]
-  const employmentLine = [profile.employment, profile.companySize].filter(Boolean).join('-')
-  if (employmentLine) lines.push(`*Employment* (${employmentLine})`)
-  if (profile.interest) lines.push(`*Interest* (${profile.interest})`)
-  if (profile.learn) lines.push(`*Find* (${profile.learn})`)
-  lines.push(`${APP_URL}/admin/users/${userId}`)
+  // Long pitches make the channel unreadable; the full text is in Airtable.
+  const description = params.description.trim()
+  if (description) {
+    lines.push(`*About* ${description.length > 400 ? `${description.slice(0, 400)}…` : description}`)
+  }
+  lines.push('Review in Airtable → Partners')
   await postSlack(lines.join('\n'))
 }
 

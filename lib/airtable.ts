@@ -1437,7 +1437,7 @@ async function writeWithKnownFields(
 
 export async function upsertPartnerApplication(
   app: PartnerApplication,
-): Promise<{ partnerId: string }> {
+): Promise<{ partnerId: string; isNew: boolean }> {
   const base = getBase()
   const companyName = app.company.trim()
   const sanitizedCompany = companyName.replace(/'/g, "\\'")
@@ -1464,5 +1464,8 @@ export async function upsertPartnerApplication(
     partnerFields,
   )
 
-  return { partnerId }
+  // Reported so the caller can alert on a genuinely new application and stay
+  // quiet when someone resubmits the form to correct a detail - the same
+  // discipline createProfile's isNew exists for.
+  return { partnerId, isNew: existingPartner.length === 0 }
 }
