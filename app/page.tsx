@@ -145,7 +145,7 @@ export default function Home() {
   const [mode, setMode] = useState<Mode>('landing')
   const [showLogin, setShowLogin] = useState(false)
   const [showAddEvent, setShowAddEvent] = useState(false)
-  const [sideEventModal, setSideEventModal] = useState<'dreamforce' | 'unbound' | 'sculpt' | null>(null)
+  const [sideEventModal, setSideEventModal] = useState<'sculpt' | null>(null)
   const [eventCount, setEventCount] = useState(0)
   const [partners, setPartners] = useState<Partner[]>([])
   const [featuredEvents, setFeaturedEvents] = useState<FeaturedEvent[]>([])
@@ -564,7 +564,7 @@ function Landing({
   featuredEvents: FeaturedEvent[]
   matches30: number | null
   onCTA: () => void
-  onSideEvent: (which: 'dreamforce' | 'unbound' | 'sculpt') => void
+  onSideEvent: (which: 'sculpt') => void
 }) {
   const [pastEventLink, setPastEventLink] = useState<string | null>(null)
   // Carousel uses every event we have an image for (no top-N truncation
@@ -1091,18 +1091,6 @@ const SIDE_EVENT_BANNERS: ReadonlyArray<{
   alt: string
 }> = [
   {
-    key: 'dreamforce',
-    href: '/dreamforce',
-    img: '/banners/dreamforce-26-banner.png',
-    alt: "Dreamforce '26 Side Events — San Francisco, September 15–17",
-  },
-  {
-    key: 'unbound',
-    href: '/unbound',
-    img: '/banners/unbound-26-banner.png',
-    alt: "Unbound '26 Side Events — Boston, September 16–18",
-  },
-  {
     key: 'gtm',
     href: '/gtm2026',
     img: '/banners/gtm-26-banner.png',
@@ -1193,40 +1181,6 @@ function SideEventBanners({ onSculpt }: { onSculpt: () => void }) {
 
 const GOLD = '#c9a86a'
 const SIDE_EVENT_CONTENT = {
-  dreamforce: {
-    title: "Dreamforce '26 Side Events",
-    badge: 'Coming Soon',
-    body: (
-      <>
-        Check back in early August for<br />our page with{' '}
-        <strong style={{ color: GOLD, fontWeight: 700 }}>every</strong> side event.
-      </>
-    ),
-    cta: (
-      <>
-        <strong style={{ color: GOLD, fontWeight: 700 }}>Hosting a side event at Dreamforce?</strong>{' '}Share here 👇
-      </>
-    ),
-    email: 'event@whispered.com',
-    subject: "Dreamforce '26 side event",
-  },
-  unbound: {
-    title: "Unbound '26 Side Events",
-    badge: 'Coming Soon',
-    body: (
-      <>
-        Check back in early August for<br />our page with{' '}
-        <strong style={{ color: GOLD, fontWeight: 700 }}>every</strong> side event.
-      </>
-    ),
-    cta: (
-      <>
-        <strong style={{ color: GOLD, fontWeight: 700 }}>Hosting a side event at Unbound?</strong>{' '}Share here 👇
-      </>
-    ),
-    email: 'event@whispered.com',
-    subject: "Unbound '26 side event",
-  },
   sculpt: {
     title: "Sculpt '26 Side Events",
     badge: 'Coming Soon',
@@ -1251,7 +1205,7 @@ function SideEventModal({
   onClose,
   onShareOnSite,
 }: {
-  which: 'dreamforce' | 'unbound' | 'sculpt'
+  which: 'sculpt'
   onClose: () => void
   onShareOnSite: () => void
 }) {

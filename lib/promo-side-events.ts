@@ -1,35 +1,40 @@
-// TEMPORARY — DELETE THIS FILE AFTER 2026-09-18, along with the five
+// TEMPORARY - DELETE THIS FILE AFTER 2026-10-01, along with the
 // `sideEventsPromo` call sites in lib/email.ts (search for `promo.html`).
 //
-// Dreamforce / Unbound side-events promo, appended below the event list in the
-// digest family of emails. Three mutually exclusive variants, chosen by
-// proximity to the host city first, then by go-to-market relevance.
+// GTM '26 side-events promo (NYC, September 29 - October 1), appended below the
+// event list in the digest family of emails.
+//
+// Dreamforce and Unbound were removed once both conferences finished. Their
+// two-tier shape - host-city proximity first, then go-to-market relevance -
+// does NOT carry over: proximity there bypassed the relevance gate on the
+// theory that locals turn up to anything nearby. GTM is a go-to-market
+// conference, so relevance gates everyone including New Yorkers, and proximity
+// only decides whether the headline says "Attending" or "Traveling to".
 
 import type { AirtableUser } from './airtable'
 import { withinMiles } from './geocode'
 import { parseTopics, hasTopic } from './topics'
 import { C, SANS, SERIF } from './email'
 
-// End of day 2026-09-18 Pacific, by which point both conferences are over.
-// Written as the UTC instant of midnight PT on the 19th (PDT = UTC-7 in
-// September) so the cutoff lands at the same real moment wherever this runs.
-// `new Date('2026-09-18')` would parse as UTC midnight and cut the promo
-// 17 hours early for a US audience.
-const PROMO_ENDS_AT_MS = Date.UTC(2026, 8, 19, 7, 0, 0)
+// End of day 2026-10-01 Pacific, the last day of the conference - a side-events
+// list is worthless the morning after, and people do check what's on while
+// they're there. Written as the UTC instant of midnight PT on the 2nd (PDT =
+// UTC-7 in October, since DST doesn't end until November) so the cutoff lands
+// at the same real moment wherever this runs. `new Date('2026-10-01')` would
+// parse as UTC midnight and cut the promo 17 hours early for a US audience.
+const PROMO_ENDS_AT_MS = Date.UTC(2026, 9, 2, 7, 0, 0)
 
-// Downtown anchors for the two host cities. 100 miles around Boston reaches
-// Providence, Worcester and Manchester; around San Francisco it covers the Bay
-// Area, Sacramento and Santa Cruz.
-const BOSTON = { lat: 42.3601, lng: -71.0589 }
-const SAN_FRANCISCO = { lat: 37.7749, lng: -122.4194 }
+// Downtown Manhattan. 100 miles around it reaches all five boroughs, Long
+// Island, northern New Jersey, southern Connecticut and Philadelphia.
+const NEW_YORK = { lat: 40.7128, lng: -74.006 }
 
 // Deliberately a literal rather than NEARBY_RADIUS_MILES. The two share a value
-// today but mean different things — retuning the match radius must not silently
+// today but mean different things - retuning the match radius must not silently
 // retarget this promo.
 const PROMO_RADIUS_MILES = 100
 
 const SITE = 'https://www.whisperedevents.com'
-const UTM = '?utm_source=email&utm_medium=digest&utm_campaign=side-events-26'
+const UTM = '?utm_source=email&utm_medium=digest&utm_campaign=gtm-2026-side-events'
 
 // Ampersands must be entity-encoded inside HTML attributes; the plain form is
 // what belongs in the plain-text alternative. Keep the URL constants plain and
@@ -38,13 +43,10 @@ function attr(url: string): string {
   return url.replace(/&/g, '&amp;')
 }
 
-const DREAMFORCE_URL = `${SITE}/dreamforce${UTM}`
-const UNBOUND_URL = `${SITE}/unbound${UTM}`
-const DREAMFORCE_IMG = `${SITE}/banners/dreamforce-26-banner.png`
-const UNBOUND_IMG = `${SITE}/banners/unbound-26-banner.png`
+const GTM_URL = `${SITE}/gtm2026${UTM}`
+const GTM_IMG = `${SITE}/banners/gtm-26-banner.png`
 
-const DREAMFORCE_LABEL = 'See our list of the best Dreamforce Side Events'
-const UNBOUND_LABEL = 'See our list of the best Unbound Side Events'
+const GTM_LABEL = 'See our list of the best GTM 2026 Side Events'
 
 // The Functions group of DEFAULT_TOPICS (lib/topics.ts). Compared exactly and
 // case-insensitively via hasTopic.
@@ -176,52 +178,19 @@ export function sideEventsPromo(
   const empty = { html: '', textLines: [] as string[] }
   if (now.getTime() >= PROMO_ENDS_AT_MS) return empty
 
-  // Near Boston — Unbound only.
-  if (nearCity(user, BOSTON)) {
-    return {
-      html: wrap(
-        [
-          headline('Attending Unbound?'),
-          subline(UNBOUND_URL, UNBOUND_LABEL),
-          banner(UNBOUND_URL, UNBOUND_IMG, `${UNBOUND_LABEL} →`),
-        ].join('\n'),
-      ),
-      textLines: ['Attending Unbound?', `${UNBOUND_LABEL}: ${UNBOUND_URL}`],
-    }
-  }
-
-  // Near San Francisco — Dreamforce only.
-  if (nearCity(user, SAN_FRANCISCO)) {
-    return {
-      html: wrap(
-        [
-          headline('Attending Dreamforce?'),
-          subline(DREAMFORCE_URL, DREAMFORCE_LABEL),
-          banner(DREAMFORCE_URL, DREAMFORCE_IMG, `${DREAMFORCE_LABEL} →`),
-        ].join('\n'),
-      ),
-      textLines: ['Attending Dreamforce?', `${DREAMFORCE_LABEL}: ${DREAMFORCE_URL}`],
-    }
-  }
-
-  // Everyone else, but only if they look go-to-market relevant.
+  // The gate, and it applies to everyone. A New Yorker who does none of these
+  // things has no more use for a go-to-market conference than anyone else, and
+  // this block is the only thing standing between them and irrelevant mail.
   if (!isRelevant(user)) return empty
+
+  // Proximity changes the wording, nothing else. Someone whose location we
+  // can't geocode reads as "not local", which is the right way round: the
+  // travel framing makes sense to a local, the reverse doesn't.
+  const local = nearCity(user, NEW_YORK)
+  const title = local ? 'Attending GTM 2026?' : 'Traveling to GTM 2026?'
+
   return {
-    html: wrap(
-      [
-        headline('Are you traveling to Dreamforce or Unbound?'),
-        // One subline per page rather than a single "our side events pages"
-        // link, which could only point at one of the two.
-        subline(DREAMFORCE_URL, 'Dreamforce side events'),
-        banner(DREAMFORCE_URL, DREAMFORCE_IMG, `${DREAMFORCE_LABEL} →`),
-        subline(UNBOUND_URL, 'Unbound side events'),
-        banner(UNBOUND_URL, UNBOUND_IMG, `${UNBOUND_LABEL} →`),
-      ].join('\n'),
-    ),
-    textLines: [
-      'Are you traveling to Dreamforce or Unbound?',
-      `Dreamforce side events: ${DREAMFORCE_URL}`,
-      `Unbound side events: ${UNBOUND_URL}`,
-    ],
+    html: wrap([headline(title), subline(GTM_URL, GTM_LABEL), banner(GTM_URL, GTM_IMG, `${GTM_LABEL} →`)].join('\n')),
+    textLines: [title, `${GTM_LABEL}: ${GTM_URL}`],
   }
 }
