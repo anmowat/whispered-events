@@ -655,10 +655,9 @@ function Landing({
             below) so the social proof + browse path stay together. */}
       </section>
 
-      {/* Side Events banners. Dreamforce and Unbound link straight to their
-          anchor event pages; Sculpt has no page yet so it still opens the
-          share modal. Shown on Find Events and Contribute tabs; hidden on
-          Partner tab. */}
+      {/* Side Events banners. GTM links straight to its anchor event page;
+          Sculpt has no page yet so it still opens the share modal. Shown on
+          Find Events and Contribute tabs; hidden on Partner tab. */}
       {tab !== 'partner' && (
         <SideEventBanners onSculpt={() => onSideEvent('sculpt')} />
       )}
