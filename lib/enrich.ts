@@ -5,17 +5,24 @@
 // the change in a single mirrored write.
 
 import { updateUserAdmin } from './airtable'
-import { classifyProfileFunctionAndSeniority } from './claude'
+import { classifyProfileFunctionAndSeniority, type ProfileExperience } from './claude'
 
 const ANYSITE_USER_ENDPOINT = 'https://api.anysite.io/api/linkedin/user'
 
+// AnySite's ACTUAL experience shape, which is not the shape the classifier
+// wants. It returns start_date/end_date ("2020-09") and a nested company
+// OBJECT; ProfileExperience (lib/claude.ts) wants started_on/ended_on, a
+// duration in months, and company as a plain name. The two were never mapped,
+// so every enrichment that did succeed fed the classifier a giant nested
+// company blob and no duration at all - which matters, because the prompt
+// picks the function from the longest-held role and silently falls back to
+// "most recent" when duration is missing. toProfileExperience does the mapping.
 interface AnySiteExperience {
   position?: string
-  started_on?: string
-  ended_on?: string
-  duration_in_months?: number
-  company?: string
-  company_size?: string
+  start_date?: string
+  end_date?: string | null
+  period?: string
+  company?: { name?: string; employee_range?: string } | string | null
 }
 
 interface AnySitePerson {
@@ -30,6 +37,43 @@ function toHandle(value: string): string {
   const s = String(value).trim()
   const m = s.match(/linkedin\.com\/in\/([^/?#]+)/i)
   return m ? decodeURIComponent(m[1]) : s.replace(/\/+$/, '')
+}
+
+/** Months between two "YYYY-MM" strings; end omitted means still there. */
+function monthsBetween(start?: string, end?: string | null): number | undefined {
+  if (!start) return undefined
+  const m = /^(\d{4})-(\d{2})/.exec(start)
+  if (!m) return undefined
+  const from = Number(m[1]) * 12 + Number(m[2])
+  let to: number
+  if (end) {
+    const e = /^(\d{4})-(\d{2})/.exec(end)
+    if (!e) return undefined
+    to = Number(e[1]) * 12 + Number(e[2])
+  } else {
+    const now = new Date()
+    to = now.getUTCFullYear() * 12 + (now.getUTCMonth() + 1)
+  }
+  const months = to - from
+  return months >= 0 ? months : undefined
+}
+
+function toProfileExperience(e: AnySiteExperience): ProfileExperience {
+  // company is an object on real responses; tolerate a bare string in case the
+  // upstream shape ever simplifies, rather than stringifying "[object Object]".
+  const company = typeof e.company === 'string' ? e.company : e.company?.name
+  const companySize = typeof e.company === 'string' ? undefined : e.company?.employee_range
+  return {
+    position: e.position || '',
+    ...(e.start_date ? { started_on: e.start_date } : {}),
+    ...(e.end_date ? { ended_on: e.end_date } : {}),
+    ...(() => {
+      const months = monthsBetween(e.start_date, e.end_date)
+      return months != null ? { duration_in_months: months } : {}
+    })(),
+    ...(company ? { company } : {}),
+    ...(companySize ? { company_size: companySize } : {}),
+  }
 }
 
 export interface EnrichmentResult {
@@ -98,7 +142,26 @@ export async function enrichUserFromLinkedIn(
           'access-token': apiKey,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ user: handle, with_experience: true }),
+        // EVERY with_* param defaults to TRUE, and each one is documented as
+        // making the call "work longer". Sending only with_experience was
+        // therefore implicitly also requesting education, honors,
+        // certificates, languages, patents, skills, description+top_skills
+        // and profile_details - eight extra sections we never read. That is
+        // what made this time out: the identical call took over 60s for a
+        // profile that returns in seconds once they are switched off.
+        // We use name, headline and experience. Nothing else.
+        body: JSON.stringify({
+          user: handle,
+          with_experience: true,
+          with_education: false,
+          with_honors: false,
+          with_certificates: false,
+          with_languages: false,
+          with_patents: false,
+          with_skills: false,
+          with_description_and_top_skills: false,
+          with_profile_details: false,
+        }),
         signal: controller.signal,
       })
     } catch (err) {
@@ -159,7 +222,9 @@ export async function enrichUserFromLinkedIn(
     person.name ||
     [person.first_name, person.last_name].filter(Boolean).join(' ') ||
     ''
-  const experiences = Array.isArray(person.experience) ? person.experience : []
+  const experiences = (Array.isArray(person.experience) ? person.experience : []).map(
+    toProfileExperience,
+  )
 
   const classification = await classifyProfileFunctionAndSeniority(
     experiences,
