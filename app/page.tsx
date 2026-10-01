@@ -145,7 +145,6 @@ export default function Home() {
   const [mode, setMode] = useState<Mode>('landing')
   const [showLogin, setShowLogin] = useState(false)
   const [showAddEvent, setShowAddEvent] = useState(false)
-  const [sideEventModal, setSideEventModal] = useState<'sculpt' | null>(null)
   const [eventCount, setEventCount] = useState(0)
   const [partners, setPartners] = useState<Partner[]>([])
   const [featuredEvents, setFeaturedEvents] = useState<FeaturedEvent[]>([])
@@ -348,17 +347,6 @@ export default function Home() {
           }}
         />
       )}
-      {sideEventModal && (
-        <SideEventModal
-          which={sideEventModal}
-          onClose={() => setSideEventModal(null)}
-          onShareOnSite={() => {
-            setSideEventModal(null)
-            setTab('contribute')
-            setMode('active')
-          }}
-        />
-      )}
 
       <BuzzBanner />
       <AfterHoursHeader
@@ -432,7 +420,6 @@ export default function Home() {
             featuredEvents={featuredEvents}
             matches30={matches30}
             onCTA={handleCTA}
-            onSideEvent={setSideEventModal}
           />
         ) : (
           <ActiveMode tab={tab} eventCount={eventCount} onBack={handleBack} onShowPartner={() => selectTab('partner')} />
@@ -556,7 +543,6 @@ function Landing({
   featuredEvents,
   matches30,
   onCTA,
-  onSideEvent,
 }: {
   tab: HeaderTab
   content: TabContent
@@ -564,7 +550,6 @@ function Landing({
   featuredEvents: FeaturedEvent[]
   matches30: number | null
   onCTA: () => void
-  onSideEvent: (which: 'sculpt') => void
 }) {
   const [pastEventLink, setPastEventLink] = useState<string | null>(null)
   // Carousel uses every event we have an image for (no top-N truncation
@@ -655,12 +640,9 @@ function Landing({
             below) so the social proof + browse path stay together. */}
       </section>
 
-      {/* Side Events banners. GTM links straight to its anchor event page;
-          Sculpt has no page yet so it still opens the share modal. Shown on
-          Find Events and Contribute tabs; hidden on Partner tab. */}
-      {tab !== 'partner' && (
-        <SideEventBanners onSculpt={() => onSideEvent('sculpt')} />
-      )}
+      {/* Side Events banners. Shown on Find Events and Contribute tabs;
+          hidden on Partner tab. */}
+      {tab !== 'partner' && <SideEventBanners />}
 
       {/* Bottom section: Find Events / Contribute show example past
           events. Partner tab shows the partner marquee instead — the
@@ -1085,7 +1067,7 @@ function BannerArrow({ nudge }: { nudge: boolean }) {
 // real anchor, one without renders the button that opens the Coming Soon modal.
 const SIDE_EVENT_BANNERS: ReadonlyArray<{
   key: string
-  href: string | null
+  href: string
   img: string
   alt: string
 }> = [
@@ -1095,43 +1077,26 @@ const SIDE_EVENT_BANNERS: ReadonlyArray<{
     img: '/banners/gtm-26-banner.png',
     alt: "GTM '26 Side Events — New York City, September 29 – October 1",
   },
-  // Sculpt has no anchor event page yet, so it opens the Coming Soon modal.
-  {
-    key: 'sculpt',
-    href: null,
-    img: '/banners/sculpt-26-banner.png',
-    alt: "Sculpt '26 Side Events — San Francisco, October 8",
-  },
 ]
 
-function SideEventBanners({ onSculpt }: { onSculpt: () => void }) {
+function SideEventBanners() {
   const scrollerRef = useRef<HTMLDivElement>(null)
   const scrollBanner = (dir: 'left' | 'right') =>
     scrollerRef.current?.scrollBy({ left: dir === 'left' ? -460 : 460, behavior: 'smooth' })
 
   const btnStyle: React.CSSProperties = { background: 'none', border: 'none', padding: 0, cursor: 'pointer' }
 
-  // Real links, not buttons, wherever there's a page to go to: so middle-click
-  // and open-in-new-tab work and crawlers can follow the homepage through to
-  // the anchor event pages.
+  // Real links, not buttons: middle-click and open-in-new-tab work, and
+  // crawlers can follow the homepage through to the anchor event pages.
   const card = (
     banner: (typeof SIDE_EVENT_BANNERS)[number],
     className: string,
     style: React.CSSProperties,
-  ) => {
-    const img = (
+  ) => (
+    <a key={banner.key} href={banner.href} className={className} style={style}>
       <img src={banner.img} alt={banner.alt} style={{ display: 'block', width: '100%' }} />
-    )
-    return banner.href ? (
-      <a key={banner.key} href={banner.href} className={className} style={style}>
-        {img}
-      </a>
-    ) : (
-      <button key={banner.key} type="button" onClick={onSculpt} className={className} style={style}>
-        {img}
-      </button>
-    )
-  }
+    </a>
+  )
 
   return (
     <section className="max-w-[1200px] mx-auto pb-10">
@@ -1158,8 +1123,14 @@ function SideEventBanners({ onSculpt }: { onSculpt: () => void }) {
             }),
           )}
         </div>
-        <CarouselButton dir="left" onClick={() => scrollBanner('left')} />
-        <CarouselButton dir="right" onClick={() => scrollBanner('right')} />
+        {/* Nothing to scroll to with a single banner, and arrows that move
+            nothing read as broken. */}
+        {SIDE_EVENT_BANNERS.length > 1 && (
+          <>
+            <CarouselButton dir="left" onClick={() => scrollBanner('left')} />
+            <CarouselButton dir="right" onClick={() => scrollBanner('right')} />
+          </>
+        )}
       </div>
 
       {/* Mobile: vertical stack, full width, no size change */}
@@ -1176,148 +1147,6 @@ function SideEventBanners({ onSculpt }: { onSculpt: () => void }) {
   )
 }
 
-// ---------------- Side Event Modal ----------------
-
-const GOLD = '#c9a86a'
-const SIDE_EVENT_CONTENT = {
-  sculpt: {
-    title: "Sculpt '26 Side Events",
-    badge: 'Coming Soon',
-    body: (
-      <>
-        Check back in early September for<br />our page with{' '}
-        <strong style={{ color: GOLD, fontWeight: 700 }}>every</strong> side event.
-      </>
-    ),
-    cta: (
-      <>
-        <strong style={{ color: GOLD, fontWeight: 700 }}>Hosting a side event at Sculpt?</strong>{' '}Share here 👇
-      </>
-    ),
-    email: 'event@whispered.com',
-    subject: "Sculpt '26 side event",
-  },
-} as const
-
-function SideEventModal({
-  which,
-  onClose,
-  onShareOnSite,
-}: {
-  which: 'sculpt'
-  onClose: () => void
-  onShareOnSite: () => void
-}) {
-  const content = SIDE_EVENT_CONTENT[which]
-  const [copied, setCopied] = useState(false)
-
-  async function handleCopy() {
-    try {
-      await navigator.clipboard.writeText(content.email)
-      setCopied(true)
-      window.setTimeout(() => setCopied(false), 1800)
-    } catch {
-      // ignore — user can still select the address manually
-    }
-  }
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: 'rgba(20,15,10,0.55)' }}
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-[520px] rounded-card border p-8"
-        style={{ background: '#252220', borderColor: 'rgba(236,230,218,.13)' }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-start justify-between mb-1 gap-3">
-          <div className="flex-1 text-center">
-            <h2
-              className="font-serif m-0"
-              style={{ fontSize: 27, color: '#ece6da', letterSpacing: '-0.01em', lineHeight: 1.2 }}
-            >
-              {content.title}
-            </h2>
-            <span
-              className="inline-block mt-1.5 rounded-pill px-2 py-0.5 text-[10px] font-semibold tracking-widest uppercase"
-              style={{ background: 'rgba(201,168,106,.18)', color: '#c9a86a', letterSpacing: '.12em' }}
-            >
-              {content.badge}
-            </span>
-          </div>
-          <button
-            onClick={onClose}
-            aria-label="Close"
-            className="text-xl leading-none shrink-0 mt-0.5"
-            style={{ color: 'rgba(236,230,218,.5)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-          >
-            &times;
-          </button>
-        </div>
-
-        <div
-          className="mb-5 space-y-2.5 text-center"
-          style={{ fontSize: 15.5, color: 'rgba(236,230,218,.78)', lineHeight: 1.6 }}
-        >
-          <p className="m-0">{content.body}</p>
-          <p className="m-0">{content.cta}</p>
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <button
-            type="button"
-            onClick={handleCopy}
-            className="inline-flex items-center justify-center gap-2 rounded-pill text-[15px] font-medium text-center py-3 border transition-colors"
-            style={{
-              borderColor: 'rgba(236,230,218,.28)',
-              color: copied ? '#c9a86a' : '#ece6da',
-              background: 'transparent',
-              cursor: 'pointer',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = '#c9a86a'
-              e.currentTarget.style.color = '#c9a86a'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = 'rgba(236,230,218,.28)'
-              e.currentTarget.style.color = copied ? '#c9a86a' : '#ece6da'
-            }}
-            aria-label={`Copy ${content.email} to clipboard`}
-          >
-            {copied ? `${content.email} (copied!)` : `Email ${content.email}`}
-            <svg aria-hidden width="11" height="11" viewBox="0 0 14 14" fill="none" style={{ flexShrink: 0 }}>
-              <rect x="4" y="4" width="8" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.4" />
-              <path d="M2 9V3a1 1 0 0 1 1-1h6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" fill="none" />
-            </svg>
-          </button>
-          <button
-            type="button"
-            onClick={onShareOnSite}
-            className="rounded-pill text-[15px] font-medium text-center py-3 border transition-colors"
-            style={{
-              borderColor: 'rgba(236,230,218,.28)',
-              color: '#ece6da',
-              background: 'transparent',
-              cursor: 'pointer',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = '#c9a86a'
-              e.currentTarget.style.color = '#c9a86a'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = 'rgba(236,230,218,.28)'
-              e.currentTarget.style.color = '#ece6da'
-            }}
-          >
-            Share on site
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
 
 // ---------------- Footer ----------------
 
