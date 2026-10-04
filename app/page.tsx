@@ -641,8 +641,9 @@ function Landing({
       </section>
 
       {/* Side Events banners. Shown on Find Events and Contribute tabs;
-          hidden on Partner tab. */}
-      {tab !== 'partner' && <SideEventBanners />}
+          hidden on Partner tab, and hidden entirely between conferences - an
+          empty row under a "Whispered Side Events" heading reads as broken. */}
+      {tab !== 'partner' && SIDE_EVENT_BANNERS.length > 0 && <SideEventBanners />}
 
       {/* Bottom section: Find Events / Contribute show example past
           events. Partner tab shows the partner marquee instead — the
@@ -1057,27 +1058,21 @@ function BannerArrow({ nudge }: { nudge: boolean }) {
 }
 
 // The side-event cards, defined once and rendered by both layouts below.
-//
 // Each card used to be written out twice - once for the desktop carousel and
-// once for the mobile stack - which is six near-identical blocks for three
-// cards, with the obvious failure mode of updating one layout and forgetting
-// the other.
+// once for the mobile stack - with the obvious failure mode of updating one
+// layout and forgetting the other.
 //
-// href null is what separates the two behaviours: a card with an href renders a
-// real anchor, one without renders the button that opens the Coming Soon modal.
+// EMPTY between conferences, which is the normal resting state: GTM '26 was
+// the last one and finished on October 1. The whole section, heading included,
+// is hidden while this is empty (see the call site), so adding the next
+// conference here is the only step needed to bring it back - there is no
+// separate switch to remember.
 const SIDE_EVENT_BANNERS: ReadonlyArray<{
   key: string
   href: string
   img: string
   alt: string
-}> = [
-  {
-    key: 'gtm',
-    href: '/gtm2026',
-    img: '/banners/gtm-26-banner.png',
-    alt: "GTM '26 Side Events — New York City, September 29 – October 1",
-  },
-]
+}> = []
 
 function SideEventBanners() {
   const scrollerRef = useRef<HTMLDivElement>(null)
