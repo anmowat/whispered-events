@@ -84,6 +84,10 @@ function personalizeDashboardLinks(rendered: string, email?: string): string {
   return rendered.split(DASHBOARD_LINK).join(personal)
 }
 const NEW_EVENT_MAILTO = 'mailto:event@whispered.com'
+// whispered.com, not whisperedevents.com - the sister product. Deliberately a
+// separate constant so personalizeDashboardLinks, which rewrites only the
+// events dashboard URL, can never touch it.
+const PAY_IT_FORWARD_LINK = 'https://www.whispered.com/payitforward'
 
 // ----- Shared building blocks -----
 
@@ -171,14 +175,15 @@ function escapeHtml(s: string): string {
 // Single-paragraph footer used at the bottom of every content email
 // except the pre-approval send. Inline-styled (no border, no structured
 // label list) so Gmail doesn't treat it as a repeated signature and
-// auto-collapse it under a "..." indicator. Two CTAs: dashboard
-// (preferences / pause) and event-share.
+// auto-collapse it under a "..." indicator. Four CTAs: dashboard
+// (preferences / pause), submit an event, event-share, and pay-it-forward.
 function digestFooterHtml(_firstName: string): string {
   return `
 <p style="font-family:${SANS};font-size:13px;line-height:1.7;color:${C.ink3};margin:24px 0 0;">
   <strong style="color:${C.accent};">Improve your matches?</strong> <strong style="color:${C.ink};"><a href="${DASHBOARD_LINK}" style="color:${C.ink};text-decoration:underline;text-underline-offset:3px;">Visit your dashboard.</a></strong><br>
   <strong style="color:${C.accent};">Know an event we should add?</strong> <strong style="color:${C.ink};">Email <a href="${NEW_EVENT_MAILTO}" style="color:${C.ink};text-decoration:underline;text-underline-offset:3px;">event@whispered.com</a></strong><br>
-  <strong style="color:${C.accent};">Want to let your network know which events you're attending?</strong> <strong style="color:${C.ink};"><a href="${DASHBOARD_LINK}" style="color:${C.ink};text-decoration:underline;text-underline-offset:3px;">Visit your dashboard.</a></strong>
+  <strong style="color:${C.accent};">Want to let your network know which events you're attending?</strong> <strong style="color:${C.ink};"><a href="${DASHBOARD_LINK}" style="color:${C.ink};text-decoration:underline;text-underline-offset:3px;">Visit your dashboard.</a></strong><br>
+  <strong style="color:${C.accent};">Know of an unposted role?</strong> <strong style="color:${C.ink};">Share with Whispered.com &mdash; <a href="${PAY_IT_FORWARD_LINK}" style="color:${C.ink};text-decoration:underline;text-underline-offset:3px;">pay-it-forward</a> and get discounts when you need help in your career</strong>
 </p>
 `.trim()
 }
@@ -188,6 +193,7 @@ function digestFooterTextLines(_firstName: string): string[] {
     `Improve your matches? Visit your dashboard: ${DASHBOARD_LINK}`,
     `Know an event we should add? Email event@whispered.com`,
     `Want to let your network know which events you're attending? Visit your dashboard: ${DASHBOARD_LINK}`,
+    `Know of an unposted role? Share with Whispered.com - pay-it-forward and get discounts when you need help in your career: ${PAY_IT_FORWARD_LINK}`,
   ]
 }
 
