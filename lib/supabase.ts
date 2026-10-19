@@ -1168,6 +1168,42 @@ export async function getLastBlastSentByUserId(): Promise<Map<string, string>> {
   return out
 }
 
+/**
+ * Lifetime coaching sends per user, from digest_sends where kind='coaching'.
+ *
+ * Backs the cap on the "no matches for you yet" nudge. That email asks the
+ * member to do something - widen their location, fix their profile - and by
+ * the fourth identical copy they have already declined three times, so it
+ * stops rather than repeating every 28 days forever.
+ *
+ * Counts rather than reads a timestamp, which is why this doesn't reuse
+ * get_last_digest_by_user. Coaching rows are rare (one per member per 28 days
+ * at the very most), so the whole set is small; the explicit limit overrides
+ * PostgREST's default max_rows so it can never silently truncate and read as
+ * "nobody has been coached".
+ */
+export async function getCoachingCountsByUserId(): Promise<Map<string, number> | null> {
+  const supabase = getClient()
+  const { data, error } = await supabase
+    .from('digest_sends')
+    .select('user_id')
+    .eq('kind', 'coaching')
+    .limit(100_000)
+  if (error) {
+    // null, not an empty map: an unknown count must not read as "nobody has
+    // ever been coached", which would re-coach everyone who had already hit
+    // the cap. The caller skips coaching entirely for the run instead.
+    console.error('getCoachingCountsByUserId error', error)
+    return null
+  }
+  const counts = new Map<string, number>()
+  for (const row of (data ?? []) as Array<{ user_id: string | null }>) {
+    if (!row.user_id) continue
+    counts.set(row.user_id, (counts.get(row.user_id) ?? 0) + 1)
+  }
+  return counts
+}
+
 export async function getLastSeenForUser(userId: string): Promise<string | null> {
   if (!userId) return null
   const supabase = getClient()

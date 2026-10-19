@@ -11,6 +11,7 @@ import type { DigestEventEntry } from './email'
 import { withinMiles } from './geocode'
 import {
   DigestMatchRow,
+  getCoachingCountsByUserId,
   getMatchCountsByUserId,
   getUnnotifiedMatchesForUser,
   getUpcomingMatchesForUser,
@@ -177,6 +178,12 @@ async function processUser(
 // (B/C never get coached — they couldn't clear the threshold anyway)
 // and a 28-day floor since their last digest/coaching send.
 const COACHING_FLOOR_DAYS = 28
+// Lifetime cap on the "no matches for you yet" nudge. The email asks the
+// member to act - widen their location, fix their profile - so a fourth
+// identical copy is talking to someone who has already declined three times.
+// After this they hear nothing until they genuinely have a match, at which
+// point the normal digest fires regardless of this cap.
+const MAX_COACHING_SENDS = 3
 // Resend's free tier allows 5 req/sec. Pause this long between any two
 // outbound emails so we stay safely under and don't 429. At ~50 users
 // per cron run with ~half getting sends, this adds ~6 seconds total —
@@ -201,6 +208,19 @@ function isCoachingEligible(
   const cutoff = now.getTime() - COACHING_FLOOR_DAYS * 86_400_000
   const t = new Date(lastSentIso).getTime()
   return Number.isFinite(t) && t < cutoff
+}
+
+/**
+ * Whether this member has had all the "no matches yet" nudges they are going
+ * to get. Applies ONLY to coaching - a recap goes to someone who does have
+ * matches and is a different conversation, so it stays uncapped.
+ *
+ * A null count means the read failed; treat that as capped so a bad query
+ * can't re-nudge everyone who was already done.
+ */
+function coachingCapReached(userId: string, counts: Map<string, number> | null): boolean {
+  if (!counts) return true
+  return (counts.get(userId) ?? 0) >= MAX_COACHING_SENDS
 }
 
 function recentlyTouched(
@@ -258,6 +278,7 @@ export async function runDigests(now: Date): Promise<{
   monthly: FrequencyStats
   arrive: { recapped: number; coached: number }
   failed: number
+  coachingCapped: number
 }> {
   const todayPT = ymdInPT(now)
   const allUsers = (await getActiveUsers()).filter(isMatchEligible)
@@ -265,6 +286,9 @@ export async function runDigests(now: Date): Promise<{
   const futureById = new Map(futureEvents.map((e) => [e.id, e]))
   const futureIds = futureEvents.map((e) => e.id)
   const lastSentByUserId = await getLastDigestSentByUserId()
+  // Lifetime coaching sends, so the "no matches yet" nudge can stop after
+  // MAX_COACHING_SENDS instead of repeating every 28 days forever.
+  const coachingCounts = await getCoachingCountsByUserId()
   const nearbyByUserId = buildNearbyCountMap(allUsers, futureEvents)
   // Total above-threshold match count per user — used to distinguish
   // 'no matches at all' (true coaching path) from 'has matches but
@@ -279,6 +303,9 @@ export async function runDigests(now: Date): Promise<{
   // a partially-failed run is visible in the cron log rather than looking
   // like a clean run with fewer sends.
   let failed = 0
+  // Members who would have been coached but have had their fill. Surfaced
+  // so the cap is visible in the cron log rather than looking like a quiet run.
+  let coachingCapped = 0
 
   for (const user of allUsers) {
     const lastSent = lastSentByUserId.get(user.id) ?? null
@@ -313,10 +340,12 @@ export async function runDigests(now: Date): Promise<{
             await safelySendRecap(user, futureById, futureIds, nearbyCount, matchCount)
             weekly.recapped += 1
             didSend = true
-          } else {
+          } else if (!coachingCapReached(user.id, coachingCounts)) {
             await safelySendCoaching(user, nearbyCount)
             weekly.coached += 1
             didSend = true
+          } else {
+            coachingCapped += 1
           }
         }
       } else if (user.frequency === 'Monthly') {
@@ -341,12 +370,16 @@ export async function runDigests(now: Date): Promise<{
             if (matchCount > 0) {
               await safelySendRecap(user, futureById, futureIds, nearbyCount, matchCount)
               monthly.recapped += 1
-            } else {
+              touched = true
+              didSend = true
+            } else if (!coachingCapReached(user.id, coachingCounts)) {
               await safelySendCoaching(user, nearbyCount)
               monthly.coached += 1
+              touched = true
+              didSend = true
+            } else {
+              coachingCapped += 1
             }
-            touched = true
-            didSend = true
           }
           await upsertDigestState(user.id, {
             nextMonthly: addDays(todayPT, COACHING_FLOOR_DAYS),
@@ -367,10 +400,12 @@ export async function runDigests(now: Date): Promise<{
           await safelySendRecap(user, futureById, futureIds, nearbyCount, matchCount)
           arriveRecapped += 1
           didSend = true
-        } else {
+        } else if (!coachingCapReached(user.id, coachingCounts)) {
           await safelySendCoaching(user, nearbyCount)
           arriveCoached += 1
           didSend = true
+        } else {
+          coachingCapped += 1
         }
       }
       // 'Paused' is intentionally skipped.
@@ -393,6 +428,7 @@ export async function runDigests(now: Date): Promise<{
     monthly,
     arrive: { recapped: arriveRecapped, coached: arriveCoached },
     failed,
+    coachingCapped,
   }
 }
 
